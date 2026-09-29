@@ -110,7 +110,10 @@ final class MeetingNotes: ObservableObject {
     #if DEBUG
     /// Self-test: notes and an answer for the newest meeting, printed, nothing saved.
     static func selfTest(question: String) async {
-        guard let record = MeetingStore.shared.meetings.first else { return print("Inga möten.") }
+        let args = CommandLine.arguments
+        let wanted = args.firstIndex(of: "--title").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
+        guard let record = MeetingStore.shared.meetings.first(where: { wanted == nil || $0.title.contains(wanted!) })
+        else { return print("Inga möten.") }
         let lines = Lines(record)
         print("Språk: \(lines.language), \(lines.lines.count) rader, \(lines.parts().count) del(ar)")
         do {
@@ -266,10 +269,14 @@ final class MeetingNotes: ObservableObject {
 
         var summary = MeetingSummary(overview: Self.tidy(overview))
         summary.title = overviews.first.map { Self.cleanTitle($0.title) }
-        // A decision or task must be found in what was said — otherwise it's left out.
+        // A decision or task must be found in what was said — in a line where someone
+        // decides, or says they'll do something. Otherwise it's left out: the small
+        // model likes to turn what a meeting is about into things to do.
         summary.decisions = outcomes.flatMap(\.decisions).compactMap { lines.checked($0.text, line: $0.line, strict: true) }
+            .filter { lines.says(.decision, at: $0.at) }
         summary.tasks = outcomes.flatMap(\.tasks).compactMap { task in
-            guard var item = lines.checked(task.text, line: task.line, strict: true) else { return nil }
+            guard var item = lines.checked(task.text, line: task.line, strict: true),
+                  lines.says(.intent, at: item.at) else { return nil }
             item.owner = lines.person(task.owner)
             return item
         }
@@ -532,6 +539,31 @@ struct Lines: Sendable {
     }
 
     func start(ofLine n: Int) -> Double? { lines.indices.contains(n - 1) ? lines[n - 1].start : nil }
+
+    enum Cue { case decision, intent }
+
+    /// Words that mark a decision or a promise, Swedish and English.
+    private static let cues: [Cue: [String]] = [
+        .decision: ["bestäm", "beslut", "överens", "kör på", "kör vi", "vi tar", "vi gör", "vi siktar", "siktar på", "då blir det",
+                    "vi väljer", "vi satsar", "vi håller med", "håller med", "så gör vi", "låt oss", "agreed", "decide", "decision",
+                    "let's", "we'll go", "we will", "go with", "settled"],
+        .intent: ["ska ", "ska jag", "jag tar", "jag fixar", "jag kollar", "jag skickar", "jag bokar", "jag gör", "jag ringer",
+                  "kan du", "kan ni", "fixar", "tar hand om", "kommer att", "måste", "behöver", "lovar", "bokar", "skickar",
+                  "ringer", "gör det", "i'll", "i will", "i can", "can you", "could you", "will you", "we'll", "need to",
+                  "going to", "take care"],
+    ]
+
+    /// Whether the line said at `at` (or the one right after, where the reply often is)
+    /// holds a decision or a promise.
+    func says(_ cue: Cue, at: Double?) -> Bool {
+        guard let at, let i = lines.lastIndex(where: { $0.start <= at + 0.05 }) else { return false }
+        let words = Self.cues[cue] ?? []
+        return [i, i + 1].contains { j in
+            guard lines.indices.contains(j) else { return false }
+            let text = " " + lines[j].text.lowercased() + " "
+            return words.contains { text.contains($0) }
+        }
+    }
 
     /// The item, with the moment it was said — if the line the model named (or one
     /// close to it) really says it. `strict`: without a matching line, drop the item.
