@@ -55,6 +55,10 @@ final class MeetingSession: ObservableObject {
     private var recorder = Recorder(keepSamples: false)
     private var intake: AudioIntake?
     private var tracker: VoiceTracker?
+    /// The same voices with ten seconds of context: slower, steadier — what the
+    /// quick one says is confirmed or corrected by this one a few seconds later.
+    private var steady: VoiceTracker?
+    private var steadyScores: [Float] = []
     private var loop: Task<Void, Never>?
     /// Who is speaking: `VoiceTracker.speakers` scores per 10 ms, from the start.
     private var scores: [Float] = []
@@ -212,6 +216,7 @@ final class MeetingSession: ObservableObject {
         finished = nil
         pending = []
         scores = []
+        steadyScores = []
         settled = 0
         unresolved = 0
         aliases = [:]
@@ -286,6 +291,7 @@ final class MeetingSession: ObservableObject {
         do {
             try await SpeechEngine.shared.load(language)
             tracker = try await VoiceTracker.make(VoiceModels.live)
+            steady = try? await VoiceTracker.make(VoiceModels.final)
         } catch {
             Self.log.error("meeting models: \(error.localizedDescription, privacy: .public)")
             warning = tracker == nil && language.isInstalled
@@ -320,6 +326,7 @@ final class MeetingSession: ObservableObject {
     private func step(final: Bool) async {
         guard let intake else { return }
         let newAudio = intake.takeForVoices()
+        if let steady, !newAudio.isEmpty, let more = try? await steady.feed(newAudio) { steadyScores += more }
         if let tracker, !newAudio.isEmpty {
             do { scores += try await tracker.feed(newAudio) } catch {
                 Self.log.error("voices: \(error.localizedDescription, privacy: .public)")
@@ -332,7 +339,7 @@ final class MeetingSession: ObservableObject {
         if window.count > longest { window = Array(window.prefix(longest)) }
         let windowEnd = Double(from + window.count) / Double(Self.rate)
         let fresh = windowEnd - settled
-        guard fresh >= 0.5 || (final && fresh > 0) else { return resolveSpeakers(final: final) }
+        guard fresh >= 0.5 || (final && fresh > 0) else { return resolveSpeakers(final: false) }
 
         let timed: [WordTiming]
         do {
@@ -356,7 +363,7 @@ final class MeetingSession: ObservableObject {
             // Silence: nothing to wait for.
             pending = []
             if final { settle(upTo: windowEnd) } else if fresh > 3 { settle(upTo: windowEnd - 0.5) }
-            return resolveSpeakers(final: final)
+            return resolveSpeakers(final: false)
         }
 
         var cut: Int?
@@ -385,7 +392,7 @@ final class MeetingSession: ObservableObject {
         } else {
             pending = heard
         }
-        resolveSpeakers(final: final)
+        resolveSpeakers(final: false)
     }
 
     private func settle(upTo seconds: Double) {
@@ -396,18 +403,42 @@ final class MeetingSession: ObservableObject {
     /// Gives settled words their speaker once the voices have caught up with them;
     /// words still being written get a provisional one.
     private func resolveSpeakers(final: Bool) {
-        let frames = scores.count / VoiceTracker.speakers
-        if var words = record?.words, unresolved < words.count {
-            let from = unresolved
-            unresolved = Self.assignSentences(&words, from: from, scores: scores, final: final)
-            for i in from..<unresolved { if let s = words[i].speaker, let to = aliases[s] { words[i].speaker = to } }
-            record?.words = words
+        guard var words = record?.words else { return }
+        // Confirmed: sentences the steady voices cover get their speaker for good.
+        let confirmed = steady == nil ? scores : steadyScores
+        let from = unresolved
+        unresolved = Self.assignSentences(&words, from: from, scores: confirmed, final: final)
+        for i in from..<unresolved { if let s = words[i].speaker, let to = aliases[s] { words[i].speaker = to } }
+        // Not yet: the quick voices' guess, in the steady ones' numbering.
+        let map = steady == nil ? [:] : quickToSteady()
+        if unresolved < words.count {
+            var rest = Array(words[unresolved...])
+            _ = Self.assignSentences(&rest, from: 0, scores: scores, final: true)
+            for k in rest.indices {
+                guard let s = rest[k].speaker, s >= 0 else { continue }
+                let mapped = map[s] ?? s
+                rest[k].speaker = aliases[mapped] ?? mapped
+            }
+            words.replaceSubrange(unresolved..., with: rest)
         }
+        record?.words = words
         // Still being written: whoever is speaking in them so far.
+        let frames = scores.count / VoiceTracker.speakers
         if let first = pending.first, let last = pending.last, Int(first.start * 100) < frames {
             let s = Self.speaker(in: scores, from: first.start, to: last.end)
-            for j in pending.indices { pending[j].speaker = aliases[s] ?? s }
+            let mapped = s >= 0 ? (map[s] ?? s) : s
+            for j in pending.indices { pending[j].speaker = aliases[mapped] ?? mapped }
         }
+    }
+
+    /// Which steady speaker each quick one is, from the last minute they both heard.
+    private func quickToSteady() -> [Int: Int] {
+        let n = VoiceTracker.speakers
+        let frames = min(scores.count, steadyScores.count) / n
+        guard frames > 100 else { return [:] }
+        let start = max(0, frames - 6_000)
+        return Self.match(live: Array(steadyScores[(start * n)..<(frames * n)]),
+                          final: Array(scores[(start * n)..<(frames * n)]))
     }
 
     /// Gives each finished sentence from `start` on the speaker who spoke most during
@@ -472,6 +503,7 @@ final class MeetingSession: ObservableObject {
         if tracker != nil {
             await step(final: true)
             if let rest = try? await tracker?.finish() { scores += rest }
+            if let rest = try? await steady?.finish() { steadyScores += rest }
             resolveSpeakers(final: true)
         }
         if let activity { ProcessInfo.processInfo.endActivity(activity) }
@@ -507,7 +539,8 @@ final class MeetingSession: ObservableObject {
             let finalScores = try await VoiceTracker.score(file: url, config: VoiceModels.final)
             var words = timed.map { MeetingWord(text: $0.word, start: $0.startTime, end: $0.endTime) }
             guard !words.isEmpty || (record?.words.isEmpty ?? true) else { return }
-            let match = scores.isEmpty ? [:] : Self.match(live: scores, final: finalScores)
+            let live = steadyScores.isEmpty ? scores : steadyScores
+            let match = live.isEmpty ? [:] : Self.match(live: live, final: finalScores)
             _ = Self.assignSentences(&words, from: 0, scores: finalScores, final: true)
             for i in words.indices {
                 if let s = words[i].speaker, s >= 0 {
@@ -566,6 +599,7 @@ final class MeetingSession: ObservableObject {
         record = saved
         pending = []
         scores = []
+        steadyScores = []
         aliases = [:]
         finished = nil
         phase = .finishing(String(localized: "Lyssnar igenom hela mötet…"))
@@ -582,6 +616,7 @@ final class MeetingSession: ObservableObject {
             self.record = record
         }
         tracker = nil
+        steady = nil
         intake = nil
         loop = nil
         finished = record?.id

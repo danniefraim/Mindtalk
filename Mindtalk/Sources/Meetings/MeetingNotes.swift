@@ -174,7 +174,7 @@ final class MeetingNotes: ObservableObject {
     @Generable struct Overview {
         @Guide(description: "A short title for the meeting: two to five words, no date, no quotation marks.")
         var title: String
-        @Guide(description: "What the meeting was about and what came out of it, in one to three sentences, in the third person with the people's names (\"Anna och Erik gick igenom …\"). One sentence if the meeting was short.")
+        @Guide(description: "What the meeting was about and what came out of it, in one to three sentences, in the third person, naming people only as they are named before the colon in the transcript — never other names. One sentence if the meeting was short.")
         var summary: String
         @Guide(description: "Important facts, figures, concerns or ideas that came up. Empty for a short or casual conversation.", .maximumCount(6))
         var points: [Item]
