@@ -406,6 +406,33 @@ actor SpeechEngine {
         loaded = nil
     }
 
+    /// Like `transcribe`, with each word's time in seconds from the start of `samples`
+    /// — for meetings, where words are matched to who was speaking.
+    func transcribeTimed(samples: [Float], with model: SpeechModel) async throws -> [WordTiming] {
+        let asr = try await manager(for: model)
+        inFlight += 1
+        defer { inFlight -= 1 }
+        let lead = 4_800                                               // 0.3 s
+        var audio = [Float](repeating: 0, count: lead) + samples + [Float](repeating: 0, count: lead)
+        if audio.count < 24_000 { audio += [Float](repeating: 0, count: 24_000 - audio.count) }
+        var state = TdtDecoderState.make(decoderLayers: 2)
+        let result = try await asr.transcribe(audio, decoderState: &state)
+        let offset = Double(lead) / 16_000
+        return buildWordTimings(from: result.tokenTimings ?? []).map {
+            WordTiming(word: $0.word, startTime: max(0, $0.startTime - offset), endTime: max(0, $0.endTime - offset))
+        }
+    }
+
+    /// A whole recording, however long (read from disk in windows), with word times.
+    func transcribeFile(_ url: URL, with model: SpeechModel) async throws -> [WordTiming] {
+        let asr = try await manager(for: model)
+        inFlight += 1
+        defer { inFlight -= 1 }
+        var state = TdtDecoderState.make(decoderLayers: 2)
+        let result = try await asr.transcribe(url, decoderState: &state)
+        return buildWordTimings(from: result.tokenTimings ?? [])
+    }
+
     /// Transcribes 16 kHz mono samples. Short clips are padded with silence —
     /// the model needs at least a second of audio.
     func transcribe(samples: [Float], with model: SpeechModel) async throws -> String {

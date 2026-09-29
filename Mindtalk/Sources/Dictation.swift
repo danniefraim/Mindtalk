@@ -330,9 +330,18 @@ final class Dictation: ObservableObject {
         guard newEngine != engine else { return }
         engine = newEngine
         Settings.engine = newEngine
-        // Mid-dictation the old model finishes the job first.
-        if phase == .recording || phase == .transcribing { engineSwitchPending = true; return }
+        // Mid-dictation — or mid-meeting — the old model finishes the job first.
+        if phase == .recording || phase == .transcribing || MeetingSession.shared.isBusy {
+            engineSwitchPending = true; return
+        }
         if newEngine.isInstalled { loadModel() } else { refreshModels() }
+    }
+
+    /// A meeting has let go of the speech model: a language picked meanwhile takes over.
+    func meetingEnded() {
+        guard engineSwitchPending, phase == .idle else { return }
+        engineSwitchPending = false
+        if engine.isInstalled { loadModel() } else { refreshModels() }
     }
 
     /// Recomputes what's installed and the active engine's state.
@@ -430,7 +439,7 @@ final class Dictation: ObservableObject {
 
     /// Deletes Mindtalk's copy of a model to free up space.
     func removeModel(_ m: SpeechModel) {
-        guard m.isOwnInstall else { return }
+        guard m.isOwnInstall, !(MeetingSession.shared.isBusy && MeetingSession.shared.language == m) else { return }
         Task {
             await SpeechEngine.shared.unload(m)
             try? m.uninstall()
@@ -565,6 +574,10 @@ final class Dictation: ObservableObject {
     }
 
     private func begin() {
+        // One microphone, one model: a meeting being recorded has both.
+        if MeetingSession.shared.isRecording {
+            return report { $0.fail(String(localized: "Ett möte spelas in – diktering är pausad.")) }
+        }
         switch model {
         case .ready: break
         case .loading: return report { $0.fail(String(localized: "Språkmodellen startar – ett ögonblick…")) }

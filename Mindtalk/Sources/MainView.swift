@@ -3,20 +3,22 @@ import SwiftUI
 
 // MARK: - Main window
 //
-// A floating tab bar (TabBar.swift) and four pages:
+// A floating tab bar (TabBar.swift) and five pages:
 //   • Diktering — what's missing, statistics, how to use it, and a box to try it in
+//   • Möten — meetings in the room, written out live (Meetings/)
 //   • Senaste — the last dictations, to copy again
 //   • Ordlista — names and words spelled your way (VocabularyPage.swift)
 //   • Inställningar — shortcuts, text, app, sound, appearance, languages, about
 
 enum Page: String, CaseIterable, Identifiable {
-    case dictation, recent, vocabulary, settings
+    case dictation, meetings, recent, vocabulary, settings
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .dictation: return String(localized: "Diktering")
+        case .meetings: return String(localized: "Möten")
         case .recent: return String(localized: "Senaste")
         case .vocabulary: return String(localized: "Ordlista")
         case .settings: return String(localized: "Inställningar")
@@ -26,6 +28,7 @@ enum Page: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .dictation: return "waveform"
+        case .meetings: return "person.2.wave.2"
         case .recent: return "clock"
         case .vocabulary: return "character.book.closed"
         case .settings: return "slider.horizontal.3"
@@ -52,6 +55,7 @@ struct MainView: View {
                 ZStack {
                     switch page {
                     case .dictation: DictationPage(dictation: dictation, page: $page)
+                    case .meetings: MeetingsPage(session: .shared, store: .shared, voices: .shared, dictation: dictation)
                     case .recent: RecentPage(dictation: dictation)
                     case .vocabulary: VocabularyPage(vocabulary: .shared)
                     case .settings: SettingsPage(dictation: dictation, prefs: prefs)

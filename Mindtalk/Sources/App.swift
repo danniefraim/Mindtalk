@@ -39,6 +39,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             RunLoop.main.run()
         }
 
+        #if DEBUG
+        // Self-test: `Mindtalk --meeting file.wav [--model …] [--speed 2]` plays a recording
+        // through the meeting pipeline as if it were the microphone.
+        if let i = args.firstIndex(of: "--meeting"), i + 1 < args.count {
+            let model = args.firstIndex(of: "--model").flatMap { j in
+                j + 1 < args.count ? SpeechModel(rawValue: args[j + 1]) : nil
+            } ?? .swedish
+            let speed = args.firstIndex(of: "--speed").flatMap { j in j + 1 < args.count ? Double(args[j + 1]) : nil } ?? 1
+            Task {
+                await MeetingSession.shared.simulate(file: URL(fileURLWithPath: args[i + 1]), language: model, speed: speed)
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
+        #endif
+
         // Self-test: `Mindtalk --install multilingual` downloads, verifies and installs a model.
         if let i = args.firstIndex(of: "--install"), i + 1 < args.count, let model = SpeechModel(rawValue: args[i + 1]) {
             Task {
@@ -75,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         MediaControl.shared.restoreNow()
+        MeetingSession.shared.saveBeforeQuit()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -163,6 +180,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         // README screenshots: an onboarding step, or the dictation HUD.
         if Demo.onboardingStep != nil { showOnboarding(); return }
+        if CommandLine.arguments.contains("--demo-meeting") {
+            MeetingSession.shared.showDemo(finished: CommandLine.arguments.contains("--demo-finished"))
+        }
         if Demo.hud {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.dictation.demoRecording() }
             return
@@ -291,8 +311,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         ]))
         main.addItem(submenu("Visa", [
             item("Diktering", #selector(AppDelegate.menuDictation), "1"),
-            item("Senaste", #selector(AppDelegate.menuRecent), "2"),
-            item("Ordlista", #selector(AppDelegate.menuVocabulary), "3"),
+            item("Möten", #selector(AppDelegate.menuMeetings), "2"),
+            item("Senaste", #selector(AppDelegate.menuRecent), "3"),
+            item("Ordlista", #selector(AppDelegate.menuVocabulary), "4"),
         ]))
         let window = submenu("Fönster", [
             item("Minimera", #selector(NSWindow.performMiniaturize(_:)), "m"),
@@ -309,6 +330,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func menuAbout() { Self.showAbout() }
     @objc func menuSettings() { Self.showWindow(page: .settings) }
     @objc func menuDictation() { Self.showWindow(page: .dictation) }
+    @objc func menuMeetings() { Self.showWindow(page: .meetings) }
     @objc func menuRecent() { Self.showWindow(page: .recent) }
     @objc func menuVocabulary() { Self.showWindow(page: .vocabulary) }
 

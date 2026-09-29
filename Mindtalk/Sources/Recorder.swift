@@ -5,6 +5,8 @@ import CoreAudio
 /// Pianissimo expects. Samples live only in memory.
 final class Recorder: @unchecked Sendable {
     var onLevel: (@Sendable (Float) -> Void)?
+    /// Every converted chunk as it arrives (meetings: live transcription, the file on disk).
+    var onChunk: (@Sendable ([Float]) -> Void)?
     /// The input went away mid-recording (AirPods disconnected, device changed).
     var onInterrupted: (@Sendable () -> Void)?
     private var configObserver: NSObjectProtocol?
@@ -138,6 +140,7 @@ final class Recorder: @unchecked Sendable {
             for v in chunk { sum += v * v }
             let rms = chunk.isEmpty ? 0 : (sum / Float(chunk.count)).squareRoot()
             if recorder.keepSamples { recorder.lock.lock(); recorder.samples += chunk; recorder.lock.unlock() }
+            recorder.onChunk?(chunk)
             recorder.onLevel?(min(1, rms * 12))
         }
     }
