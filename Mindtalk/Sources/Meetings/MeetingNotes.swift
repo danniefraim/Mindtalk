@@ -24,8 +24,12 @@ struct MeetingSummary: Codable, Equatable {
         var owner: String? = nil
         /// Where it was said, in seconds — nil when no line could be checked.
         var at: Double? = nil
+        /// Tasks: ticked off.
+        var done: Bool? = nil
     }
 
+    /// A short title for the meeting, used unless you named it yourself.
+    var title: String? = nil
     var overview: String
     var decisions: [Item] = []
     var tasks: [Item] = []
@@ -63,11 +67,14 @@ final class MeetingNotes: ObservableObject {
         let lines = Lines(record)
         Task {
             defer { writing.remove(id) }
+            // Not while a meeting is being recorded: the live words come first.
+            while MeetingSession.shared.isRecording { try? await Task.sleep(for: .seconds(2)) }
             do {
                 let t0 = Date()
                 let summary = try await Self.write(lines)
                 guard var latest = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
                 latest.summary = summary
+                if !latest.userTitled, let title = summary.title, !title.isEmpty { latest.title = title }
                 MeetingStore.shared.save(latest)
                 Self.log.info("notes written in \(Date().timeIntervalSince(t0), format: .fixed(precision: 1)) s")
             } catch {
@@ -138,7 +145,7 @@ final class MeetingNotes: ObservableObject {
             default: break
             }
         }
-        return String(localized: "Apple Intelligence kunde inte svara just nu. Försök igen om en stund.")
+        return String(localized: "Apple Intelligence kunde inte göra klart just nu. Försök igen om en stund.")
     }
 
     // MARK: Writing notes
@@ -163,6 +170,8 @@ final class MeetingNotes: ObservableObject {
     }
 
     @Generable struct Overview {
+        @Guide(description: "A short title for the meeting: two to five words, no date, no quotation marks.")
+        var title: String
         @Guide(description: "What the meeting was about and what came out of it, in one to three sentences, in the third person with the people's names (\"Anna och Erik gick igenom …\"). One sentence if the meeting was short.")
         var summary: String
         @Guide(description: "Important facts, figures, concerns or ideas that came up. Empty for a short or casual conversation.", .maximumCount(6))
@@ -209,6 +218,7 @@ final class MeetingNotes: ObservableObject {
         }
 
         var summary = MeetingSummary(overview: Self.tidy(overview))
+        summary.title = overviews.first.map { Self.cleanTitle($0.title) }
         summary.decisions = outcomes.flatMap(\.decisions).compactMap { lines.checked($0.text, line: $0.line) }
         summary.tasks = outcomes.flatMap(\.tasks).compactMap { task in
             guard var item = lines.checked(task.text, line: task.line) else { return nil }
@@ -216,11 +226,14 @@ final class MeetingNotes: ObservableObject {
             return item
         }
         let taken = Set((summary.decisions + summary.tasks).compactMap(\.at))
+        // Worth remembering only if it can be shown where it was said — and few of
+        // them for a short talk, where the model otherwise pads.
         summary.points = overviews.flatMap(\.points).compactMap { lines.checked($0.text, line: $0.line) }
-            .filter { $0.at == nil || !taken.contains($0.at!) }
+            .filter { $0.at != nil && !taken.contains($0.at!) }
         summary.decisions = Self.unique(summary.decisions)
         summary.tasks = Self.unique(summary.tasks)
-        summary.points = Array(Self.unique(summary.points).prefix(8))
+        let words = lines.wordCount
+        summary.points = Array(Self.unique(summary.points).prefix(words < 150 ? 0 : words < 400 ? 2 : 8))
         return summary
     }
 
@@ -235,6 +248,35 @@ final class MeetingNotes: ObservableObject {
         let sources = reply.lines.compactMap { lines.start(ofLine: $0) }
         return MeetingAnswer(question: question, answer: Self.tidy(reply.answer),
                              sources: Array(Set(sources)).sorted())
+    }
+
+    nonisolated private static func cleanTitle(_ raw: String) -> String {
+        var t = raw.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'”“«».")))
+        if t.count > 60 { t = String(t.prefix(60)) }
+        return t.prefix(1).uppercased() + t.dropFirst()
+    }
+
+    /// The notes as Markdown — for mail, Slack, a document.
+    static func markdown(_ record: MeetingRecord) -> String {
+        let cast = record.cast
+        var out = "# \(record.title)\n\n"
+        let date = record.date.formatted(Date.FormatStyle(date: .long, time: .shortened).locale(AppLanguage.locale))
+        let people = cast.order.map { cast.name(of: $0) }.joined(separator: ", ")
+        out += people.isEmpty ? "\(date)\n\n" : "\(date) · \(people)\n\n"
+        guard let s = record.summary else { return out + MeetingText.plain(record) }
+        out += s.overview + "\n"
+        func section(_ title: String, _ items: [MeetingSummary.Item], task: Bool = false) {
+            guard !items.isEmpty else { return }
+            out += "\n## \(title)\n"
+            for i in items {
+                let box = task ? (i.done == true ? "[x] " : "[ ] ") : ""
+                out += "- \(box)\(i.text)\(i.owner.map { " (\($0))" } ?? "")\n"
+            }
+        }
+        section(String(localized: "Beslut"), s.decisions)
+        section(String(localized: "Att göra"), s.tasks, task: true)
+        section(String(localized: "Värt att komma ihåg"), s.points)
+        return out
     }
 
     /// Drops a sentence said twice (small models sometimes loop).
@@ -265,6 +307,7 @@ struct Lines: Sendable {
 
     let lines: [Line]
     let language: String
+    var wordCount: Int { lines.reduce(0) { $0 + $1.text.split(separator: " ").count } }
     private let people: [String]
 
     @MainActor init(_ record: MeetingRecord) {

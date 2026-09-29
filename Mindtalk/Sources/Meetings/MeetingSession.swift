@@ -41,8 +41,9 @@ final class MeetingSession: ObservableObject {
     @Published private(set) var record: MeetingRecord?
     /// Words still being written: they may change until a pause settles them.
     @Published private(set) var pending: [MeetingWord] = []
-    @Published private(set) var levels = [Float](repeating: 0, count: 24)
     @Published private(set) var startedAt: Date?
+    /// Something to know while recording: no sound, the mic changed, no voices.
+    @Published private(set) var warning: String?
     /// The meeting that just finished — the page keeps showing it.
     @Published private(set) var finished: UUID?
     @Published var lastError: String?
@@ -64,8 +65,26 @@ final class MeetingSession: ObservableObject {
     /// The first word whose speaker isn't known yet.
     private var unresolved = 0
     private var activity: NSObjectProtocol?
-    private var lastLevelPush = Date.distantPast
     private var lastSave = Date()
+    /// When the room last sounded like someone speaking.
+    private var lastHeard = Date()
+    /// Two voices said to be one person: speaker → the one it became.
+    private var aliases: [Int: Int] = [:]
+    /// Live scores kept after a meeting, for the final pass to carry names across.
+    private var sleepObserver: NSObjectProtocol?
+
+    private init() {
+        // A Mac going to sleep ends the meeting cleanly rather than cutting it off.
+        sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated {
+                let session = MeetingSession.shared
+                guard session.isRecording else { return }
+                session.lastError = String(localized: "Mötet avslutades när Macen gick i vila.")
+                session.stop()
+            }
+        }
+    }
 
     private static let rate = 16_000
 
@@ -140,9 +159,10 @@ final class MeetingSession: ObservableObject {
             MeetingWord(text: $1, start: t + Double($0) * 0.38, end: t + Double($0) * 0.38 + 0.3, speaker: 1)
         }
         startedAt = Date().addingTimeInterval(-754)
-        levels = [0.1, 0.3, 0.5, 0.35, 0.6, 0.45, 0.2, 0.5, 0.7, 0.4, 0.3, 0.55, 0.65, 0.4, 0.25, 0.5, 0.6, 0.3,
-                  0.2, 0.45, 0.6, 0.35, 0.5, 0.4]
-        phase = .recording
+        LiveMeter.shared.demo([0.1, 0.3, 0.5, 0.35, 0.6, 0.45, 0.2, 0.5, 0.7, 0.4, 0.3, 0.55, 0.65, 0.4, 0.25, 0.5, 0.6, 0.3,
+                  0.2, 0.45, 0.6, 0.35, 0.5, 0.4])
+        phase = CommandLine.arguments.contains("--demo-finishing")
+            ? .finishing(String(localized: "Lyssnar igenom hela mötet…")) : .recording
     }
 
     private func report(settled words: ArraySlice<MeetingWord>) {
@@ -161,7 +181,7 @@ final class MeetingSession: ObservableObject {
         guard dictation.phase == .idle else { return }
         language = dictation.engine
         guard language.isInstalled else {
-            lastError = String(localized: "Hämta \(language.title) först, under Inställningar → Språk.")
+            lastError = String(localized: "Ladda ned \(language.modelName) först, under Inställningar → Språk.")
             return
         }
         guard VoiceModels.isInstalled else { return }
@@ -170,14 +190,15 @@ final class MeetingSession: ObservableObject {
             return
         }
         let date = Date()
-        let new = MeetingRecord(title: MeetingRecord.defaultTitle(for: date), date: date, language: language)
+        var new = MeetingRecord(title: MeetingRecord.defaultTitle(for: date), date: date, language: language)
+        new.finished = false
         do {
             try MeetingStore.prepareFolder(for: new.id)
             let intake = try AudioIntake(file: MeetingStore.audioURL(for: new.id))
             self.intake = intake
             recorder = Recorder(keepSamples: false)
             recorder.onChunk = { chunk in intake.append(chunk) }
-            recorder.onLevel = { level in Task { @MainActor in MeetingSession.shared.push(level: level) } }
+            recorder.onLevel = { level in Task { @MainActor in MeetingSession.shared.heard(level) } }
             recorder.onInterrupted = { Task { @MainActor in MeetingSession.shared.inputChanged() } }
             try recorder.start(device: Microphones.shared.selectedDeviceID)
         } catch {
@@ -192,9 +213,13 @@ final class MeetingSession: ObservableObject {
         scores = []
         settled = 0
         unresolved = 0
+        aliases = [:]
+        warning = nil
         startedAt = date
         lastSave = date
+        lastHeard = date
         phase = .starting
+        Cue.start()
         activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated],
                                                          reason: "Recording a meeting")
         MeetingStore.shared.save(new)
@@ -227,7 +252,25 @@ final class MeetingSession: ObservableObject {
         if let record { MeetingStore.shared.save(record) }
     }
 
-    /// Mindtalk is quitting mid-meeting: keep what has been written.
+    /// Two voices that are one person — from now on too.
+    func merge(_ speaker: Int, into other: Int) {
+        guard var record else { return }
+        MeetingRecord.merge(speaker, into: other, in: &record)
+        for (from, to) in aliases where to == speaker { aliases[from] = other }
+        aliases[speaker] = other
+        for j in pending.indices where pending[j].speaker == speaker { pending[j].speaker = other }
+        self.record = record
+        MeetingStore.shared.save(record)
+    }
+
+    func move(words range: Range<Int>, to speaker: Int) {
+        guard var record else { return }
+        for i in range where record.words.indices.contains(i) { record.words[i].speaker = speaker }
+        self.record = record
+    }
+
+    /// Mindtalk is quitting mid-meeting: keep what has been written. It opens as
+    /// an unfinished meeting next time, ready to be finished.
     func saveBeforeQuit() {
         guard var record, isBusy else { return }
         record.words += pending
@@ -244,16 +287,31 @@ final class MeetingSession: ObservableObject {
             tracker = try await VoiceTracker.make(VoiceModels.live)
         } catch {
             Self.log.error("meeting models: \(error.localizedDescription, privacy: .public)")
-            lastError = error.localizedDescription
+            warning = tracker == nil && language.isInstalled
+                ? String(localized: "Rösterna kunde inte startas – texten skrivs utan talare.")
+                : error.localizedDescription
         }
         if phase == .starting { phase = .recording }
         while !Task.isCancelled, phase == .recording {
             await step(final: false)
-            if Date().timeIntervalSince(lastSave) > 20, let record {
+            if Date().timeIntervalSince(lastSave) > 20, var record {
                 lastSave = Date()
+                record.duration = Double(intake?.count ?? 0) / Double(Self.rate)
                 MeetingStore.shared.save(record)
             }
+            checkInput()
             try? await Task.sleep(for: .milliseconds(400))
+        }
+    }
+
+    /// Says so when the recording can't be trusted.
+    private func checkInput() {
+        if intake?.writeFailed == true {
+            warning = String(localized: "Ljudet kan inte sparas – är disken full? Texten skrivs ändå.")
+        } else if Date().timeIntervalSince(lastHeard) > 20 {
+            warning = String(localized: "Jag hör nästan ingenting – är rätt mikrofon vald?")
+        } else if warning == String(localized: "Jag hör nästan ingenting – är rätt mikrofon vald?") {
+            warning = nil
         }
     }
 
@@ -339,13 +397,15 @@ final class MeetingSession: ObservableObject {
     private func resolveSpeakers(final: Bool) {
         let frames = scores.count / VoiceTracker.speakers
         if var words = record?.words, unresolved < words.count {
-            unresolved = Self.assignSentences(&words, from: unresolved, scores: scores, final: final)
+            let from = unresolved
+            unresolved = Self.assignSentences(&words, from: from, scores: scores, final: final)
+            for i in from..<unresolved { if let s = words[i].speaker, let to = aliases[s] { words[i].speaker = to } }
             record?.words = words
         }
         // Still being written: whoever is speaking in them so far.
         if let first = pending.first, let last = pending.last, Int(first.start * 100) < frames {
             let s = Self.speaker(in: scores, from: first.start, to: last.end)
-            for j in pending.indices { pending[j].speaker = s }
+            for j in pending.indices { pending[j].speaker = aliases[s] ?? s }
         }
     }
 
@@ -358,8 +418,34 @@ final class MeetingSession: ObservableObject {
         while i < words.count {
             guard let j = sentenceEnd(words, from: i, final: final),
                   final || Int(words[j].end * 100) < frames else { break }
-            let s = speaker(in: scores, from: words[i].start, to: words[j].end)
-            for k in i...j { words[k].speaker = s }
+            // Usually one voice per sentence. But when someone takes over without a
+            // pause or a full stop, split where the voice clearly changes: three words
+            // or more in a row by someone else.
+            let perWord = (i...j).map { speaker(in: scores, from: words[$0].start, to: words[$0].end) }
+            var runs: [(from: Int, to: Int, speaker: Int)] = []
+            for (n, s) in perWord.enumerated() {
+                if let last = runs.last, last.speaker == s || s == MeetingWord.unknown {
+                    runs[runs.count - 1].to = i + n
+                } else {
+                    runs.append((i + n, i + n, s))
+                }
+            }
+            runs = runs.reduce(into: []) { merged, run in
+                if let last = merged.last, run.to - run.from < 2 || last.to - last.from < 2 && merged.count == 1 && last.speaker == MeetingWord.unknown {
+                    merged[merged.count - 1].to = run.to
+                } else {
+                    merged.append(run)
+                }
+            }
+            if runs.count <= 1 {
+                let s = speaker(in: scores, from: words[i].start, to: words[j].end)
+                for k in i...j { words[k].speaker = s }
+            } else {
+                for run in runs {
+                    let s = speaker(in: scores, from: words[run.from].start, to: words[run.to].end)
+                    for k in run.from...run.to { words[k].speaker = s }
+                }
+            }
             i = j + 1
         }
         return i
@@ -393,6 +479,12 @@ final class MeetingSession: ObservableObject {
         record.words += pending
         pending = []
         record.duration = Double(intake?.count ?? 0) / Double(Self.rate)
+        // A slip of the finger: nothing said, a few seconds long — not worth keeping.
+        if record.words.isEmpty, record.duration < 10 {
+            MeetingStore.shared.delete(record.id)
+            self.record = nil
+            return done()
+        }
         self.record = record
         MeetingStore.shared.save(record)
         Self.log.info("meeting recorded: \(Int(record.duration)) s, \(record.words.count) words")
@@ -406,17 +498,22 @@ final class MeetingSession: ObservableObject {
     /// Reads the whole recording once more: seamless words, voices with more context.
     private func refine() async {
         guard let id = record?.id, (record?.duration ?? 0) > 2 else { return }
-        let url = MeetingStore.audioURL(for: id)
         do {
+            let url = MeetingStore.audioURL(for: id)
             phase = .finishing(String(localized: "Lyssnar igenom hela mötet…"))
             let timed = try await SpeechEngine.shared.transcribeFile(url, with: language)
             phase = .finishing(String(localized: "Känner igen rösterna…"))
             let finalScores = try await VoiceTracker.score(file: url, config: VoiceModels.final)
             var words = timed.map { MeetingWord(text: $0.word, start: $0.startTime, end: $0.endTime) }
             guard !words.isEmpty || (record?.words.isEmpty ?? true) else { return }
-            let match = Self.match(live: scores, final: finalScores)
+            let match = scores.isEmpty ? [:] : Self.match(live: scores, final: finalScores)
             _ = Self.assignSentences(&words, from: 0, scores: finalScores, final: true)
-            for i in words.indices { if let s = words[i].speaker, s >= 0 { words[i].speaker = match[s] ?? s } }
+            for i in words.indices {
+                if let s = words[i].speaker, s >= 0 {
+                    let mapped = match[s] ?? s
+                    words[i].speaker = aliases[mapped] ?? mapped
+                }
+            }
             guard var updated = record else { return }       // names may have changed meanwhile
             updated.words = words
             updated.refined = true
@@ -429,15 +526,43 @@ final class MeetingSession: ObservableObject {
         }
     }
 
+    /// A meeting cut short — Mindtalk quit or crashed while recording: its recording
+    /// is on disk, so the final pass can still run, and the notes after it.
+    func finishInterrupted(_ id: UUID) {
+        guard phase == .idle, var saved = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
+        let url = MeetingStore.audioURL(for: id)
+        if let file = try? AVAudioFile(forReading: url) {
+            saved.duration = Double(file.length) / file.processingFormat.sampleRate
+        }
+        language = saved.language
+        record = saved
+        pending = []
+        scores = []
+        aliases = [:]
+        finished = nil
+        phase = .finishing(String(localized: "Lyssnar igenom hela mötet…"))
+        Task {
+            await refine()
+            done()
+        }
+    }
+
     private func done() {
+        if var record {
+            record.finished = true
+            MeetingStore.shared.save(record)
+            self.record = record
+        }
         tracker = nil
         intake = nil
         loop = nil
         finished = record?.id
         record = nil
         startedAt = nil
-        levels = [Float](repeating: 0, count: levels.count)
+        warning = nil
+        LiveMeter.shared.reset()
         phase = .idle
+        Updates.shared.meetingEnded()
         #if DEBUG
         if simulation != nil { simulation = nil; return }
         #endif
@@ -447,17 +572,21 @@ final class MeetingSession: ObservableObject {
 
     // MARK: Input
 
-    private func push(level: Float) {
-        guard isRecording, Date().timeIntervalSince(lastLevelPush) > 0.06 else { return }
-        lastLevelPush = Date()
-        levels.removeFirst()
-        levels.append(level)
+    private func heard(_ level: Float) {
+        guard isRecording else { return }
+        if level > 0.04 { lastHeard = Date() }
+        LiveMeter.shared.push(level)
     }
 
     /// The microphone went away (unplugged, AirPods gone): carry on with the system input.
     private func inputChanged() {
         guard isRecording else { return }
-        do { try recorder.start(device: nil) } catch { lastError = error.localizedDescription }
+        do {
+            try recorder.start(device: nil)
+            warning = String(localized: "Mikrofonen kopplades bort – inspelningen fortsätter med Macens mikrofon.")
+        } catch {
+            warning = error.localizedDescription
+        }
     }
 
     private static func same(_ a: String, _ b: String) -> Bool {
@@ -509,6 +638,28 @@ final class MeetingSession: ObservableObject {
     }
 }
 
+/// The sound level while recording, apart from the session — the waveform redraws
+/// many times a second, the transcript shouldn't.
+@MainActor
+final class LiveMeter: ObservableObject {
+    static let shared = LiveMeter()
+    @Published private(set) var levels = [Float](repeating: 0, count: 28)
+    private var last = Date.distantPast
+
+    func push(_ level: Float) {
+        guard Date().timeIntervalSince(last) > 0.06 else { return }
+        last = Date()
+        levels.removeFirst()
+        levels.append(level)
+    }
+
+    func reset() { levels = [Float](repeating: 0, count: levels.count) }
+
+    #if DEBUG
+    func demo(_ values: [Float]) { levels = Array((values + values).suffix(levels.count)) }
+    #endif
+}
+
 /// The meeting's audio as it arrives: kept in memory until its words have settled,
 /// handed to the voice tracker, and written to disk.
 final class AudioIntake: @unchecked Sendable {
@@ -521,6 +672,9 @@ final class AudioIntake: @unchecked Sendable {
     private let file: AVAudioFile
     private let queue = DispatchQueue(label: "ai.mindact.mindtalk.meeting-audio")
     private var closed = false
+    private var failed = false
+    /// Writing to disk has failed (full disk): the words carry on, the recording doesn't.
+    var writeFailed: Bool { queue.sync { failed } }
 
     init(file url: URL) throws {
         let settings: [String: Any] = [
@@ -544,7 +698,7 @@ final class AudioIntake: @unchecked Sendable {
                   let channel = pcm.floatChannelData?[0] else { return }
             pcm.frameLength = AVAudioFrameCount(chunk.count)
             chunk.withUnsafeBufferPointer { channel.update(from: $0.baseAddress!, count: chunk.count) }
-            try? file.write(from: pcm)
+            do { try file.write(from: pcm) } catch { failed = true }
         }
     }
 

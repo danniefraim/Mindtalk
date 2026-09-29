@@ -10,6 +10,8 @@ final class MeetingPlayer: ObservableObject {
     @Published private(set) var isPlaying = false
     @Published private(set) var time: Double = 0
     @Published private(set) var duration: Double = 0
+    /// 1×, 1.5× or 2× — meetings are often heard back faster.
+    @Published private(set) var rate: Float = 1
 
     private var player: AVAudioPlayer?
     private var ticker: AnyCancellable?
@@ -19,6 +21,8 @@ final class MeetingPlayer: ObservableObject {
         if meeting != id || player == nil {
             stop()
             guard let p = try? AVAudioPlayer(contentsOf: MeetingStore.audioURL(for: id)) else { return }
+            p.enableRate = true
+            p.rate = rate
             p.prepareToPlay()
             player = p
             meeting = id
@@ -36,6 +40,19 @@ final class MeetingPlayer: ObservableObject {
         guard let player else { return }
         if player.isPlaying { player.pause() } else { player.play() }
         tick()
+    }
+
+    func seek(to seconds: Double) {
+        guard let player else { return }
+        player.currentTime = min(max(0, seconds), player.duration)
+        tick()
+    }
+
+    func skip(_ seconds: Double) { seek(to: time + seconds) }
+
+    func cycleRate() {
+        rate = rate == 1 ? 1.5 : rate == 1.5 ? 2 : 1
+        player?.rate = rate
     }
 
     func stop() {

@@ -11,6 +11,16 @@
         }
       }
     },
+    " %@": {
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " %@"
+          }
+        }
+      }
+    },
     "%@ %lld %%": {
       "extractionState": "stale",
       "localizations": {
@@ -29,6 +39,7 @@
       }
     },
     "%@ / %@": {
+      "extractionState": "stale",
       "localizations": {
         "sv": {
           "stringUnit": {
@@ -423,6 +434,7 @@
       }
     },
     "%lld talare": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -434,6 +446,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld talare"
+          }
+        }
+      }
+    },
+    "+%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld"
           }
         }
       }
@@ -454,6 +482,58 @@
         }
       }
     },
+    "1,5×": {
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1,5×"
+          }
+        }
+      }
+    },
+    "15 sekunder bakåt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back 15 seconds"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "15 sekunder bakåt"
+          }
+        }
+      }
+    },
+    "15 sekunder framåt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forward 15 seconds"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "15 sekunder framåt"
+          }
+        }
+      }
+    },
+    "1×": {
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1×"
+          }
+        }
+      }
+    },
     "25 språk, bland annat svenska, engelska, tyska och franska.": {
       "localizations": {
         "en": {
@@ -466,6 +546,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "25 språk, bland annat svenska, engelska, tyska och franska."
+          }
+        }
+      }
+    },
+    "2×": {
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2×"
+          }
+        }
+      }
+    },
+    "?": {
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "?"
           }
         }
       }
@@ -488,6 +588,7 @@
       }
     },
     "Alla möten": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -499,6 +600,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Alla möten"
+          }
+        }
+      }
+    },
+    "Alla möten (⌘[)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All meetings (⌘[)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alla möten (⌘[)"
           }
         }
       }
@@ -554,6 +671,7 @@
       }
     },
     "Allt skrivs på din Mac. Texten finns under fliken Text.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -702,7 +820,24 @@
         }
       }
     },
+    "Apple Intelligence kunde inte göra klart just nu. Försök igen om en stund.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence couldn't finish right now. Try again in a moment."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence kunde inte göra klart just nu. Försök igen om en stund."
+          }
+        }
+      }
+    },
     "Apple Intelligence kunde inte svara just nu. Försök igen om en stund.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -730,6 +865,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Apple Intelligence laddas ned. Det går att slå på när det är klart."
+          }
+        }
+      }
+    },
+    "Apple Intelligence laddas ned. Sammanfatta när den är klar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence is downloading. Summarize when it's ready."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence laddas ned. Sammanfatta när den är klar."
           }
         }
       }
@@ -916,6 +1067,7 @@
       }
     },
     "Avsluta mötet": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -927,6 +1079,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Avsluta mötet"
+          }
+        }
+      }
+    },
+    "Avsluta mötet (⇧⌘R)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End meeting (⇧⌘R)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avsluta mötet (⇧⌘R)"
+          }
+        }
+      }
+    },
+    "Avsluta mötet och Mindtalk": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End meeting and quit"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avsluta mötet och Mindtalk"
           }
         }
       }
@@ -1095,6 +1279,22 @@
         }
       }
     },
+    "Byt namn på mötet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Byt namn på mötet"
+          }
+        }
+      }
+    },
     "Byt snabbt i menyraden – eller med ⌘1 och ⌘2 när menyn är öppen.": {
       "localizations": {
         "en": {
@@ -1220,6 +1420,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "De tas bort från din Mac och går inte att få tillbaka. ⌃⌥V har sedan inget att klistra in."
+          }
+        }
+      }
+    },
+    "Den här Macen kan inte köra Apple Intelligence. Texten finns under fliken Text.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac can't run Apple Intelligence. The text is under the Text tab."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den här Macen kan inte köra Apple Intelligence. Texten finns under fliken Text."
           }
         }
       }
@@ -1417,6 +1633,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Din vecka syns här när du börjar diktera."
+          }
+        }
+      }
+    },
+    "Dina möten hamnar här.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your meetings will show up here."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dina möten hamnar här."
           }
         }
       }
@@ -1621,6 +1853,22 @@
         }
       }
     },
+    "Ett möte spelas in": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A meeting is being recorded"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ett möte spelas in"
+          }
+        }
+      }
+    },
     "Ett möte spelas in – diktering är pausad.": {
       "localizations": {
         "en": {
@@ -1633,6 +1881,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ett möte spelas in – diktering är pausad."
+          }
+        }
+      }
+    },
+    "Fel talare? Flytta till…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wrong speaker? Move to…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fel talare? Flytta till…"
           }
         }
       }
@@ -1718,7 +1982,24 @@
         }
       }
     },
+    "Fortsätt spela in": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep recording"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsätt spela in"
+          }
+        }
+      }
+    },
     "Fråga": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1766,7 +2047,24 @@
         }
       }
     },
+    "Fråga om mötet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask about the meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fråga om mötet"
+          }
+        }
+      }
+    },
     "Frågor": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1834,6 +2132,7 @@
       }
     },
     "För att hålla isär vem som pratar behövs NVIDIA:s modell Nemotron 3 (%@). Den hämtas en gång och fungerar sedan offline.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1845,6 +2144,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "För att hålla isär vem som pratar behövs NVIDIA:s modell Nemotron 3 (%@). Den hämtas en gång och fungerar sedan offline."
+          }
+        }
+      }
+    },
+    "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (%@). Laddas ned en gång och fungerar sedan offline.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telling who's speaking needs Nemotron 3 from NVIDIA (%@). Downloaded once, then works offline."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (%@). Laddas ned en gång och fungerar sedan offline."
           }
         }
       }
@@ -1909,6 +2224,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Försök igen"
+          }
+        }
+      }
+    },
+    "Ge talaren ett namn": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name this speaker"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ge talaren ett namn"
           }
         }
       }
@@ -1993,6 +2324,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gör %@ redo för din Mac"
+          }
+        }
+      }
+    },
+    "Gör klart": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gör klart"
           }
         }
       }
@@ -2099,6 +2446,7 @@
       }
     },
     "Hämta": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2115,6 +2463,7 @@
       }
     },
     "Hämta %@ först, under Inställningar → Språk.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2131,6 +2480,7 @@
       }
     },
     "Hämtar NVIDIA:s modell Nemotron 3, som håller isär rösterna…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2444,7 +2794,6 @@
       }
     },
     "I dag": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2489,6 +2838,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "I dag: %@ ord · ≈ %@ sparad"
+          }
+        }
+      }
+    },
+    "I går": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yesterday"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I går"
           }
         }
       }
@@ -2606,6 +2971,22 @@
         }
       }
     },
+    "Inget hördes": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing was heard"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inget hördes"
+          }
+        }
+      }
+    },
     "Inget ord matchar ”%@”.": {
       "localizations": {
         "en": {
@@ -2623,6 +3004,7 @@
       }
     },
     "Inget sades": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2670,6 +3052,22 @@
         }
       }
     },
+    "Inspelningen, texten och sammanfattningen tas bort från din Mac och går inte att få tillbaka.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The recording, text and summary are removed from your Mac and can't be recovered."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspelningen, texten och sammanfattningen tas bort från din Mac och går inte att få tillbaka."
+          }
+        }
+      }
+    },
     "Inställningar": {
       "localizations": {
         "en": {
@@ -2703,6 +3101,22 @@
         }
       }
     },
+    "Inte klar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not done"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inte klar"
+          }
+        }
+      }
+    },
     "Inte klar än": {
       "extractionState": "stale",
       "localizations": {
@@ -2716,6 +3130,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inte klar än"
+          }
+        }
+      }
+    },
+    "Inte klart": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unfinished"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inte klart"
           }
         }
       }
@@ -2748,6 +3178,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Internetanslutningen bröts. Kontrollera nätverket och försök igen."
+          }
+        }
+      }
+    },
+    "Jag hör nästan ingenting – är rätt mikrofon vald?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I can barely hear anything – is the right microphone selected?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jag hör nästan ingenting – är rätt mikrofon vald?"
           }
         }
       }
@@ -2786,6 +3232,7 @@
       }
     },
     "Klicka för att ge talaren ett namn": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2949,6 +3396,54 @@
         }
       }
     },
+    "Kopiera sammanfattningen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy summary"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopiera sammanfattningen"
+          }
+        }
+      }
+    },
+    "Kopiera sammanfattningen (⇧⌘C)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy summary (⇧⌘C)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopiera sammanfattningen (⇧⌘C)"
+          }
+        }
+      }
+    },
+    "Kopiera svaret": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy answer"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopiera svaret"
+          }
+        }
+      }
+    },
     "Kopiera texten": {
       "localizations": {
         "en": {
@@ -2961,6 +3456,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kopiera texten"
+          }
+        }
+      }
+    },
+    "Kopiera texten (⇧⌘C)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy text (⇧⌘C)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopiera texten (⇧⌘C)"
           }
         }
       }
@@ -3143,6 +3654,22 @@
         }
       }
     },
+    "Källa, %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source, %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Källa, %@"
+          }
+        }
+      }
+    },
     "Källkod": {
       "extractionState": "stale",
       "localizations": {
@@ -3156,6 +3683,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Källkod"
+          }
+        }
+      }
+    },
+    "Känner igen rösten…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recognizing the voice…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Känner igen rösten…"
           }
         }
       }
@@ -3222,6 +3765,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ladda ned %@"
+          }
+        }
+      }
+    },
+    "Ladda ned %@ först, under Inställningar → Språk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download %@ first, under Settings → Languages."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda ned %@ först, under Inställningar → Språk."
           }
         }
       }
@@ -3319,6 +3878,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Laddar ned %lld %%"
+          }
+        }
+      }
+    },
+    "Laddar ned Nemotron 3": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading Nemotron 3"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddar ned Nemotron 3"
+          }
+        }
+      }
+    },
+    "Laddar ned Nemotron 3 från NVIDIA, som håller isär rösterna…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading Nemotron 3 from NVIDIA, which keeps the voices apart…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddar ned Nemotron 3 från NVIDIA, som håller isär rösterna…"
           }
         }
       }
@@ -3421,6 +4012,22 @@
         }
       }
     },
+    "Ljudet kan inte sparas – är disken full? Texten skrivs ändå.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The audio can't be saved – is the disk full? The text is still written."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ljudet kan inte sparas – är disken full? Texten skrivs ändå."
+          }
+        }
+      }
+    },
     "Ljudet på datorn lämnas som det är.": {
       "localizations": {
         "en": {
@@ -3501,6 +4108,22 @@
         }
       }
     },
+    "Lyssna från %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listen from %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssna från %@"
+          }
+        }
+      }
+    },
     "Lyssna härifrån": {
       "localizations": {
         "en": {
@@ -3513,6 +4136,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lyssna härifrån"
+          }
+        }
+      }
+    },
+    "Lyssna igenom": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listen through"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssna igenom"
+          }
+        }
+      }
+    },
+    "Lyssna igenom mötet igen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listen through the meeting again"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssna igenom mötet igen"
           }
         }
       }
@@ -3715,6 +4370,38 @@
         }
       }
     },
+    "Markera som inte klar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark as not done"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markera som inte klar"
+          }
+        }
+      }
+    },
+    "Markera som klar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark as done"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markera som klar"
+          }
+        }
+      }
+    },
     "Mellanslag": {
       "localizations": {
         "en": {
@@ -3731,6 +4418,22 @@
         }
       }
     },
+    "Mer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mer"
+          }
+        }
+      }
+    },
     "Mikrofon": {
       "localizations": {
         "en": {
@@ -3743,6 +4446,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mikrofon"
+          }
+        }
+      }
+    },
+    "Mikrofonen kopplades bort – inspelningen fortsätter med Macens mikrofon.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The microphone was disconnected – recording continues with the Mac's microphone."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofonen kopplades bort – inspelningen fortsätter med Macens mikrofon."
           }
         }
       }
@@ -3841,6 +4560,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mindtalk fungerar i alla appar – mejl, Slack, dokument, var du vill."
+          }
+        }
+      }
+    },
+    "Mindtalk gör klart mötet innan det avslutas, så att texten blir färdig.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk finishes the meeting before quitting, so the text is complete."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk gör klart mötet innan det avslutas, så att texten blir färdig."
           }
         }
       }
@@ -3994,6 +4729,23 @@
         }
       }
     },
+    "Möte": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Möte"
+          }
+        }
+      }
+    },
     "Möte %@": {
       "localizations": {
         "en": {
@@ -4010,6 +4762,22 @@
         }
       }
     },
+    "Möte spelas in · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording meeting · %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Möte spelas in · %@"
+          }
+        }
+      }
+    },
     "Möten": {
       "localizations": {
         "en": {
@@ -4022,6 +4790,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Möten"
+          }
+        }
+      }
+    },
+    "Mötet avbröts innan det blev klart. Inspelningen finns kvar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting was cut short. The recording is still here."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet avbröts innan det blev klart. Inspelningen finns kvar."
+          }
+        }
+      }
+    },
+    "Mötet avslutades när Macen gick i vila.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting ended when the Mac went to sleep."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet avslutades när Macen gick i vila."
           }
         }
       }
@@ -4043,6 +4843,7 @@
       }
     },
     "Namn": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4185,6 +4986,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Något gick fel under nedladdningen. Försök igen."
+          }
+        }
+      }
+    },
+    "Okänd talare": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown speaker"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Okänd talare"
           }
         }
       }
@@ -4470,7 +5287,40 @@
         }
       }
     },
+    "På din Mac · %@ och Apple Intelligence": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On your Mac · %@ and Apple Intelligence"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "På din Mac · %@ och Apple Intelligence"
+          }
+        }
+      }
+    },
+    "På din Mac · utan Apple Intelligence blir det text men ingen sammanfattning": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On your Mac · without Apple Intelligence you get the text but no summary"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "På din Mac · utan Apple Intelligence blir det text men ingen sammanfattning"
+          }
+        }
+      }
+    },
     "Radera": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4487,6 +5337,7 @@
       }
     },
     "Radera mötet?": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4503,6 +5354,7 @@
       }
     },
     "Radera mötet…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4519,6 +5371,7 @@
       }
     },
     "Radera…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4712,6 +5565,22 @@
         }
       }
     },
+    "Rösterna kunde inte startas – texten skrivs utan talare.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voices couldn't start – the text is written without speakers."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rösterna kunde inte startas – texten skrivs utan talare."
+          }
+        }
+      }
+    },
     "Röstkommandon": {
       "extractionState": "stale",
       "localizations": {
@@ -4729,6 +5598,22 @@
         }
       }
     },
+    "Samma person som…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Same person as…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Samma person som…"
+          }
+        }
+      }
+    },
     "Sammanfatta": {
       "localizations": {
         "en": {
@@ -4741,6 +5626,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sammanfatta"
+          }
+        }
+      }
+    },
+    "Sammanfatta igen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summarize again"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfatta igen"
           }
         }
       }
@@ -4794,6 +5695,38 @@
         }
       }
     },
+    "Skicka frågan": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send question"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skicka frågan"
+          }
+        }
+      }
+    },
+    "Skicka frågan (↩)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send question (↩)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skicka frågan (↩)"
+          }
+        }
+      }
+    },
     "Skriv en mening som Mindtalk kunde ha hört, t.ex. ”jag använder mind talk”": {
       "localizations": {
         "en": {
@@ -4828,6 +5761,7 @@
       }
     },
     "Skriv om": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4839,6 +5773,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skriv om"
+          }
+        }
+      }
+    },
+    "Skriver anteckningarna…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Writing the notes…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriver anteckningarna…"
           }
         }
       }
@@ -4875,6 +5825,22 @@
         }
       }
     },
+    "Skriver om sammanfattningen…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rewriting the summary…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriver om sammanfattningen…"
+          }
+        }
+      }
+    },
     "Skriver sammanfattningen på din Mac…": {
       "localizations": {
         "en": {
@@ -4887,6 +5853,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skriver sammanfattningen på din Mac…"
+          }
+        }
+      }
+    },
+    "Skriver sammanfattningen…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Writing the summary…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriver sammanfattningen…"
           }
         }
       }
@@ -4907,7 +5889,24 @@
         }
       }
     },
+    "Skrivet av Apple Intelligence på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Written by Apple Intelligence on your Mac and may be wrong. Click a time to see and hear what was said."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skrivet av Apple Intelligence på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades."
+          }
+        }
+      }
+    },
     "Skrivet av Apple Intelligence på din Mac. Klicka på en källa för att höra vad som faktiskt sades.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4924,6 +5923,7 @@
       }
     },
     "Skrivs ut med %@ medan ni pratar. Upp till åtta personer hålls isär.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4935,6 +5935,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skrivs ut med %@ medan ni pratar. Upp till åtta personer hålls isär."
+          }
+        }
+      }
+    },
+    "Sluta lyssna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop listening"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sluta lyssna"
           }
         }
       }
@@ -4968,6 +5984,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Slå på"
+          }
+        }
+      }
+    },
+    "Slå på Apple Intelligence för att få en sammanfattning. Texten finns under fliken Text.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn on Apple Intelligence to get a summary. The text is under the Text tab."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slå på Apple Intelligence för att få en sammanfattning. Texten finns under fliken Text."
           }
         }
       }
@@ -5102,6 +6134,22 @@
         }
       }
     },
+    "Spara som…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save as…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spara som…"
+          }
+        }
+      }
+    },
     "Sparad tid": {
       "extractionState": "stale",
       "localizations": {
@@ -5202,6 +6250,22 @@
         }
       }
     },
+    "Spela upp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spela upp"
+          }
+        }
+      }
+    },
     "Spelar in": {
       "localizations": {
         "en": {
@@ -5214,6 +6278,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Spelar in"
+          }
+        }
+      }
+    },
+    "Spelar in, %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording, %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spelar in, %@"
           }
         }
       }
@@ -5316,6 +6396,7 @@
       }
     },
     "Starta": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5327,6 +6408,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Starta"
+          }
+        }
+      }
+    },
+    "Starta möte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starta möte"
+          }
+        }
+      }
+    },
+    "Starta möte (⇧⌘R)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start meeting (⇧⌘R)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starta möte (⇧⌘R)"
           }
         }
       }
@@ -5788,6 +6901,38 @@
         }
       }
     },
+    "Ta bort mötet?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete the meeting?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort mötet?"
+          }
+        }
+      }
+    },
+    "Ta bort mötet…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete meeting…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort mötet…"
+          }
+        }
+      }
+    },
     "Ta bort tvekljud": {
       "extractionState": "stale",
       "localizations": {
@@ -5817,6 +6962,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ta bort ”%@” (⌘Z ångrar)"
+          }
+        }
+      }
+    },
+    "Ta bort…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort…"
           }
         }
       }
@@ -5919,7 +7080,24 @@
         }
       }
     },
+    "Texten blir mer exakt när det är klart.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text gets more accurate once it's done."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten blir mer exakt när det är klart."
+          }
+        }
+      }
+    },
     "Texten blir skarpare när det är klart.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5936,6 +7114,7 @@
       }
     },
     "Texten och inspelningen tas bort från din Mac och går inte att få tillbaka.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5968,6 +7147,38 @@
         }
       }
     },
+    "Texten skrivs medan ni pratar, och upp till åtta röster hålls isär. Berätta för de andra att du spelar in.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text is written as you talk, and up to eight voices are kept apart. Let the others know you're recording."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten skrivs medan ni pratar, och upp till åtta röster hålls isär. Berätta för de andra att du spelar in."
+          }
+        }
+      }
+    },
+    "Texten är den som skrevs live. Lyssna igenom mötet igen för en mer exakt text.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This is the text written live. Listen through the meeting again for more accurate text."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten är den som skrevs live. Lyssna igenom mötet igen för en mer exakt text."
+          }
+        }
+      }
+    },
     "Texten är där på ett par tiondels sekunder.": {
       "extractionState": "stale",
       "localizations": {
@@ -5985,6 +7196,22 @@
         }
       }
     },
+    "Tidigare i veckan": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Earlier this week"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidigare i veckan"
+          }
+        }
+      }
+    },
     "Tidigare möten": {
       "extractionState": "manual",
       "localizations": {
@@ -5998,6 +7225,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tidigare möten"
+          }
+        }
+      }
+    },
+    "Till nu": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jump to now"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Till nu"
           }
         }
       }
@@ -6282,6 +7525,22 @@
         }
       }
     },
+    "Två röster som är samma person slås ihop": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Two voices that are the same person are merged"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Två röster som är samma person slås ihop"
+          }
+        }
+      }
+    },
     "Två snabba behörigheter": {
       "extractionState": "stale",
       "localizations": {
@@ -6316,6 +7575,22 @@
         }
       }
     },
+    "Uppspelningshastighet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Playback speed"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uppspelningshastighet"
+          }
+        }
+      }
+    },
     "Utseende": {
       "extractionState": "stale",
       "localizations": {
@@ -6329,6 +7604,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Utseende"
+          }
+        }
+      }
+    },
+    "Vad bestämdes?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What was decided?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vad bestämdes?"
+          }
+        }
+      }
+    },
+    "Vad var det viktigaste?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What mattered most?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vad var det viktigaste?"
           }
         }
       }
@@ -6394,6 +7701,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vecka %lld"
+          }
+        }
+      }
+    },
+    "Vem gör vad?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Who does what?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vem gör vad?"
           }
         }
       }
@@ -6563,6 +7886,22 @@
         }
       }
     },
+    "Visa i texten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in text"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa i texten"
+          }
+        }
+      }
+    },
     "Visa inspelningen i Finder": {
       "localizations": {
         "en": {
@@ -6656,6 +7995,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa var det sades"
+          }
+        }
+      }
+    },
+    "Visar och spelar upp det som sades": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows and plays what was said"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visar och spelar upp det som sades"
           }
         }
       }
@@ -7237,6 +8592,33 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna Mindtalk…"
+          }
+        }
+      }
+    },
+    "Öppna mötet": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna mötet"
+          }
+        }
+      }
+    },
+    "”%@”": {
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "”%@”"
           }
         }
       }

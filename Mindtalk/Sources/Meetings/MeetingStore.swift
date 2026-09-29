@@ -37,6 +37,11 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     /// Notes written by Apple Intelligence (MeetingNotes.swift).
     var summary: MeetingSummary?
     var answers: [MeetingAnswer] = []
+    /// You named it — the notes don't give it a title then.
+    var userTitled = false
+    /// Recorded to the end. False while recording — and after a crash or a quit
+    /// mid-meeting, when the meeting can still be finished (MeetingSession.finishInterrupted).
+    var finished = true
 
     init(title: String, date: Date, language: SpeechModel) {
         self.title = title
@@ -57,25 +62,72 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         refined = try c.decodeIfPresent(Bool.self, forKey: .refined) ?? false
         summary = try c.decodeIfPresent(MeetingSummary.self, forKey: .summary)
         answers = try c.decodeIfPresent([MeetingAnswer].self, forKey: .answers) ?? []
+        userTitled = try c.decodeIfPresent(Bool.self, forKey: .userTitled) ?? false
+        finished = try c.decodeIfPresent(Bool.self, forKey: .finished) ?? true
     }
 
     /// Speakers in the order they first spoke.
-    var speakers: [Int] {
-        var seen: [Int] = []
-        for w in words { if let s = w.speaker, s >= 0, !seen.contains(s) { seen.append(s) } }
-        return seen
-    }
+    var speakers: [Int] { cast.order }
+
+    /// Who's who, worked out once — views ask it many times per redraw.
+    var cast: Cast { Cast(words: words, names: names) }
 
     /// "Anna", or "Talare 2" — numbered in the order people first spoke.
-    func name(of speaker: Int) -> String {
-        if let name = names[String(speaker)], !name.isEmpty { return name }
-        let number = (speakers.firstIndex(of: speaker) ?? speakers.count) + 1
-        return String(localized: "Talare \(number)")
+    func name(of speaker: Int) -> String { cast.name(of: speaker) }
+
+    /// "Möte tisdag 29 september" — the notes replace it with a real title.
+    static func defaultTitle(for date: Date) -> String {
+        let day = date.formatted(Date.FormatStyle().weekday(.wide).day().month(.wide).locale(AppLanguage.locale))
+        return String(localized: "Möte \(day)")
     }
 
-    static func defaultTitle(for date: Date) -> String {
-        let when = date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened).locale(AppLanguage.locale))
-        return String(localized: "Möte \(when)")
+    /// "I dag 22:30", "I går 09:15", "tisdag 14:00" this week, then the date.
+    static func when(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let time = date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale))
+        if calendar.isDateInToday(date) { return String(localized: "I dag \(time)") }
+        if calendar.isDateInYesterday(date) { return String(localized: "I går \(time)") }
+        if let days = calendar.dateComponents([.day], from: date, to: Date()).day, days < 6 {
+            let weekday = date.formatted(Date.FormatStyle().weekday(.wide).locale(AppLanguage.locale))
+            return "\(weekday) \(time)"
+        }
+        let sameYear = calendar.isDate(date, equalTo: Date(), toGranularity: .year)
+        let style = sameYear ? Date.FormatStyle().day().month(.abbreviated) : Date.FormatStyle().day().month(.abbreviated).year()
+        return "\(date.formatted(style.locale(AppLanguage.locale))) \(time)"
+    }
+}
+
+/// The speakers of a meeting: their order, numbers and names.
+struct Cast: Equatable {
+    let order: [Int]
+    let names: [String: String]
+
+    init(words: [MeetingWord], names: [String: String]) {
+        var seen: [Int] = []
+        var known = Set<Int>()
+        for w in words { if let s = w.speaker, s >= 0, known.insert(s).inserted { seen.append(s) } }
+        order = seen
+        self.names = names
+    }
+
+    func number(of speaker: Int) -> Int { (order.firstIndex(of: speaker) ?? order.count) + 1 }
+
+    func name(of speaker: Int) -> String {
+        if let name = names[String(speaker)], !name.isEmpty { return name }
+        return String(localized: "Talare \(number(of: speaker))")
+    }
+
+    func isNamed(_ speaker: Int) -> Bool { !(names[String(speaker)] ?? "").isEmpty }
+}
+
+extension MeetingRecord {
+    static func merge(_ speaker: Int, into other: Int, in record: inout MeetingRecord) {
+        guard speaker != other else { return }
+        for i in record.words.indices where record.words[i].speaker == speaker { record.words[i].speaker = other }
+        if (record.names[String(other)] ?? "").isEmpty, let name = record.names[String(speaker)] {
+            record.names[String(other)] = name
+        }
+        record.names[String(speaker)] = nil
     }
 }
 
@@ -193,8 +245,32 @@ final class MeetingStore: ObservableObject {
     }
 
     func rename(_ id: UUID, to title: String) {
-        guard var record = meetings.first(where: { $0.id == id }) else { return }
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, var record = meetings.first(where: { $0.id == id }), record.title != title else { return }
         record.title = title
+        record.userTitled = true
+        save(record)
+    }
+
+    /// Ticks a task off (or back on).
+    func setDone(_ item: UUID, _ done: Bool, in id: UUID) {
+        guard var record = meetings.first(where: { $0.id == id }),
+              let i = record.summary?.tasks.firstIndex(where: { $0.id == item }) else { return }
+        record.summary?.tasks[i].done = done
+        save(record)
+    }
+
+    /// Two voices that are one person: `speaker`'s words become `into`'s.
+    func merge(_ speaker: Int, into other: Int, in id: UUID) {
+        guard var record = meetings.first(where: { $0.id == id }) else { return }
+        MeetingRecord.merge(speaker, into: other, in: &record)
+        save(record)
+    }
+
+    /// A turn said by someone else than Mindtalk thought.
+    func move(words range: Range<Int>, to speaker: Int, in id: UUID) {
+        guard var record = meetings.first(where: { $0.id == id }) else { return }
+        for i in range where record.words.indices.contains(i) { record.words[i].speaker = speaker }
         save(record)
     }
 

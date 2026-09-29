@@ -11,11 +11,14 @@ import Sparkle
 // "mindtalk") and signs each release in scripts/release.sh.
 
 @MainActor
-final class Updates: NSObject, ObservableObject, SPUStandardUserDriverDelegate {
+final class Updates: NSObject, ObservableObject, SPUStandardUserDriverDelegate, SPUUpdaterDelegate {
     static let shared = Updates()
 
     private lazy var controller = SPUStandardUpdaterController(
-        startingUpdater: false, updaterDelegate: nil, userDriverDelegate: self)
+        startingUpdater: false, updaterDelegate: self, userDriverDelegate: self)
+
+    /// An update waiting to install until the meeting being recorded is over.
+    private var postponed: (() -> Void)?
 
     /// A newer version found by a scheduled check — shown in the menu bar panel,
     /// since Sparkle's window may be behind other apps.
@@ -48,6 +51,23 @@ final class Updates: NSObject, ObservableObject, SPUStandardUserDriverDelegate {
         NSApp.activate()
         controller.checkForUpdates(nil)
         #endif
+    }
+
+    /// Never restart for an update in the middle of a meeting: it installs when
+    /// the meeting is over.
+    nonisolated func updater(_ updater: SPUUpdater, shouldPostponeRelaunchForUpdate item: SUAppcastItem,
+                             untilInvokingBlock installHandler: @escaping () -> Void) -> Bool {
+        MainActor.assumeIsolated {
+            guard MeetingSession.shared.isBusy else { return false }
+            postponed = installHandler
+            return true
+        }
+    }
+
+    func meetingEnded() {
+        let install = postponed
+        postponed = nil
+        install?()
     }
 
     // A menu bar app: a scheduled update is shown without taking focus — you may be

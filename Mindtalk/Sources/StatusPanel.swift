@@ -126,6 +126,7 @@ struct StatusPanelView: View {
     @ObservedObject var dictation: Dictation
     @ObservedObject var stats: Stats
     @ObservedObject var updates: Updates = .shared
+    @ObservedObject var meeting: MeetingSession = .shared
     let close: () -> Void
     /// A language that isn't downloaded yet, waiting for a yes before 600+ MB.
     @State private var confirming: SpeechModel?
@@ -153,6 +154,19 @@ struct StatusPanelView: View {
                 }
                 PanelSeparator()
             }
+            if meeting.isBusy {
+                PanelRow(title: "Öppna mötet") { go(.meetings) }
+                if meeting.isRecording {
+                    PanelRow(title: "Avsluta mötet", shortcut: "⇧⌘R") { meeting.stop() }
+                }
+                PanelSeparator()
+            } else if VoiceModels.isInstalled {
+                PanelRow(title: "Starta möte", shortcut: "⇧⌘R") {
+                    close()
+                    AppDelegate.showWindow(page: .meetings)
+                    meeting.start()
+                }
+            }
             PanelRow(title: "Öppna Mindtalk") { go(.dictation) }
             PanelRow(title: "Inställningar…", shortcut: "⌘,") { go(.settings) }
             PanelSeparator()
@@ -176,6 +190,14 @@ struct StatusPanelView: View {
                 Button("") { pick(m) }.keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
             }
             Button("") { go(.settings) }.keyboardShortcut(",", modifiers: .command)
+            Button("") {
+                if meeting.isRecording { meeting.stop() } else if meeting.phase == .idle, VoiceModels.isInstalled {
+                    close()
+                    AppDelegate.showWindow(page: .meetings)
+                    meeting.start()
+                }
+            }
+            .keyboardShortcut("r", modifiers: [.command, .shift])
             Button("") { NSApp.terminate(nil) }.keyboardShortcut("q", modifiers: .command)
         }
         .opacity(0)
@@ -218,6 +240,15 @@ struct StatusPanelView: View {
 
     @ViewBuilder private var status: some View {
         HStack(spacing: 5) {
+            if meeting.isRecording, let start = meeting.startedAt {
+                // A meeting has the mic: say so, with the time.
+                Circle().fill(DS.Colors.recording).frame(width: 6, height: 6)
+                TimelineView(.periodic(from: start, by: 1)) { context in
+                    Text("Möte spelas in · \(MeetingView.duration(context.date.timeIntervalSince(start)))").monospacedDigit()
+                }
+            } else if case .finishing(let what) = meeting.phase {
+                Text(what)
+            } else {
             switch dictation.phase {
             case .recording:
                 Circle().fill(DS.Colors.recording).frame(width: 6, height: 6)
@@ -257,6 +288,7 @@ struct StatusPanelView: View {
                         }
                     }
                 }
+            }
             }
         }
         .font(.system(size: 12.5))

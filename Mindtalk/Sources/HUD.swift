@@ -157,7 +157,7 @@ private struct RoundButton<Label: View>: View {
 }
 
 /// Mindtalk's text cursor — the I-beam from the icon.
-private struct CursorGlyph: View {
+struct CursorGlyph: View {
     var body: some View {
         Canvas { ctx, size in
             let stem: CGFloat = 1.8, w = size.width, h = size.height
@@ -172,7 +172,8 @@ private struct CursorGlyph: View {
 
 /// While the text is typed: the wave has settled into a line of text that ends
 /// in a blinking cursor — the icon, in motion.
-private struct SettlingLine: View {
+struct SettlingLine: View {
+    var color: Color = .white
     @State private var drawn = false
 
     var body: some View {
@@ -180,10 +181,10 @@ private struct SettlingLine: View {
             let on = Int(context.date.timeIntervalSinceReferenceDate / 0.45) % 2 == 0
             HStack(spacing: 4) {
                 Capsule()
-                    .fill(.white.opacity(0.75))
+                    .fill(color.opacity(0.75))
                     .frame(width: drawn ? 44 : 8, height: 2)
                 CursorGlyph()
-                    .foregroundStyle(.white)
+                    .foregroundStyle(color)
                     .frame(width: 7, height: 14)
                     .opacity(on ? 1 : 0.25)
             }

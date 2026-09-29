@@ -9,6 +9,7 @@ import SwiftUI
 struct FloatingTabBar: View {
     @Binding var page: Page
     @ObservedObject var dictation: Dictation
+    @ObservedObject private var meeting = MeetingSession.shared
     @State private var hovering = false
     @Namespace private var selection
 
@@ -54,6 +55,16 @@ struct FloatingTabBar: View {
                                 .matchedGeometryEffect(id: "tab", in: selection)
                         }
                     }
+                    // A meeting is being recorded — visible from every page.
+                    .overlay(alignment: .topTrailing) {
+                        if p == .meetings, meeting.isRecording {
+                            Circle().fill(DS.Colors.recording)
+                                .frame(width: 8, height: 8)
+                                .overlay(Circle().strokeBorder(DS.Colors.card, lineWidth: 1.5))
+                                .offset(x: -3, y: 3)
+                                .transition(.scale.combined(with: .opacity))
+                        }
+                    }
                 if expanded {
                     Text(p.title)
                         .font(.system(size: 15, weight: selected ? .semibold : .regular))
@@ -81,7 +92,7 @@ struct FloatingTabBar: View {
     /// Ready or not, at the foot of the bar: a dot, and the words when open.
     private var status: some View {
         HStack(spacing: 12) {
-            Circle().fill(dictation.needsSetup ? Color.orange : DS.Colors.good)
+            Circle().fill(meeting.isRecording ? DS.Colors.recording : dictation.needsSetup ? Color.orange : DS.Colors.good)
                 .frame(width: 7, height: 7)
                 .frame(width: 40, height: 22)
             if expanded {
@@ -96,6 +107,7 @@ struct FloatingTabBar: View {
     }
 
     private var statusText: String {
+        if meeting.isRecording { return String(localized: "Ett möte spelas in") }
         switch dictation.model {
         case .downloading(let p): return String(localized: "Laddar ned \(Int(p * 100)) %")
         case .loading: return String(localized: "Startar…")

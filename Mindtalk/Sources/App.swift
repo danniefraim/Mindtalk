@@ -121,6 +121,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.updateIcon() }
             .store(in: &cancellables)
+        // A meeting shows in the menu bar — a red dot and the time — wherever you are.
+        MeetingSession.shared.$phase
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.updateIcon()
+                DispatchQueue.main.async { self?.statusPanel.refit() }
+            }
+            .store(in: &cancellables)
 
         // Keep the panel's size in step with what's in it.
         dictation.$recent.combineLatest(dictation.$phase, dictation.$model)
@@ -217,6 +225,69 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
+    /// Recording: a red dot and the elapsed time. Finishing: the "working" icon.
+    private func showMeeting(_ meeting: MeetingSession) {
+        guard let button = statusItem.button else { return }
+        statusItem.length = NSStatusItem.variableLength
+        button.imagePosition = .imageLeading
+        if meeting.isRecording {
+            let dot = NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: String(localized: "Spelar in"))?
+                .withSymbolConfiguration(.init(paletteColors: [.white, .systemRed]))
+            dot?.isTemplate = false
+            button.image = dot
+            let tick = { [weak self] in
+                guard let start = MeetingSession.shared.startedAt else { return }
+                self?.statusItem.button?.title = " " + MeetingView.duration(Date().timeIntervalSince(start))
+            }
+            tick()
+            if meetingClock == nil {
+                meetingClock = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                    MainActor.assumeIsolated { tick() }
+                }
+            }
+        } else {
+            meetingClock?.invalidate()
+            meetingClock = nil
+            button.title = ""
+            statusItem.length = NSStatusItem.squareLength
+            let image = NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: "Mindtalk")
+            image?.isTemplate = true
+            button.image = image
+        }
+    }
+
+    // MARK: Quitting
+
+    /// Mid-meeting, quitting asks first — and finishes the meeting before it goes.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let meeting = MeetingSession.shared
+        guard meeting.isBusy else { return .terminateNow }
+        NSApp.activate()
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Ett möte spelas in")
+        alert.informativeText = String(localized: "Mindtalk gör klart mötet innan det avslutas, så att texten blir färdig.")
+        alert.addButton(withTitle: String(localized: "Avsluta mötet och Mindtalk"))
+        alert.addButton(withTitle: String(localized: "Fortsätt spela in"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }
+        if meeting.isRecording { meeting.stop() }
+        Task { @MainActor in
+            // The final pass, then quit — at most two minutes.
+            for _ in 0..<240 where MeetingSession.shared.isBusy { try? await Task.sleep(for: .milliseconds(500)) }
+            NSApp.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
+    @objc func toggleMeeting() {
+        let meeting = MeetingSession.shared
+        if meeting.isRecording {
+            meeting.stop()
+        } else if meeting.phase == .idle {
+            Self.showWindow(page: .meetings)
+            if VoiceModels.isInstalled { meeting.start() }
+        }
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if onboardingWindow?.isVisible == true { showOnboarding() } else { showWindow() }
         return false
@@ -224,7 +295,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // MARK: Status item
 
+    private var meetingClock: Timer?
+
     private func updateIcon() {
+        let meeting = MeetingSession.shared
+        guard !meeting.isBusy else { return showMeeting(meeting) }
+        meetingClock?.invalidate()
+        meetingClock = nil
+        statusItem.length = NSStatusItem.squareLength
+        statusItem.button?.title = ""
         let symbol: String
         switch dictation.phase {
         case .recording: symbol = "waveform.circle.fill"
@@ -317,6 +396,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             item("Klistra in", #selector(NSText.paste(_:)), "v"),
             item("Markera allt", #selector(NSText.selectAll(_:)), "a"),
         ]))
+        main.addItem(submenu("Möte", [
+            item("Starta möte", #selector(AppDelegate.toggleMeeting), "r", [.command, .shift]),
+        ]))
         main.addItem(submenu("Visa", [
             item("Diktering", #selector(AppDelegate.menuDictation), "1"),
             item("Möten", #selector(AppDelegate.menuMeetings), "2"),
@@ -346,6 +428,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// Quits and starts again (to switch the app's language), reopening the window on `page`.
     static func relaunch(showing page: Page) {
+        guard !MeetingSession.shared.isBusy else { return NSSound.beep() }
         UserDefaults.standard.set(page.rawValue, forKey: "reopenPage")
         let path = Bundle.main.bundlePath.replacingOccurrences(of: "'", with: "'\\''")
         let task = Process()
@@ -512,5 +595,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     static func updateDockPolicy() {
         let open = (NSApp.delegate as? AppDelegate)?.windowOpen ?? false
         NSApp.setActivationPolicy(open || Settings.showInDock ? .regular : .accessory)
+    }
+}
+
+extension AppDelegate: NSMenuItemValidation {
+    /// "Starta möte" becomes "Avsluta mötet" while one is recorded.
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        guard item.action == #selector(toggleMeeting) else { return true }
+        let meeting = MeetingSession.shared
+        item.title = meeting.isRecording ? String(localized: "Avsluta mötet") : String(localized: "Starta möte")
+        return meeting.isRecording || (meeting.phase == .idle && Dictation.shared.phase == .idle)
     }
 }

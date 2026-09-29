@@ -56,6 +56,8 @@ enum DS {
         /// The lighter end of the accent sheen.
         static let accentSoft = dynamic(light: 0x5A5A5A, dark: 0xFFFFFF)
         static let recording = Color.red
+        /// Something needs attention (not an error you caused): readable on paper and cards.
+        static let warning = dynamic(light: 0xA34A00, dark: 0xFF9F0A)
         static let good = Color(red: 0.20, green: 0.62, blue: 0.36)
 
         private static func dynamic(light: UInt32, dark: UInt32) -> Color {
@@ -104,6 +106,15 @@ extension View {
             }
             .scrollContentBackground(.hidden)
         }
+    }
+
+    /// The page's reading column, for pages that manage their own scrolling —
+    /// the same width and margins as `pageLayout()`.
+    func pageColumn(_ windowWidth: CGFloat) -> some View {
+        self
+            .frame(maxWidth: windowWidth > 1200 ? DS.Layout.wideReadingWidth : DS.Layout.readingWidth, alignment: .leading)
+            .padding(.horizontal, DS.Layout.pageHorizontal)
+            .frame(maxWidth: .infinity)
     }
 
     /// A raised surface: paper-white with a clear edge and a soft shadow, so it
