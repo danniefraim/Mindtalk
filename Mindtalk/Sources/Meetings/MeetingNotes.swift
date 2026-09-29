@@ -91,10 +91,12 @@ final class MeetingNotes: ObservableObject {
         answering.insert(id)
         failed[id] = nil
         let lines = Lines(record)
+        // The last questions, so "och vem?" knows what it follows.
+        let history = record.answers.suffix(2).map { "Q: \($0.question)\nA: \($0.answer)" }.joined(separator: "\n")
         Task {
             defer { answering.remove(id) }
             do {
-                let answer = try await Self.answer(question, from: lines)
+                let answer = try await Self.answer(question, from: lines, history: history)
                 guard var latest = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
                 latest.answers.append(answer)
                 MeetingStore.shared.save(latest)
@@ -156,7 +158,7 @@ final class MeetingNotes: ObservableObject {
     }
 
     @Generable struct Todo {
-        @Guide(description: "What will be done, a short sentence in your own words.") var text: String
+        @Guide(description: "Something a person will actually do after the meeting — an action, not a thought, opinion or feeling. A short sentence in your own words.") var text: String
         @Guide(description: "Who will do it: the name of the one who says they will, or who is asked to and agrees, exactly as written before the colon in the transcript. Empty if unclear.")
         var owner: String
         @Guide(description: "The number in brackets of the line where this is agreed.") var line: Int
@@ -165,7 +167,7 @@ final class MeetingNotes: ObservableObject {
     @Generable struct Outcomes {
         @Guide(description: "Every decision or agreement. Empty if nothing was decided.", .maximumCount(10))
         var decisions: [Item]
-        @Guide(description: "Every task someone takes on or is given for after the meeting. Empty if none.", .maximumCount(12))
+        @Guide(description: "Every action someone takes on or is given for after the meeting. Not thoughts or feelings. Empty if none.", .maximumCount(12))
         var tasks: [Todo]
     }
 
@@ -179,7 +181,7 @@ final class MeetingNotes: ObservableObject {
     }
 
     @Generable struct Reply {
-        @Guide(description: "The answer, short and direct, only from what is said in the transcript. If the transcript doesn't say, say so plainly.")
+        @Guide(description: "The answer in one to three full sentences, in your own words, only from what is said in the transcript. Don't copy whole lines. If the transcript doesn't say, say so plainly.")
         var answer: String
         @Guide(description: "The numbers in brackets of the lines the answer comes from. Empty if the transcript doesn't say.", .maximumCount(4))
         var lines: [Int]
@@ -283,10 +285,12 @@ final class MeetingNotes: ObservableObject {
         return summary
     }
 
-    nonisolated private static func answer(_ question: String, from lines: Lines) async throws -> MeetingAnswer {
-        let language = Lines.languageName(of: question) ?? lines.language
-        let context = lines.relevant(to: question)
-        let prompt = "Transcript:\n\(context)\n\nQuestion: \(question)"
+    nonisolated private static func answer(_ question: String, from lines: Lines, history: String = "") async throws -> MeetingAnswer {
+        // A short question ("vad?") is in the language of the meeting.
+        let language = question.split(separator: " ").count >= 3 ? Lines.languageName(of: question) ?? lines.language : lines.language
+        let context = lines.relevant(to: history + " " + question)
+        let earlier = history.isEmpty ? "" : "\n\nEarlier questions and answers:\n\(history)"
+        let prompt = "Transcript:\n\(context)\(earlier)\n\nQuestion: \(question)"
         let reply: Reply
         do {
             reply = try await session(instructions(
@@ -296,7 +300,8 @@ final class MeetingNotes: ObservableObject {
             // Refused as structure: the same as plain text, sources on a last line.
             log.error("answer: \(String(describing: error), privacy: .public)")
             let text = try await session(instructions(language, """
-                Answer the question about the meeting, short and direct. If the transcript doesn't answer it, say so. \
+                Answer the question about the meeting in one to three full sentences, in your own words — don't copy \
+                the transcript. If the transcript doesn't answer it, say so. \
                 On a last line write "SOURCES:" and the numbers of the lines the answer comes from.
                 """)).respond(to: prompt, options: options).content
             var answer: [String] = []
@@ -316,7 +321,7 @@ final class MeetingNotes: ObservableObject {
         // An answer is often a name or a yes, sharing no words with its line: the
         // lines it names are its sources, as long as they exist.
         let sources = reply.lines.compactMap { lines.start(ofLine: $0) }
-        return MeetingAnswer(question: question, answer: Self.tidy(cleaned),
+        return MeetingAnswer(question: question, answer: Self.firstSentences(Self.tidy(cleaned), 3),
                              sources: Array(Set(sources)).sorted())
     }
 
@@ -380,7 +385,7 @@ final class MeetingNotes: ObservableObject {
             TITLE: a title of two to five words
             SUMMARY: one to three sentences about what the meeting was about
             DECISION: a decision [n]
-            TASK: a task | who will do it [n]
+            TASK: a concrete action someone will do after the meeting | who will do it [n]
             POINT: an important point [n]
             Leave out DECISION, TASK or POINT lines when there are none.
             """).respond(to: text, options: options).content
@@ -408,6 +413,15 @@ final class MeetingNotes: ObservableObject {
             }
         }
         return p
+    }
+
+    nonisolated static func firstSentences(_ text: String, _ n: Int) -> String {
+        var out: [String] = []
+        text.enumerateSubstrings(in: text.startIndex..., options: .bySentences) { s, _, _, stop in
+            if let s = s?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty { out.append(s) }
+            if out.count >= n { stop = true }
+        }
+        return out.isEmpty ? text : out.joined(separator: " ")
     }
 
     /// Drops a sentence said twice (small models sometimes loop).
