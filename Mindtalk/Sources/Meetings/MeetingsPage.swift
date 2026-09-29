@@ -308,7 +308,12 @@ private struct MeetingRow: View {
                     Text(meta).font(.system(size: 12)).foregroundStyle(DS.Colors.muted).monospacedDigit()
                 }
                 Spacer(minLength: 12)
-                SpeakerStack(cast: cast)
+                if record.words.isEmpty {
+                    SpeakerStack(cast: cast)
+                } else {
+                    MeetingRibbon(record: record, cast: cast, segments: MeetingText.segments(record.words), compact: true)
+                        .frame(width: 96)
+                }
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(DS.Colors.faint)
@@ -496,6 +501,8 @@ struct MeetingView: View {
     @State private var tab: Tab = .summary
     /// "Visa i texten" from a source: the turn to scroll to.
     @State private var focusTurn: Int?
+    /// Underline what the final pass changed.
+    @State private var showChanges = false
     @FocusState private var editingTitle: Bool
 
     enum Tab: Hashable { case summary, transcript }
@@ -511,7 +518,8 @@ struct MeetingView: View {
                 ZStack {
                     if live || tab == .transcript {
                         TranscriptView(record: record, turns: turns, cast: cast, session: session, width: width,
-                                       edit: edit, focusTurn: $focusTurn)
+                                       edit: edit, focusTurn: $focusTurn,
+                                       changed: showChanges ? Set(record.heal?.changed ?? []) : [])
                             .transition(.opacity.combined(with: .offset(y: 6)))
                     } else {
                         SummaryView(record: record, turns: turns, cast: cast, notes: notes, width: width) { at in
@@ -547,6 +555,11 @@ struct MeetingView: View {
     // MARK: Header
 
     private func header(_ cast: Cast) -> some View {
+        let segments = MeetingText.segments(record.words)
+        return headerStack(cast, segments)
+    }
+
+    private func headerStack(_ cast: Cast, _ segments: [MeetingText.Segment]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
                 if let back {
@@ -597,6 +610,12 @@ struct MeetingView: View {
                     PillPicker(options: [(Tab.summary, "Sammanfattning"), (Tab.transcript, "Text")], selection: $tab)
                 }
             }
+            if !segments.isEmpty {
+                MeetingRibbon(record: record, cast: cast, segments: segments, live: live)
+                    .padding(.top, 4)
+                    .transition(.opacity)
+            }
+            healLine
             banner
         }
         .padding(.top, DS.Layout.pageTop - 10)
@@ -612,6 +631,35 @@ struct MeetingView: View {
     private var meta: String {
         let when = MeetingRecord.when(record.date)
         return live ? when : "\(when) · \(Self.duration(record.duration))"
+    }
+
+    /// What listening through the whole meeting changed — and a way to see it.
+    @ViewBuilder private var healLine: some View {
+        if !live, let heal = record.heal, heal.words + heal.speakers > 0 {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.seal").foregroundStyle(DS.Colors.muted)
+                Text(Self.healText(heal)).foregroundStyle(DS.Colors.muted)
+                if heal.words > 0 {
+                    Button(showChanges ? "Dölj ändringar" : "Visa ändringar") {
+                        withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
+                            showChanges.toggle()
+                            if showChanges { tab = .transcript }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12.5, weight: .semibold))
+                }
+            }
+            .font(.system(size: 12.5))
+        }
+    }
+
+    static func healText(_ heal: MeetingRecord.Heal) -> String {
+        var parts: [String] = []
+        if heal.words > 0 { parts.append(String(localized: "skärpte \(heal.words) ord")) }
+        if heal.speakers == 1 { parts.append(String(localized: "rättade 1 talarbyte")) }
+        if heal.speakers > 1 { parts.append(String(localized: "rättade \(heal.speakers) talarbyten")) }
+        return String(localized: "Genomlyssnat efter mötet: \(parts.joined(separator: String(localized: " och ")))")
     }
 
     /// A meeting that didn't get its final pass: say so, and offer it.
@@ -758,6 +806,7 @@ private struct TranscriptView: View {
     let width: CGFloat
     let edit: MeetingEdits
     @Binding var focusTurn: Int?
+    var changed: Set<Int> = []
     @ObservedObject private var player = MeetingPlayer.shared
     @State private var atBottom = true
     @State private var consent = true
@@ -779,9 +828,14 @@ private struct TranscriptView: View {
                     ForEach(Array(turns.enumerated()), id: \.element.id) { i, turn in
                         let newSpeaker = i == 0 || turns[i - 1].speaker != turn.speaker
                         let end = i + 1 < turns.count ? turns[i + 1].id : record.words.count
+                        let playing = isPlaying(turn, next: i + 1 < turns.count ? turns[i + 1].start : .infinity)
                         TurnRow(turn: turn, cast: cast, showName: newSpeaker, live: live,
                                 isLast: i == turns.count - 1,
-                                playing: isPlaying(turn, next: i + 1 < turns.count ? turns[i + 1].start : .infinity),
+                                playing: playing,
+                                words: live ? [] : Array(record.words[turn.id..<max(turn.id, end)]),
+                                firstIndex: turn.id,
+                                changed: changed,
+                                karaoke: playing ? player.time : nil,
                                 focused: focusTurn == turn.id,
                                 play: live ? nil : { player.play(record.id, from: turn.start) },
                                 move: turn.id < end && turn.pending.isEmpty
@@ -805,6 +859,11 @@ private struct TranscriptView: View {
             .onChange(of: record.words.count + (turns.last?.pending.count ?? 0)) { _, _ in
                 guard live, atBottom else { return }
                 withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo("end", anchor: .bottom) }
+            }
+            // Listening: the text follows the voice.
+            .onChange(of: playingTurn) { _, id in
+                guard let id, player.isPlaying else { return }
+                withAnimation(.smooth(duration: 0.6)) { proxy.scrollTo(id, anchor: .center) }
             }
             .onChange(of: focusTurn, initial: true) { _, id in
                 guard let id else { return }
@@ -841,6 +900,11 @@ private struct TranscriptView: View {
         }
     }
 
+    private var playingTurn: Int? {
+        guard player.meeting == record.id else { return nil }
+        return turns.last { $0.start - 0.4 <= player.time }?.id
+    }
+
     private func isPlaying(_ turn: MeetingTurn, next: Double) -> Bool {
         player.meeting == record.id && player.isPlaying && player.time >= turn.start - 0.4 && player.time < next - 0.4
     }
@@ -874,11 +938,18 @@ private struct TurnRow: View {
     let live: Bool
     let isLast: Bool
     let playing: Bool
+    /// The turn's words — for playback in step, and to show what the final pass changed.
+    var words: [MeetingWord] = []
+    var firstIndex = 0
+    var changed: Set<Int> = []
+    /// Listening: how far the voice has come.
+    var karaoke: Double? = nil
     let focused: Bool
     let play: (() -> Void)?
     let move: ((Int) -> Void)?
 
     private var speaker: Int? { turn.speaker.flatMap { $0 >= 0 ? $0 : nil } }
+    private var showsChanges: Bool { !changed.isEmpty && (firstIndex..<(firstIndex + words.count)).contains { changed.contains($0) } }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -944,10 +1015,15 @@ private struct TurnRow: View {
                     let on = Int(context.date.timeIntervalSinceReferenceDate / 0.45) % 2 == 0
                     text(cursor: on)
                 }
+            } else if !words.isEmpty, karaoke != nil || showsChanges {
+                Text(wordByWord)
             } else {
                 text(cursor: nil)
             }
         }
+        // Live: words settle from grey into ink rather than switching.
+        .contentTransition(.interpolate)
+        .animation(live ? .easeInOut(duration: 0.45) : nil, value: turn.text)
         .font(.system(size: 15))
         .lineSpacing(4)
         .textSelection(.enabled)
@@ -976,6 +1052,25 @@ private struct TurnRow: View {
             let glyph = Text(" \(Image(nsImage: Self.cursor))")
                 .foregroundStyle(DS.Colors.ink.opacity(cursor ? 0.9 : 0.15))
             out = Text("\(out)\(glyph)")
+        }
+        return out
+    }
+
+    /// The words one by one: said so far in ink, still to come in grey — and what the
+    /// final pass rewrote, underlined.
+    private var wordByWord: AttributedString {
+        var out = AttributedString()
+        // Your spellings and no hesitation sounds, as in the rest of the text — when
+        // the cleanup keeps the word count, so each word still has its time.
+        let cleaned = MeetingText.clean(words.map(\.text).joined(separator: " ")).split(separator: " ").map(String.init)
+        let shown = cleaned.count == words.count ? cleaned : words.map(\.text)
+        for (k, w) in words.enumerated() {
+            var piece = AttributedString((k == 0 ? "" : " ") + shown[k])
+            if let t = karaoke { piece.foregroundColor = w.start <= t ? .primary : DS.Colors.muted }
+            if changed.contains(firstIndex + k) {
+                piece.underlineStyle = Text.LineStyle(pattern: .solid, color: DS.Colors.accent.opacity(0.7))
+            }
+            out += piece
         }
         return out
     }

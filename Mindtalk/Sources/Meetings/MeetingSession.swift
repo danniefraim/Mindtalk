@@ -122,6 +122,7 @@ final class MeetingSession: ObservableObject {
         if let id = finished {
             if let saved = MeetingStore.shared.meetings.first(where: { $0.id == id }) {
                 print("\n=== Efter genomgången (\(saved.speakers.count) talare) ===\n" + MeetingText.plain(saved))
+                if let heal = saved.heal { print("\n" + MeetingView.healText(heal) + " – ändrade ord: " + heal.changed.map { saved.words[$0].text }.joined(separator: ", ")) }
             }
             MeetingStore.shared.delete(id)
         }
@@ -515,6 +516,7 @@ final class MeetingSession: ObservableObject {
                 }
             }
             guard var updated = record else { return }       // names may have changed meanwhile
+            if !updated.words.isEmpty { updated.heal = Self.heal(from: updated.words, to: words) }
             updated.words = words
             updated.refined = true
             record = updated
@@ -524,6 +526,32 @@ final class MeetingSession: ObservableObject {
             // The live transcript stays.
             Self.log.error("refine: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// What the final pass changed: words written differently, and turns given to
+    /// another speaker.
+    nonisolated static func heal(from live: [MeetingWord], to final: [MeetingWord]) -> MeetingRecord.Heal {
+        let key = { (w: MeetingWord) in w.text.lowercased().filter { $0.isLetter || $0.isNumber } }
+        let a = live.map(key), b = final.map(key)
+        var removed = Set<Int>(), inserted = Set<Int>()
+        for change in b.difference(from: a) {
+            switch change {
+            case .remove(let offset, _, _): removed.insert(offset)
+            case .insert(let offset, _, _): inserted.insert(offset)
+            }
+        }
+        // Words in both: did the speaker change? Counted once per run.
+        var i = 0, j = 0, turns = 0, inRun = false
+        while i < a.count, j < b.count {
+            if removed.contains(i) { i += 1; continue }
+            if inserted.contains(j) { j += 1; continue }
+            let was = live[i].speaker ?? -1, now = final[j].speaker ?? -1
+            let moved = was >= 0 && now >= 0 && was != now
+            if moved && !inRun { turns += 1 }
+            inRun = moved
+            i += 1; j += 1
+        }
+        return MeetingRecord.Heal(words: inserted.count, speakers: turns, changed: inserted.sorted())
     }
 
     /// A meeting cut short — Mindtalk quit or crashed while recording: its recording

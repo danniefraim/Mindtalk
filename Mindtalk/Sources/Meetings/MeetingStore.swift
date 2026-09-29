@@ -42,6 +42,17 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     /// Recorded to the end. False while recording — and after a crash or a quit
     /// mid-meeting, when the meeting can still be finished (MeetingSession.finishInterrupted).
     var finished = true
+    /// What the final pass changed compared with the live text.
+    var heal: Heal?
+
+    struct Heal: Codable, Equatable {
+        /// Words the final pass wrote differently.
+        var words: Int
+        /// Turns whose speaker it corrected.
+        var speakers: Int
+        /// Which words (indices into `words`) are new.
+        var changed: [Int]
+    }
 
     init(title: String, date: Date, language: SpeechModel) {
         self.title = title
@@ -64,6 +75,7 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         answers = try c.decodeIfPresent([MeetingAnswer].self, forKey: .answers) ?? []
         userTitled = try c.decodeIfPresent(Bool.self, forKey: .userTitled) ?? false
         finished = try c.decodeIfPresent(Bool.self, forKey: .finished) ?? true
+        heal = try c.decodeIfPresent(Heal.self, forKey: .heal)
     }
 
     /// Speakers in the order they first spoke.
@@ -181,6 +193,30 @@ enum MeetingText {
         return text
     }
     @MainActor private static var cache: [String: String] = [:]
+
+    /// Who spoke when: runs of one speaker, a pause of up to 1.5 s kept inside.
+    struct Segment: Equatable {
+        let speaker: Int
+        let start: Double
+        var end: Double
+    }
+
+    static func segments(_ words: [MeetingWord]) -> [Segment] {
+        var out: [Segment] = []
+        var last: Int?
+        for w in words {
+            var s = w.speaker ?? MeetingWord.unknown
+            if s < 0 { s = last ?? -1 }
+            guard s >= 0 else { continue }
+            if let i = out.indices.last, out[i].speaker == s, w.start - out[i].end < 1.5 {
+                out[i].end = w.end
+            } else {
+                out.append(Segment(speaker: s, start: w.start, end: w.end))
+            }
+            last = s
+        }
+        return out
+    }
 
     /// The whole meeting as plain text: "Anna: …" per turn.
     @MainActor static func plain(_ record: MeetingRecord) -> String {

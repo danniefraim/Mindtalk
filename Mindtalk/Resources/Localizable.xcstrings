@@ -21,6 +21,22 @@
         }
       }
     },
+    " och ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " and "
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " och "
+          }
+        }
+      }
+    },
     "%@ %lld %%": {
       "extractionState": "stale",
       "localizations": {
@@ -1768,6 +1784,22 @@
         }
       }
     },
+    "Dölj ändringar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide changes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dölj ändringar"
+          }
+        }
+      }
+    },
     "Eh, öh och um försvinner ur texten.": {
       "extractionState": "stale",
       "localizations": {
@@ -2240,6 +2272,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ge talaren ett namn"
+          }
+        }
+      }
+    },
+    "Genomlyssnat efter mötet: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listened through after the meeting: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genomlyssnat efter mötet: %@"
           }
         }
       }
@@ -7229,6 +7277,22 @@
         }
       }
     },
+    "Tidslinje: vem pratade när": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timeline: who spoke when"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidslinje: vem pratade när"
+          }
+        }
+      }
+    },
     "Till nu": {
       "localizations": {
         "en": {
@@ -7999,6 +8063,22 @@
         }
       }
     },
+    "Visa ändringar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show changes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa ändringar"
+          }
+        }
+      }
+    },
     "Visar och spelar upp det som sades": {
       "localizations": {
         "en": {
@@ -8374,6 +8454,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "ord i dag"
+          }
+        }
+      }
+    },
+    "rättade %lld talarbyten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "corrected %lld speaker changes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "rättade %lld talarbyten"
+          }
+        }
+      }
+    },
+    "rättade 1 talarbyte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "corrected 1 speaker change"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "rättade 1 talarbyte"
+          }
+        }
+      }
+    },
+    "skärpte %lld ord": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sharpened %lld words"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "skärpte %lld ord"
           }
         }
       }
