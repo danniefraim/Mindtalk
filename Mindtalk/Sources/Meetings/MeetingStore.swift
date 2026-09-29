@@ -34,6 +34,9 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     var names: [String: String] = [:]
     /// The final pass over the whole recording has run.
     var refined = false
+    /// Notes written by Apple Intelligence (MeetingNotes.swift).
+    var summary: MeetingSummary?
+    var answers: [MeetingAnswer] = []
 
     init(title: String, date: Date, language: SpeechModel) {
         self.title = title
@@ -52,6 +55,8 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         words = try c.decodeIfPresent([MeetingWord].self, forKey: .words) ?? []
         names = try c.decodeIfPresent([String: String].self, forKey: .names) ?? [:]
         refined = try c.decodeIfPresent(Bool.self, forKey: .refined) ?? false
+        summary = try c.decodeIfPresent(MeetingSummary.self, forKey: .summary)
+        answers = try c.decodeIfPresent([MeetingAnswer].self, forKey: .answers) ?? []
     }
 
     /// Speakers in the order they first spoke.

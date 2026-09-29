@@ -442,6 +442,7 @@ final class MeetingSession: ObservableObject {
         if simulation != nil { simulation = nil; return }
         #endif
         Dictation.shared.meetingEnded()
+        if let finished { MeetingNotes.shared.summarize(finished) }
     }
 
     // MARK: Input

@@ -42,6 +42,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         #if DEBUG
         // Self-test: `Mindtalk --meeting file.wav [--model …] [--speed 2]` plays a recording
         // through the meeting pipeline as if it were the microphone.
+        // `Mindtalk --notes "fråga"`: notes and an answer for the newest meeting.
+        if let i = args.firstIndex(of: "--notes"), i + 1 < args.count {
+            Task {
+                await MeetingNotes.selfTest(question: args[i + 1])
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         if let i = args.firstIndex(of: "--meeting"), i + 1 < args.count {
             let model = args.firstIndex(of: "--model").flatMap { j in
                 j + 1 < args.count ? SpeechModel(rawValue: args[j + 1]) : nil
