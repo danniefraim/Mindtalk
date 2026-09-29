@@ -14,7 +14,9 @@ import os
 //     shows as still being written. Pianissimo reads 14 s in about a tenth of a
 //     second, so this keeps up easily, and a word always has context on both
 //     sides before it settles. (Starting a window right at a word loses it.)
-// Each settled word gets the speaker who was most active while it was said.
+// Speakers are given per sentence — it ends at . ? ! or a pause — to whoever
+// spoke most during it: people take turns at sentences, and a short word alone
+// (the "Det" in "Det är bra.") says too little about a voice.
 //
 // When the meeting ends, the recording is read once more from start to finish:
 // words without seams, and voices with 10 s of context. Names given during the
@@ -337,20 +339,43 @@ final class MeetingSession: ObservableObject {
     private func resolveSpeakers(final: Bool) {
         let frames = scores.count / VoiceTracker.speakers
         if var words = record?.words, unresolved < words.count {
-            var i = unresolved
-            while i < words.count {
-                if words[i].speaker == nil {
-                    guard final || Int(words[i].end * 100) < frames else { break }
-                    words[i].speaker = Self.speaker(in: scores, from: words[i].start, to: words[i].end)
-                }
-                i += 1
-            }
-            unresolved = i
+            unresolved = Self.assignSentences(&words, from: unresolved, scores: scores, final: final)
             record?.words = words
         }
-        for j in pending.indices where Int(pending[j].end * 100) < frames {
-            pending[j].speaker = Self.speaker(in: scores, from: pending[j].start, to: pending[j].end)
+        // Still being written: whoever is speaking in them so far.
+        if let first = pending.first, let last = pending.last, Int(first.start * 100) < frames {
+            let s = Self.speaker(in: scores, from: first.start, to: last.end)
+            for j in pending.indices { pending[j].speaker = s }
         }
+    }
+
+    /// Gives each finished sentence from `start` on the speaker who spoke most during
+    /// it, once the voices cover it. Returns the first word still waiting.
+    nonisolated static func assignSentences(_ words: inout [MeetingWord], from start: Int, scores: [Float],
+                                            final: Bool) -> Int {
+        let frames = scores.count / VoiceTracker.speakers
+        var i = start
+        while i < words.count {
+            guard let j = sentenceEnd(words, from: i, final: final),
+                  final || Int(words[j].end * 100) < frames else { break }
+            let s = speaker(in: scores, from: words[i].start, to: words[j].end)
+            for k in i...j { words[k].speaker = s }
+            i = j + 1
+        }
+        return i
+    }
+
+    /// The last word of the sentence starting at `i`, or nil if it isn't over yet.
+    nonisolated static func sentenceEnd(_ words: [MeetingWord], from i: Int, final: Bool) -> Int? {
+        var k = i
+        while k < words.count {
+            if let c = words[k].text.last, ".?!".contains(c) { return k }
+            if k + 1 < words.count, words[k + 1].start - words[k].end >= 0.5 { return k }
+            if k - i >= 40 { return k }            // a very long run: don't wait forever
+            if k + 1 == words.count { return final ? k : nil }
+            k += 1
+        }
+        return nil
     }
 
     // MARK: The end
@@ -390,10 +415,8 @@ final class MeetingSession: ObservableObject {
             var words = timed.map { MeetingWord(text: $0.word, start: $0.startTime, end: $0.endTime) }
             guard !words.isEmpty || (record?.words.isEmpty ?? true) else { return }
             let match = Self.match(live: scores, final: finalScores)
-            for i in words.indices {
-                let s = Self.speaker(in: finalScores, from: words[i].start, to: words[i].end)
-                words[i].speaker = s >= 0 ? match[s] ?? s : s
-            }
+            _ = Self.assignSentences(&words, from: 0, scores: finalScores, final: true)
+            for i in words.indices { if let s = words[i].speaker, s >= 0 { words[i].speaker = match[s] ?? s } }
             guard var updated = record else { return }       // names may have changed meanwhile
             updated.words = words
             updated.refined = true
@@ -453,7 +476,7 @@ final class MeetingSession: ObservableObject {
         var sums = [Float](repeating: 0, count: n)
         for f in a..<b { for s in 0..<n { sums[s] += scores[f * n + s] } }
         guard let best = sums.indices.max(by: { sums[$0] < sums[$1] }) else { return MeetingWord.unknown }
-        return sums[best] / Float(b - a) > 0.2 ? best : MeetingWord.unknown
+        return sums[best] / Float(b - a) > 0.05 ? best : MeetingWord.unknown
     }
 
     /// Pairs the final pass's speakers with the live ones (by how much they speak at
