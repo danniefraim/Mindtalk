@@ -48,7 +48,7 @@ struct MeetingAnswer: Codable, Equatable, Identifiable {
 @MainActor
 final class MeetingNotes: ObservableObject {
     static let shared = MeetingNotes()
-    private static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "MeetingNotes")
+    nonisolated private static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "MeetingNotes")
 
     /// Meetings whose notes are being written right now.
     @Published private(set) var writing: Set<UUID> = []
@@ -196,32 +196,78 @@ final class MeetingNotes: ObservableObject {
 
     private static let options = GenerationOptions(sampling: .greedy)
 
+    /// The notes transform what was said in the meeting — Apple's guardrails for
+    /// that, so a meeting about, say, security or health isn't refused as a topic.
+    nonisolated private static var model: SystemLanguageModel {
+        SystemLanguageModel(guardrails: .permissiveContentTransformations)
+    }
+
+    nonisolated private static func session(_ instructions: String) -> LanguageModelSession {
+        LanguageModelSession(model: model, instructions: instructions)
+    }
+
     nonisolated private static func write(_ lines: Lines) async throws -> MeetingSummary {
         var outcomes: [Outcomes] = []
         var overviews: [Overview] = []
+        var lastError: Error?
+        // Each pass on its own: if one is refused, the rest of the notes still come.
+        // Apple's guardrails can refuse structured answers about some topics (security,
+        // health…) that they allow as plain text — then the same notes are asked for
+        // as lines in a fixed format and read back.
         for part in lines.parts() {
             let text = "Transcript:\n" + part
-            outcomes.append(try await LanguageModelSession(instructions: instructions(lines.language, "Find the decisions and the tasks."))
-                .respond(to: text, generating: Outcomes.self, options: options).content)
-            overviews.append(try await LanguageModelSession(instructions: instructions(
-                lines.language, "Write the overview and the important points, not repeating decisions or tasks."))
-                .respond(to: text, generating: Overview.self, options: options).content)
+            var fallback: Plain?
+            do {
+                outcomes.append(try await session(instructions(lines.language, "Find the decisions and the tasks."))
+                    .respond(to: text, generating: Outcomes.self, options: options).content)
+            } catch {
+                log.error("notes, decisions and tasks: \(String(describing: error), privacy: .public)")
+                lastError = error
+                fallback = try? await plain(text, lines.language)
+                if let fallback { outcomes.append(Outcomes(decisions: fallback.decisions, tasks: fallback.tasks)) }
+            }
+            do {
+                overviews.append(try await session(instructions(
+                    lines.language, "Write the overview and the important points, not repeating decisions or tasks."))
+                    .respond(to: text, generating: Overview.self, options: options).content)
+            } catch {
+                log.error("notes, overview: \(String(describing: error), privacy: .public)")
+                lastError = error
+                if fallback == nil { fallback = try? await plain(text, lines.language) }
+                if let fallback, !fallback.summary.isEmpty {
+                    overviews.append(Overview(title: fallback.title, summary: fallback.summary, points: fallback.points))
+                }
+            }
+        }
+        // Nothing at all: a plain summary, without structure, as a last try.
+        if overviews.isEmpty, outcomes.isEmpty {
+            do {
+                let plain = try await session("""
+                    Summarize this meeting transcript in \(lines.language) in two or three sentences, \
+                    only from what was said.
+                    """).respond(to: "Transcript:\n" + (lines.parts().first ?? ""), options: options).content
+                return MeetingSummary(overview: Self.tidy(plain))
+            } catch {
+                log.error("notes, plain: \(String(describing: error), privacy: .public)")
+                throw lastError ?? error
+            }
         }
         // A long meeting: one overview from the parts' overviews.
         var overview = overviews.first?.summary ?? ""
         if overviews.count > 1 {
             let parts = overviews.enumerated().map { "Part \($0.offset + 1): \($0.element.summary)" }.joined(separator: "\n")
-            overview = try await LanguageModelSession(instructions: """
+            overview = (try? await session("""
                 These are summaries of consecutive parts of one meeting. Write one summary of the whole meeting \
                 in \(lines.language), in two or three sentences. Only use what is in the summaries.
-                """).respond(to: parts, options: options).content
+                """).respond(to: parts, options: options).content) ?? overviews.map(\.summary).joined(separator: " ")
         }
 
         var summary = MeetingSummary(overview: Self.tidy(overview))
         summary.title = overviews.first.map { Self.cleanTitle($0.title) }
-        summary.decisions = outcomes.flatMap(\.decisions).compactMap { lines.checked($0.text, line: $0.line) }
+        // A decision or task must be found in what was said — otherwise it's left out.
+        summary.decisions = outcomes.flatMap(\.decisions).compactMap { lines.checked($0.text, line: $0.line, strict: true) }
         summary.tasks = outcomes.flatMap(\.tasks).compactMap { task in
-            guard var item = lines.checked(task.text, line: task.line) else { return nil }
+            guard var item = lines.checked(task.text, line: task.line, strict: true) else { return nil }
             item.owner = lines.person(task.owner)
             return item
         }
@@ -240,13 +286,37 @@ final class MeetingNotes: ObservableObject {
     nonisolated private static func answer(_ question: String, from lines: Lines) async throws -> MeetingAnswer {
         let language = Lines.languageName(of: question) ?? lines.language
         let context = lines.relevant(to: question)
-        let reply = try await LanguageModelSession(instructions: instructions(
-            language, "Answer the question about the meeting. If the transcript doesn't answer it, say so."))
-            .respond(to: "Transcript:\n\(context)\n\nQuestion: \(question)", generating: Reply.self, options: options).content
+        let prompt = "Transcript:\n\(context)\n\nQuestion: \(question)"
+        let reply: Reply
+        do {
+            reply = try await session(instructions(
+                language, "Answer the question about the meeting. If the transcript doesn't answer it, say so."))
+                .respond(to: prompt, generating: Reply.self, options: options).content
+        } catch {
+            // Refused as structure: the same as plain text, sources on a last line.
+            log.error("answer: \(String(describing: error), privacy: .public)")
+            let text = try await session(instructions(language, """
+                Answer the question about the meeting, short and direct. If the transcript doesn't answer it, say so. \
+                On a last line write "SOURCES:" and the numbers of the lines the answer comes from.
+                """)).respond(to: prompt, options: options).content
+            var answer: [String] = []
+            var sources: [Int] = []
+            for line in text.components(separatedBy: .newlines) {
+                if line.uppercased().contains("SOURCES:") || line.uppercased().contains("KÄLLOR:") {
+                    sources = line.split { !$0.isNumber }.compactMap { Int($0) }
+                } else if !line.trimmingCharacters(in: .whitespaces).isEmpty {
+                    answer.append(line)
+                }
+            }
+            reply = Reply(answer: Plain.unmark(answer.joined(separator: " ")), lines: Array(sources.prefix(4)))
+        }
+        // Lines quoted as "[4] Anna: …" read as the answer's words, not its references.
+        let cleaned = reply.answer.replacingOccurrences(of: #"\[\d+\]\s*([^:\n]{1,40}:\s*)?"#, with: "",
+                                                        options: .regularExpression)
         // An answer is often a name or a yes, sharing no words with its line: the
         // lines it names are its sources, as long as they exist.
         let sources = reply.lines.compactMap { lines.start(ofLine: $0) }
-        return MeetingAnswer(question: question, answer: Self.tidy(reply.answer),
+        return MeetingAnswer(question: question, answer: Self.tidy(cleaned),
                              sources: Array(Set(sources)).sorted())
     }
 
@@ -277,6 +347,67 @@ final class MeetingNotes: ObservableObject {
         section(String(localized: "Att göra"), s.tasks, task: true)
         section(String(localized: "Värt att komma ihåg"), s.points)
         return out
+    }
+
+    /// The notes as plain lines — for when structured answers are refused.
+    struct Plain {
+        var title = ""
+        var summary = ""
+        var decisions: [Item] = []
+        var tasks: [Todo] = []
+        var points: [Item] = []
+
+        /// "text [12]" → ("text", 12)
+        static func split(_ s: String) -> (String, Int) {
+            let t = s.trimmingCharacters(in: .whitespaces)
+            guard let open = t.lastIndex(of: "["), let n = Int(t[t.index(after: open)...].filter(\.isNumber)) else {
+                return (unmark(t), 0)
+            }
+            return (unmark(String(t[..<open])), n)
+        }
+
+        /// Without Markdown asterisks and stray quotes.
+        static func unmark(_ s: String) -> String {
+            s.replacingOccurrences(of: "**", with: "").trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\"*")))
+        }
+    }
+
+    nonisolated private static func plain(_ text: String, _ language: String) async throws -> Plain {
+        let reply = try await session("""
+            You read a meeting transcript. Each line is "[n] Name: what they said". Write in \(language), in your own \
+            words, short. Only use what was actually said. Answer in exactly this format, one item per line, and \
+            nothing else:
+            TITLE: a title of two to five words
+            SUMMARY: one to three sentences about what the meeting was about
+            DECISION: a decision [n]
+            TASK: a task | who will do it [n]
+            POINT: an important point [n]
+            Leave out DECISION, TASK or POINT lines when there are none.
+            """).respond(to: text, options: options).content
+        var p = Plain()
+        for raw in reply.components(separatedBy: .newlines) {
+            let line = raw.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "-•*")))
+            guard let colon = line.firstIndex(of: ":") else { continue }
+            let key = line[..<colon].uppercased().trimmingCharacters(in: .whitespaces)
+            let value = String(line[line.index(after: colon)...])
+            switch key {
+            case "TITLE", "TITEL": p.title = Plain.unmark(value)
+            case "SUMMARY", "SAMMANFATTNING": p.summary = Plain.unmark(value)
+            case "DECISION", "BESLUT":
+                let (t, n) = Plain.split(value); if !t.isEmpty { p.decisions.append(Item(text: t, line: n)) }
+            case "TASK", "UPPGIFT":
+                let (t, n) = Plain.split(value)
+                let parts = t.components(separatedBy: "|")
+                let what = parts[0].trimmingCharacters(in: .whitespaces)
+                if !what.isEmpty {
+                    p.tasks.append(Todo(text: what, owner: parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespaces) : "", line: n))
+                }
+            case "POINT", "PUNKT":
+                let (t, n) = Plain.split(value); if !t.isEmpty { p.points.append(Item(text: t, line: n)) }
+            default: continue
+            }
+        }
+        return p
     }
 
     /// Drops a sentence said twice (small models sometimes loop).
