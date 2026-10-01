@@ -180,6 +180,22 @@
         }
       }
     },
+    "%@ skriver om sammanfattningen…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is rewriting the summary…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ skriver om sammanfattningen…"
+          }
+        }
+      }
+    },
     "%@ · %@": {
       "localizations": {
         "en": {
@@ -1664,6 +1680,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Det fungerar. Så enkelt är det – i alla appar."
+          }
+        }
+      }
+    },
+    "Det tar några sekunder. Den gamla syns tills den nya är klar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It takes a few seconds. The old one shows until the new one is ready."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det tar några sekunder. Den gamla syns tills den nya är klar."
           }
         }
       }
@@ -3453,6 +3485,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klar"
+          }
+        }
+      }
+    },
+    "Klar – en ny sammanfattning": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done – a new summary"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klar – en ny sammanfattning"
           }
         }
       }
@@ -6085,6 +6133,7 @@
       }
     },
     "Skriver om sammanfattningen…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

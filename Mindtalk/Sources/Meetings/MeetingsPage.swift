@@ -1108,11 +1108,14 @@ private struct SummaryView: View {
     let showInText: (Double) -> Void
 
     private var writing: Bool { notes.writing.contains(record.id) }
+    /// Just written again: say so for a moment.
+    @State private var justRewritten = false
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 30) {
+                    Color.clear.frame(height: 0).id("top")
                     notesSection
                     if let error = notes.failed[record.id] {
                         Label(error, systemImage: "exclamationmark.triangle")
@@ -1133,6 +1136,14 @@ private struct SummaryView: View {
             .onChange(of: notes.answering.contains(record.id)) { _, busy in
                 if busy { withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) } }
             }
+            // Rewriting: up to where it happens; done: a word that it's new.
+            .onChange(of: writing) { was, now in
+                if now { withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo("top", anchor: .top) } }
+                if was && !now && record.summary != nil {
+                    justRewritten = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { justRewritten = false }
+                }
+            }
         }
     }
 
@@ -1140,6 +1151,12 @@ private struct SummaryView: View {
         if !MeetingNotes.isAvailable {
             unavailable
         } else if let summary = record.summary {
+            VStack(alignment: .leading, spacing: 32) {
+            if writing || justRewritten {
+                RewriteBanner(writing: writing).transition(.move(edge: .top).combined(with: .opacity))
+            }
+            // The old notes stay while the new ones are written — faded, so it's
+            // clear they're about to change.
             VStack(alignment: .leading, spacing: 32) {
                 Text(summary.overview)
                     .font(.system(size: 20, weight: .regular, design: .serif))
@@ -1159,19 +1176,31 @@ private struct SummaryView: View {
                     NotesList(title: "Värt att komma ihåg", kind: .point, items: summary.points, record: record, cast: cast,
                               turns: turns, showInText: showInText).staggered(3)
                 }
-                HStack(spacing: 7) {
-                    Image(systemName: writing ? "hourglass" : summary.writer == nil ? "apple.intelligence" : "sparkle")
+                HStack(alignment: .center, spacing: 7) {
+                    Image(systemName: summary.writer == nil ? "apple.intelligence" : "sparkle")
                         .font(.system(size: 12))
-                    Text(writing
-                         ? String(localized: "Skriver om sammanfattningen…")
-                         : summary.writer.map { String(localized: "Skrivet av \($0) på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades.") }
-                            ?? String(localized: "Skrivet av Apple Intelligence på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades."))
+                    Text(summary.writer.map { String(localized: "Skrivet av \($0) på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades.") }
+                         ?? String(localized: "Skrivet av Apple Intelligence på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades."))
+                    Spacer(minLength: 16)
+                    Button {
+                        notes.summarize(record.id)
+                    } label: {
+                        Label("Sammanfatta igen", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(.soft)
+                    .disabled(writing)
                 }
                 .font(.system(size: 11.5))
                 .foregroundStyle(DS.Colors.muted)
                 .staggered(4)
             }
             .id(summary.created)
+            .opacity(writing ? 0.35 : 1)
+            .blur(radius: writing ? 1.2 : 0)
+            .allowsHitTesting(!writing)
+            .animation(.easeInOut(duration: 0.4), value: writing)
+            }
+            .animation(.spring(duration: 0.4, bounce: 0.12), value: writing || justRewritten)
         } else if writing {
             WritingPlaceholder()
         } else {
@@ -1720,5 +1749,47 @@ private struct PlayerBar: View {
         .frame(height: 44)
         .background(Capsule().fill(DS.Colors.field).shadow(color: .black.opacity(0.08), radius: 12, y: 4))
         .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
+    }
+}
+
+/// Writing the notes again: clearly at the top, with who writes them and for how
+/// long — then, for a moment, that it's done.
+private struct RewriteBanner: View {
+    let writing: Bool
+    @State private var started = Date()
+
+    private var writer: String { BetterNotes.shared.isActive ? "Gemma 4" : "Apple Intelligence" }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            if writing {
+                SettlingLine(color: DS.Colors.ink).frame(width: 56)
+            } else {
+                Image(systemName: "checkmark.circle.fill").font(.system(size: 18)).foregroundStyle(DS.Colors.good)
+                    .transition(.scale.combined(with: .opacity))
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(writing ? String(localized: "\(writer) skriver om sammanfattningen…") : String(localized: "Klar – en ny sammanfattning"))
+                    .font(.system(size: 14, weight: .semibold))
+                if writing {
+                    Text("Det tar några sekunder. Den gamla syns tills den nya är klar.")
+                        .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                }
+            }
+            Spacer()
+            if writing {
+                TimelineView(.periodic(from: started, by: 1)) { context in
+                    Text(MeetingView.duration(context.date.timeIntervalSince(started)))
+                        .font(.system(size: 13, weight: .medium)).monospacedDigit().foregroundStyle(DS.Colors.muted)
+                }
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .raised(cornerRadius: 16)
+        .onAppear { started = Date() }
+        .onChange(of: writing) { _, now in if now { started = Date() } }
+        .animation(.spring(duration: 0.35, bounce: 0.15), value: writing)
+        .accessibilityElement(children: .combine)
     }
 }
