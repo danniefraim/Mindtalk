@@ -42,6 +42,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         #if DEBUG
         // Self-test: `Mindtalk --meeting file.wav [--model …] [--speed 2]` plays a recording
         // through the meeting pipeline as if it were the microphone.
+        // `Mindtalk --install-notes`: downloads and checks "Bättre anteckningar" (Gemma 4).
+        if args.contains("--install-notes") {
+            Task { @MainActor in
+                let notes = BetterNotes.shared
+                print("Ledigt: \(BetterNotes.freeBytes / 1_000_000_000) GB, minne: \(BetterNotes.memoryGB) GB")
+                notes.download()
+                var last = -1
+                while true {
+                    switch notes.state {
+                    case .downloading(let p):
+                        let pct = Int(p * 100)
+                        if pct / 5 != last / 5 { last = pct; print("\(pct) %") }
+                    case .ready: print("Klar: \(BetterNotes.directory.path)"); exit(0)
+                    case .failed(let m): print("Fel: \(m)"); exit(1)
+                    case .unsupported: print("Stöds inte på den här Macen."); exit(1)
+                    case .missing: break
+                    }
+                    try? await Task.sleep(for: .seconds(1))
+                }
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --notes "fråga"`: notes and an answer for the newest meeting.
         if let i = args.firstIndex(of: "--notes"), i + 1 < args.count {
             Task {

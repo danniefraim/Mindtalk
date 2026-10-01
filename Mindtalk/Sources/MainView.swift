@@ -398,6 +398,11 @@ struct SettingsPage: View {
                 .font(.system(size: 12))
                 .foregroundStyle(DS.Colors.muted)
 
+            SectionTitle("Möten")
+                .staggered(3)
+            BetterNotesCard(notes: .shared)
+                .staggered(3)
+
             SectionTitle("Behörigheter och ljud")
             .staggered(4)
             VStack(spacing: 0) {

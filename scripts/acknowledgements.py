@@ -60,6 +60,20 @@ Both are built on NVIDIA Parakeet TDT 0.6B v3 — by NVIDIA
 CC BY 4.0: https://creativecommons.org/licenses/by/4.0/legalcode
 
 
+NOTES MODEL (OPTIONAL)
+{rule}
+
+"Bättre anteckningar" downloads, only if you choose it, a model that writes
+meeting notes on your Mac:
+
+Gemma 4 26B-A4B (instruction-tuned) — by Google DeepMind
+  https://huggingface.co/google/gemma-4-26B-A4B-it
+  MLX 4-bit version by LM Studio:
+  https://huggingface.co/lmstudio-community/gemma-4-26B-A4B-it-MLX-4bit
+  Licence: Apache License, Version 2.0
+  https://www.apache.org/licenses/LICENSE-2.0
+
+
 FLUIDAUDIO {version}
 {rule}
 
@@ -80,6 +94,27 @@ Keeps Mindtalk up to date. Included in Mindtalk.
 https://sparkle-project.org
 
 """ + open(os.path.join(SPARKLE, "LICENSE")).read().strip())
+
+# Everything else compiled in for "Bättre anteckningar" (MLX and the tokenizer),
+# with its licence, from the resolved packages. swift-syntax only builds macros.
+import json
+resolved = next(iter(glob.glob(os.path.join(ROOT, "Mindtalk.xcodeproj", "**", "Package.resolved"), recursive=True)), None)
+pins = json.load(open(resolved))["pins"] if resolved else []
+purpose = {"mlx-swift": "Runs the notes model on the Mac's GPU.",
+           "mlx-swift-lm": "Loads and runs language models with MLX.",
+           "swift-transformers": "Reads the notes model's tokenizer."}
+for pin in sorted(pins, key=lambda p: p["identity"]):
+    name = pin["identity"]
+    if name in ("fluidaudio", "sparkle", "swift-syntax"):
+        continue
+    folder = next((d for d in glob.glob(os.path.join(os.path.dirname(FLUID), "*")) if os.path.basename(d).lower() == name), None)
+    lic = next(iter(sorted(glob.glob(os.path.join(folder, "LICENSE*")))), None) if folder else None
+    if not lic:
+        sys.exit(f"No licence found for {name}")
+    title = os.path.basename(folder)
+    parts.append(f"\n\n\n{title.upper()} {pin['state'].get('version', '')}\n{rule}\n\n"
+                 + (purpose.get(name, "Used by the components above.") + " Included in Mindtalk.\n")
+                 + pin["location"] + "\n\n" + open(lic).read().strip())
 
 text = "\n".join(parts) + "\n"
 open(OUT, "w").write(text)

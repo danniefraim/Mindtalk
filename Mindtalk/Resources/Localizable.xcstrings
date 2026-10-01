@@ -164,6 +164,22 @@
         }
       }
     },
+    "%@ på disken. Ta bort den för att frigöra plats – Apple Intelligence tar över.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ on disk. Remove it to free up space – Apple Intelligence takes over."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ på disken. Ta bort den för att frigöra plats – Apple Intelligence tar över."
+          }
+        }
+      }
+    },
     "%@ · %@": {
       "localizations": {
         "en": {
@@ -720,6 +736,22 @@
         }
       }
     },
+    "Anteckningarna skrivs med Apple Intelligence igen. Du kan ladda ned Gemma 4 när du vill.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notes are written with Apple Intelligence again. You can download Gemma 4 whenever you like."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anteckningarna skrivs med Apple Intelligence igen. Du kan ladda ned Gemma 4 när du vill."
+          }
+        }
+      }
+    },
     "Använd": {
       "localizations": {
         "en": {
@@ -1131,6 +1163,22 @@
         }
       }
     },
+    "Avstängt: Apple Intelligence skriver anteckningarna.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off: Apple Intelligence writes the notes."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avstängt: Apple Intelligence skriver anteckningarna."
+          }
+        }
+      }
+    },
     "Backsteg": {
       "localizations": {
         "en": {
@@ -1360,6 +1408,23 @@
         }
       }
     },
+    "Bättre anteckningar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Better notes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bättre anteckningar"
+          }
+        }
+      }
+    },
     "Båda bygger på NVIDIA Parakeet och körs på din Macs Neural Engine. Du byter språk med ett klick i menyraden.": {
       "localizations": {
         "en": {
@@ -1485,6 +1550,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Den kan laddas ned igen senare."
+          }
+        }
+      }
+    },
+    "Det behövs %@ ledigt på disken och lite till – du har %lld GB.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It needs %@ of free disk space and a bit more – you have %lld GB."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det behövs %@ ledigt på disken och lite till – du har %lld GB."
+          }
+        }
+      }
+    },
+    "Det behövs %@ ledigt på disken, och lite till.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It needs %@ of free disk space, and a bit more."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det behövs %@ ledigt på disken, och lite till."
           }
         }
       }
@@ -2272,6 +2369,87 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ge talaren ett namn"
+          }
+        }
+      }
+    },
+    "Gemma 4 från Google skriver djupare sammanfattningar och svar, men kräver minst %lld GB minne. Den här Macen har %lld GB, så Apple Intelligence skriver anteckningarna.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 from Google writes deeper summaries and answers, but needs at least %lld GB of memory. This Mac has %lld GB, so Apple Intelligence writes the notes."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 från Google skriver djupare sammanfattningar och svar, men kräver minst %lld GB minne. Den här Macen har %lld GB, så Apple Intelligence skriver anteckningarna."
+          }
+        }
+      }
+    },
+    "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Allt på din Mac. Laddas ned en gång (%@) och fungerar sedan offline.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 from Google writes the summaries and answers questions – more accurate than Apple Intelligence and without topic restrictions. All on your Mac. Downloaded once (%@), then works offline."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Allt på din Mac. Laddas ned en gång (%@) och fungerar sedan offline."
+          }
+        }
+      }
+    },
+    "Gemma 4 på den här Macen": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 on this Mac"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 på den här Macen"
+          }
+        }
+      }
+    },
+    "Gemma 4 skriver mötenas sammanfattningar och svarar på frågor, på din Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 writes your meetings' summaries and answers questions, on your Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 skriver mötenas sammanfattningar och svarar på frågor, på din Mac."
+          }
+        }
+      }
+    },
+    "Gemma 4 skriver sammanfattningen på din Mac…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 is writing the summary on your Mac…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 skriver sammanfattningen på din Mac…"
           }
         }
       }
@@ -3930,6 +4108,22 @@
         }
       }
     },
+    "Laddar ned Gemma 4 från Google. Du kan fortsätta använda Mindtalk under tiden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading Gemma 4 from Google. You can keep using Mindtalk meanwhile."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddar ned Gemma 4 från Google. Du kan fortsätta använda Mindtalk under tiden."
+          }
+        }
+      }
+    },
     "Laddar ned Nemotron 3": {
       "localizations": {
         "en": {
@@ -4827,6 +5021,7 @@
       }
     },
     "Möten": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5347,6 +5542,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "På din Mac · %@ och Apple Intelligence"
+          }
+        }
+      }
+    },
+    "På din Mac · %@ och Gemma 4": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On your Mac · %@ and Gemma 4"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "På din Mac · %@ och Gemma 4"
           }
         }
       }
@@ -5933,6 +6144,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skriver…"
+          }
+        }
+      }
+    },
+    "Skrivet av %@ på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Written by %@ on your Mac and may be wrong. Click a time to see and hear what was said."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skrivet av %@ på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades."
           }
         }
       }
@@ -6929,6 +7156,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ta bort %@ (⌘Z ångrar)"
+          }
+        }
+      }
+    },
+    "Ta bort Gemma 4?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Gemma 4?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort Gemma 4?"
           }
         }
       }

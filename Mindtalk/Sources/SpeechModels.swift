@@ -310,7 +310,7 @@ enum SpeechModel: String, CaseIterable, Identifiable, Codable, Sendable {
         }
     }
 
-    private static func download(repo: String, revision: String, file: RemoteFile, to dest: URL,
+    static func download(repo: String, revision: String, file: RemoteFile, to dest: URL,
                                  progress: @escaping @Sendable (Int64) -> Void) async throws {
         let url = URL(string: "https://huggingface.co/\(repo)/resolve/\(revision)/\(file.path)")!
         let delegate = DownloadDelegate(destination: dest, expectedBytes: Int64(file.size), progress: progress)

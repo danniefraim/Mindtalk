@@ -213,6 +213,9 @@ private struct StartCard: View {
         if !MeetingNotes.isAvailable {
             return String(localized: "På din Mac · utan Apple Intelligence blir det text men ingen sammanfattning")
         }
+        if BetterNotes.shared.isActive {
+            return String(localized: "På din Mac · \(dictation.engine.modelName) och Gemma 4")
+        }
         return String(localized: "På din Mac · \(dictation.engine.modelName) och Apple Intelligence")
     }
 
@@ -1157,10 +1160,12 @@ private struct SummaryView: View {
                               turns: turns, showInText: showInText).staggered(3)
                 }
                 HStack(spacing: 7) {
-                    Image(systemName: writing ? "hourglass" : "apple.intelligence").font(.system(size: 12))
+                    Image(systemName: writing ? "hourglass" : summary.writer == nil ? "apple.intelligence" : "sparkle")
+                        .font(.system(size: 12))
                     Text(writing
                          ? String(localized: "Skriver om sammanfattningen…")
-                         : String(localized: "Skrivet av Apple Intelligence på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades."))
+                         : summary.writer.map { String(localized: "Skrivet av \($0) på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades.") }
+                            ?? String(localized: "Skrivet av Apple Intelligence på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades."))
                 }
                 .font(.system(size: 11.5))
                 .foregroundStyle(DS.Colors.muted)
@@ -1432,7 +1437,8 @@ private struct WritingPlaceholder: View {
         VStack(alignment: .leading, spacing: 30) {
             HStack(spacing: 8) {
                 SettlingLine(color: DS.Colors.ink).scaleEffect(0.8)
-                Text("Skriver sammanfattningen på din Mac…")
+                Text(BetterNotes.shared.isActive ? String(localized: "Gemma 4 skriver sammanfattningen på din Mac…")
+                                                 : String(localized: "Skriver sammanfattningen på din Mac…"))
             }
             .font(.system(size: 13, weight: .medium))
             .foregroundStyle(DS.Colors.muted)
