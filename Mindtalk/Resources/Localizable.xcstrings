@@ -5953,6 +5953,22 @@
         }
       }
     },
+    "Sammanfattat av %@. Stämmer något inte? Klicka på en tid och lyssna själv.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summarized by %@. Something off? Click a time and listen for yourself."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfattat av %@. Stämmer något inte? Klicka på en tid och lyssna själv."
+          }
+        }
+      }
+    },
     "Sammanfattning": {
       "extractionState": "manual",
       "localizations": {
@@ -6198,6 +6214,7 @@
       }
     },
     "Skrivet av %@ på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6214,6 +6231,7 @@
       }
     },
     "Skrivet av Apple Intelligence på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

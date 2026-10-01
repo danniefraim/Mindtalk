@@ -1179,8 +1179,7 @@ private struct SummaryView: View {
                 HStack(alignment: .center, spacing: 7) {
                     Image(systemName: summary.writer == nil ? "apple.intelligence" : "sparkle")
                         .font(.system(size: 12))
-                    Text(summary.writer.map { String(localized: "Skrivet av \($0) på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades.") }
-                         ?? String(localized: "Skrivet av Apple Intelligence på din Mac och kan bli fel. Klicka på en tid för att se och höra vad som sades."))
+                    Text(String(localized: "Sammanfattat av \(summary.writer ?? "Apple Intelligence"). Stämmer något inte? Klicka på en tid och lyssna själv."))
                     Spacer(minLength: 16)
                     Button {
                         notes.summarize(record.id)
