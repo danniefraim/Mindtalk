@@ -205,7 +205,14 @@ final class MeetingSession: ObservableObject {
             recorder.onChunk = { chunk in intake.append(chunk) }
             recorder.onLevel = { level in Task { @MainActor in MeetingSession.shared.heard(level) } }
             recorder.onInterrupted = { Task { @MainActor in MeetingSession.shared.inputChanged() } }
-            try recorder.start(device: Microphones.shared.selectedDeviceID)
+            let chosen = Microphones.shared.selectedDeviceID
+            do {
+                try recorder.start(device: chosen)
+            } catch where chosen != nil {
+                // The chosen mic won't open — the Mac's own will do.
+                Self.log.error("chosen microphone failed, using the system input")
+                try recorder.start(device: nil)
+            }
         } catch {
             intake = nil
             try? FileManager.default.removeItem(at: MeetingStore.folder(for: new.id))
@@ -644,6 +651,9 @@ final class MeetingSession: ObservableObject {
     /// The microphone went away (unplugged, AirPods gone): carry on with the system input.
     private func inputChanged() {
         guard isRecording else { return }
+        // The recorder still counts itself as running on the lost device — let it
+        // go first, or the restart is a no-op and the meeting records silence.
+        _ = recorder.stop()
         do {
             try recorder.start(device: nil)
             warning = String(localized: "Mikrofonen kopplades bort – inspelningen fortsätter med Macens mikrofon.")
