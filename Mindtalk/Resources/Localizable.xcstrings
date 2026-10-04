@@ -5117,6 +5117,22 @@
         }
       }
     },
+    "Mötet behöver tillsyn": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting needs attention"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet behöver tillsyn"
+          }
+        }
+      }
+    },
     "Mötet blev för långt för Apple Intelligence.": {
       "localizations": {
         "en": {
@@ -7471,6 +7487,22 @@
         }
       }
     },
+    "Texten kan inte skrivas just nu – ljudet spelas in och skrivs ut efter mötet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text can't be written right now – the audio is being recorded and will be written out after the meeting."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten kan inte skrivas just nu – ljudet spelas in och skrivs ut efter mötet."
+          }
+        }
+      }
+    },
     "Texten och inspelningen tas bort från din Mac och går inte att få tillbaka.": {
       "extractionState": "stale",
       "localizations": {
@@ -7505,7 +7537,24 @@
         }
       }
     },
+    "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer nära Macen. Berätta för de andra att du spelar in.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text is written as you talk, and voices are kept apart – best with up to five people close to the Mac. Let the others know you're recording."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer nära Macen. Berätta för de andra att du spelar in."
+          }
+        }
+      }
+    },
     "Texten skrivs medan ni pratar, och upp till åtta röster hålls isär. Berätta för de andra att du spelar in.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7845,6 +7894,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tryck för att starta och stoppa"
+          }
+        }
+      }
+    },
+    "Tryck igen för att avsluta": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press again to end"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck igen för att avsluta"
           }
         }
       }

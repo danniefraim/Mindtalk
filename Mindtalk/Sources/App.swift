@@ -153,7 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .sink { [weak self] _ in self?.updateIcon() }
             .store(in: &cancellables)
         // A meeting shows in the menu bar — a red dot and the time — wherever you are.
-        MeetingSession.shared.$phase
+        MeetingSession.shared.$phase.combineLatest(MeetingSession.shared.$warning.removeDuplicates())
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.updateIcon()
@@ -262,8 +262,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusItem.length = NSStatusItem.variableLength
         button.imagePosition = .imageLeading
         if meeting.isRecording {
-            let dot = NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: String(localized: "Spelar in"))?
-                .withSymbolConfiguration(.init(paletteColors: [.white, .systemRed]))
+            // Something is wrong with the recording: say so here too — the window may be closed.
+            let dot = meeting.warning == nil
+                ? NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: String(localized: "Spelar in"))?
+                    .withSymbolConfiguration(.init(paletteColors: [.white, .systemRed]))
+                : NSImage(systemSymbolName: "exclamationmark.triangle.fill",
+                          accessibilityDescription: String(localized: "Mötet behöver tillsyn"))?
+                    .withSymbolConfiguration(.init(paletteColors: [.black, .systemYellow]))
             dot?.isTemplate = false
             button.image = dot
             let tick = { [weak self] in
@@ -312,7 +317,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func toggleMeeting() {
         let meeting = MeetingSession.shared
         if meeting.isRecording {
-            meeting.stop()
+            // Asks once, in the window, where the stop button now says so.
+            if !meeting.requestStop() { Self.showWindow(page: .meetings) }
         } else if meeting.phase == .idle {
             Self.showWindow(page: .meetings)
             if VoiceModels.isInstalled { meeting.start() }

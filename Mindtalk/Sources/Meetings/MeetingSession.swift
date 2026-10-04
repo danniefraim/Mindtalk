@@ -47,6 +47,8 @@ final class MeetingSession: ObservableObject {
     /// The meeting that just finished — the page keeps showing it.
     @Published private(set) var finished: UUID?
     @Published var lastError: String?
+    /// Stopping was asked for once; asking again within a few seconds ends the meeting.
+    @Published private(set) var stopArmed = false
 
     var isRecording: Bool { phase == .starting || phase == .recording }
     var isBusy: Bool { phase != .idle }
@@ -74,6 +76,12 @@ final class MeetingSession: ObservableObject {
     private var lastHeard = Date()
     /// Two voices said to be one person: speaker → the one it became.
     private var aliases: [Int: Int] = [:]
+    /// How often each quick voice and each steady voice spoke at the same moment,
+    /// over the whole meeting so far — and how many frames of it are counted.
+    private var voiceOverlap = MeetingSession.noOverlap
+    private var overlapFrames = 0
+    /// Transcriptions that failed in a row.
+    private var failures = 0
     /// Live scores kept after a meeting, for the final pass to carry names across.
     private var sleepObserver: NSObjectProtocol?
 
@@ -171,9 +179,13 @@ final class MeetingSession: ObservableObject {
     }
 
     private func report(settled words: ArraySlice<MeetingWord>) {
-        guard let simulation, let last = words.last else { return }
-        let heard = Date().timeIntervalSince(simulation.start) * simulation.speed
-        print(String(format: "[%5.1f s, %.1f s efter] ", heard, heard - last.end) + words.map(\.text).joined(separator: " "))
+        guard simulation != nil, let last = words.last else { return }
+        // Against the audio fed so far, not the clock: the feed's sleeps run a little long.
+        let heard = Double(intake?.count ?? 0) / Double(Self.rate)
+        // How long each word waited to settle — the oldest in the block waited longest.
+        let waits = words.map { String(format: "%.1f", heard - $0.end) }.joined(separator: " ")
+        print(String(format: "[%5.1f s, %.1f s efter] ", heard, heard - last.end) + words.map(\.text).joined(separator: " ")
+              + "  {väntan: \(waits)}")
     }
     #endif
 
@@ -227,6 +239,9 @@ final class MeetingSession: ObservableObject {
         settled = 0
         unresolved = 0
         aliases = [:]
+        voiceOverlap = Self.noOverlap
+        overlapFrames = 0
+        failures = 0
         warning = nil
         startedAt = date
         lastSave = date
@@ -240,8 +255,24 @@ final class MeetingSession: ObservableObject {
         loop = Task { await self.run() }
     }
 
+    /// Stopping, from a button or ⇧⌘R. Past the first minute it asks once — a meeting
+    /// can't be resumed — and ends on the second ask. Returns whether it stopped.
+    @discardableResult
+    func requestStop() -> Bool {
+        guard isRecording else { return false }
+        let long = Date().timeIntervalSince(startedAt ?? Date()) > 60
+        if stopArmed || !long {
+            stop()
+            return true
+        }
+        stopArmed = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in self?.stopArmed = false }
+        return false
+    }
+
     func stop() {
         guard isRecording else { return }
+        stopArmed = false
         phase = .finishing(String(localized: "Skriver klart…"))
         _ = recorder.stop()
         let loop = self.loop
@@ -278,8 +309,9 @@ final class MeetingSession: ObservableObject {
 
     func move(words range: Range<Int>, to speaker: Int) {
         guard var record else { return }
-        for i in range where record.words.indices.contains(i) { record.words[i].speaker = speaker }
+        record.move(words: range, to: speaker)
         self.record = record
+        MeetingStore.shared.save(record)
     }
 
     /// Mindtalk is quitting mid-meeting: keep what has been written. It opens as
@@ -318,6 +350,10 @@ final class MeetingSession: ObservableObject {
         }
     }
 
+    private static var noText: String {
+        String(localized: "Texten kan inte skrivas just nu – ljudet spelas in och skrivs ut efter mötet.")
+    }
+
     /// Says so when the recording can't be trusted.
     private func checkInput() {
         if intake?.writeFailed == true {
@@ -351,8 +387,21 @@ final class MeetingSession: ObservableObject {
         let timed: [WordTiming]
         do {
             timed = try await SpeechEngine.shared.transcribeTimed(samples: window, with: language)
+            if failures > 0 {
+                failures = 0
+                if warning == Self.noText { warning = nil }
+            }
         } catch {
             Self.log.error("words: \(error.localizedDescription, privacy: .public)")
+            failures += 1
+            if failures >= 5 {
+                warning = Self.noText
+                // Don't let unwritten audio pile up: the final pass reads it from the file.
+                if fresh > 11 {
+                    setPending([])
+                    settle(upTo: windowEnd - 0.5)
+                }
+            }
             return
         }
         let base = Double(from) / Double(Self.rate)
@@ -361,14 +410,14 @@ final class MeetingSession: ObservableObject {
             .filter { ($0.start + $0.end) / 2 > settled }
         // Read again with more context, the last settled word can land a little later:
         // it's the same word, not a new one.
-        if let first = heard.first, let last = record?.words.last,
-           Self.same(first.text, last.text), first.start < last.end + 0.6 {
+        // Only when it really is the same stretch of sound: a "nej, nej" is two words.
+        if let first = heard.first, let last = record?.words.last, Self.again(first, after: last) {
             heard.removeFirst()
         }
 
         guard !heard.isEmpty else {
             // Silence: nothing to wait for.
-            pending = []
+            setPending([])
             if final { settle(upTo: windowEnd) } else if fresh > 3 { settle(upTo: windowEnd - 0.5) }
             return resolveSpeakers(final: false)
         }
@@ -383,9 +432,16 @@ final class MeetingSession: ObservableObject {
                 let next = i + 1 < heard.count ? heard[i + 1].start : windowEnd
                 if next - heard[i].end >= 0.35 { cut = i }
             }
-            // Someone talking without a break: settle all but the last few seconds.
-            if cut == nil, fresh > 9 {
-                cut = heard.lastIndex { $0.end <= windowEnd - 2.5 }
+            // Someone talking without a break: settle all but the last few seconds —
+            // at the longest gap there is, so the seam doesn't land inside a word.
+            if cut == nil, fresh > 6 {
+                var widest = -1.0
+                for i in heard.indices where heard[i].end <= windowEnd - 2.5 && heard[i].end >= windowEnd - 5
+                    && i + 1 < heard.count {
+                    let gap = heard[i + 1].start - heard[i].end
+                    if gap >= widest { widest = gap; cut = i }
+                }
+                if cut == nil { cut = heard.lastIndex { $0.end <= windowEnd - 2.5 } }
             }
         }
         if let cut {
@@ -395,11 +451,19 @@ final class MeetingSession: ObservableObject {
             record?.words += heard[...cut]
             let next = cut + 1 < heard.count ? heard[cut + 1].start : windowEnd
             settle(upTo: (heard[cut].end + min(next, heard[cut].end + 0.4)) / 2)
-            pending = Array(heard[(cut + 1)...])
+            setPending(Array(heard[(cut + 1)...]))
         } else {
-            pending = heard
+            setPending(heard)
         }
         resolveSpeakers(final: false)
+    }
+
+    /// Keeps whoever is speaking in the words still being written until the voices
+    /// say otherwise, and only publishes a change.
+    private func setPending(_ words: [MeetingWord]) {
+        var words = words
+        if let speaker = pending.first?.speaker { for j in words.indices { words[j].speaker = speaker } }
+        if words != pending { pending = words }
     }
 
     private func settle(upTo seconds: Double) {
@@ -411,6 +475,7 @@ final class MeetingSession: ObservableObject {
     /// words still being written get a provisional one.
     private func resolveSpeakers(final: Bool) {
         guard var words = record?.words else { return }
+        let before = words
         // Confirmed: sentences the steady voices cover get their speaker for good.
         let confirmed = steady == nil ? scores : steadyScores
         let from = unresolved
@@ -428,24 +493,29 @@ final class MeetingSession: ObservableObject {
             }
             words.replaceSubrange(unresolved..., with: rest)
         }
-        record?.words = words
+        // What you moved stays moved, whatever the voices say.
+        MeetingRecord.apply(record?.moves ?? [], to: &words, from: from)
+        // The page redraws on every change: only say so when there is one.
+        if words != before { record?.words = words }
         // Still being written: whoever is speaking in them so far.
         let frames = scores.count / VoiceTracker.speakers
         if let first = pending.first, let last = pending.last, Int(first.start * 100) < frames {
             let s = Self.speaker(in: scores, from: first.start, to: last.end)
             let mapped = s >= 0 ? (map[s] ?? s) : s
-            for j in pending.indices { pending[j].speaker = aliases[mapped] ?? mapped }
+            var labelled = pending
+            for j in labelled.indices { labelled[j].speaker = aliases[mapped] ?? mapped }
+            if labelled != pending { pending = labelled }
         }
     }
 
-    /// Which steady speaker each quick one is, from the last minute they both heard.
+    /// Which steady speaker each quick one is, from everything they have both heard:
+    /// someone quiet for a few minutes is still themselves when they speak again.
     private func quickToSteady() -> [Int: Int] {
-        let n = VoiceTracker.speakers
-        let frames = min(scores.count, steadyScores.count) / n
+        let frames = min(scores.count, steadyScores.count) / VoiceTracker.speakers
         guard frames > 100 else { return [:] }
-        let start = max(0, frames - 6_000)
-        return Self.match(live: Array(steadyScores[(start * n)..<(frames * n)]),
-                          final: Array(scores[(start * n)..<(frames * n)]))
+        Self.count(&voiceOverlap, of: scores, with: steadyScores, frames: overlapFrames..<frames)
+        overlapFrames = frames
+        return Self.mapping(voiceOverlap)
     }
 
     /// Gives each finished sentence from `start` on the speaker who spoke most during
@@ -507,12 +577,11 @@ final class MeetingSession: ObservableObject {
 
     private func finish() async {
         intake?.close()
-        if tracker != nil {
-            await step(final: true)
-            if let rest = try? await tracker?.finish() { scores += rest }
-            if let rest = try? await steady?.finish() { steadyScores += rest }
-            resolveSpeakers(final: true)
-        }
+        // The last words are written also when the voices never started.
+        await step(final: true)
+        if let rest = try? await tracker?.finish() { scores += rest }
+        if let rest = try? await steady?.finish() { steadyScores += rest }
+        resolveSpeakers(final: true)
         if let activity { ProcessInfo.processInfo.endActivity(activity) }
         activity = nil
         guard var record else { return done() }
@@ -542,12 +611,23 @@ final class MeetingSession: ObservableObject {
             let url = MeetingStore.audioURL(for: id)
             phase = .finishing(String(localized: "Lyssnar igenom hela mötet…"))
             let timed = try await SpeechEngine.shared.transcribeFile(url, with: language)
-            phase = .finishing(String(localized: "Känner igen rösterna…"))
-            let finalScores = try await VoiceTracker.score(file: url, config: VoiceModels.final)
+            // The steady voices heard the whole meeting with the same ten seconds of
+            // context a second listen would use: when they cover it all, they are the
+            // final word. Otherwise (an interrupted meeting, a hiccup) listen again.
+            let covered = Double(steadyScores.count / VoiceTracker.speakers) / 100
+            let finalScores: [Float]
+            let match: [Int: Int]
+            if !steadyScores.isEmpty, abs(covered - (record?.duration ?? 0)) < 1.5 {
+                finalScores = steadyScores
+                match = [:]
+            } else {
+                phase = .finishing(String(localized: "Känner igen rösterna…"))
+                finalScores = try await VoiceTracker.score(file: url, config: VoiceModels.final)
+                let live = steadyScores.isEmpty ? scores : steadyScores
+                match = live.isEmpty ? [:] : Self.match(live: live, final: finalScores)
+            }
             var words = timed.map { MeetingWord(text: $0.word, start: $0.startTime, end: $0.endTime) }
             guard !words.isEmpty || (record?.words.isEmpty ?? true) else { return }
-            let live = steadyScores.isEmpty ? scores : steadyScores
-            let match = live.isEmpty ? [:] : Self.match(live: live, final: finalScores)
             _ = Self.assignSentences(&words, from: 0, scores: finalScores, final: true)
             for i in words.indices {
                 if let s = words[i].speaker, s >= 0 {
@@ -556,6 +636,7 @@ final class MeetingSession: ObservableObject {
                 }
             }
             guard var updated = record else { return }       // names may have changed meanwhile
+            MeetingRecord.apply(updated.moves, to: &words)
             if !updated.words.isEmpty { updated.heal = Self.heal(from: updated.words, to: words) }
             updated.words = words
             updated.refined = true
@@ -608,6 +689,8 @@ final class MeetingSession: ObservableObject {
         scores = []
         steadyScores = []
         aliases = [:]
+        voiceOverlap = Self.noOverlap
+        overlapFrames = 0
         finished = nil
         phase = .finishing(String(localized: "Lyssnar igenom hela mötet…"))
         Task {
@@ -662,9 +745,16 @@ final class MeetingSession: ObservableObject {
         }
     }
 
-    private static func same(_ a: String, _ b: String) -> Bool {
+    /// Is `word`, just heard, the settled `last` read once more? Read again with more
+    /// context a word can land a little later, or come out differently ("höger" →
+    /// "högre") — but then it sits on top of the old one. A word that starts after
+    /// it is a new word, also when it is the same one ("nej, nej").
+    nonisolated static func again(_ word: MeetingWord, after last: MeetingWord) -> Bool {
         let key = { (s: String) in s.lowercased().filter { $0.isLetter || $0.isNumber } }
-        return !key(a).isEmpty && key(a) == key(b)
+        if !key(word.text).isEmpty, key(word.text) == key(last.text) { return word.start < last.end - 0.02 }
+        // Other words: only when it clearly begins inside the old one (times move
+        // by a frame or so between readings).
+        return word.start < last.end - max(0.1, (last.end - last.start) / 2)
     }
 
     // MARK: Voices → speakers
@@ -685,18 +775,35 @@ final class MeetingSession: ObservableObject {
     /// Pairs the final pass's speakers with the live ones (by how much they speak at
     /// the same moments), so names and colours stay with each voice.
     nonisolated static func match(live: [Float], final: [Float]) -> [Int: Int] {
+        var overlap = noOverlap
+        count(&overlap, of: final, with: live, frames: 0..<(min(live.count, final.count) / VoiceTracker.speakers))
+        return mapping(overlap)
+    }
+
+    nonisolated static var noOverlap: [[Int]] {
+        [[Int]](repeating: [Int](repeating: 0, count: VoiceTracker.speakers), count: VoiceTracker.speakers)
+    }
+
+    /// Adds, for `frames`, how often speaker a of `scores` and speaker b of `other`
+    /// were the one speaking at the same moment.
+    nonisolated static func count(_ overlap: inout [[Int]], of scores: [Float], with other: [Float], frames: Range<Int>) {
         let n = VoiceTracker.speakers
-        let frames = min(live.count, final.count) / n
         func active(_ scores: [Float], _ f: Int) -> Int? {
             var best: Int?
             var top: Float = 0.5
             for s in 0..<n where scores[f * n + s] > top { top = scores[f * n + s]; best = s }
             return best
         }
-        var overlap = [[Int]](repeating: [Int](repeating: 0, count: n), count: n)
-        for f in 0..<frames {
-            if let a = active(final, f), let b = active(live, f) { overlap[a][b] += 1 }
+        for f in frames {
+            if let a = active(scores, f), let b = active(other, f) { overlap[a][b] += 1 }
         }
+    }
+
+    /// The pairing that agrees most. A voice with nothing to go on keeps its own
+    /// number (both listeners number voices as they first speak) rather than
+    /// borrowing someone else's.
+    nonisolated static func mapping(_ overlap: [[Int]]) -> [Int: Int] {
+        let n = VoiceTracker.speakers
         var pairs: [(final: Int, live: Int, frames: Int)] = []
         for a in 0..<n { for b in 0..<n where overlap[a][b] > 0 { pairs.append((a, b, overlap[a][b])) } }
         var mapping: [Int: Int] = [:]
@@ -704,6 +811,10 @@ final class MeetingSession: ObservableObject {
         for p in pairs.sorted(by: { $0.frames > $1.frames }) where mapping[p.final] == nil && !taken.contains(p.live) {
             mapping[p.final] = p.live
             taken.insert(p.live)
+        }
+        for a in 0..<n where mapping[a] == nil && !taken.contains(a) {
+            mapping[a] = a
+            taken.insert(a)
         }
         var free = (0..<n).filter { !taken.contains($0) }
         for a in 0..<n where mapping[a] == nil { mapping[a] = free.isEmpty ? a : free.removeFirst() }

@@ -200,7 +200,7 @@ private struct StartCard: View {
     private var detail: String {
         switch voices.state {
         case .ready:
-            return String(localized: "Texten skrivs medan ni pratar, och upp till åtta röster hålls isär. Berätta för de andra att du spelar in.")
+            return String(localized: "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer nära Macen. Berätta för de andra att du spelar in.")
         case .downloading:
             return String(localized: "Laddar ned Nemotron 3 från NVIDIA, som håller isär rösterna…")
         case .missing, .failed:
@@ -514,7 +514,7 @@ struct MeetingView: View {
 
     var body: some View {
         let cast = record.cast
-        let turns = MeetingText.turns(record.words, pending: pending)
+        let turns = MeetingText.turns(record.words, pending: pending, paragraphs: true)
         ZStack(alignment: .bottom) {
             VStack(spacing: 0) {
                 header(cast)
@@ -1500,7 +1500,7 @@ private struct WritingPlaceholder: View {
 /// it, a word when something needs attention.
 private struct LiveBar: View {
     @ObservedObject var session: MeetingSession
-    @State private var armed = false
+    private var armed: Bool { session.stopArmed }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -1561,13 +1561,7 @@ private struct LiveBar: View {
     /// Past the first minute, stopping asks once — a meeting can't be resumed.
     private var stopButton: some View {
         Button {
-            let long = Date().timeIntervalSince(session.startedAt ?? Date()) > 60
-            if armed || !long {
-                session.stop()
-            } else {
-                armed = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { armed = false }
-            }
+            session.requestStop()
         } label: {
             HStack(spacing: 7) {
                 Image(systemName: "stop.fill").font(.system(size: 11, weight: .bold))

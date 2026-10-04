@@ -157,7 +157,10 @@ struct StatusPanelView: View {
             if meeting.isBusy {
                 PanelRow(title: "Öppna mötet") { go(.meetings) }
                 if meeting.isRecording {
-                    PanelRow(title: "Avsluta mötet", shortcut: "⇧⌘R") { meeting.stop() }
+                    PanelRow(title: meeting.stopArmed ? String(localized: "Tryck igen för att avsluta") : String(localized: "Avsluta mötet"),
+                             shortcut: "⇧⌘R") {
+                        meeting.requestStop()
+                    }
                 }
                 PanelSeparator()
             } else if VoiceModels.isInstalled {
@@ -191,7 +194,7 @@ struct StatusPanelView: View {
             }
             Button("") { go(.settings) }.keyboardShortcut(",", modifiers: .command)
             Button("") {
-                if meeting.isRecording { meeting.stop() } else if meeting.phase == .idle, VoiceModels.isInstalled {
+                if meeting.isRecording { meeting.requestStop() } else if meeting.phase == .idle, VoiceModels.isInstalled {
                     close()
                     AppDelegate.showWindow(page: .meetings)
                     meeting.start()
@@ -240,7 +243,11 @@ struct StatusPanelView: View {
 
     @ViewBuilder private var status: some View {
         HStack(spacing: 5) {
-            if meeting.isRecording, let start = meeting.startedAt {
+            if meeting.isRecording, let warning = meeting.warning {
+                // The recording needs a look: say what, also with the window closed.
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warning)
+                Text(warning).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            } else if meeting.isRecording, let start = meeting.startedAt {
                 // A meeting has the mic: say so, with the time.
                 Circle().fill(DS.Colors.recording).frame(width: 6, height: 6)
                 TimelineView(.periodic(from: start, by: 1)) { context in

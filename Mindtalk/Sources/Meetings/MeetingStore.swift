@@ -44,6 +44,15 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     var finished = true
     /// What the final pass changed compared with the live text.
     var heal: Heal?
+    /// Stretches you gave to another speaker. Kept by their time, so they hold
+    /// when the words are written again (the final pass, the voices catching up).
+    var moves: [Move] = []
+
+    struct Move: Codable, Equatable {
+        var start: Double
+        var end: Double
+        var speaker: Int
+    }
 
     struct Heal: Codable, Equatable {
         /// Words the final pass wrote differently.
@@ -76,6 +85,7 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         userTitled = try c.decodeIfPresent(Bool.self, forKey: .userTitled) ?? false
         finished = try c.decodeIfPresent(Bool.self, forKey: .finished) ?? true
         heal = try c.decodeIfPresent(Heal.self, forKey: .heal)
+        moves = try c.decodeIfPresent([Move].self, forKey: .moves) ?? []
     }
 
     /// Speakers in the order they first spoke.
@@ -133,6 +143,29 @@ struct Cast: Equatable {
 }
 
 extension MeetingRecord {
+    /// Gives the words in `range` to `speaker`, and remembers it by their time.
+    mutating func move(words range: Range<Int>, to speaker: Int) {
+        let range = range.clamped(to: 0..<words.count)
+        guard let first = range.first, let last = range.last else { return }
+        let (start, end) = (words[first].start, words[last].end)
+        // A later move over the same stretch replaces the earlier one.
+        moves.removeAll { $0.start >= start - 0.01 && $0.end <= end + 0.01 }
+        moves.append(Move(start: start, end: end, speaker: speaker))
+        for i in range { words[i].speaker = speaker }
+    }
+
+    /// Your moves, applied to `words` from index `from` on — by where each word's
+    /// middle falls, since the words themselves may have been written again.
+    static func apply(_ moves: [Move], to words: inout [MeetingWord], from: Int = 0) {
+        guard !moves.isEmpty, from < words.count else { return }
+        for i in from..<words.count {
+            let mid = (words[i].start + words[i].end) / 2
+            for move in moves where mid >= move.start - 0.01 && mid <= move.end + 0.01 {
+                words[i].speaker = move.speaker
+            }
+        }
+    }
+
     static func merge(_ speaker: Int, into other: Int, in record: inout MeetingRecord) {
         guard speaker != other else { return }
         for i in record.words.indices where record.words[i].speaker == speaker { record.words[i].speaker = other }
@@ -140,6 +173,7 @@ extension MeetingRecord {
             record.names[String(other)] = name
         }
         record.names[String(speaker)] = nil
+        for i in record.moves.indices where record.moves[i].speaker == speaker { record.moves[i].speaker = other }
     }
 }
 
@@ -155,9 +189,14 @@ struct MeetingTurn: Identifiable, Equatable {
 
 enum MeetingText {
     /// Groups words into turns. Words with no clear speaker stay with the one before.
-    @MainActor static func turns(_ words: [MeetingWord], pending: [MeetingWord] = []) -> [MeetingTurn] {
+    /// With `paragraphs`, someone speaking at length is broken up — at a pause of two
+    /// seconds, or at a full stop once a paragraph is long — so a monologue isn't one
+    /// endless bubble (and the live view only redraws its last part).
+    @MainActor static func turns(_ words: [MeetingWord], pending: [MeetingWord] = [],
+                                 paragraphs: Bool = false) -> [MeetingTurn] {
         var turns: [MeetingTurn] = []
         var current: (id: Int, speaker: Int?, start: Double, words: [String], pending: [String])?
+        var previous: MeetingWord?
         func flush() {
             guard let c = current else { return }
             turns.append(MeetingTurn(id: c.id, speaker: c.speaker, start: c.start,
@@ -168,7 +207,13 @@ enum MeetingText {
         for (i, (word, isPending)) in all.enumerated() {
             var speaker = word.speaker
             if speaker == nil || speaker == MeetingWord.unknown { speaker = current?.speaker ?? speaker }
-            if let c = current, c.speaker == speaker || speaker == nil || speaker == MeetingWord.unknown {
+            defer { previous = word }
+            var breaks = false
+            if paragraphs, !isPending, let c = current, c.pending.isEmpty, let previous {
+                let sentenceOver = previous.text.last.map { ".?!".contains($0) } ?? false
+                breaks = word.start - previous.end >= 2 || (c.words.count >= 60 && sentenceOver)
+            }
+            if !breaks, let c = current, c.speaker == speaker || speaker == nil || speaker == MeetingWord.unknown {
                 if isPending { current?.pending.append(word.text) } else if c.pending.isEmpty {
                     current?.words.append(word.text)
                 } else {
@@ -306,7 +351,7 @@ final class MeetingStore: ObservableObject {
     /// A turn said by someone else than Mindtalk thought.
     func move(words range: Range<Int>, to speaker: Int, in id: UUID) {
         guard var record = meetings.first(where: { $0.id == id }) else { return }
-        for i in range where record.words.indices.contains(i) { record.words[i].speaker = speaker }
+        record.move(words: range, to: speaker)
         save(record)
     }
 
