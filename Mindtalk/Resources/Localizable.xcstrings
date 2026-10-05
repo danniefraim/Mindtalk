@@ -7047,6 +7047,22 @@
         }
       }
     },
+    "Stäng panelen – inspelningen fortsätter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close the panel – recording continues"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stäng panelen – inspelningen fortsätter"
+          }
+        }
+      }
+    },
     "Står Mindtalk redan i listan i Systeminställningar? Slå av och på den – macOS kräver det efter en uppdatering ibland.": {
       "extractionState": "stale",
       "localizations": {
@@ -8470,6 +8486,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa i Dock"
+          }
+        }
+      }
+    },
+    "Visa i Mindtalks fönster": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in Mindtalk's window"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa i Mindtalks fönster"
           }
         }
       }

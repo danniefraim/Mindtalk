@@ -163,7 +163,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
             .sink { [weak self] _ in self?.dictation.stopPickingKey() }
             .store(in: &cancellables)
-        // A meeting shows in the menu bar — a red dot and the time — wherever you are.
+        // A meeting lives in its own panel beside your work, and in the menu bar —
+        // a red dot and the time — wherever you are.
+        MeetingPanel.shared.watch()
         MeetingSession.shared.$phase.combineLatest(MeetingSession.shared.$warning.removeDuplicates())
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -328,11 +330,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func toggleMeeting() {
         let meeting = MeetingSession.shared
         if meeting.isRecording {
-            // Asks once, in the window, where the stop button now says so.
-            if !meeting.requestStop() { Self.showWindow(page: .meetings) }
+            // Asks once — in the panel, or the large window if that's where the meeting is.
+            if !meeting.requestStop(), !Self.mainWindowVisible { MeetingPanel.shared.show() }
         } else if meeting.phase == .idle {
-            Self.showWindow(page: .meetings)
-            if VoiceModels.isInstalled { meeting.start() }
+            Self.startMeeting()
         }
     }
 
@@ -533,6 +534,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let polished = await Polisher.shared.polish(cleaned)
         print(String(format: "Putsad: %@ (%.2f s)", polished?.debugDescription ?? "– (behåller reglernas text)", Date().timeIntervalSince(t0)))
     }
+
+    /// Starts a meeting — it opens in its panel. If it can't start (a model or a
+    /// permission is missing), the Meetings page says why.
+    static func startMeeting() {
+        let meeting = MeetingSession.shared
+        if VoiceModels.isInstalled { meeting.start() }
+        if !meeting.isRecording { showWindow(page: .meetings) }
+    }
+
+    static var mainWindowVisible: Bool { (NSApp.delegate as? AppDelegate)?.window?.isVisible == true }
+
+    static func hideMainWindow() { (NSApp.delegate as? AppDelegate)?.window?.close() }
 
     static func showWindow(page: Page? = nil) {
         if let page { MainView.startPage = page }

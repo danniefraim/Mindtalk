@@ -18,7 +18,7 @@ struct MeetingsPage: View {
     @ObservedObject var dictation: Dictation
     /// The meeting you were reading, kept while you visit other pages.
     @State private var open: UUID? = MeetingsPage.lastOpen
-    private static var lastOpen: UUID?
+    static var lastOpen: UUID?
 
     var body: some View {
         GeometryReader { geo in
@@ -1588,7 +1588,7 @@ private struct LiveWave: View {
 }
 
 /// A red dot that breathes while recording.
-private struct RecordingDot: View {
+struct RecordingDot: View {
     @State private var on = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {

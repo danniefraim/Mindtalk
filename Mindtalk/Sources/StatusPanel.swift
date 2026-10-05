@@ -155,7 +155,10 @@ struct StatusPanelView: View {
                 PanelSeparator()
             }
             if meeting.isBusy {
-                PanelRow(title: "Öppna mötet") { go(.meetings) }
+                PanelRow(title: "Öppna mötet") {
+                    close()
+                    if AppDelegate.mainWindowVisible { AppDelegate.showWindow(page: .meetings) } else { MeetingPanel.shared.show() }
+                }
                 if meeting.isRecording {
                     PanelRow(title: meeting.stopArmed ? String(localized: "Tryck igen för att avsluta") : String(localized: "Avsluta mötet"),
                              shortcut: "⇧⌘R") {
@@ -166,8 +169,7 @@ struct StatusPanelView: View {
             } else if VoiceModels.isInstalled {
                 PanelRow(title: "Starta möte", shortcut: "⇧⌘R") {
                     close()
-                    AppDelegate.showWindow(page: .meetings)
-                    meeting.start()
+                    AppDelegate.startMeeting()
                 }
             }
             PanelRow(title: "Öppna Mindtalk") { go(.dictation) }
@@ -203,8 +205,7 @@ struct StatusPanelView: View {
             Button("") {
                 if meeting.isRecording { meeting.requestStop() } else if meeting.phase == .idle, VoiceModels.isInstalled {
                     close()
-                    AppDelegate.showWindow(page: .meetings)
-                    meeting.start()
+                    AppDelegate.startMeeting()
                 }
             }
             .keyboardShortcut("r", modifiers: [.command, .shift])
