@@ -12,7 +12,6 @@
       }
     },
     " %@": {
-      "extractionState": "stale",
       "localizations": {
         "sv": {
           "stringUnit": {
@@ -23,7 +22,6 @@
       }
     },
     " och ": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -167,7 +165,6 @@
       }
     },
     "%@ på disken. Ta bort den för att frigöra plats – Apple Intelligence tar över.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -184,7 +181,6 @@
       }
     },
     "%@ skriver om sammanfattningen…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -315,7 +311,6 @@
       }
     },
     "%@%@": {
-      "extractionState": "stale",
       "localizations": {
         "sv": {
           "stringUnit": {
@@ -504,7 +499,6 @@
       }
     },
     "+%lld": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -537,7 +531,6 @@
       }
     },
     "1,5×": {
-      "extractionState": "stale",
       "localizations": {
         "sv": {
           "stringUnit": {
@@ -548,7 +541,6 @@
       }
     },
     "15 sekunder bakåt": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -565,7 +557,6 @@
       }
     },
     "15 sekunder framåt": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -582,7 +573,6 @@
       }
     },
     "1×": {
-      "extractionState": "stale",
       "localizations": {
         "sv": {
           "stringUnit": {
@@ -609,7 +599,6 @@
       }
     },
     "2×": {
-      "extractionState": "stale",
       "localizations": {
         "sv": {
           "stringUnit": {
@@ -620,7 +609,6 @@
       }
     },
     "?": {
-      "extractionState": "stale",
       "localizations": {
         "sv": {
           "stringUnit": {
@@ -665,7 +653,6 @@
       }
     },
     "Alla möten (⌘[)": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -766,7 +753,6 @@
       }
     },
     "Anteckningarna skrivs med Apple Intelligence igen. Du kan ladda ned Gemma 4 när du vill.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -883,7 +869,6 @@
       }
     },
     "Apple Intelligence kan inte det här språket.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -900,7 +885,6 @@
       }
     },
     "Apple Intelligence kunde inte göra klart just nu. Försök igen om en stund.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -950,7 +934,6 @@
       }
     },
     "Apple Intelligence laddas ned. Sammanfatta när den är klar.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -967,7 +950,6 @@
       }
     },
     "Apple Intelligence ville inte svara på det här.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1166,7 +1148,6 @@
       }
     },
     "Avsluta mötet (⇧⌘R)": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1183,7 +1164,6 @@
       }
     },
     "Avsluta mötet och Mindtalk": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1200,7 +1180,6 @@
       }
     },
     "Avstängt: Apple Intelligence skriver anteckningarna.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1331,7 +1310,6 @@
       }
     },
     "Berätta för de andra att mötet spelas in.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1382,7 +1360,6 @@
       }
     },
     "Byt namn på mötet": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1497,7 +1474,6 @@
       }
     },
     "Börja prata, så dyker texten upp här.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1546,7 +1522,6 @@
       }
     },
     "Den här Macen kan inte köra Apple Intelligence. Texten finns under fliken Text.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1596,7 +1571,6 @@
       }
     },
     "Det behövs %@ ledigt på disken och lite till – du har %lld GB.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1613,7 +1587,6 @@
       }
     },
     "Det behövs %@ ledigt på disken, och lite till.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1712,7 +1685,6 @@
       }
     },
     "Det tar några sekunder. Den gamla syns tills den nya är klar.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1862,7 +1834,6 @@
       }
     },
     "Dina möten hamnar här.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1994,7 +1965,6 @@
       }
     },
     "Dölj ändringar": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2096,7 +2066,6 @@
       }
     },
     "Ett möte spelas in": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2113,7 +2082,6 @@
       }
     },
     "Ett möte spelas in – diktering är pausad.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2130,7 +2098,6 @@
       }
     },
     "Fel talare? Flytta till…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2228,7 +2195,6 @@
       }
     },
     "Fortsätt spela in": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2278,7 +2244,6 @@
       }
     },
     "Fråga något om mötet…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2295,7 +2260,6 @@
       }
     },
     "Fråga om mötet": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2397,7 +2361,6 @@
       }
     },
     "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (%@). Laddas ned en gång och fungerar sedan offline.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2446,7 +2409,6 @@
       }
     },
     "Förbereder…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2479,7 +2441,6 @@
       }
     },
     "Ge talaren ett namn": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2496,7 +2457,6 @@
       }
     },
     "Gemma 4 från Google skriver djupare sammanfattningar och svar, men kräver minst %lld GB minne. Den här Macen har %lld GB, så Apple Intelligence skriver anteckningarna.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2513,7 +2473,6 @@
       }
     },
     "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Allt på din Mac. Laddas ned en gång (%@) och fungerar sedan offline.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2547,7 +2506,6 @@
       }
     },
     "Gemma 4 skriver mötenas sammanfattningar och svarar på frågor, på din Mac.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2564,7 +2522,6 @@
       }
     },
     "Gemma 4 skriver sammanfattningen på din Mac…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2581,7 +2538,6 @@
       }
     },
     "Genomlyssnat efter mötet: %@": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2682,7 +2638,6 @@
       }
     },
     "Gör klart": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3180,7 +3135,6 @@
       }
     },
     "I dag": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3230,7 +3184,6 @@
       }
     },
     "I går": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3311,7 +3264,6 @@
       }
     },
     "Ingen sammanfattning än.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3361,7 +3313,6 @@
       }
     },
     "Inget hördes": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3427,7 +3378,6 @@
       }
     },
     "Inspelningen är redan igång – inget går förlorat.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3444,7 +3394,6 @@
       }
     },
     "Inspelningen, texten och sammanfattningen tas bort från din Mac och går inte att få tillbaka.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3494,7 +3443,6 @@
       }
     },
     "Inte klar": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3528,7 +3476,6 @@
       }
     },
     "Inte klart": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3577,7 +3524,6 @@
       }
     },
     "Jag hör nästan ingenting – är rätt mikrofon vald?": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3627,7 +3573,6 @@
       }
     },
     "Klar – en ny sammanfattning": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3825,7 +3770,6 @@
       }
     },
     "Kopiera sammanfattningen": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3842,7 +3786,6 @@
       }
     },
     "Kopiera sammanfattningen (⇧⌘C)": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3859,7 +3802,6 @@
       }
     },
     "Kopiera svaret": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3876,7 +3818,6 @@
       }
     },
     "Kopiera texten": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3893,7 +3834,6 @@
       }
     },
     "Kopiera texten (⇧⌘C)": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4088,7 +4028,6 @@
       }
     },
     "Källa, %@": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4122,7 +4061,6 @@
       }
     },
     "Känner igen rösten…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4139,7 +4077,6 @@
       }
     },
     "Känner igen rösterna…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4206,7 +4143,6 @@
       }
     },
     "Ladda ned %@ först, under Inställningar → Språk.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4320,7 +4256,6 @@
       }
     },
     "Laddar ned Gemma 4 från Google. Du kan fortsätta använda Mindtalk under tiden.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4337,7 +4272,6 @@
       }
     },
     "Laddar ned Nemotron 3": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4354,7 +4288,6 @@
       }
     },
     "Laddar ned Nemotron 3 från NVIDIA, som håller isär rösterna…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4387,7 +4320,6 @@
       }
     },
     "Letar i mötet…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4470,7 +4402,6 @@
       }
     },
     "Ljudet kan inte sparas – är disken full? Texten skrivs ändå.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4551,7 +4482,6 @@
       }
     },
     "Lyssna": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4568,7 +4498,6 @@
       }
     },
     "Lyssna från %@": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4585,7 +4514,6 @@
       }
     },
     "Lyssna härifrån": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4602,7 +4530,6 @@
       }
     },
     "Lyssna igenom": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4619,7 +4546,6 @@
       }
     },
     "Lyssna igenom mötet igen": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4636,7 +4562,6 @@
       }
     },
     "Lyssnar": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4653,7 +4578,6 @@
       }
     },
     "Lyssnar igenom hela mötet…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4836,7 +4760,6 @@
       }
     },
     "Markera som inte klar": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4853,7 +4776,6 @@
       }
     },
     "Markera som klar": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4886,7 +4808,6 @@
       }
     },
     "Mer": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4919,7 +4840,6 @@
       }
     },
     "Mikrofonen kopplades bort – inspelningen fortsätter med Macens mikrofon.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5034,7 +4954,6 @@
       }
     },
     "Mindtalk gör klart mötet innan det avslutas, så att texten blir färdig.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5217,7 +5136,6 @@
       }
     },
     "Möte %@": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5234,7 +5152,6 @@
       }
     },
     "Möte spelas in · %@": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5268,7 +5185,6 @@
       }
     },
     "Mötet avbröts innan det blev klart. Inspelningen finns kvar.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5285,7 +5201,6 @@
       }
     },
     "Mötet avslutades när Macen gick i vila.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5302,7 +5217,6 @@
       }
     },
     "Mötet behöver tillsyn": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5319,7 +5233,6 @@
       }
     },
     "Mötet blev för långt för Apple Intelligence.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5370,7 +5283,6 @@
       }
     },
     "Namnlöst möte": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5403,7 +5315,6 @@
       }
     },
     "Nedladdningen blev inte komplett.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5437,7 +5348,6 @@
       }
     },
     "Nytt möte": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5487,7 +5397,6 @@
       }
     },
     "Okänd talare": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5785,7 +5694,6 @@
       }
     },
     "På din Mac · %@ och Apple Intelligence": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5802,7 +5710,6 @@
       }
     },
     "På din Mac · %@ och Gemma 4": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5819,7 +5726,6 @@
       }
     },
     "På din Mac · utan Apple Intelligence blir det text men ingen sammanfattning": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6082,7 +5988,6 @@
       }
     },
     "Rösterna kunde inte startas – texten skrivs utan talare.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6116,7 +6021,6 @@
       }
     },
     "Samma person som…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6133,7 +6037,6 @@
       }
     },
     "Sammanfatta": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6150,7 +6053,6 @@
       }
     },
     "Sammanfatta igen": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6167,7 +6069,6 @@
       }
     },
     "Sammanfattat av %@. Stämmer något inte? Klicka på en tid och lyssna själv.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6201,7 +6102,6 @@
       }
     },
     "Sammanfattningar kräver Apple Intelligence": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6234,7 +6134,6 @@
       }
     },
     "Skicka frågan": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6251,7 +6150,6 @@
       }
     },
     "Skicka frågan (↩)": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6318,7 +6216,6 @@
       }
     },
     "Skriver anteckningarna…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6351,7 +6248,6 @@
       }
     },
     "Skriver klart…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6385,7 +6281,6 @@
       }
     },
     "Skriver sammanfattningen på din Mac…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6402,7 +6297,6 @@
       }
     },
     "Skriver sammanfattningen…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6503,7 +6397,6 @@
       }
     },
     "Sluta lyssna": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6553,7 +6446,6 @@
       }
     },
     "Slå på Apple Intelligence för att få en sammanfattning. Texten finns under fliken Text.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6684,7 +6576,6 @@
       }
     },
     "Spara": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6701,7 +6592,6 @@
       }
     },
     "Spara som…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6818,7 +6708,6 @@
       }
     },
     "Spela upp": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6835,7 +6724,6 @@
       }
     },
     "Spelar in": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6852,7 +6740,6 @@
       }
     },
     "Spelar in, %@": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6983,7 +6870,6 @@
       }
     },
     "Starta möte": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7000,7 +6886,6 @@
       }
     },
     "Starta möte (⇧⌘R)": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7458,7 +7343,6 @@
       }
     },
     "Ta bort Gemma 4?": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7475,7 +7359,6 @@
       }
     },
     "Ta bort frågan": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7492,7 +7375,6 @@
       }
     },
     "Ta bort mötet?": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7509,7 +7391,6 @@
       }
     },
     "Ta bort mötet…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7559,7 +7440,6 @@
       }
     },
     "Ta bort…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7592,7 +7472,6 @@
       }
     },
     "Talare %lld": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7625,7 +7504,6 @@
       }
     },
     "Talmodellen förbereds – det kan ta någon minut…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7708,7 +7586,6 @@
       }
     },
     "Texten blir mer exakt när det är klart.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7742,7 +7619,6 @@
       }
     },
     "Texten kan inte skrivas just nu – ljudet spelas in och skrivs ut efter mötet.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7793,7 +7669,6 @@
       }
     },
     "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer nära Macen. Berätta för de andra att du spelar in.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7827,7 +7702,6 @@
       }
     },
     "Texten är den som skrevs live. Lyssna igenom mötet igen för en mer exakt text.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7861,7 +7735,6 @@
       }
     },
     "Tidigare i veckan": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7895,7 +7768,6 @@
       }
     },
     "Tidslinje: vem pratade när": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7912,7 +7784,6 @@
       }
     },
     "Till nu": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8176,7 +8047,6 @@
       }
     },
     "Tryck igen för att avsluta": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8244,7 +8114,6 @@
       }
     },
     "Två röster som är samma person slås ihop": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8295,7 +8164,6 @@
       }
     },
     "Uppspelningshastighet": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8329,7 +8197,6 @@
       }
     },
     "Vad bestämdes?": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8346,7 +8213,6 @@
       }
     },
     "Vad var det viktigaste?": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8428,7 +8294,6 @@
       }
     },
     "Vem gör vad?": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8445,7 +8310,6 @@
       }
     },
     "Vem är det här?": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8611,7 +8475,6 @@
       }
     },
     "Visa i texten": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8628,7 +8491,6 @@
       }
     },
     "Visa inspelningen i Finder": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8710,7 +8572,6 @@
       }
     },
     "Visa var det sades": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8727,7 +8588,6 @@
       }
     },
     "Visa ändringar": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8744,7 +8604,6 @@
       }
     },
     "Visar och spelar upp det som sades": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9141,7 +9000,6 @@
       }
     },
     "rättade %lld talarbyten": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9158,7 +9016,6 @@
       }
     },
     "rättade 1 talarbyte": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9175,7 +9032,6 @@
       }
     },
     "skärpte %lld ord": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9427,7 +9283,6 @@
       }
     },
     "”%@”": {
-      "extractionState": "stale",
       "localizations": {
         "sv": {
           "stringUnit": {
