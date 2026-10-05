@@ -7503,6 +7503,22 @@
         }
       }
     },
+    "Talmodellen förbereds – det kan ta någon minut…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing the speech model – this can take a minute…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellen förbereds – det kan ta någon minut…"
+          }
+        }
+      }
+    },
     "Tangent %lld": {
       "localizations": {
         "en": {

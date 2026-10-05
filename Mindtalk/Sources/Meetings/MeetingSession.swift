@@ -609,7 +609,16 @@ final class MeetingSession: ObservableObject {
         guard let id = record?.id, (record?.duration ?? 0) > 2 else { return }
         do {
             let url = MeetingStore.audioURL(for: id)
-            phase = .finishing(String(localized: "Lyssnar igenom hela mötet…"))
+            let listening = String(localized: "Lyssnar igenom hela mötet…")
+            phase = .finishing(listening)
+            // Normally a second or two. When it isn't, the speech model is being prepared
+            // again by macOS — say so rather than stand still.
+            let slow = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(8))
+                guard !Task.isCancelled, let self, self.phase == .finishing(listening) else { return }
+                self.phase = .finishing(String(localized: "Talmodellen förbereds – det kan ta någon minut…"))
+            }
+            defer { slow.cancel() }
             let timed = try await SpeechEngine.shared.transcribeFile(url, with: language)
             // The steady voices heard the whole meeting with the same ten seconds of
             // context a second listen would use: when they cover it all, they are the

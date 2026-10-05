@@ -386,7 +386,12 @@ actor SpeechEngine {
         let version = model.asrVersion
         let task = Task { () async throws -> AsrManager in
             let models = try AsrModels.loadLocal(from: dir, version: version)
-            let asr = AsrManager(config: .default)
+            // One reading at a time, also for long audio. FluidAudio would otherwise read
+            // a long recording four chunks at once — and each extra reader makes Core ML
+            // prepare the model for the Neural Engine again, about a minute apiece when
+            // that isn't cached (measured: three minutes before a meeting was written
+            // out). In sequence a chunk takes a tenth of a second.
+            let asr = AsrManager(config: ASRConfig(parallelChunkConcurrency: 1))
             try await asr.loadModels(models)
             var warm = TdtDecoderState.make(decoderLayers: 2)
             _ = try? await asr.transcribe([Float](repeating: 0, count: 16_000), decoderState: &warm)
