@@ -268,15 +268,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 ("Jag skickar det till hund", "Jag skickar det till hunden", true),
                 ("Jag godkänner inte avtalet", "Jag godkänner avtalet", false),
                 ("Det kostar tjugo kronor", "Det kostar tjugofem kronor", false),
-                ("Sa Nelly någonting om mat", "Sa Nelly något om mat", false),
+                ("Sa Anna någonting om mat", "Sa Anna något om mat", false),
                 ("Kan du kolla på detta", "Kan du titta på detta", false),
                 ("Vi ses på tisdag, nej jag menar onsdag", "Vi ses på onsdag", true),
                 ("Blir det fel? Eller är det jag som läser fel?", "Blir det fel eller är det jag som läser fel?", false),
                 ("Den är bättre så vi borde ha den", "Den är bättre, så vi borde ha den", true),
             ]
             let ruleCases: [(String, String)] = [
-                ("Johan vill bygga med kubeh.", "Johan vill bygga med kub."),
-                ("Fick detta svar av. Peter?", "Fick detta svar av Peter?"),
+                ("Erik vill bygga med kubeh.", "Erik vill bygga med kub."),
+                ("Fick detta svar av. Erik?", "Fick detta svar av Erik?"),
                 ("Den låg längst ner där i. Fönstret där man pratar.", "Den låg längst ner där i fönstret där man pratar."),
                 ("Det var det jag tänkte på. Sen gick vi hem.", "Det var det jag tänkte på. Sen gick vi hem."),
                 ("Yeah, det är okej, meh.", "Yeah, det är okej, meh."),

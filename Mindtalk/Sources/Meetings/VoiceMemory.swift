@@ -197,7 +197,7 @@ final class VoiceMemory: ObservableObject {
     // MARK: After a meeting
 
     /// Two voices are the same person from this score on (cosine of CAM++ prints) —
-    /// measured on Mathias's own meetings: the same voice in different rooms scores
+    /// measured on real meetings: the same voice in different rooms scores
     /// well above it, two different people well below.
     nonisolated static let sameVoice: Float = 0.65
     /// And the best match must beat the next by this much.
