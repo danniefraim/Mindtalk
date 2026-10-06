@@ -519,10 +519,15 @@ private struct SpeakerChip: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Vem är det här?").font(.system(size: 13, weight: .semibold))
                 if recognized {
-                    HStack(spacing: 8) {
+                    // A wrong guess, undone: the name goes, this meeting only — the voice
+                    // Mindtalk remembers stays as it is.
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Mindtalk kände igen rösten.").font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
-                        Button("Det är inte \(cast.name(of: speaker))") { editing = false; rename("") }
-                            .buttonStyle(.plain).font(.system(size: 12, weight: .semibold))
+                        Button { editing = false; rename("") } label: {
+                            Label("Fel person? Ta bort namnet", systemImage: "xmark")
+                        }
+                        .buttonStyle(SoftButtonStyle(small: true))
+                        .help("Namnet tas bort i det här mötet. Rösten Mindtalk känner igen ändras inte.")
                     }
                 }
                 TextField(cast.name(of: speaker), text: $draft)

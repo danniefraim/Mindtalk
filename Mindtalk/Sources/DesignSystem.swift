@@ -237,18 +237,22 @@ struct GrantedLabel: View {
 
 /// Soft button ("Ändra"): a raised control with a clear edge.
 struct SoftButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View { Styled(configuration: configuration) }
+    /// A smaller button, for a secondary action inside a popover or a row.
+    var small = false
+
+    func makeBody(configuration: Configuration) -> some View { Styled(configuration: configuration, small: small) }
 
     private struct Styled: View {
         let configuration: ButtonStyle.Configuration
+        let small: Bool
         @Environment(\.isEnabled) private var enabled
         var body: some View {
             let shape = RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
             configuration.label
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: small ? 12 : 13, weight: .semibold))
                 .foregroundStyle(.primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 7)
+                .padding(.horizontal, small ? 10 : 16)
+                .padding(.vertical, small ? 4 : 7)
                 .background(shape.fill(DS.Colors.control.opacity(configuration.isPressed ? 0.7 : 1))
                     .shadow(color: .black.opacity(enabled ? 0.06 : 0), radius: 2, y: 1))
                 .overlay(shape.strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))

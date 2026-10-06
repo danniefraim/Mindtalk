@@ -1970,6 +1970,7 @@
       }
     },
     "Det är inte %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2475,6 +2476,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ett möte spelas in – diktering är pausad."
+          }
+        }
+      }
+    },
+    "Fel person? Ta bort namnet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wrong person? Remove the name"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fel person? Ta bort namnet"
           }
         }
       }
@@ -6581,6 +6598,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Namn och ord som Mindtalk ska stava som du vill. Delade eller felskrivna varianter – som ”Mind Talk” – rättas automatiskt."
+          }
+        }
+      }
+    },
+    "Namnet tas bort i det här mötet. Rösten Mindtalk känner igen ändras inte.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The name is removed from this meeting. The voice Mindtalk recognises stays as it is."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namnet tas bort i det här mötet. Rösten Mindtalk känner igen ändras inte."
           }
         }
       }
