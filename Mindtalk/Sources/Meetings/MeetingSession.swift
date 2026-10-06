@@ -270,6 +270,9 @@ final class MeetingSession: ObservableObject {
         return false
     }
 
+    /// The ask is withdrawn (the panel it showed in was put away).
+    func disarmStop() { stopArmed = false }
+
     func stop() {
         guard isRecording else { return }
         stopArmed = false

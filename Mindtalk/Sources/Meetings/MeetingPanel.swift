@@ -1,27 +1,46 @@
 import AppKit
 import Combine
 import SwiftUI
+import UserNotifications
 
 // MARK: - The meeting panel
 //
-// While a meeting is recorded it lives in a narrow panel at the right edge of the
-// screen, above whatever you're working in: the time, that the room is heard, the
-// text as it's written with who is speaking, and stop. The large window is one
-// click away, and it's where the finished meeting opens — with the summary.
+// A meeting is shown in one place at a time: this narrow panel at the edge of the
+// screen, above whatever you're working in — or Mindtalk's large window. It opens
+// where you started it: from the menu bar or ⇧⌘R, the panel; from inside the
+// window, the window. Arrows in each take you to the other, and closing the
+// window during a meeting brings the panel back, so a running recording is never
+// out of sight unless you closed the panel yourself.
 //
-// The panel never takes the keyboard from the app you're in.
+// The panel never takes the keyboard from the app you're in, and Mindtalk never
+// brings itself forward when a meeting is written out: the panel says it's done,
+// or a notification does if you had put the panel away.
 
 @MainActor
-final class MeetingPanel {
+final class MeetingPanel: ObservableObject {
     static let shared = MeetingPanel()
+
+    /// Where the meeting is shown while it runs.
+    enum Home { case panel, window }
+
+    /// Shown in the panel after a meeting: open the notes, or nothing was kept.
+    enum Done: Equatable {
+        case meeting(id: UUID, title: String)
+        case nothingHeard
+    }
+
+    @Published private(set) var isVisible = false
+    @Published private(set) var done: Done?
 
     private var panel: NSPanel?
     private var watching: AnyCancellable?
+    private var home: Home = .panel
+    private var wasRecording = false
     private var wasBusy = false
 
     private init() {}
 
-    /// Follows the meeting: the panel comes with it and leaves when it's written out.
+    /// Follows the meeting: the panel comes with it and says when it's done.
     func watch() {
         #if DEBUG
         // Screenshots of the large window keep the meeting there; `--demo-panel` shows this one.
@@ -29,42 +48,84 @@ final class MeetingPanel {
         #endif
         watching = MeetingSession.shared.$phase
             .receive(on: RunLoop.main)
-            .sink { [weak self] phase in self?.phaseChanged(phase) }
+            .sink { [weak self] _ in self?.phaseChanged() }
     }
 
-    private func phaseChanged(_ phase: MeetingSession.Phase) {
-        let busy = phase != .idle
-        defer { wasBusy = busy }
-        if busy, !wasBusy {
-            // The meeting moves into the panel; the large window steps aside.
-            AppDelegate.hideMainWindow()
-            show()
-        } else if !busy, wasBusy {
-            hide()
-            // Written out: the large window, on the meeting and its summary.
-            if let id = MeetingSession.shared.finished {
-                MeetingsPage.lastOpen = id
-                AppDelegate.showWindow(page: .meetings)
+    private func phaseChanged() {
+        let session = MeetingSession.shared
+        let recording = session.isRecording, busy = session.isBusy
+        defer { wasRecording = recording; wasBusy = busy }
+        if recording, !wasRecording {
+            // A meeting starts — where you started it. ("Gör klart" on an interrupted
+            // meeting is busy without recording and stays in the window.)
+            done = nil
+            home = AppDelegate.mainWindowIsKey ? .window : .panel
+            if home == .panel {
+                if AppDelegate.mainWindowVisible { AppDelegate.hideMainWindow() }   // behind your work anyway
+                show()
             }
+        } else if !busy, wasBusy, wasRecording || isVisible {
+            finished(session.finished)
         }
     }
 
-    var isVisible: Bool { panel?.isVisible == true }
-
-    func show() {
-        guard MeetingSession.shared.isBusy else { return }
-        let panel = self.panel ?? make()
-        self.panel = panel
-        panel.orderFrontRegardless()
+    /// Written out. Nothing comes forward on its own: the window stays if that's
+    /// where the meeting was; the panel says it's done; put away, a notification does.
+    private func finished(_ id: UUID?) {
+        guard !AppDelegate.isQuitting else { return }
+        if home == .window, AppDelegate.mainWindowVisible { return }
+        let record = id.flatMap { id in MeetingStore.shared.meetings.first { $0.id == id } }
+        done = record.map { .meeting(id: $0.id, title: $0.title) } ?? .nothingHeard
+        if isVisible { return }
+        guard let record else { return }
+        Self.notify(record)
     }
 
-    func hide() { panel?.orderOut(nil) }
+    // MARK: Showing and hiding
+
+    func show() {
+        guard MeetingSession.shared.isBusy || done != nil else { return }
+        let panel = self.panel ?? make()
+        self.panel = panel
+        if !panel.isVisible { place(panel) }
+        panel.orderFrontRegardless()
+        isVisible = true
+    }
+
+    /// Put away: the recording goes on, the menu bar shows it.
+    func hide() {
+        panel?.orderOut(nil)
+        isVisible = false
+        MeetingSession.shared.disarmStop()
+        if done != nil { done = nil }
+    }
 
     /// The meeting in the large window instead, with the timeline and all of it.
     func expand() {
+        let id: UUID?
+        if case .meeting(let doneID, _) = done { id = doneID } else { id = nil }
         hide()
+        home = .window
+        if let id { MeetingsPage.lastOpen = id }
         AppDelegate.showWindow(page: .meetings)
     }
+
+    /// Back from the window to the panel — the arrow in the window, or closing it.
+    func collapse(closingWindow: Bool = true) {
+        guard MeetingSession.shared.isBusy else { return }
+        home = .panel
+        if closingWindow, AppDelegate.mainWindowVisible { AppDelegate.hideMainWindow() }
+        show()
+    }
+
+    /// The large window was closed while a meeting runs: the panel takes over.
+    func mainWindowClosed() {
+        guard MeetingSession.shared.isBusy, home == .window else { return }
+        home = .panel
+        show()
+    }
+
+    // MARK: The window itself
 
     private func make() -> NSPanel {
         let size = NSSize(width: 380, height: 600)
@@ -85,33 +146,85 @@ final class MeetingPanel {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.minSize = NSSize(width: 320, height: 360)
         panel.maxSize = NSSize(width: 560, height: 1400)
-        panel.contentViewController = NSHostingController(
-            rootView: MeetingPanelView(session: .shared,
+        // Buttons answer the first click although the panel never becomes active.
+        panel.contentView = ClickThroughHostingView(
+            rootView: MeetingPanelView(session: .shared, panel: self,
                                        expand: { [weak self] in self?.expand() },
                                        close: { [weak self] in self?.hide() }))
         panel.setContentSize(size)
-        // At the right edge of the screen you're on, as tall as fits — unless you've
-        // put it somewhere yourself before.
-        if !panel.setFrameUsingName("MindtalkMeetingPanel") {
-            let screen = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-            let height = min(size.height + 120, screen.height - 48)
-            panel.setFrame(NSRect(x: screen.maxX - size.width - 20, y: screen.midY - height / 2,
-                                  width: size.width, height: height), display: false)
-        }
         panel.setFrameAutosaveName("MindtalkMeetingPanel")
         return panel
     }
+
+    /// At the right edge of the screen the mouse is on, as tall as fits — or where
+    /// you last put it, if that is still on a screen.
+    private func place(_ panel: NSPanel) {
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main ?? NSScreen.screens.first
+        let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        if panel.setFrameUsingName("MindtalkMeetingPanel"),
+           NSScreen.screens.contains(where: { $0.visibleFrame.intersects(panel.frame.insetBy(dx: 40, dy: 40)) }) {
+            return
+        }
+        let size = NSSize(width: 380, height: min(720, visible.height - 48))
+        panel.setFrame(NSRect(x: visible.maxX - size.width - 20, y: visible.midY - size.height / 2,
+                              width: size.width, height: size.height), display: false)
+    }
+
+    /// "Mötet är klart" — when the panel was put away. Asks to notify the first time.
+    private static func notify(_ record: MeetingRecord) {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert]) { granted, _ in
+            guard granted else { return }
+            let content = UNMutableNotificationContent()
+            content.title = String(localized: "Mötet är klart")
+            content.body = record.title
+            content.userInfo = ["meeting": record.id.uuidString]
+            center.add(UNNotificationRequest(identifier: "meeting-\(record.id.uuidString)", content: content, trigger: nil))
+        }
+    }
+
+    /// The notification was clicked: the notes.
+    func openFromNotification(_ userInfo: [AnyHashable: Any]) {
+        guard let raw = userInfo["meeting"] as? String, let id = UUID(uuidString: raw) else { return }
+        MeetingsPage.lastOpen = id
+        AppDelegate.showWindow(page: .meetings)
+    }
 }
 
-/// Floats without becoming the app you type in; takes a click on its buttons.
+/// Floats without becoming the app you type in.
 private final class FloatingPanel: NSPanel {
-    override var canBecomeKey: Bool { true }
+    override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 }
 
 // MARK: - What it shows
 
 struct MeetingPanelView: View {
+    @ObservedObject var session: MeetingSession
+    @ObservedObject var panel: MeetingPanel
+    let expand: () -> Void
+    let close: () -> Void
+
+    var body: some View {
+        Group {
+            if let done = panel.done, !session.isBusy {
+                DonePanel(done: done, expand: expand, close: close)
+            } else if panel.isVisible {
+                // Each meeting starts the panel afresh: the reminder, following the text.
+                LivePanel(session: session, expand: expand, close: close)
+                    .id(session.startedAt)
+            } else {
+                Color.clear          // put away: nothing to lay out
+            }
+        }
+        .background(DS.Colors.paper)
+        .ignoresSafeArea()          // no title bar: the header is the top
+    }
+}
+
+/// The meeting as it's recorded: recording, how long, the room heard, the text, stop.
+private struct LivePanel: View {
     @ObservedObject var session: MeetingSession
     let expand: () -> Void
     let close: () -> Void
@@ -128,14 +241,11 @@ struct MeetingPanelView: View {
             transcript(turns, cast)
             footer
         }
-        .background(DS.Colors.paper)
-        .ignoresSafeArea()          // no title bar: the header is the top
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 20) { withAnimation(.easeOut(duration: 0.4)) { consent = false } }
+        .task {
+            try? await Task.sleep(for: .seconds(20))
+            withAnimation(.easeOut(duration: 0.4)) { consent = false }
         }
     }
-
-    // MARK: Header — recording, for how long, and that the room is heard
 
     private var header: some View {
         HStack(spacing: 10) {
@@ -153,29 +263,13 @@ struct MeetingPanelView: View {
                 Text(session.record?.title ?? "").font(.system(size: 13.5, weight: .semibold)).lineLimit(1)
             }
             Spacer(minLength: 8)
-            iconButton("arrow.up.left.and.arrow.down.right", help: "Visa i Mindtalks fönster", action: expand)
-            iconButton("xmark", help: "Stäng panelen – inspelningen fortsätter", action: close)
+            PanelIconButton(symbol: "arrow.up.left.and.arrow.down.right", help: "Visa i Mindtalks fönster", action: expand)
+            PanelIconButton(symbol: "xmark", help: "Stäng panelen – inspelningen fortsätter", action: close)
         }
         .padding(.leading, 18)
         .padding(.trailing, 12)
         .frame(height: 50)
     }
-
-    private func iconButton(_ symbol: String, help: LocalizedStringKey, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 11.5, weight: .semibold))
-                .foregroundStyle(DS.Colors.muted)
-                .frame(width: 28, height: 28)
-                .background(Circle().fill(DS.Colors.card))
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .help(help)
-        .accessibilityLabel(help)
-    }
-
-    // MARK: The text, as it's written
 
     private func transcript(_ turns: [MeetingTurn], _ cast: Cast) -> some View {
         ScrollViewReader { proxy in
@@ -191,7 +285,7 @@ struct MeetingPanelView: View {
                     if turns.isEmpty { empty }
                     ForEach(Array(turns.enumerated()), id: \.element.id) { i, turn in
                         let newSpeaker = i == 0 || turns[i - 1].speaker != turn.speaker
-                        PanelTurn(turn: turn, cast: cast, showName: newSpeaker, isLast: i == turns.count - 1)
+                        PanelTurn(turn: turn, cast: cast, showName: newSpeaker)
                             .padding(.top, i == 0 ? 0 : newSpeaker ? 18 : 5)
                             .id(turn.id)
                     }
@@ -255,8 +349,6 @@ struct MeetingPanelView: View {
         .padding(.top, 60)
     }
 
-    // MARK: Footer — a word when something needs attention, and stop
-
     private var footer: some View {
         VStack(spacing: 10) {
             if let warning = session.warning, session.isRecording {
@@ -291,16 +383,81 @@ struct MeetingPanelView: View {
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .help("Avsluta mötet (⇧⌘R)")
+                .help("Avsluta mötet")
             }
         }
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 16)
-        .background(DS.Colors.paper)
         .overlay(alignment: .top) { Rectangle().fill(DS.Colors.divider).frame(height: 0.5) }
         .animation(.easeOut(duration: 0.2), value: session.warning)
         .animation(.spring(duration: 0.3, bounce: 0.1), value: session.stopArmed)
+    }
+}
+
+/// After the meeting: it's written — open the notes, or put the panel away.
+private struct DonePanel: View {
+    let done: MeetingPanel.Done
+    let expand: () -> Void
+    let close: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                PanelIconButton(symbol: "xmark", help: "Stäng panelen", action: close)
+            }
+            .padding(.trailing, 12)
+            .frame(height: 50)
+            Spacer()
+            VStack(spacing: 10) {
+                switch done {
+                case .meeting(_, let title):
+                    Image(systemName: "checkmark.circle.fill").font(.system(size: 30)).foregroundStyle(DS.Colors.good)
+                    Text("Mötet är klart").font(.system(size: 16, weight: .semibold))
+                    Text(title).font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
+                        .multilineTextAlignment(.center).lineLimit(2)
+                    Button(action: expand) {
+                        Text("Öppna anteckningarna")
+                            .font(.system(size: 13.5, weight: .semibold))
+                            .foregroundStyle(DS.Colors.onInk)
+                            .padding(.horizontal, 22)
+                            .frame(minHeight: 40)
+                            .background(Capsule().fill(DS.Colors.ink))
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 10)
+                case .nothingHeard:
+                    Image(systemName: "waveform.slash").font(.system(size: 28)).foregroundStyle(DS.Colors.faint)
+                    Text("Inget hördes").font(.system(size: 16, weight: .semibold))
+                    Text("Mötet var för kort för att sparas.").font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .padding(.horizontal, 24)
+            Spacer()
+        }
+    }
+}
+
+private struct PanelIconButton: View {
+    let symbol: String
+    let help: LocalizedStringKey
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(DS.Colors.muted)
+                .frame(width: 28, height: 28)
+                .background(Circle().fill(DS.Colors.card))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(help)
     }
 }
 
@@ -309,7 +466,6 @@ private struct PanelTurn: View {
     let turn: MeetingTurn
     let cast: Cast
     let showName: Bool
-    let isLast: Bool
 
     private var speaker: Int? { turn.speaker.flatMap { $0 >= 0 ? $0 : nil } }
 

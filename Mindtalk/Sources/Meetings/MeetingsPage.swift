@@ -1546,6 +1546,18 @@ private struct LiveBar: View {
                     }
                 }
                 LiveWave().frame(width: 96, height: 22).accessibilityHidden(true)
+                // The meeting in its panel instead, beside your work.
+                Button { MeetingPanel.shared.collapse() } label: {
+                    Image(systemName: "arrow.down.right.and.arrow.up.left")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(.white.opacity(0.14)))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Visa i panelen")
+                .accessibilityLabel("Visa mötet i panelen")
                 stopButton
             }
         }

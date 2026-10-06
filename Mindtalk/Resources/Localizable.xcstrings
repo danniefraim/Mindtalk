@@ -5248,6 +5248,38 @@
         }
       }
     },
+    "Mötet var för kort för att sparas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting was too short to keep."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet var för kort för att sparas."
+          }
+        }
+      }
+    },
+    "Mötet är klart": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting is done"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet är klart"
+          }
+        }
+      }
+    },
     "Namn": {
       "extractionState": "stale",
       "localizations": {
@@ -7047,6 +7079,22 @@
         }
       }
     },
+    "Stäng panelen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close the panel"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stäng panelen"
+          }
+        }
+      }
+    },
     "Stäng panelen – inspelningen fortsätter": {
       "localizations": {
         "en": {
@@ -8506,6 +8554,22 @@
         }
       }
     },
+    "Visa i panelen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in the panel"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa i panelen"
+          }
+        }
+      }
+    },
     "Visa i texten": {
       "localizations": {
         "en": {
@@ -8599,6 +8663,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa mindre"
+          }
+        }
+      }
+    },
+    "Visa mötet i panelen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the meeting in the panel"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa mötet i panelen"
           }
         }
       }
@@ -9293,6 +9373,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna Mindtalk…"
+          }
+        }
+      }
+    },
+    "Öppna anteckningarna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the notes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna anteckningarna"
           }
         }
       }

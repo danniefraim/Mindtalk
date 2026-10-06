@@ -56,7 +56,7 @@ final class HUD {
 
 /// Buttons answer the first click, even though the panel never becomes active —
 /// so the app you're typing in keeps focus and receives the text.
-private final class ClickThroughHostingView<Content: View>: NSHostingView<Content> {
+final class ClickThroughHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 

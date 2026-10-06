@@ -1,11 +1,12 @@
 import AppKit
 import Combine
+import UserNotifications
 import ServiceManagement
 import SwiftUI
 
 @main
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNotificationCenterDelegate {
     static func main() {
         // Self-test: `Mindtalk --transcribe file.wav [--model swedish|multilingual] [--clean]`
         // prints what the model hears (and, with --clean, the cleaned and polished text).
@@ -164,8 +165,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .sink { [weak self] _ in self?.dictation.stopPickingKey() }
             .store(in: &cancellables)
         // A meeting lives in its own panel beside your work, and in the menu bar —
-        // a red dot and the time — wherever you are.
+        // a red dot and the time — wherever you are. Put away, a notification says
+        // when it's written.
         MeetingPanel.shared.watch()
+        UNUserNotificationCenter.current().delegate = self
         MeetingSession.shared.$phase.combineLatest(MeetingSession.shared.$warning.removeDuplicates())
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -318,6 +321,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         alert.addButton(withTitle: String(localized: "Avsluta mötet och Mindtalk"))
         alert.addButton(withTitle: String(localized: "Fortsätt spela in"))
         guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }
+        Self.isQuitting = true
         if meeting.isRecording { meeting.stop() }
         Task { @MainActor in
             // The final pass, then quit — at most two minutes.
@@ -540,10 +544,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     static func startMeeting() {
         let meeting = MeetingSession.shared
         if VoiceModels.isInstalled { meeting.start() }
-        if !meeting.isRecording { showWindow(page: .meetings) }
+        if !meeting.isRecording { showWindow(page: .meetings); return }
+        // Started from the menu bar: the panel shows it, and the keyboard goes back to
+        // the app you were in rather than to Mindtalk with no window.
+        if !mainWindowVisible { NSApp.deactivate() }
     }
 
     static var mainWindowVisible: Bool { (NSApp.delegate as? AppDelegate)?.window?.isVisible == true }
+    static var mainWindowIsKey: Bool { (NSApp.delegate as? AppDelegate)?.window?.isKeyWindow == true && mainWindowVisible }
+    /// Quitting with a meeting running: nothing opens on the way out.
+    private(set) static var isQuitting = false
 
     static func hideMainWindow() { (NSApp.delegate as? AppDelegate)?.window?.close() }
 
@@ -637,8 +647,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+                                            withCompletionHandler completionHandler: @escaping () -> Void) {
+        let info = response.notification.request.content.userInfo
+        DispatchQueue.main.async { MeetingPanel.shared.openFromNotification(info); completionHandler() }
+    }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                            withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner])
+    }
+
     func windowWillClose(_ notification: Notification) {
         dictation.stopPickingKey()
+        // The meeting carries on in its panel when its window goes.
+        if (notification.object as? NSWindow) === window { MeetingPanel.shared.mainWindowClosed() }
         if (notification.object as? NSWindow) === onboardingWindow {
             // Closing the introduction — however it's closed — means it's done.
             Settings.didOnboard = true
