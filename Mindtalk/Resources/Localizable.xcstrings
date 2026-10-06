@@ -1417,7 +1417,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "En liten lyssnare (%@) laddas ned första gången, så att namn stavas rätt redan från början."
+            "value": "En liten lyssnare (%@) laddas ned när du lägger till ett eget ord, så att namn stavas rätt redan från början."
           }
         }
       }
