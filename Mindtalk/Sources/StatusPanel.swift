@@ -160,9 +160,14 @@ struct StatusPanelView: View {
                     if AppDelegate.mainWindowVisible { AppDelegate.showWindow(page: .meetings) } else { MeetingPanel.shared.show() }
                 }
                 if meeting.isRecording {
-                    PanelRow(title: meeting.stopArmed ? String(localized: "Tryck igen för att avsluta") : String(localized: "Avsluta mötet"),
-                             shortcut: Self.meetingKeys) {
-                        meeting.requestStop()
+                    if meeting.stopping {
+                        PanelRow(title: String(localized: "Avslutas strax – ångra")) { meeting.cancelStop() }
+                    } else {
+                        PanelRow(title: String(localized: "Avsluta mötet"), shortcut: Self.meetingKeys) {
+                            meeting.requestStop()
+                            close()
+                            if !AppDelegate.mainWindowVisible { MeetingPanel.shared.show() }
+                        }
                     }
                 }
                 PanelSeparator()

@@ -643,11 +643,6 @@ struct MeetingView: View {
                     .padding(.top, 4)
                     .transition(.opacity)
             }
-            if let session, session.isRecording {
-                LiveNotesBox(session: session)
-                    .frame(maxWidth: 620, alignment: .leading)
-                    .padding(.top, 2)
-            }
             healLine
             banner
         }
@@ -901,7 +896,7 @@ private struct TranscriptView: View {
                 .pageColumn(width)
                 .padding(.top, 8)
             }
-            .contentMargins(.bottom, 120, for: .scrollContent)
+            .contentMargins(.bottom, session?.isRecording == true ? 270 : 120, for: .scrollContent)
             .scrollContentBackground(.hidden)
             .onScrollGeometryChange(for: Bool.self) { geo in
                 geo.contentOffset.y + geo.containerSize.height >= geo.contentSize.height - 80
@@ -940,7 +935,7 @@ private struct TranscriptView: View {
                                 .background(Capsule().fill(DS.Colors.ink))
                         }
                         .buttonStyle(.plain)
-                        .padding(.bottom, 96)
+                        .padding(.bottom, session?.isRecording == true ? 250 : 96)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
@@ -1421,7 +1416,7 @@ private struct NotesList: View {
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if item.marked == true {
-                Image(systemName: "flag.fill").font(.system(size: 10.5)).foregroundStyle(DS.Colors.muted)
+                Image(systemName: "flag.fill").font(.system(size: 10.5)).foregroundStyle(markTint)
                     .help("Du markerade det här under mötet")
                     .accessibilityLabel("Markerat av dig")
             }
@@ -1433,6 +1428,15 @@ private struct NotesList: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 13)
         .animation(.easeOut(duration: 0.25), value: done)
+    }
+
+    /// The colour of what you marked: the list's kind.
+    private var markTint: Color {
+        switch kind {
+        case .decision: return MeetingRecord.Mark.Kind.decision.tint
+        case .task: return MeetingRecord.Mark.Kind.task.tint
+        case .point: return MeetingRecord.Mark.Kind.important.tint
+        }
     }
 
     @ViewBuilder private func marker(_ item: MeetingSummary.Item, done: Bool) -> some View {
@@ -1590,7 +1594,6 @@ private struct LiveBar: View {
     @ObservedObject var session: MeetingSession
     /// Until the panel has been used once: closing the window doesn't end the meeting.
     @AppStorage(MeetingPanel.tipSeenKey) private var panelTipSeen = false
-    private var armed: Bool { session.stopArmed }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -1604,11 +1607,22 @@ private struct LiveBar: View {
                     .background(Capsule().fill(DS.Colors.paper.opacity(0.9)))
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
+            // Your notes and the marks, where your eyes are while it records — as in the panel.
+            if session.isRecording {
+                LiveNotesBox(session: session)
+                    .padding(12)
+                    .frame(maxWidth: 560)
+                    .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(DS.Colors.paper))
+                    .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(DS.Colors.divider, lineWidth: 0.5))
+                    .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+                    .padding(.horizontal, 24)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
             pill
         }
         .padding(.bottom, 22)
         .animation(.spring(duration: 0.35, bounce: 0.15), value: session.phase)
-        .animation(.spring(duration: 0.35, bounce: 0.15), value: armed)
+        .animation(.spring(duration: 0.35, bounce: 0.15), value: session.stopping)
         .animation(.easeOut(duration: 0.25), value: caption?.text)
     }
 
@@ -1638,8 +1652,13 @@ private struct LiveBar: View {
                             .accessibilityLabel("Spelar in, \(MeetingView.spoken(context.date.timeIntervalSince(start)))")
                     }
                 }
-                LiveWave().frame(width: 96, height: 22).accessibilityHidden(true)
-                stopButton
+                if session.stopping {
+                    StopCountdown(session: session, compact: true, onDark: true)
+                        .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .trailing)))
+                } else {
+                    LiveWave().frame(width: 96, height: 22).accessibilityHidden(true)
+                    stopButton
+                }
             }
         }
         .padding(.leading, 18)
@@ -1651,23 +1670,19 @@ private struct LiveBar: View {
         .fixedSize()
     }
 
-    /// Past the first minute, stopping asks once — a meeting can't be resumed.
+    /// One press ends it — with a few seconds to undo, the recording going on meanwhile.
     private var stopButton: some View {
         Button {
-            session.requestStop()
+            withAnimation(.spring(duration: 0.3, bounce: 0.15)) { _ = session.requestStop() }
         } label: {
-            HStack(spacing: 7) {
-                Image(systemName: "stop.fill").font(.system(size: 11, weight: .bold))
-                if armed { Text("Avsluta mötet").font(.system(size: 13, weight: .semibold)).fixedSize() }
-            }
-            .foregroundStyle(.black)
-            .padding(.horizontal, armed ? 14 : 0)
-            .frame(minWidth: 32, minHeight: 32)
-            .background(Capsule().fill(.white))
-            .contentShape(Capsule())
+            Image(systemName: "stop.fill").font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.black)
+                .frame(width: 32, height: 32)
+                .background(Circle().fill(.white))
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .help("Avsluta mötet (⇧⌘R)")
+        .help("Avsluta mötet – du kan ångra i några sekunder")
         .accessibilityLabel("Avsluta mötet")
     }
 }

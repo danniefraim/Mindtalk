@@ -27,6 +27,15 @@ extension MeetingRecord.Mark.Kind {
         case .important: return "star"
         }
     }
+
+    /// Its quiet colour — on the icon and the label, nowhere bigger.
+    var tint: Color {
+        switch self {
+        case .decision: return DS.Colors.markDecision
+        case .task: return DS.Colors.markTask
+        case .important: return DS.Colors.markImportant
+        }
+    }
 }
 
 /// The sentence to read out at the start. Yours, if you wrote one in Settings.
@@ -97,7 +106,6 @@ struct LiveNotesBox: View {
     @ObservedObject var session: MeetingSession
     var compact = false
     @State private var text = ""
-    @State private var marked: MeetingRecord.Mark?
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -123,35 +131,9 @@ struct LiveNotesBox: View {
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(DS.Colors.field))
             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(focused ? DS.Colors.ink.opacity(0.5) : DS.Colors.fieldStroke, lineWidth: 1))
-            HStack(spacing: 6) {
-                ForEach(MeetingRecord.Mark.Kind.allCases) { kind in
-                    MarkButton(kind: kind) {
-                        // With a spring, so the label pops in under the words.
-                        let made = withAnimation(.spring(duration: 0.35, bounce: 0.35)) { session.mark(kind) }
-                        if let mark = made {
-                            withAnimation(.easeOut(duration: 0.2)) { marked = mark }
-                            let id = mark.id
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                                if marked?.id == id { withAnimation(.easeOut(duration: 0.3)) { marked = nil } }
-                            }
-                        }
-                    }
-                }
-                Spacer(minLength: 0)
-                if let marked {
-                    HStack(spacing: 5) {
-                        Text("\(marked.kind.title) \(MeetingView.duration(marked.at))")
-                        Button("Ångra") {
-                            session.removeMark(marked.id)
-                            withAnimation(.easeOut(duration: 0.2)) { self.marked = nil }
-                        }
-                        .buttonStyle(.plain)
-                        .fontWeight(.semibold)
-                    }
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(DS.Colors.muted)
-                    .transition(.opacity)
-                }
+            MarkBar(compact: compact) { kind in
+                // With a spring, so the label pops in under the words.
+                withAnimation(.spring(duration: 0.35, bounce: 0.35)) { _ = session.mark(kind) }
             }
         }
         .onAppear { text = session.record?.notesText ?? "" }
@@ -159,21 +141,54 @@ struct LiveNotesBox: View {
     }
 }
 
-private struct MarkButton: View {
-    let kind: MeetingRecord.Mark.Kind
-    let action: () -> Void
+/// Beslut · Att göra · Viktigt — one joined row, each with its icon in its own
+/// quiet colour. A press flashes the part you pressed and says it took.
+private struct MarkBar: View {
+    var compact = false
+    let mark: (MeetingRecord.Mark.Kind) -> Void
+    @State private var flashed: MeetingRecord.Mark.Kind?
+    @State private var hovered: MeetingRecord.Mark.Kind?
 
     var body: some View {
-        Button(action: action) {
-            Label(kind.title, systemImage: kind.symbol)
-                .font(.system(size: 11.5, weight: .semibold))
-                .padding(.horizontal, 9)
-                .frame(height: 26)
-                .background(Capsule().fill(DS.Colors.chip))
-                .contentShape(Capsule())
+        HStack(spacing: 0) {
+            ForEach(Array(MeetingRecord.Mark.Kind.allCases.enumerated()), id: \.element) { i, kind in
+                if i > 0 { Rectangle().fill(DS.Colors.fieldStroke).frame(width: 0.5).padding(.vertical, 8) }
+                segment(kind)
+            }
+        }
+        .frame(height: compact ? 46 : 48)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(DS.Colors.field))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func segment(_ kind: MeetingRecord.Mark.Kind) -> some View {
+        let on = flashed == kind
+        return Button {
+            mark(kind)
+            withAnimation(.easeOut(duration: 0.15)) { flashed = kind }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                if flashed == kind { withAnimation(.easeOut(duration: 0.4)) { flashed = nil } }
+            }
+        } label: {
+            VStack(spacing: 3) {
+                Image(systemName: on ? "checkmark" : kind.symbol)
+                    .font(.system(size: 14.5, weight: .semibold))
+                    .foregroundStyle(kind.tint)
+                    .contentTransition(.symbolEffect(.replace))
+                    .frame(height: 17)
+                Text(on ? String(localized: "Markerat") : kind.title)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(on ? kind.tint : .primary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(on ? kind.tint.opacity(0.14) : hovered == kind ? DS.Colors.chip.opacity(0.7) : .clear)
+            .contentShape(Rectangle())
+            .scaleEffect(on ? 0.97 : 1)
         }
         .buttonStyle(.plain)
-        .help("Markera det som just sades: \(kind.title.lowercased())")
+        .onHover { hovered = $0 ? kind : (hovered == kind ? nil : hovered) }
+        .help("Markera det som sägs just nu: \(kind.title.lowercased())")
         .accessibilityLabel("Markera \(kind.title.lowercased())")
     }
 }
@@ -324,11 +339,14 @@ struct MarkChips: View {
     var body: some View {
         HStack(spacing: 6) {
             ForEach(marks) { mark in
-                Label("\(mark.kind.title) \(MeetingView.duration(mark.at))", systemImage: mark.kind.symbol)
+                HStack(spacing: 4) {
+                    Image(systemName: mark.kind.symbol).foregroundStyle(mark.kind.tint)
+                    Text("\(mark.kind.title) \(MeetingView.duration(mark.at))")
+                }
                     .font(.system(size: compact ? 11 : 11.5, weight: .semibold)).monospacedDigit()
                     .padding(.horizontal, compact ? 8 : 9)
                     .frame(height: compact ? 22 : 24)
-                    .background(Capsule().fill(DS.Colors.chip))
+                    .background(Capsule().fill(mark.kind.tint.opacity(0.12)))
                     .contextMenu {
                         if let remove { Button("Ta bort markeringen") { remove(mark.id) } }
                     }
@@ -337,5 +355,54 @@ struct MarkChips: View {
             }
         }
         .animation(.spring(duration: 0.35, bounce: 0.35), value: marks.map(\.id))
+    }
+}
+
+/// "Avslutar om 3 s · Ångra" — on ink, in the panel's stop button and the window's
+/// recording pill. The ring empties as the seconds run out.
+struct StopCountdown: View {
+    @ObservedObject var session: MeetingSession
+    var compact = false
+    /// On the window's recording pill, which is dark in light mode too.
+    var onDark = false
+    private var fore: Color { onDark ? .white : DS.Colors.onInk }
+    private var back: Color { onDark ? .black : DS.Colors.ink }
+
+    var body: some View {
+        HStack(spacing: compact ? 9 : 11) {
+            if let stopAt = session.stopAt {
+                TimelineView(.periodic(from: .now, by: 0.1)) { context in
+                    let left = max(0, stopAt.timeIntervalSince(context.date))
+                    HStack(spacing: compact ? 9 : 11) {
+                        ZStack {
+                            Circle().stroke(fore.opacity(0.25), lineWidth: 2)
+                            Circle().trim(from: 0, to: left / MeetingSession.undoSeconds)
+                                .stroke(fore, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                                .rotationEffect(.degrees(-90))
+                        }
+                        .frame(width: 15, height: 15)
+                        Text("Avslutar om \(Int(left.rounded(.up))) s")
+                            .font(.system(size: 13, weight: .medium)).monospacedDigit()
+                            .foregroundStyle(fore)
+                            .fixedSize()
+                    }
+                }
+            }
+            if !compact { Spacer(minLength: 8) }
+            Button { withAnimation(.spring(duration: 0.3, bounce: 0.15)) { session.cancelStop() } } label: {
+                Text("Ångra")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(back)
+                    .padding(.horizontal, 13)
+                    .frame(height: 30)
+                    .background(Capsule().fill(fore))
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.cancelAction)
+            .help("Fortsätt mötet")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Mötet avslutas om några sekunder")
     }
 }

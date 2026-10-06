@@ -48,7 +48,11 @@ final class MeetingSession: ObservableObject {
     @Published private(set) var finished: UUID?
     @Published var lastError: String?
     /// Stopping was asked for once; asking again within a few seconds ends the meeting.
-    @Published private(set) var stopArmed = false
+    /// Ending: the moment it ends, unless you undo it. Recording goes on until then.
+    @Published private(set) var stopAt: Date?
+    var stopping: Bool { stopAt != nil }
+    private var stopCountdown: Task<Void, Never>?
+    static let undoSeconds = 3.0
 
     var isRecording: Bool { phase == .starting || phase == .recording }
     var isBusy: Bool { phase != .idle }
@@ -161,6 +165,10 @@ final class MeetingSession: ObservableObject {
         }
         new.names = ["0": "Anna", "1": "Erik"]
         new.duration = 754
+        // Two moments marked, so the labels show (Erik's priority, Anna's ask).
+        let erik = new.words.firstIndex { $0.text == "prioritera" }.map { new.words[$0].start + 1 } ?? 30
+        let anna = new.words.firstIndex { $0.text == "plan" }.map { new.words[$0].start + 1 } ?? 40
+        new.marks = [MeetingRecord.Mark(at: erik, kind: .decision), MeetingRecord.Mark(at: anna, kind: .task)]
         if finished {
             new.refined = true
             MeetingStore.shared.save(new)
@@ -255,27 +263,38 @@ final class MeetingSession: ObservableObject {
         loop = Task { await self.run() }
     }
 
-    /// Stopping, from a button or ⇧⌘R. Past the first minute it asks once — a meeting
-    /// can't be resumed — and ends on the second ask. Returns whether it stopped.
+    /// Ending, from a button or the shortcut: a few seconds to undo, and the
+    /// recording goes on meanwhile, so nothing said is lost either way. Asked again
+    /// while it counts down, it ends at once. Returns whether it ended now.
     @discardableResult
     func requestStop() -> Bool {
         guard isRecording else { return false }
-        let long = Date().timeIntervalSince(startedAt ?? Date()) > 60
-        if stopArmed || !long {
+        if stopping {
             stop()
             return true
         }
-        stopArmed = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in self?.stopArmed = false }
+        stopAt = Date().addingTimeInterval(Self.undoSeconds)
+        stopCountdown?.cancel()
+        stopCountdown = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(Self.undoSeconds))
+            guard !Task.isCancelled, let self, self.stopping else { return }
+            self.stop()
+        }
         return false
     }
 
-    /// The ask is withdrawn (the panel it showed in was put away).
-    func disarmStop() { stopArmed = false }
+    /// "Ångra": the meeting goes on as if nothing happened.
+    func cancelStop() {
+        stopCountdown?.cancel()
+        stopCountdown = nil
+        stopAt = nil
+    }
 
     func stop() {
         guard isRecording else { return }
-        stopArmed = false
+        stopCountdown?.cancel()
+        stopCountdown = nil
+        stopAt = nil
         phase = .finishing(String(localized: "Skriver klart…"))
         _ = recorder.stop()
         let loop = self.loop

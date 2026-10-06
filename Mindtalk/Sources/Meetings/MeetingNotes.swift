@@ -409,7 +409,9 @@ final class MeetingNotes: ObservableObject {
             ? "Write the task as a short action in \(language), without saying who does it (that is shown next to it) — " +
               "no I, he, she or name, just what is to be done."
             : "Write it as one short sentence in \(language). Name people as the lines name them (for example " +
-              "\"Talare 1\"); never write I, he, she or they for a person."
+              "\"Talare 1\"); never write I, he, she or they for a person." +
+              (kind == .important ? " Say what is important, not that someone finds it important: if the ▶ line only " +
+               "says \"that's important\", write what it refers to from the lines before it." : "")
         let ask = "These lines were said in a meeting. Someone pressed a button to mark \(what) while the line " +
             "marked ▶ was being said:\n\n\(said)\n\nWhat was marked is most likely in the ▶ line or the one before it; " +
             "use a later line only if those hold no \(what). \(how) At most 15 words, only from what was said. " +

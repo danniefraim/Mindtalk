@@ -96,7 +96,6 @@ final class MeetingPanel: ObservableObject {
     func hide() {
         panel?.orderOut(nil)
         isVisible = false
-        MeetingSession.shared.disarmStop()
         if done != nil { done = nil }
     }
 
@@ -372,19 +371,27 @@ private struct LivePanel: View {
                 .background(Capsule().fill(DS.Colors.ink))
                 .accessibilityElement(children: .combine)
             default:
-                Button { session.requestStop() } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "stop.fill").font(.system(size: 10.5, weight: .bold))
-                        Text(session.stopArmed ? "Tryck igen för att avsluta" : "Avsluta mötet")
-                            .font(.system(size: 13.5, weight: .semibold))
+                if session.stopping {
+                    StopCountdown(session: session)
+                        .padding(.leading, 18)
+                        .padding(.trailing, 7)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(Capsule().fill(DS.Colors.ink))
+                        .transition(.opacity)
+                } else {
+                    Button { withAnimation(.spring(duration: 0.3, bounce: 0.15)) { _ = session.requestStop() } } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "stop.fill").font(.system(size: 10.5, weight: .bold))
+                            Text("Avsluta mötet").font(.system(size: 13.5, weight: .semibold))
+                        }
+                        .foregroundStyle(DS.Colors.onInk)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(Capsule().fill(DS.Colors.ink))
+                        .contentShape(Capsule())
                     }
-                    .foregroundStyle(DS.Colors.onInk)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(Capsule().fill(DS.Colors.ink))
-                    .contentShape(Capsule())
+                    .buttonStyle(.plain)
+                    .help("Avsluta mötet – du kan ångra i några sekunder")
                 }
-                .buttonStyle(.plain)
-                .help("Avsluta mötet")
             }
         }
         .padding(.horizontal, 16)
@@ -392,7 +399,7 @@ private struct LivePanel: View {
         .padding(.bottom, 16)
         .overlay(alignment: .top) { Rectangle().fill(DS.Colors.divider).frame(height: 0.5) }
         .animation(.easeOut(duration: 0.2), value: session.warning)
-        .animation(.spring(duration: 0.3, bounce: 0.1), value: session.stopArmed)
+        .animation(.spring(duration: 0.3, bounce: 0.1), value: session.stopping)
     }
 }
 

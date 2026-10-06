@@ -1254,6 +1254,7 @@
       }
     },
     "Avsluta mötet (⇧⌘R)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1281,6 +1282,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Avsluta mötet och Mindtalk"
+          }
+        }
+      }
+    },
+    "Avsluta mötet – du kan ångra i några sekunder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End the meeting – you can undo for a few seconds"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avsluta mötet – du kan ångra i några sekunder"
+          }
+        }
+      }
+    },
+    "Avslutar om %lld s": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ending in %lld s"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avslutar om %lld s"
+          }
+        }
+      }
+    },
+    "Avslutas strax – ångra": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ending shortly – undo"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avslutas strax – ångra"
           }
         }
       }
@@ -2409,6 +2458,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fortsätt"
+          }
+        }
+      }
+    },
+    "Fortsätt mötet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep the meeting going"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsätt mötet"
           }
         }
       }
@@ -5171,6 +5236,7 @@
       }
     },
     "Markera det som just sades: %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5182,6 +5248,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Markera det som just sades: %@"
+          }
+        }
+      }
+    },
+    "Markera det som sägs just nu: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark what's being said now: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markera det som sägs just nu: %@"
           }
         }
       }
@@ -5214,6 +5296,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Markera som klar"
+          }
+        }
+      }
+    },
+    "Markerat": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marked"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markerat"
           }
         }
       }
@@ -5655,6 +5753,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mötet avslutades när Macen gick i vila."
+          }
+        }
+      }
+    },
+    "Mötet avslutas om några sekunder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting ends in a few seconds"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet avslutas om några sekunder"
           }
         }
       }
@@ -8844,6 +8958,7 @@
       }
     },
     "Tryck igen för att avsluta": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

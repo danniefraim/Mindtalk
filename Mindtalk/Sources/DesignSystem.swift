@@ -59,6 +59,11 @@ enum DS {
         /// Something needs attention (not an error you caused): readable on paper and cards.
         static let warning = dynamic(light: 0xA34A00, dark: 0xFF9F0A)
         static let good = Color(red: 0.20, green: 0.62, blue: 0.36)
+        /// What you marked in a meeting, each kind its own quiet colour — only on icons
+        /// and small labels, so the app stays black and white.
+        static let markDecision = dynamic(light: 0x0F6E56, dark: 0x5DCAA5)
+        static let markTask = dynamic(light: 0x534AB7, dark: 0xAFA9EC)
+        static let markImportant = dynamic(light: 0x9A5B0C, dark: 0xEF9F27)
 
         private static func dynamic(light: UInt32, dark: UInt32) -> Color {
             Color(nsColor: NSColor(name: nil) { appearance in

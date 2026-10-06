@@ -70,7 +70,7 @@ struct MeetingRibbon: View {
             for item in summary.tasks { if let at = item.at { ring(&ctx, x(at)) } }
         }
         // The moments you marked.
-        for mark in record.marks { flag(&ctx, x(mark.at)) }
+        for mark in record.marks { flag(&ctx, x(mark.at), mark.kind.tint) }
         // Listening: where you are.
         if player.meeting == record.id {
             let px = x(player.time)
@@ -90,12 +90,12 @@ struct MeetingRibbon: View {
         ctx.fill(p, with: .color(DS.Colors.ink))
     }
 
-    private func flag(_ ctx: inout GraphicsContext, _ x: CGFloat) {
-        ctx.fill(Path(roundedRect: CGRect(x: x - 0.6, y: 0, width: 1.2, height: 9), cornerRadius: 0.6), with: .color(DS.Colors.accent))
+    private func flag(_ ctx: inout GraphicsContext, _ x: CGFloat, _ tint: Color) {
+        ctx.fill(Path(roundedRect: CGRect(x: x - 0.6, y: 0, width: 1.2, height: 9), cornerRadius: 0.6), with: .color(tint))
         var p = Path()
         p.move(to: CGPoint(x: x + 0.6, y: 0)); p.addLine(to: CGPoint(x: x + 5.5, y: 2.2)); p.addLine(to: CGPoint(x: x + 0.6, y: 4.4))
         p.closeSubpath()
-        ctx.fill(p, with: .color(DS.Colors.accent))
+        ctx.fill(p, with: .color(tint))
     }
 
     private func ring(_ ctx: inout GraphicsContext, _ x: CGFloat) {
