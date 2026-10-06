@@ -2363,6 +2363,7 @@
       }
     },
     "En ny röst – vem är det?": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2495,6 +2496,7 @@
       }
     },
     "Fler i rummet? Säg hej.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3903,6 +3905,22 @@
         }
       }
     },
+    "I rummet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In the room"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I rummet"
+          }
+        }
+      }
+    },
     "Igenkänd röst": {
       "localizations": {
         "en": {
@@ -4303,6 +4321,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Jag spelar in mötet med Mindtalk för att få anteckningar. Allt stannar på min dator. Säg till om du hellre vill att jag inte gör det."
+          }
+        }
+      }
+    },
+    "Jämför röstavtryck…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comparing voiceprints…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jämför röstavtryck…"
           }
         }
       }
@@ -4845,7 +4879,6 @@
       }
     },
     "Känd röst": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4911,6 +4944,7 @@
       }
     },
     "Känner igen…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5493,6 +5527,7 @@
       }
     },
     "Lyssnar på rösten…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8801,6 +8836,7 @@
       }
     },
     "Säg hej och ditt namn – en i taget.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10745,6 +10781,7 @@
       }
     },
     "Välkommen tillbaka, %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

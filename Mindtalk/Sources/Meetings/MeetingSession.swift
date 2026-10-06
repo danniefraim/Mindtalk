@@ -182,6 +182,7 @@ final class MeetingSession: ObservableObject {
             startedAt = Date().addingTimeInterval(-40)
             phase = .recording
             introducing = true
+            introChecked = [0, 1, 2]
             LiveMeter.shared.demo([0.2, 0.5, 0.35, 0.7, 0.45, 0.6, 0.3, 0.55])
             return
         }

@@ -1,0 +1,294 @@
+import AppKit
+import SwiftUI
+
+// MARK: - A voice's own figure
+//
+// Every voice gets a figure of its own: a closed curve in space (a Lissajous knot)
+// whose two rhythms and turns come from the voiceprint (VoiceMemory: 192 numbers per
+// voice) — the same person, the same figure, every time. In the introduction round
+// a cloud of light falls into it (Constellation); in a meeting and in Settings a
+// small drawing of it sits beside the name. A voice Mindtalk doesn't remember (or
+// with voice recognition off) gets a figure from its number instead — nothing about
+// the voice itself is used then.
+
+struct VoiceFigure: Equatable {
+    /// The two rhythms: how many times the curve swings across and up.
+    var a: Int
+    var b: Int
+    /// How the swings are offset, and how the curve turns in depth.
+    var phase: Double
+    var depth: Double
+
+    /// How far depth may drift from height: much more, and the loop flattens into a line.
+    private static let maxDepth = 0.6
+
+    /// Coprime pairs, so every figure is one unbroken loop.
+    private static let rhythms = [(3, 2), (5, 4), (2, 3), (4, 3), (3, 4), (5, 2), (2, 5), (4, 5), (5, 3), (3, 5)]
+
+    /// The point at `u` (0…1 around the loop), inside a unit cube.
+    func point(_ u: Double) -> SIMD3<Double> {
+        let w = u * 2 * .pi
+        return SIMD3(sin(Double(a) * w + phase) * 0.95, sin(Double(b) * w) * 0.8, cos(Double(b) * w + depth) * 0.5)
+    }
+
+    /// From a voiceprint: the rhythm from where its energy lies, the offsets from two
+    /// smooth projections — a slightly different recording moves them a little, not
+    /// into another figure.
+    static func from(print: [Float]) -> VoiceFigure {
+        guard print.count >= rhythms.count * 4 else { return from(seed: "?") }
+        let size = print.count / rhythms.count
+        let energy = (0..<rhythms.count).map { g in print[(g * size)..<((g + 1) * size)].reduce(Float(0)) { $0 + $1 * $1 } }
+        let pick = energy.indices.max { energy[$0] < energy[$1] } ?? 0
+        func angle(_ f: Double) -> Double {
+            var s = 0.0, c = 0.0
+            for (i, v) in print.enumerated() { s += Double(v) * sin(Double(i) * f); c += Double(v) * cos(Double(i) * f) }
+            return atan2(s, c)
+        }
+        return VoiceFigure(a: rhythms[pick].0, b: rhythms[pick].1, phase: angle(0.37), depth: angle(0.91) / .pi * maxDepth)
+    }
+
+    /// From anything else (the speaker's number): the same seed, the same figure.
+    static func from(seed: String) -> VoiceFigure {
+        var state = seed.unicodeScalars.reduce(UInt64(1469598103934665603)) { ($0 ^ UInt64($1.value)) &* 1099511628211 }
+        func next() -> Double {
+            state = state &* 6364136223846793005 &+ 1442695040888963407
+            return Double(state >> 33) / Double(1 << 31)
+        }
+        let pick = rhythms[Int(next() * Double(rhythms.count)) % rhythms.count]
+        return VoiceFigure(a: pick.0, b: pick.1, phase: next() * 2 * .pi, depth: (next() * 2 - 1) * maxDepth)
+    }
+
+    /// The person's figure, if Mindtalk remembers their voice: from the average of
+    /// their prints, steadier than any one recording.
+    @MainActor static func remembered(_ name: String) -> VoiceFigure? {
+        let key = name.lowercased().trimmingCharacters(in: .whitespaces)
+        #if DEBUG
+        // Screenshots: the demo meeting's people are "remembered" without real voices.
+        if CommandLine.arguments.contains("--demo-meeting"), ["anna", "erik"].contains(key) { return from(seed: key) }
+        #endif
+        guard VoiceMemory.shared.enabled, !key.isEmpty,
+              let person = VoiceMemory.shared.people.first(where: { $0.name.lowercased() == key }),
+              let first = person.prints.first else { return nil }
+        var mean = [Float](repeating: 0, count: first.count)
+        for p in person.prints where p.count == first.count { for i in p.indices { mean[i] += p[i] } }
+        return from(print: mean)
+    }
+}
+
+/// The figure drawn small and still, as a thin line — beside a name.
+struct VoiceFigureMark: View {
+    let figure: VoiceFigure
+    let color: Color
+    var lineWidth: CGFloat = 1
+
+    var body: some View {
+        Canvas { ctx, size in
+            ctx.stroke(Self.path(figure, in: size), with: .color(color),
+                       style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// Seen a little from the side, as in the introduction round.
+    static func path(_ figure: VoiceFigure, in size: CGSize) -> Path {
+        let r = min(size.width, size.height) / 2 * 0.92
+        let c = CGPoint(x: size.width / 2, y: size.height / 2)
+        let turn = 0.6, cr = cos(turn), sr = sin(turn)
+        var path = Path()
+        for i in 0...180 {
+            let p = figure.point(Double(i) / 180)
+            let x = p.x * cr + p.z * sr, z = -p.x * sr + p.z * cr, f = 2.6 / (2.6 + z)
+            let q = CGPoint(x: c.x + x * r * f, y: c.y + p.y * r * f)
+            if i == 0 { path.move(to: q) } else { path.addLine(to: q) }
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// A speaker's mark, with their figure beside it when Mindtalk remembers their
+/// voice — otherwise just the mark.
+struct VoiceBadge: View {
+    let speaker: Int?
+    let cast: Cast
+    var size: CGFloat = 18
+    @ObservedObject private var memory = VoiceMemory.shared
+
+    var body: some View {
+        let name = speaker.flatMap { cast.isNamed($0) ? cast.name(of: $0) : nil }
+        HStack(spacing: 4) {
+            SpeakerMark(speaker: speaker, cast: cast, size: size)
+            if let name, let figure = VoiceFigure.remembered(name) {
+                VoiceFigureMark(figure: figure, color: SpeakerMark.fill(cast.order.firstIndex(of: speaker ?? -1) ?? 0),
+                                lineWidth: 1)
+                    .frame(width: size, height: size)
+                    .help("Mindtalk känner igen \(name)s röst")
+            }
+        }
+    }
+}
+
+// MARK: - The cloud
+
+/// Nine hundred points of light: a slowly turning sphere while Mindtalk listens,
+/// falling into a voice's figure — in its colour — once it knows who is speaking,
+/// and back into the sphere before the next voice's figure forms.
+struct Constellation: View {
+    /// The voice to show; nil for the listening sphere.
+    let figure: VoiceFigure?
+    let color: Color
+    /// How loud the room is (0…1): the cloud breathes with it.
+    let level: Double
+    /// Comparing voiceprints: the sphere turns a little faster.
+    var searching = false
+    @State private var morph = Morph()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    static let count = 900
+
+    var body: some View {
+        // Sixty frames a second is plenty for drifting light, also on a 120 Hz screen.
+        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: reduceMotion)) { context in
+            let now = context.date.timeIntervalSinceReferenceDate
+            Canvas { ctx, size in draw(&ctx, size: size, now: now) }
+        }
+        .onAppear { morph.set(figure, rgb: Self.rgb(color), now: Date.timeIntervalSinceReferenceDate, instant: reduceMotion) }
+        .onChange(of: figure) { _, f in morph.set(f, rgb: Self.rgb(color), now: Date.timeIntervalSinceReferenceDate, instant: reduceMotion) }
+        .onChange(of: Self.rgb(color)) { _, c in morph.recolour(c) }
+        .accessibilityHidden(true)
+    }
+
+    private func draw(_ ctx: inout GraphicsContext, size: CGSize, now: Double) {
+        let state = morph.state(now: now, instant: reduceMotion)
+        let angle = morph.turn(now: now, speed: reduceMotion ? 0 : (searching ? 0.6 : 0.25))
+        let cx = size.width / 2, cy = size.height * 0.42, R = min(size.width, size.height) * 0.28
+        let k = state.k, rgb = state.rgb
+        let tint = Color(red: rgb.x, green: rgb.y, blue: rgb.z)
+
+        // The voice's colour, faintly, behind the cloud.
+        let glow = R * 2.4
+        ctx.fill(Path(ellipseIn: CGRect(x: cx - glow, y: cy - glow, width: glow * 2, height: glow * 2)),
+                 with: .radialGradient(Gradient(colors: [tint.opacity(0.07 * k + 0.02), .clear]),
+                                       center: CGPoint(x: cx, y: cy), startRadius: 0, endRadius: glow))
+
+        let a = 0.15 + 0.85 * min(1, level)
+        let cr = cos(angle), sr = sin(angle)
+        let t = reduceMotion ? 0 : now.truncatingRemainder(dividingBy: 10_000)
+        var xs = [CGFloat](repeating: 0, count: Self.count), ys = xs
+        var zs = [Double](repeating: 0, count: Self.count), es = zs
+        for i in 0..<Self.count {
+            let p = Particles.shared[i]
+            let ki = max(0, min(1, k * 1.5 - p.u * 0.5)), e = ki * ki * (3 - 2 * ki)
+            let breath = reduceMotion ? 1 : 1 + 0.12 * a * sin(p.phase + t * 3)
+            let target = state.figure?.point(p.u) ?? p.home
+            let q = p.home * breath + (target - p.home * breath) * e
+            let x2 = q.x * cr + q.z * sr, z2 = -q.x * sr + q.z * cr, f = 2.6 / (2.6 + z2)
+            xs[i] = cx + x2 * R * f; ys[i] = cy + q.y * R * f; zs[i] = z2; es[i] = e
+        }
+
+        ctx.blendMode = .plusLighter
+        // Where the cloud has become the figure, its points join into a line.
+        if k > 0.3 {
+            var line = Path()
+            for i in 0..<Self.count {
+                let j = (i + 1) % Self.count
+                if es[i] > 0.85, es[j] > 0.85 {
+                    line.move(to: CGPoint(x: xs[i], y: ys[i]))
+                    line.addLine(to: CGPoint(x: xs[j], y: ys[j]))
+                }
+            }
+            ctx.stroke(line, with: .color(tint.opacity(0.28 * k)), lineWidth: 0.7)
+        }
+        // The points, nearer ones brighter and larger, whiter until they've arrived.
+        // Drawn in a few batches (by brightness and colour) rather than one by one.
+        let shades = 5, hues = 4
+        var batches = [Path](repeating: Path(), count: shades * hues)
+        for i in 0..<Self.count {
+            let z = zs[i], e = es[i]
+            let s = (1.5 - z * 0.6) * (1 + e * 0.3)
+            let shade = min(shades - 1, Int((1 - z) / 2 * Double(shades)))
+            let hue = min(hues - 1, Int(e * Double(hues)))
+            batches[hue * shades + shade].addEllipse(in: CGRect(x: xs[i] - s, y: ys[i] - s, width: s * 2, height: s * 2))
+        }
+        for hue in 0..<hues {
+            let m = (Double(hue) + 0.5) / Double(hues)
+            let c = SIMD3<Double>(1, 1, 1) + (rgb - SIMD3<Double>(1, 1, 1)) * m
+            for shade in 0..<shades {
+                let alpha = 0.3 + 0.45 * (Double(shade) + 0.5) / Double(shades)
+                ctx.fill(batches[hue * shades + shade], with: .color(Color(red: c.x, green: c.y, blue: c.z).opacity(alpha)))
+            }
+        }
+    }
+
+    /// A speaker's colour, made vivid for a dark room.
+    static func rgb(_ color: Color) -> SIMD3<Double> {
+        let c = NSColor(color).usingColorSpace(.sRGB) ?? .white
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        c.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        let vivid = NSColor(hue: h, saturation: max(s, 0.55), brightness: 0.95, alpha: 1).usingColorSpace(.sRGB) ?? c
+        return SIMD3(Double(vivid.redComponent), Double(vivid.greenComponent), Double(vivid.blueComponent))
+    }
+
+    /// The points' resting places: evenly over a sphere (a golden spiral), each
+    /// with its own breathing rhythm.
+    struct Particles {
+        let home: SIMD3<Double>
+        let u: Double
+        let phase: Double
+
+        static let shared: [Particles] = {
+            var state: UInt64 = 0x9E3779B97F4A7C15
+            return (0..<Constellation.count).map { i in
+                let y = 1 - 2 * (Double(i) + 0.5) / Double(Constellation.count), r = (1 - y * y).squareRoot(), p = Double(i) * 2.39996
+                state = state &* 6364136223846793005 &+ 1442695040888963407
+                return Particles(home: SIMD3(cos(p) * r, y, sin(p) * r), u: Double(i) / Double(Constellation.count),
+                                 phase: Double(state >> 33) / Double(1 << 31) * 2 * .pi)
+            }
+        }()
+    }
+
+    /// Where the cloud is between figures. A class, so the drawing can read it every
+    /// frame without making SwiftUI redraw the view.
+    final class Morph {
+        private struct Shown { var figure: VoiceFigure; var rgb: SIMD3<Double> }
+        private var current: Shown?
+        private var leaving: Shown?
+        private var leavingFrom = 0.0
+        private var changedAt = 0.0
+        private var angle = 0.0
+        private var lastTurn: Double?
+        private let dissolve = 0.8, form = 1.6
+
+        func set(_ figure: VoiceFigure?, rgb: SIMD3<Double>, now: Double, instant: Bool) {
+            if figure == current?.figure { current?.rgb = rgb; return }
+            let before = state(now: now, instant: instant)
+            leaving = before.figure.map { Shown(figure: $0, rgb: before.rgb) }
+            leavingFrom = before.k
+            current = figure.map { Shown(figure: $0, rgb: rgb) }
+            changedAt = instant ? -1_000 : now
+        }
+
+        func recolour(_ rgb: SIMD3<Double>) { current?.rgb = rgb }
+
+        /// What to draw now: a figure and how far the cloud has fallen into it (0…1).
+        func state(now: Double, instant: Bool) -> (figure: VoiceFigure?, rgb: SIMD3<Double>, k: Double) {
+            let white = SIMD3<Double>(1, 1, 1)
+            if instant { return (current?.figure, current?.rgb ?? white, current == nil ? 0 : 1) }
+            let dt = now - changedAt
+            let out = leaving == nil || leavingFrom <= 0 ? 0 : dissolve
+            if let leaving, dt < out {
+                return (leaving.figure, leaving.rgb, leavingFrom * (1 - dt / out))
+            }
+            guard let current else { return (nil, white, 0) }
+            let k = max(0, min(1, (dt - out) / form))
+            return (current.figure, current.rgb, k)
+        }
+
+        /// The cloud's slow turn, at whatever speed it has now.
+        func turn(now: Double, speed: Double) -> Double {
+            if let last = lastTurn { angle += min(0.1, max(0, now - last)) * speed }
+            lastTurn = now
+            return angle
+        }
+    }
+}

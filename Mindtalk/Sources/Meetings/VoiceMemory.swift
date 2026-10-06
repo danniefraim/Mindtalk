@@ -393,9 +393,9 @@ struct VoiceMemoryCard: View {
                     FlowLayout(spacing: 8) {
                         ForEach(Array(memory.people.enumerated()), id: \.element.id) { i, person in
                             HStack(spacing: 6) {
-                                VoiceSigil(shape: VoiceShape.remembered(person.name) ?? VoiceShape.from(seed: person.name),
-                                           color: SpeakerMark.fill(i), lineWidth: 1.5, glow: false)
-                                    .frame(width: 20, height: 20)
+                                VoiceFigureMark(figure: VoiceFigure.remembered(person.name) ?? VoiceFigure.from(seed: person.name),
+                                                color: SpeakerMark.fill(i), lineWidth: 1.2)
+                                    .frame(width: 18, height: 18)
                                 Text(person.name).font(.system(size: 12.5, weight: .medium))
                                 Button { withAnimation(.snappy) { memory.forget(person) } } label: {
                                     Image(systemName: "xmark").font(.system(size: 8.5, weight: .bold)).foregroundStyle(DS.Colors.faint)
