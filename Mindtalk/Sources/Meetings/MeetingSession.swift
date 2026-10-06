@@ -644,6 +644,17 @@ final class MeetingSession: ObservableObject {
                     words[i].speaker = aliases[mapped] ?? mapped
                 }
             }
+            // Your Ordlista, heard: names the model wrote as something that sounds alike.
+            let terms = VocabularyBoost.terms(from: Vocabulary.shared.entries.map(\.word))
+            if !terms.isEmpty {
+                let heard = await VocabularyBoost.shared.refine(words: words, audio: url, terms: terms)
+                words = heard.words
+                #if DEBUG
+                if simulation == nil { Vocabulary.shared.noteHeard(heard.fixed) }   // the self-test leaves your counts alone
+                #else
+                Vocabulary.shared.noteHeard(heard.fixed)
+                #endif
+            }
             guard var updated = record else { return }       // names may have changed meanwhile
             MeetingRecord.apply(updated.moves, to: &words)
             if !updated.words.isEmpty { updated.heal = Self.heal(from: updated.words, to: words) }

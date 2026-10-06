@@ -1,3 +1,4 @@
+import AVFoundation
 import FluidAudio
 import Foundation
 import os
@@ -94,14 +95,84 @@ actor VocabularyBoost {
             guard !spot.logProbs.isEmpty else { return (text, []) }
             let evidence = rescorer.ctcTokenEvaluateCandidates(transcript: text, tokenTimings: timings,
                                                                 logProbs: spot.logProbs, frameDuration: spot.frameDuration)
-            let out = Self.gate(evidence)
-            if !out.fixed.isEmpty { Self.log.info("ordlistan hörd: \(out.fixed.count) byten") }
-            return out
+            let edits = Self.gate(evidence)
+            if !edits.isEmpty { Self.log.info("ordlistan hörd: \(edits.count) byten") }
+            var words = evidence.baseWords
+            for edit in edits.sorted(by: { $0.range.lowerBound > $1.range.lowerBound }) {
+                words.replaceSubrange(edit.range, with: [edit.text])
+            }
+            return (words.joined(separator: " "), edits.map(\.term))
         } catch {
             // Boosting must never cost a dictation: the text as the model wrote it.
             Self.log.error("ordlistan: \(error.localizedDescription, privacy: .public)")
             return (text, [])
         }
+    }
+
+    /// A meeting's words, with your terms where the audio says they were said. Only
+    /// the stretches around a word that resembles a term are listened to — a few
+    /// seconds each, not the whole meeting.
+    func refine(words: [MeetingWord], audio url: URL, terms: [String]) async -> (words: [MeetingWord], fixed: [String]) {
+        guard !terms.isEmpty, !words.isEmpty else { return (words, []) }
+        // Where to listen: around every word that resembles a term, stretches merged.
+        var stretches: [Range<Int>] = []
+        let longest = terms.map { $0.split(separator: " ").count }.max() ?? 1
+        var i = 0
+        while i < words.count {
+            var hit = false
+            for n in 1...(longest + 1) where i + n <= words.count {
+                let k = Self.key(words[i..<(i + n)].map(\.text).joined())
+                if terms.contains(where: { let t = Self.key($0); return k != t && Self.alike(k, t) >= 0.6 }) { hit = true; break }
+            }
+            if hit {
+                let from = max(0, i - 6), to = min(words.count, i + longest + 6)
+                if let last = stretches.last, last.upperBound >= from { stretches[stretches.count - 1] = last.lowerBound..<to }
+                else { stretches.append(from..<to) }
+            }
+            i += 1
+        }
+        guard !stretches.isEmpty, let file = try? AVAudioFile(forReading: url) else { return (words, []) }
+        let rate = file.processingFormat.sampleRate
+        var out = words
+        var fixed: [String] = []
+        for stretch in stretches.reversed() {
+            let slice = Array(words[stretch])
+            let start = max(0, slice[0].start - 1), end = min(Double(file.length) / rate, slice[slice.count - 1].end + 1)
+            guard end > start, let audio = Self.read(file, from: start, to: end, rate: rate) else { continue }
+            // The words as the rescorer wants them: one "token" per word, at its time within the stretch.
+            let timings = slice.map {
+                TokenTiming(token: "▁" + $0.text, tokenId: 0, startTime: $0.start - start, endTime: $0.end - start, confidence: 1)
+            }
+            let text = slice.map(\.text).joined(separator: " ")
+            do {
+                let (spotter, rescorer, vocabulary) = try await session(for: terms)
+                let spot = try await spotter.spotKeywordsWithLogProbs(audioSamples: audio, customVocabulary: vocabulary, minScore: nil)
+                guard !spot.logProbs.isEmpty else { continue }
+                let evidence = rescorer.ctcTokenEvaluateCandidates(transcript: text, tokenTimings: timings,
+                                                                    logProbs: spot.logProbs, frameDuration: spot.frameDuration)
+                guard evidence.baseWords.count == slice.count else { continue }      // the words must line up one to one
+                for edit in Self.gate(evidence).sorted(by: { $0.range.lowerBound > $1.range.lowerBound }) {
+                    let first = stretch.lowerBound + edit.range.lowerBound, last = stretch.lowerBound + edit.range.upperBound - 1
+                    var word = out[first]
+                    word.text = edit.text
+                    word.end = out[last].end
+                    out.replaceSubrange(first...last, with: [word])
+                    fixed.append(edit.term)
+                }
+            } catch {
+                Self.log.error("ordlistan (möte): \(error.localizedDescription, privacy: .public)")
+            }
+        }
+        if !fixed.isEmpty { Self.log.info("ordlistan hörd i mötet: \(fixed.count) byten") }
+        return (out, fixed)
+    }
+
+    private static func read(_ file: AVAudioFile, from start: Double, to end: Double, rate: Double) -> [Float]? {
+        let frames = AVAudioFrameCount((end - start) * rate)
+        guard frames > 0, let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames) else { return nil }
+        file.framePosition = AVAudioFramePosition(start * rate)
+        guard (try? file.read(into: buffer, frameCount: frames)) != nil, let data = buffer.floatChannelData?[0] else { return nil }
+        return Array(UnsafeBufferPointer(start: data, count: Int(buffer.frameLength)))
     }
 
     private func session(for terms: [String]) async throws -> (CtcKeywordSpotter, VocabularyRescorer, CustomVocabularyContext) {
@@ -124,9 +195,11 @@ actor VocabularyBoost {
     /// look like the term (≥ 0.65 alike in letters — "Nelly"/"Nellie" 0.67, "kissa"/
     /// "Lisa" 0.60), and of a longer phrase only the part that matches the term best
     /// is replaced ("Klang AI är" keeps its "är"). Punctuation stays.
-    nonisolated static func gate(_ evidence: VocabularyRescorer.CandidateEvidenceOutput) -> (text: String, fixed: [String]) {
-        var words = evidence.baseWords
-        var fixed: [String] = []
+    struct Edit { let range: Range<Int>; let text: String; let term: String }
+
+    nonisolated static func gate(_ evidence: VocabularyRescorer.CandidateEvidenceOutput) -> [Edit] {
+        let words = evidence.baseWords
+        var edits: [Edit] = []
         var taken = Set<Int>()
         let ranked = evidence.candidates.sorted { ($0.rawVocabularyCTCScore ?? -99) > ($1.rawVocabularyCTCScore ?? -99) }
         for c in ranked where c.comparisonPassed {
@@ -144,11 +217,10 @@ actor VocabularyBoost {
             if key(original) == key(c.canonicalTerm) { continue }      // same word, just written differently: the list's own rules handle case
             let last = words[best.range.upperBound - 1]
             let tail = String(last.reversed().prefix { ",.!?:;".contains($0) }.reversed())
-            words.replaceSubrange(best.range, with: [c.canonicalTerm + tail] + [String](repeating: "", count: best.range.count - 1))
             taken.formUnion(best.range)
-            fixed.append(c.canonicalTerm)
+            edits.append(Edit(range: best.range, text: c.canonicalTerm + tail, term: c.canonicalTerm))
         }
-        return (words.filter { !$0.isEmpty }.joined(separator: " "), fixed)
+        return edits
     }
 
     nonisolated static func key(_ s: String) -> String { s.lowercased().filter { $0.isLetter || $0.isNumber } }
