@@ -48,6 +48,10 @@ final class MeetingSession: ObservableObject {
     @Published private(set) var finished: UUID?
     @Published var lastError: String?
     /// Stopping was asked for once; asking again within a few seconds ends the meeting.
+    /// "Vem är här?": the meeting starts with a round of names (VoiceScanner).
+    @Published private(set) var introducing = false
+    private var introductionTask: Task<Void, Never>?
+
     /// Ending: the moment it ends, unless you undo it. Recording goes on until then.
     @Published private(set) var stopAt: Date?
     var stopping: Bool { stopAt != nil }
@@ -126,6 +130,7 @@ final class MeetingSession: ObservableObject {
         phase = .starting
         simulation = (Date(), speed)
         loop = Task { await self.run() }
+        if CommandLine.arguments.contains("--introduce") { beginIntroduction() }
         do {
             let source = try AudioChunks(url: file)
             while let chunk = try source.next(seconds: 0.1) {
@@ -133,6 +138,11 @@ final class MeetingSession: ObservableObject {
                 try? await Task.sleep(for: .milliseconds(Int(100 / speed)))
             }
         } catch { print("Fel: \(error.localizedDescription)") }
+        if introducing, let record {
+            print("Under presentationen kändes igen: " + record.names.filter { record.recognized[$0.key] != nil }
+                .map { "talare \($0.key) = \($0.value) (\(String(format: "%.2f", record.recognized[$0.key] ?? 0)))" }
+                .joined(separator: ", "))
+        }
         stop()
         while phase != .idle { try? await Task.sleep(for: .milliseconds(200)) }
         if let id = finished {
@@ -146,6 +156,28 @@ final class MeetingSession: ObservableObject {
 
     /// Screenshots: a meeting twelve minutes in, three people, one of them named.
     func showDemo(finished: Bool) {
+        // `--demo-scanner`: the introduction round — Anna known, Erik just said his name.
+        if CommandLine.arguments.contains("--demo-scanner") {
+            var new = MeetingRecord(title: "Veckomöte – lansering", date: Date().addingTimeInterval(-40), language: .swedish)
+            var t = 1.0
+            for (speaker, line) in [(0, "Hej allihop, det är Anna här."), (1, "Hej, jag heter Erik och jobbar med försäljningen."),
+                                    (2, "Och så är det jag här också, hej.")] {
+                for word in line.split(separator: " ") {
+                    new.words.append(MeetingWord(text: String(word), start: t, end: t + 0.3, speaker: speaker))
+                    t += 0.38
+                }
+                t += 1.2
+            }
+            new.names = ["0": "Anna"]
+            new.recognized = ["0": 0.82]
+            new.duration = 40
+            record = new
+            startedAt = Date().addingTimeInterval(-40)
+            phase = .recording
+            introducing = true
+            LiveMeter.shared.demo([0.2, 0.5, 0.35, 0.7, 0.45, 0.6, 0.3, 0.55])
+            return
+        }
         let script: [(Int, String)] = [
             (0, "Då kör vi. Välkomna allihop – idag ska vi gå igenom lanseringen och bestämma vad som händer härnäst."),
             (1, "Siffrorna ser riktigt bra ut. Vi hade fler nedladdningar första dagen än hela förra månaden."),
@@ -199,7 +231,7 @@ final class MeetingSession: ObservableObject {
 
     // MARK: Start and stop
 
-    func start() {
+    func start(introducing: Bool = false) {
         guard phase == .idle else { return }
         lastError = nil
         let dictation = Dictation.shared
@@ -265,6 +297,50 @@ final class MeetingSession: ObservableObject {
         MeetingStore.shared.save(new)
         Self.log.info("meeting started (\(self.language.rawValue, privacy: .public))")
         loop = Task { await self.run() }
+        if introducing { beginIntroduction() }
+    }
+
+    // MARK: Who's here
+
+    private func beginIntroduction() {
+        introducing = true
+        introductionTask = Task { @MainActor [weak self] in
+            var checked: [Int: Double] = [:]          // speaker → speech heard when last checked
+            while let self, self.introducing, self.isRecording {
+                try? await Task.sleep(for: .seconds(1.2))
+                await self.recogniseIntroduced(&checked)
+            }
+        }
+    }
+
+    /// The voices introduced so far that you've named before, named — each checked again
+    /// as it says more, up to half a minute of speech.
+    private func recogniseIntroduced(_ checked: inout [Int: Double]) async {
+        guard let record, let intake, VoiceMemory.shared.enabled, !VoiceMemory.shared.people.isEmpty else { return }
+        var speech: [Int: Double] = [:]
+        for w in record.words { if let s = w.speaker, s >= 0 { speech[s, default: 0] += w.end - w.start } }
+        let named = Set(record.names.compactMap { $0.value.isEmpty ? nil : $0.key })
+        let audio = intake.openingSamples()
+        for (speaker, heard) in speech where !named.contains(String(speaker)) && heard >= 4
+            && heard - (checked[speaker] ?? 0) >= 3 && heard <= 40 {
+            checked[speaker] = heard
+            guard let print = await VoicePrints.shared.print(of: speaker, in: record.words, samples: audio) else { continue }
+            let taken = Set((self.record?.names.values ?? [:].values).filter { !$0.isEmpty })
+            guard let match = VoiceMemory.shared.match(print, excluding: taken),
+                  var latest = self.record, (latest.names[String(speaker)] ?? "").isEmpty else { continue }
+            latest.names[String(speaker)] = match.name
+            latest.recognized[String(speaker)] = match.score
+            self.record = latest
+            MeetingStore.shared.save(latest)
+            Self.log.info("introduction: a known voice recognised")
+        }
+    }
+
+    /// "Alla är här": on with the meeting.
+    func endIntroduction() {
+        introducing = false
+        introductionTask?.cancel()
+        introductionTask = nil
     }
 
     /// Ending, from a button or the shortcut: a few seconds to undo, and the
@@ -296,6 +372,7 @@ final class MeetingSession: ObservableObject {
 
     func stop() {
         guard isRecording else { return }
+        endIntroduction()
         stopCountdown?.cancel()
         stopCountdown = nil
         stopAt = nil
@@ -1015,6 +1092,7 @@ final class AudioIntake: @unchecked Sendable {
         buffer += chunk
         total += chunk.count
         forVoices += chunk
+        if opening.count < Self.openingLength { opening += chunk.prefix(Self.openingLength - opening.count) }
         lock.unlock()
         queue.async { [self] in
             guard !closed, let pcm = AVAudioPCMBuffer(pcmFormat: file.processingFormat,
@@ -1035,6 +1113,12 @@ final class AudioIntake: @unchecked Sendable {
             return a < b ? Array(buffer[a..<b]) : []
         }
     }
+
+    /// The first minute and a half, kept whole: who's in the room is heard there
+    /// (the introduction), long after the rolling buffer has moved on.
+    private var opening: [Float] = []
+    static let openingLength = 90 * 16_000
+    func openingSamples() -> [Float] { lock.withLock { opening } }
 
     func drop(before sample: Int) {
         lock.withLock {

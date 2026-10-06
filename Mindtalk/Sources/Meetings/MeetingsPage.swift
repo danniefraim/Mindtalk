@@ -276,17 +276,29 @@ private struct StartCard: View {
                 }
                 .buttonStyle(.soft)
             } else {
-                Button {
-                    session.start()
-                } label: {
-                    HStack(spacing: 8) {
-                        Circle().fill(DS.Colors.recording).frame(width: 8, height: 8)
-                        Text("Starta möte")
+                VStack(alignment: .trailing, spacing: 8) {
+                    Button {
+                        session.start()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Circle().fill(DS.Colors.recording).frame(width: 8, height: 8)
+                            Text("Starta möte")
+                        }
                     }
+                    .buttonStyle(.ink)
+                    .help("Starta möte (⇧⌘R)")
+                    // "Vem är här?" first: everyone says their name, the scanner finds the voices.
+                    Button {
+                        session.start(introducing: true)
+                    } label: {
+                        Label("Med presentation", systemImage: "person.wave.2")
+                            .font(.system(size: 12.5, weight: .semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(DS.Colors.muted)
+                    .help("Börja med en runda där alla säger sitt namn – Mindtalk hittar rösterna")
                 }
-                .buttonStyle(.ink)
                 .disabled(dictation.phase != .idle)
-                .help("Starta möte (⇧⌘R)")
             }
         case .downloading(let p):
             VStack(alignment: .trailing, spacing: 6) {
@@ -577,6 +589,10 @@ struct MeetingView: View {
         let cast = record.cast
         let turns = MeetingText.turns(record.words, pending: pending, paragraphs: true)
         ZStack(alignment: .bottom) {
+            if let session, session.introducing {
+                VoiceScanner(session: session)
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else {
             VStack(spacing: 0) {
                 header(cast)
                 ZStack {
@@ -596,8 +612,11 @@ struct MeetingView: View {
                 .id(epoch.value)   // see WindowEpoch
                 .frame(maxHeight: .infinity)
             }
+            .transition(.opacity)
+            }
             bottomBar
         }
+        .animation(.spring(duration: 0.45, bounce: 0.12), value: session?.introducing)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onDisappear { if MeetingPlayer.shared.meeting == record.id { MeetingPlayer.shared.stop() } }
         .onAppear {
@@ -1664,7 +1683,7 @@ private struct LiveBar: View {
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
             // Your notes and the marks, where your eyes are while it records — as in the panel.
-            if session.isRecording {
+            if session.isRecording, !session.introducing {
                 LiveNotesBox(session: session)
                     .padding(12)
                     .frame(maxWidth: 560)

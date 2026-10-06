@@ -230,6 +230,18 @@ final class VoiceMemory: ObservableObject {
         return out
     }
 
+    /// The person a voiceprint is, among the people not already in the meeting — only a
+    /// clear match (as after a meeting).
+    func match(_ print: [Float], excluding taken: Set<String>) -> (name: String, score: Float)? {
+        guard isOn, state == .ready else { return nil }
+        let keys = Set(taken.map(Self.key))
+        let ranked = people.filter { !keys.contains(Self.key($0.name)) }
+            .map { ($0, Self.similarity(print, $0)) }.sorted { $0.1 > $1.1 }
+        guard let best = ranked.first else { return nil }
+        let lead = best.1 - (ranked.dropFirst().first?.1 ?? -1)
+        return best.1 >= Self.sameVoice && lead >= Self.margin ? (best.0.name, best.1) : nil
+    }
+
     /// The voices you've named in a meeting, remembered (or remembered better). A print
     /// that doesn't sound like the person at all is left out: then the speakers were
     /// probably mixed up in that meeting, and it would only teach the wrong voice.
@@ -305,6 +317,41 @@ actor VoicePrints {
         }
         guard samples.count >= Int(Self.minimumSpeech * 16_000) else { return nil }
         return try? await embedder.embed(audio: samples)
+    }
+
+    /// The same, from samples in memory that start at the meeting's start (the
+    /// introduction, while the recording is still being written).
+    func print(of speaker: Int, in words: [MeetingWord], samples: [Float]) async -> [Float]? {
+        guard (try? load()) != nil, let embedder else { return nil }
+        var audio: [Float] = []
+        for s in Self.stretches(of: speaker, in: words) {
+            let a = max(0, Int(s.start * 16_000)), b = min(samples.count, Int(s.end * 16_000))
+            if a < b { audio += samples[a..<b] }
+        }
+        guard audio.count >= Int(3.5 * 16_000) else { return nil }
+        return try? await embedder.embed(audio: audio)
+    }
+
+    /// A speaker's longest stretches of speech, trimmed at the ends, up to half a minute.
+    static func stretches(of speaker: Int, in words: [MeetingWord]) -> [(start: Double, end: Double)] {
+        var stretches: [(start: Double, end: Double)] = []
+        for (i, w) in words.enumerated() where w.speaker == speaker {
+            let previous = i > 0 ? words[i - 1] : nil
+            if let last = stretches.last, previous?.speaker == speaker, w.start - last.end < 0.6 {
+                stretches[stretches.count - 1].end = w.end
+            } else {
+                stretches.append((w.start, w.end))
+            }
+        }
+        let clean = stretches.map { (start: $0.start + 0.15, end: $0.end - 0.1) }.filter { $0.end - $0.start >= 0.8 }
+        var total = 0.0
+        var chosen: [(start: Double, end: Double)] = []
+        for s in clean.sorted(by: { $0.end - $0.start > $1.end - $1.start }) {
+            chosen.append(s)
+            total += s.end - s.start
+            if total >= maximumSpeech { break }
+        }
+        return chosen.sorted { $0.start < $1.start }
     }
 
     /// 16 kHz mono samples between two times (meetings are recorded at 16 kHz).

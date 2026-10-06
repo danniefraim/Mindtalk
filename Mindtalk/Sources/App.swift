@@ -281,7 +281,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 ("Det var det jag tänkte på. Sen gick vi hem.", "Det var det jag tänkte på. Sen gick vi hem."),
                 ("Yeah, det är okej, meh.", "Yeah, det är okej, meh."),
             ]
+            let nameCases: [(String, String?)] = [
+                ("Hej, jag heter Erik och jobbar med försäljningen.", "Erik"),
+                ("Hej allihop, det är Anna här.", "Anna"),
+                ("Det är bra, jag är med.", nil),
+                ("Och jag är Sara Lind.", "Sara Lind"),
+                ("Hi everyone, I'm Tom.", "Tom"),
+                ("Och så är det jag här också, hej.", nil),
+            ]
             var failed = 0
+            for (said, want) in nameCases where VoiceScanner.spokenName(in: said) != want {
+                failed += 1; print("FEL namn: \(said) → \(VoiceScanner.spokenName(in: said) ?? "–")")
+            }
             for (before, after, want) in guardCases where PolishGuard.accepts(after, as: before) != want {
                 failed += 1; print("FEL spärr: \(before) → \(after)")
             }
@@ -289,7 +300,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 let got = TextCleanup.apply(input, fillers: true, commands: true)
                 if got != want { failed += 1; print("FEL regel: \(input) → \(got)") }
             }
-            print(failed == 0 ? "Polish guard and rules self-test passed (\(guardCases.count + ruleCases.count) cases)." : "\(failed) fel")
+            print(failed == 0 ? "Polish guard, rules and names self-test passed (\(guardCases.count + ruleCases.count + nameCases.count) cases)." : "\(failed) fel")
             exit(failed == 0 ? 0 : 1)
         }
         // `Mindtalk --gemma-download`: fetches Gemma 4 without the window, printing how
@@ -777,9 +788,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     /// Starts a meeting — it opens in its panel. If it can't start (a model or a
     /// permission is missing), the Meetings page says why.
-    static func startMeeting() {
+    static func startMeeting(introducing: Bool = false) {
         let meeting = MeetingSession.shared
-        if VoiceModels.isInstalled { meeting.start() }
+        if VoiceModels.isInstalled { meeting.start(introducing: introducing) }
         if !meeting.isRecording { showWindow(page: .meetings); return }
         // Started from the menu bar: the panel shows it, and the keyboard goes back to
         // the app you were in rather than to Mindtalk with no window.
