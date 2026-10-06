@@ -563,6 +563,26 @@ private struct SpeakerChip: View {
     }
 }
 
+/// "Vem är här?" while the round lasts, the meeting after — watching the session
+/// itself, so the meeting is there the moment the round ends, not at the next word.
+private struct IntroductionGate<Meeting: View>: View {
+    @ObservedObject var session: MeetingSession
+    @ViewBuilder let meeting: () -> Meeting
+
+    var body: some View {
+        ZStack {
+            if session.introducing {
+                VoiceScanner(session: session)
+                    .transition(.opacity)
+            } else {
+                meeting()
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.35), value: session.introducing)
+    }
+}
+
 // MARK: - One meeting
 
 struct MeetingView: View {
@@ -591,38 +611,40 @@ struct MeetingView: View {
 
     private var live: Bool { session != nil }
 
-    var body: some View {
+    /// The meeting itself: its header, and the transcript or the summary.
+    private var meeting: some View {
         let cast = record.cast
         let turns = MeetingText.turns(record.words, pending: pending, paragraphs: true)
-        ZStack(alignment: .bottom) {
-            if let session, session.introducing {
-                VoiceScanner(session: session)
-                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
-            } else {
-            VStack(spacing: 0) {
-                header(cast)
-                ZStack {
-                    if live || tab == .transcript {
-                        TranscriptView(record: record, turns: turns, cast: cast, session: session, width: width,
-                                       edit: edit, focusTurn: $focusTurn,
-                                       changed: showChanges ? Set(record.heal?.changed ?? []) : [])
-                            .transition(.opacity.combined(with: .offset(y: 6)))
-                    } else {
-                        SummaryView(record: record, turns: turns, cast: cast, notes: notes, width: width, edit: edit) { at in
-                            focusTurn = turns.last { $0.start <= at + 0.05 }?.id
-                            withAnimation(.spring(duration: 0.35, bounce: 0.15)) { tab = .transcript }
-                        }
+        return VStack(spacing: 0) {
+            header(cast)
+            ZStack {
+                if live || tab == .transcript {
+                    TranscriptView(record: record, turns: turns, cast: cast, session: session, width: width,
+                                   edit: edit, focusTurn: $focusTurn,
+                                   changed: showChanges ? Set(record.heal?.changed ?? []) : [])
                         .transition(.opacity.combined(with: .offset(y: 6)))
+                } else {
+                    SummaryView(record: record, turns: turns, cast: cast, notes: notes, width: width, edit: edit) { at in
+                        focusTurn = turns.last { $0.start <= at + 0.05 }?.id
+                        withAnimation(.spring(duration: 0.35, bounce: 0.15)) { tab = .transcript }
                     }
+                    .transition(.opacity.combined(with: .offset(y: 6)))
                 }
-                .id(epoch.value)   // see WindowEpoch
-                .frame(maxHeight: .infinity)
             }
-            .transition(.opacity)
+            .id(epoch.value)   // see WindowEpoch
+            .frame(maxHeight: .infinity)
+        }
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            if let session {
+                IntroductionGate(session: session) { meeting }
+            } else {
+                meeting
             }
             bottomBar
         }
-        .animation(.spring(duration: 0.45, bounce: 0.12), value: session?.introducing)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onDisappear { if MeetingPlayer.shared.meeting == record.id { MeetingPlayer.shared.stop() } }
         .onAppear {

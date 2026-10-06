@@ -18,6 +18,9 @@ struct VoiceScanner: View {
     @State private var drafts: [Int: String] = [:]
     @State private var later: Set<Int> = []
     @State private var greeted: Set<Int> = []
+    /// The dark coming in (the panel), then what's in it (the cloud, the words).
+    @State private var lit = false
+    @State private var shown = false
     @FocusState private var nameFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -82,11 +85,8 @@ struct VoiceScanner: View {
         let voices = self.voices
         let focus = self.focus(voices)
         GeometryReader { geo in
-            ZStack {
-                Color(red: 0.008, green: 0.008, blue: 0.012)
-                Constellation(figure: focus.flatMap(figure(for:)), color: colour(focus), level: roomLevel,
-                              searching: focus.map(recognising) ?? false)
-            }
+            Constellation(figure: focus.flatMap(figure(for:)), color: colour(focus), level: roomLevel,
+                          searching: focus.map(recognising) ?? false)
             .overlay(alignment: .topLeading) {
                 Text("Vem är här?").font(.system(size: 32, weight: .regular, design: .serif))
                     .foregroundStyle(.white.opacity(0.9)).padding(.leading, 40).padding(.top, 34)
@@ -101,14 +101,19 @@ struct VoiceScanner: View {
             .overlay(alignment: .bottom) { identity(focus, width: geo.size.width).padding(.bottom, 40) }
             .overlay(alignment: .bottomLeading) { room(voices).padding(.leading, 40).padding(.bottom, 38) }
             .overlay(alignment: .bottomTrailing) { card(voices).padding(24) }
+            // The lights go down first, then the room appears in the dark.
+            .opacity(shown ? 1 : 0)
+            .background(Color(red: 0.008, green: 0.008, blue: 0.012).opacity(lit ? 1 : 0))
         }
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(.white.opacity(0.08), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(.white.opacity(lit ? 0.08 : 0), lineWidth: 1))
+        .scaleEffect(lit ? 1 : 0.985)
         .padding(.horizontal, 28)
         .padding(.top, 24)
         .padding(.bottom, 88)
         .environment(\.colorScheme, .dark)
         .animation(.spring(duration: 0.55, bounce: 0.2), value: voices)
+        .onAppear(perform: enter)
         .onChange(of: voices.count) { old, new in if new > old { chime("Pop") } }
         .onChange(of: session.record?.recognized ?? [:]) { _, recognized in welcome(recognized) }
     }
@@ -261,7 +266,7 @@ struct VoiceScanner: View {
     }
 
     private func continueButton(_ voices: [Voice]) -> some View {
-        Button { withAnimation(.spring(duration: 0.5, bounce: 0.15)) { session.endIntroduction() } } label: {
+        Button(action: leave) {
             Text(voices.isEmpty ? "Hoppa över" : "Alla är här – fortsätt")
                 .font(.system(size: 14, weight: .semibold))
                 .padding(.horizontal, 10)
@@ -273,6 +278,27 @@ struct VoiceScanner: View {
     }
 
     // MARK: Actions
+
+    /// The lights going down, like a cinema's: the dark first, then the room in it.
+    private func enter() {
+        #if DEBUG
+        // `--demo-leave`: "Alla är här" pressed by itself after four seconds (screenshots).
+        if CommandLine.arguments.contains("--demo-leave") { DispatchQueue.main.asyncAfter(deadline: .now() + 4) { leave() } }
+        #endif
+        guard !reduceMotion else { lit = true; shown = true; return }
+        withAnimation(.easeInOut(duration: 0.9)) { lit = true }
+        withAnimation(.easeOut(duration: 0.8).delay(0.45)) { shown = true }
+    }
+
+    /// "Alla är här": the room fades, the lights come up, and the meeting is there.
+    private func leave() {
+        guard !reduceMotion else { session.endIntroduction(); return }
+        withAnimation(.easeIn(duration: 0.3)) { shown = false }
+        withAnimation(.easeInOut(duration: 0.6).delay(0.2)) { lit = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
+            withAnimation(.easeOut(duration: 0.3)) { session.endIntroduction() }
+        }
+    }
 
     private func save(_ voice: Voice) {
         let name = (drafts[voice.speaker] ?? Self.spokenName(in: voice.said) ?? "").trimmingCharacters(in: .whitespaces)
