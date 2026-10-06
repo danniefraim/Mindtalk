@@ -282,7 +282,10 @@ private struct LivePanel: View {
                     if turns.isEmpty { empty }
                     ForEach(Array(turns.enumerated()), id: \.element.id) { i, turn in
                         let newSpeaker = i == 0 || turns[i - 1].speaker != turn.speaker
-                        PanelTurn(turn: turn, cast: cast, showName: newSpeaker)
+                        let next = i + 1 < turns.count ? turns[i + 1].start : .infinity
+                        PanelTurn(turn: turn, cast: cast, showName: newSpeaker,
+                                  marks: (session.record?.marks ?? []).filter { $0.at >= (i == 0 ? -.infinity : turn.start) && $0.at < next },
+                                  removeMark: { id in session.removeMark(id) })
                             .padding(.top, i == 0 ? 0 : newSpeaker ? 18 : 5)
                             .id(turn.id)
                     }
@@ -464,6 +467,9 @@ private struct PanelTurn: View {
     let turn: MeetingTurn
     let cast: Cast
     let showName: Bool
+    /// What you marked while this was said.
+    var marks: [MeetingRecord.Mark] = []
+    var removeMark: ((UUID) -> Void)? = nil
 
     private var speaker: Int? { turn.speaker.flatMap { $0 >= 0 ? $0 : nil } }
 
@@ -491,6 +497,10 @@ private struct PanelTurn: View {
                 .padding(.vertical, 9)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 15, style: .continuous).fill(DS.Colors.card))
+            if !marks.isEmpty {
+                MarkChips(marks: marks, compact: true, remove: removeMark)
+                    .transition(.scale(scale: 0.6, anchor: .topLeading).combined(with: .opacity))
+            }
         }
     }
 

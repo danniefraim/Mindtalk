@@ -321,43 +321,59 @@ final class MeetingNotes: ObservableObject {
     nonisolated private static func withMarks(_ summary: MeetingSummary, _ lines: Lines, local: Bool) async -> MeetingSummary {
         var summary = summary
         for mark in lines.marks {
-            // Pressed just after it was said: the item the model wrote about those
-            // seconds, flagged as yours — or a new one, from the sentences there.
+            // The item the model already wrote about those seconds, flagged as yours —
+            // unless another mark has it: each mark is its own item.
             let near: (MeetingSummary.Item) -> Bool = { item in
-                guard let at = item.at else { return false }
-                return at >= mark.at - 20 && at <= mark.at + 4
+                guard item.marked != true, let at = item.at else { return false }
+                return at >= mark.at - 16 && at <= mark.at + 8
             }
-            func flag(_ items: inout [MeetingSummary.Item]) -> Bool {
-                guard let k = items.firstIndex(where: near) else { return false }
+            func flag(_ items: inout [MeetingSummary.Item], where match: (MeetingSummary.Item) -> Bool) -> Bool {
+                guard let k = items.firstIndex(where: match) else { return false }
                 items[k].marked = true
                 return true
             }
             switch mark.kind {
-            case .decision: if flag(&summary.decisions) { continue }
-            case .task: if flag(&summary.tasks) { continue }
-            case .important: if flag(&summary.points) || flag(&summary.decisions) || flag(&summary.tasks) { continue }
+            case .decision: if flag(&summary.decisions, where: near) { continue }
+            case .task: if flag(&summary.tasks, where: near) { continue }
+            case .important:
+                if flag(&summary.points, where: near) || flag(&summary.decisions, where: near)
+                    || flag(&summary.tasks, where: near) { continue }
             }
-            guard let said = lines.around(mark.at) else { continue }
-            let text = await phrase(mark.kind, said.text, lines.language, local: local)
-                ?? firstSentences(said.text.split(separator: "\n").last.map { String($0.split(separator: ":", maxSplits: 1).last ?? "") } ?? "", 1)
-            // Already in the notes in other words (often from your own notes): that one, flagged.
+            // Otherwise one written from the sentences there.
+            let said = lines.around(mark.at)
+            guard !said.isEmpty else { continue }
+            let text = await phrase(mark.kind, said.map { "\($0.speaker): \($0.text)" }.joined(separator: "\n"),
+                                    lines.language, local: local)
+                ?? firstSentences(said.last!.text, 1)
+            // Where it was said: the sentence it was written from.
             let keys = Lines.keys(text)
-            let same: (MeetingSummary.Item) -> Bool = { Lines.overlap(keys, Lines.keys($0.text)) >= 0.5 }
-            func flagSame(_ items: inout [MeetingSummary.Item]) -> Bool {
-                guard let k = items.firstIndex(where: same) else { return false }
-                items[k].marked = true
+            let source = said.max { Lines.overlap(keys, Lines.keys($0.text)) < Lines.overlap(keys, Lines.keys($1.text)) } ?? said.last!
+            // Already in the notes in other words (often from your own notes): that one, flagged.
+            let same: (MeetingSummary.Item) -> Bool = { $0.marked != true && Lines.overlap(keys, Lines.keys($0.text)) >= 0.5 }
+            switch mark.kind {
+            case .decision: if flag(&summary.decisions, where: same) { continue }
+            case .task: if flag(&summary.tasks, where: same) { continue }
+            case .important: if flag(&summary.points, where: same) { continue }
+            }
+            // Two marks on one thing (pressed twice while it was said): one item, the fuller.
+            func merged(_ items: inout [MeetingSummary.Item]) -> Bool {
+                guard let k = items.firstIndex(where: { other in
+                    let theirs = Lines.keys(other.text)
+                    return other.marked == true && (Lines.overlap(theirs, keys) >= 0.6 || Lines.overlap(keys, theirs) >= 0.6)
+                }) else { return false }
+                if text.count > items[k].text.count { items[k].text = text.trimmingCharacters(in: .whitespaces) }
                 return true
             }
             switch mark.kind {
-            case .decision: if flagSame(&summary.decisions) { continue }
-            case .task: if flagSame(&summary.tasks) { continue }
-            case .important: if flagSame(&summary.points) { continue }
+            case .decision: if merged(&summary.decisions) { continue }
+            case .task: if merged(&summary.tasks) { continue }
+            case .important: if merged(&summary.points) { continue }
             }
-            var item = MeetingSummary.Item(text: text.trimmingCharacters(in: .whitespaces), at: max(0, mark.at - 2), marked: true)
+            var item = MeetingSummary.Item(text: text.trimmingCharacters(in: .whitespaces), at: source.start, marked: true)
             switch mark.kind {
             case .decision: summary.decisions.append(item)
             case .task:
-                item.owner = lines.person(said.speaker)
+                item.owner = lines.person(source.speaker)
                 summary.tasks.append(item)
             case .important: summary.points.append(item)
             }
@@ -376,9 +392,9 @@ final class MeetingNotes: ObservableObject {
         case .task: "a task someone takes on"
         case .important: "something important"
         }
-        let ask = "This is what was said in a meeting, the last line just before someone pressed a button to mark it " +
-            "as \(what):\n\n\(said)\n\nWrite what was marked as one short sentence in \(language), at most 15 words, " +
-            "only from what was said. Just the sentence."
+        let ask = "These lines were said in a meeting around the moment someone pressed a button to mark " +
+            "\(what):\n\n\(said)\n\nFind \(what) in these lines and write it as one short sentence in \(language), " +
+            "at most 15 words, only from what was said. Just the sentence."
         do {
             var line: String
             if local {
@@ -622,6 +638,11 @@ struct Lines: Sendable {
         let speaker: String
         let text: String
         let start: Double
+
+        /// Where it ends: where the next one starts.
+        func end(in lines: [Line]) -> Double {
+            lines.first { $0.start > start }?.start ?? start + 10
+        }
     }
 
     let lines: [Line]
@@ -745,12 +766,11 @@ struct Lines: Sendable {
     /// The line being said at `at`.
     func index(at: Double) -> Int? { lines.lastIndex { $0.start <= at + 0.5 } ?? (lines.isEmpty ? nil : 0) }
 
-    /// What was said just before a mark (it's pressed after) and a moment after.
-    func around(_ at: Double) -> (text: String, speaker: String)? {
-        let near = sentences.filter { $0.start >= at - 16 && $0.start <= at + 6 }
-        let picked = near.isEmpty ? sentences.last { $0.start <= at + 0.5 }.map { [$0] } ?? [] : near
-        guard let main = picked.last(where: { $0.start <= at + 2 }) ?? picked.first else { return nil }
-        return (picked.map { "\($0.speaker): \($0.text)" }.joined(separator: "\n"), main.speaker)
+    /// The sentences around a mark: some pressed after hearing it, some just before
+    /// saying it — a quarter of a minute before and a few seconds after.
+    func around(_ at: Double) -> [Line] {
+        let near = sentences.filter { $0.end(in: sentences) >= at - 15 && $0.start <= at + 8 }
+        return near.isEmpty ? sentences.last { $0.start <= at + 0.5 }.map { [$0] } ?? [] : near
     }
 
     enum Cue { case decision, intent }

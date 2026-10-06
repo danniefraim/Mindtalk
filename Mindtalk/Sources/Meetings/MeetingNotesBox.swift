@@ -126,7 +126,9 @@ struct LiveNotesBox: View {
             HStack(spacing: 6) {
                 ForEach(MeetingRecord.Mark.Kind.allCases) { kind in
                     MarkButton(kind: kind) {
-                        if let mark = session.mark(kind) {
+                        // With a spring, so the label pops in under the words.
+                        let made = withAnimation(.spring(duration: 0.35, bounce: 0.35)) { session.mark(kind) }
+                        if let mark = made {
                             withAnimation(.easeOut(duration: 0.2)) { marked = mark }
                             let id = mark.id
                             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
@@ -309,5 +311,31 @@ struct MeetingPrivacyCard: View {
         days = new
         MeetingAudio.keepDays = new
         store.applyRetention()
+    }
+}
+
+/// "✓ Beslut 3:12" under the words you marked — in the panel and the window alike.
+/// It appears with a small pop when you press, so you see that it took.
+struct MarkChips: View {
+    let marks: [MeetingRecord.Mark]
+    var compact = false
+    var remove: ((UUID) -> Void)? = nil
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(marks) { mark in
+                Label("\(mark.kind.title) \(MeetingView.duration(mark.at))", systemImage: mark.kind.symbol)
+                    .font(.system(size: compact ? 11 : 11.5, weight: .semibold)).monospacedDigit()
+                    .padding(.horizontal, compact ? 8 : 9)
+                    .frame(height: compact ? 22 : 24)
+                    .background(Capsule().fill(DS.Colors.chip))
+                    .contextMenu {
+                        if let remove { Button("Ta bort markeringen") { remove(mark.id) } }
+                    }
+                    .help("Du markerade det här under mötet")
+                    .transition(.scale(scale: 0.6, anchor: .leading).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(duration: 0.35, bounce: 0.35), value: marks.map(\.id))
     }
 }

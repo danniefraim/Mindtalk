@@ -1017,7 +1017,9 @@ private struct TurnRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 if showName { nameRow }
                 bubble
-                if !marks.isEmpty { markRow }
+                if !marks.isEmpty {
+                    markRow.transition(.scale(scale: 0.6, anchor: .topLeading).combined(with: .opacity))
+                }
             }
         }
         .contextMenu {
@@ -1038,22 +1040,7 @@ private struct TurnRow: View {
     }
 
     /// "Beslut 3:12" — what you marked while this was said.
-    private var markRow: some View {
-        HStack(spacing: 6) {
-            ForEach(marks) { mark in
-                Label("\(mark.kind.title) \(MeetingView.duration(mark.at))", systemImage: mark.kind.symbol)
-                    .font(.system(size: 11.5, weight: .semibold)).monospacedDigit()
-                    .padding(.horizontal, 9)
-                    .frame(height: 24)
-                    .background(Capsule().fill(DS.Colors.chip))
-                    .contextMenu {
-                        if let removeMark { Button("Ta bort markeringen") { removeMark(mark.id) } }
-                    }
-                    .help("Du markerade det här under mötet")
-            }
-        }
-        .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))
-    }
+    private var markRow: some View { MarkChips(marks: marks, remove: removeMark) }
 
     private var nameRow: some View {
         HStack(spacing: 8) {

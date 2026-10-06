@@ -337,12 +337,12 @@ final class MeetingSession: ObservableObject {
     }
     private var notesSave: Task<Void, Never>?
 
-    /// A moment worth finding again. Pressed just after it was said: it points a few
-    /// seconds back.
+    /// A moment worth finding again — when you pressed. Whether that was just before
+    /// or just after it was said, the notes look at the seconds around it.
     @discardableResult
     func mark(_ kind: MeetingRecord.Mark.Kind) -> MeetingRecord.Mark? {
         guard var record, isRecording else { return nil }
-        let mark = MeetingRecord.Mark(at: max(0, elapsed - 4), kind: kind)
+        let mark = MeetingRecord.Mark(at: elapsed, kind: kind)
         record.marks.append(mark)
         self.record = record
         MeetingStore.shared.save(record)
