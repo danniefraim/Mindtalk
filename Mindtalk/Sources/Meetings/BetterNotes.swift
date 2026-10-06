@@ -38,6 +38,8 @@ final class BetterNotes: ObservableObject {
         didSet { UserDefaults.standard.set(enabled, forKey: "betterNotes") }
     }
     private(set) var downloadStarted: Date?
+    /// Where this try began (0 unless an earlier one got part of the way).
+    private(set) var downloadBase: Double?
     private var task: Task<Void, Never>?
 
     /// In use for the next notes.
@@ -85,8 +87,16 @@ final class BetterNotes: ObservableObject {
         return values?.volumeAvailableCapacityForImportantUsage ?? 0
     }
 
-    /// Room for the model and 2 GB to spare.
-    nonisolated static var hasRoom: Bool { freeBytes > bytes + 2_000_000_000 }
+    /// Where an unfinished download waits to be continued.
+    nonisolated static var staging: URL {
+        directory.deletingLastPathComponent().appendingPathComponent(".staging-gemma-\(revision.prefix(8))")
+    }
+
+    /// What's still to fetch — less when an earlier try got part of it.
+    nonisolated static var remainingBytes: Int64 { max(0, bytes - ModelDownload.allocatedBytes(in: staging)) }
+
+    /// Room for what's left and 2 GB to spare.
+    nonisolated static var hasRoom: Bool { freeBytes > remainingBytes + 2_000_000_000 }
 
     nonisolated private static let completeMarker = ".complete"
     nonisolated static var isInstalled: Bool {
@@ -107,12 +117,16 @@ final class BetterNotes: ObservableObject {
         }
         state = .downloading(0)
         downloadStarted = Date()
+        downloadBase = nil
         task = Task {
             defer { task = nil }
             do {
                 try await Self.install { p in
                     Task { @MainActor in
-                        if case .downloading = BetterNotes.shared.state { BetterNotes.shared.state = .downloading(p) }
+                        if case .downloading = BetterNotes.shared.state {
+                            if BetterNotes.shared.downloadBase == nil { BetterNotes.shared.downloadBase = p }
+                            BetterNotes.shared.state = .downloading(p)
+                        }
                     }
                 }
                 state = .ready
@@ -136,6 +150,7 @@ final class BetterNotes: ObservableObject {
         Task {
             await LocalWriter.shared.unload()
             try? FileManager.default.removeItem(at: Self.directory)
+            try? FileManager.default.removeItem(at: Self.staging)
             state = Self.supported ? .missing : .unsupported
         }
     }
@@ -146,9 +161,9 @@ final class BetterNotes: ObservableObject {
         let fm = FileManager.default
         let parent = directory.deletingLastPathComponent()
         try fm.createDirectory(at: parent, withIntermediateDirectories: true)
-        let staging = parent.appendingPathComponent(".staging-\(UUID().uuidString)")
+        // The same folder every try, kept when one stops: the next continues it.
+        let staging = Self.staging
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
-        defer { try? fm.removeItem(at: staging) }
         var done: Int64 = 0
         let total = Double(bytes)
         for file in files {
@@ -158,7 +173,6 @@ final class BetterNotes: ObservableObject {
             try await SpeechModel.download(repo: repo, revision: revision, file: file, to: dest) { written in
                 progress(Double(base + written) / total)
             }
-            guard try SpeechModel.sha256(of: dest) == file.sha256 else { throw ModelError.checksumMismatch(file.path) }
             done += file.size
         }
         try Data().write(to: staging.appendingPathComponent(completeMarker))

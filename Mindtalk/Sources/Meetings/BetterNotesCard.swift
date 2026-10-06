@@ -58,12 +58,16 @@ struct BetterNotesCard: View {
         switch notes.state {
         case .unsupported:
             EmptyView()
+        case .missing where Self.partly:
+            Button("Fortsätt – \(Self.leftText) kvar") { notes.download() }
+                .buttonStyle(.ink)
+                .disabled(!BetterNotes.hasRoom)
         case .missing:
             Button("Ladda ned \(BetterNotes.sizeText)") { notes.download() }
                 .buttonStyle(.ink)
                 .disabled(!BetterNotes.hasRoom)
         case .failed:
-            Button("Försök igen") { notes.download() }.buttonStyle(.soft).disabled(!BetterNotes.hasRoom)
+            Button(Self.partly ? "Fortsätt" : "Försök igen") { notes.download() }.buttonStyle(.soft).disabled(!BetterNotes.hasRoom)
         case .downloading:
             Button("Avbryt") { notes.cancel() }.buttonStyle(.soft)
         case .ready:
@@ -71,12 +75,19 @@ struct BetterNotesCard: View {
         }
     }
 
+    /// An earlier download got part of the way: it continues from there.
+    private static var partly: Bool { BetterNotes.remainingBytes < BetterNotes.bytes - 50_000_000 }
+    private static var leftText: String {
+        String(format: "%.1f GB", Double(BetterNotes.remainingBytes) / 1e9).replacingOccurrences(of: ".", with: ",")
+    }
+
     private func progressText(_ p: Double) -> String {
         let total = Double(BetterNotes.bytes) / 1e9
         var text = String(format: "%.1f av %.1f GB", p * total, total).replacingOccurrences(of: ".", with: ",")
-        if let started = notes.downloadStarted, p > 0.02 {
+        // Measured from where this try began — a continued download starts part way.
+        if let started = notes.downloadStarted, let base = notes.downloadBase, p - base > 0.02 {
             let elapsed = Date().timeIntervalSince(started)
-            let left = elapsed * (1 - p) / p
+            let left = elapsed * (1 - p) / (p - base)
             if left >= 60 { text += " · " + String(localized: "ca \(Int((left / 60).rounded())) min kvar") }
         }
         return text

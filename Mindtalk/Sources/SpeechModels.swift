@@ -198,12 +198,21 @@ enum SpeechModel: String, CaseIterable, Identifiable, Codable, Sendable {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
     }
 
-    /// Leftovers of a download that was interrupted by quitting (the cleanup in
-    /// `install` never ran). Called at launch.
+    /// Unfinished downloads are kept so the next try continues them — but not for
+    /// ever: one untouched for two weeks, or from an older Mindtalk (named by a
+    /// random id), is removed. Called at launch.
     static func removeLeftoverDownloads() {
         let fm = FileManager.default
-        guard let items = try? fm.contentsOfDirectory(at: rootDirectory, includingPropertiesForKeys: nil) else { return }
-        for item in items where item.lastPathComponent.hasPrefix(".staging-") { try? fm.removeItem(at: item) }
+        let limit = Date().addingTimeInterval(-14 * 86_400)
+        for folder in [rootDirectory, rootDirectory.appendingPathComponent("Notes")] {
+            guard let items = try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey])
+            else { continue }
+            for item in items where item.lastPathComponent.hasPrefix(".staging-") {
+                let name = item.lastPathComponent.dropFirst(".staging-".count)
+                let old = (try? item.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate).map { $0 < limit } ?? true
+                if old || UUID(uuidString: String(name)) != nil { try? fm.removeItem(at: item) }
+            }
+        }
     }
 
     static var rootDirectory: URL {
@@ -258,48 +267,57 @@ enum SpeechModel: String, CaseIterable, Identifiable, Codable, Sendable {
         #endif
         let fm = FileManager.default
         try fm.createDirectory(at: Self.rootDirectory, withIntermediateDirectories: true)
-        let staging = Self.rootDirectory.appendingPathComponent(".staging-\(UUID().uuidString)")
+        // The same folder every try, kept when one fails: the next continues it.
+        let staging = Self.rootDirectory.appendingPathComponent(".staging-\(folderName)")
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
-        defer { try? fm.removeItem(at: staging) }
 
         let raw = staging.appendingPathComponent("raw")
         let out = staging.appendingPathComponent("ready")
         try fm.createDirectory(at: out, withIntermediateDirectories: true)
 
+        let packages = packagesToCompile
+        /// Compiled by an earlier try (its source is gone then): not fetched again.
+        func compiled(_ name: String) -> Bool { fm.fileExists(atPath: out.appendingPathComponent("\(name).mlmodelc").path) }
+
         var doneBytes: Int64 = 0
         let total = Double(downloadBytes)
         for file in files {
             try Task.checkCancellation()
+            if let pkg = packages.first(where: { file.path.hasPrefix("\($0).mlpackage/") }), compiled(pkg) {
+                doneBytes += file.size
+                continue
+            }
             let dest = raw.appendingPathComponent(file.path)
-            try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
             let base = doneBytes
             try await Self.download(repo: repo, revision: revision, file: file, to: dest) { written in
                 progress(0.9 * Double(base + written) / total)
             }
-            guard try Self.sha256(of: dest) == file.sha256 else {
-                throw ModelError.checksumMismatch(file.path)
-            }
             doneBytes += file.size
         }
 
-        let packages = packagesToCompile
         for (i, name) in packages.enumerated() {
             try Task.checkCancellation()
+            if compiled(name) { continue }
             let pkg = raw.appendingPathComponent("\(name).mlpackage")
-            let compiled = try await MLModel.compileModel(at: pkg)
-            try fm.moveItem(at: compiled, to: out.appendingPathComponent("\(name).mlmodelc"))
+            let compiledURL = try await MLModel.compileModel(at: pkg)
+            try fm.moveItem(at: compiledURL, to: out.appendingPathComponent("\(name).mlmodelc"))
             // Drop the source right away — keeps peak disk use near 1× the model.
             try? fm.removeItem(at: pkg)
             progress(0.9 + 0.1 * Double(i + 1) / Double(packages.count))
         }
         // Everything else (compiled models, vocabulary, license) goes in as is.
-        for item in try fm.contentsOfDirectory(atPath: raw.path) {
-            try fm.moveItem(at: raw.appendingPathComponent(item), to: out.appendingPathComponent(item))
+        if fm.fileExists(atPath: raw.path) {
+            for item in try fm.contentsOfDirectory(atPath: raw.path) {
+                let target = out.appendingPathComponent(item)
+                try? fm.removeItem(at: target)
+                try fm.moveItem(at: raw.appendingPathComponent(item), to: target)
+            }
         }
         try Data().write(to: out.appendingPathComponent(Self.completeMarker))
 
         if fm.fileExists(atPath: ownDirectory.path) { try fm.removeItem(at: ownDirectory) }
         try fm.moveItem(at: out, to: ownDirectory)
+        try? fm.removeItem(at: staging)
         progress(1)
     }
 
@@ -310,35 +328,15 @@ enum SpeechModel: String, CaseIterable, Identifiable, Codable, Sendable {
         }
     }
 
+    /// Fetches and checks one file of a model — in parts, continuing an earlier try
+    /// (ModelDownload.swift). At `dest` afterwards means checked.
     static func download(repo: String, revision: String, file: RemoteFile, to dest: URL,
-                                 progress: @escaping @Sendable (Int64) -> Void) async throws {
+                         progress: @escaping @Sendable (Int64) -> Void) async throws {
         let url = URL(string: "https://huggingface.co/\(repo)/resolve/\(revision)/\(file.path)")!
-        let delegate = DownloadDelegate(destination: dest, expectedBytes: Int64(file.size), progress: progress)
-        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
-        defer { session.finishTasksAndInvalidate() }
-        try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-                delegate.continuation = cont
-                session.downloadTask(with: url).resume()
-            }
-        } onCancel: {
-            session.invalidateAndCancel()
-        }
-        if let code = delegate.statusCode, !(200..<300).contains(code) {
-            throw ModelError.badResponse(file.path, code)
-        }
+        try await ModelDownload.fetch(url, file: file, to: dest, progress: progress)
     }
 
-    /// Streams the file through SHA-256 so a 650 MB encoder never sits in memory.
-    static func sha256(of url: URL) throws -> String {
-        let handle = try FileHandle(forReadingFrom: url)
-        defer { try? handle.close() }
-        var hasher = SHA256()
-        while let chunk = try handle.read(upToCount: 8 << 20), !chunk.isEmpty {
-            hasher.update(data: chunk)
-        }
-        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
-    }
+    static func sha256(of url: URL) throws -> String { try ModelDownload.sha256(of: url) }
 }
 
 enum ModelError: LocalizedError {
@@ -462,51 +460,3 @@ actor SpeechEngine {
     }
 }
 
-/// Per-download URLSession delegate: reports bytes written and moves the finished
-/// file into place before URLSession deletes its temporary copy.
-private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
-    let destination: URL
-    let progress: @Sendable (Int64) -> Void
-    var continuation: CheckedContinuation<Void, Error>?
-    var statusCode: Int?
-    private var moveError: Error?
-
-    let expectedBytes: Int64
-    private var oversized = false
-
-    init(destination: URL, expectedBytes: Int64, progress: @escaping @Sendable (Int64) -> Void) {
-        self.destination = destination
-        self.expectedBytes = expectedBytes
-        self.progress = progress
-    }
-
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
-                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
-                    totalBytesExpectedToWrite: Int64) {
-        // Never more than the pinned file's size: a misbehaving server can't fill the disk.
-        if totalBytesWritten > expectedBytes + 1_000_000 { oversized = true; downloadTask.cancel(); return }
-        progress(totalBytesWritten)
-    }
-
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
-                    didFinishDownloadingTo location: URL) {
-        statusCode = (downloadTask.response as? HTTPURLResponse)?.statusCode
-        do {
-            try? FileManager.default.removeItem(at: destination)
-            try FileManager.default.moveItem(at: location, to: destination)
-        } catch {
-            moveError = error
-        }
-    }
-
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if oversized {
-            continuation?.resume(throwing: URLError(.dataLengthExceedsMaximum))
-        } else if let error = error ?? moveError {
-            continuation?.resume(throwing: error)
-        } else {
-            continuation?.resume()
-        }
-        continuation = nil
-    }
-}

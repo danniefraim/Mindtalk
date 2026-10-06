@@ -2429,6 +2429,22 @@
         }
       }
     },
+    "Fortsätt – %@ kvar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue – %@ left"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsätt – %@ kvar"
+          }
+        }
+      }
+    },
     "Fråga": {
       "extractionState": "stale",
       "localizations": {

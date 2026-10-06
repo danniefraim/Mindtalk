@@ -93,6 +93,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --gemma-download`: fetches Gemma 4 without the window, printing how
+        // far it is — continuing an earlier try. Stop it with Ctrl-C to test that.
+        if args.contains("--gemma-download") {
+            Task { @MainActor in
+                print("Kvar att hämta: \(BetterNotes.remainingBytes / 1_000_000) MB")
+                BetterNotes.shared.download()
+                let t0 = Date()
+                while case .downloading(let p) = BetterNotes.shared.state {
+                    print(String(format: "%5.1f %%  (%.0f s)", p * 100, Date().timeIntervalSince(t0)))
+                    try? await Task.sleep(for: .seconds(5))
+                }
+                print("Klart: \(BetterNotes.shared.state)")
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --notes "fråga"`: notes and an answer for the newest meeting.
         if let i = args.firstIndex(of: "--notes"), i + 1 < args.count {
             Task {
