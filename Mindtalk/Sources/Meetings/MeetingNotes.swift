@@ -518,6 +518,48 @@ final class MeetingNotes: ObservableObject {
                              sources: Array(Set(sources)).sorted())
     }
 
+    /// A question across meetings (MeetingSearch.swift): answered from the meetings the
+    /// context picked, with the numbers of the lines it used.
+    nonisolated static func answerAcross(_ question: String, context: LibraryContext, history: String,
+                                         local: Bool) async throws -> (answer: String, lines: [Int]) {
+        let language = context.language
+        let earlier = history.isEmpty ? "" : "\n\nEarlier questions and answers:\n\(history)"
+        let prompt = "Today is \(context.today).\n\nMeetings:\n\(context.text)\(earlier)\n\nQuestion: \(question)"
+        let task = "You read notes and transcripts from several meetings. Each meeting starts with its title and date; " +
+            "each line is \"[n] …\". Answer the question across the meetings in \(language), in one to four full sentences, " +
+            "in your own words, speaking to the person who recorded them. Say which meeting when it matters (by its title or " +
+            "day). Only use what the lines say; " +
+            "if they don't answer it, say so plainly. Never invent names, numbers, dates or decisions."
+        let reply: Reply
+        do {
+            if local { throw LocalAnswer() }
+            reply = try await LanguageModelSession(model: model, instructions: task)
+                .respond(to: prompt, generating: Reply.self, options: options).content
+        } catch {
+            if !(error is LocalAnswer) { log.error("answer across: \(String(describing: error), privacy: .public)") }
+            let ask = task + " On a last line write \"SOURCES:\" and the numbers of the lines the answer comes from."
+            let text = local
+                ? try await LocalWriter.shared.respond(ask + "\n\n" + prompt, maxTokens: 400)
+                : try await LanguageModelSession(model: model, instructions: ask).respond(to: prompt, options: options).content
+            var answer: [String] = []
+            var sources: [Int] = []
+            for line in text.components(separatedBy: .newlines) {
+                if line.uppercased().contains("SOURCES:") || line.uppercased().contains("KÄLLOR:") {
+                    sources = line.split { !$0.isNumber }.compactMap { Int($0) }
+                } else if !line.trimmingCharacters(in: .whitespaces).isEmpty {
+                    answer.append(line)
+                }
+            }
+            reply = Reply(answer: Plain.unmark(answer.joined(separator: " ")), lines: Array(sources.prefix(4)))
+        }
+        let cleaned = reply.answer.replacingOccurrences(of: #"\[\d+\]\s*([^:\n]{1,40}:\s*)?"#, with: "",
+                                                        options: .regularExpression)
+        return (Self.firstSentences(Self.tidy(cleaned), 4), reply.lines)
+    }
+
+    /// What went wrong, in words for the person asking.
+    static func explainError(_ error: Error) -> String { explain(error) }
+
     nonisolated private static func cleanTitle(_ raw: String) -> String {
         var t = raw.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'”“«».")))
         if t.count > 60 { t = String(t.prefix(60)) }

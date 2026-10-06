@@ -523,6 +523,22 @@
         }
       }
     },
+    "%lld möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld möten"
+          }
+        }
+      }
+    },
     "%lld talare": {
       "extractionState": "stale",
       "localizations": {
@@ -584,6 +600,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "1 inspelning är äldre än så"
+          }
+        }
+      }
+    },
+    "1 möte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 möte"
           }
         }
       }
@@ -1938,6 +1970,22 @@
         }
       }
     },
+    "Din anteckning": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your note"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Din anteckning"
+          }
+        }
+      }
+    },
     "Din genväg": {
       "extractionState": "stale",
       "localizations": {
@@ -2543,6 +2591,22 @@
         }
       }
     },
+    "Fråga något om dina möten…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask anything about your meetings…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fråga något om dina möten…"
+          }
+        }
+      }
+    },
     "Fråga något om mötet…": {
       "localizations": {
         "en": {
@@ -2555,6 +2619,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fråga något om mötet…"
+          }
+        }
+      }
+    },
+    "Fråga om dina möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask about your meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fråga om dina möten"
           }
         }
       }
@@ -2588,6 +2668,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Frågor"
+          }
+        }
+      }
+    },
+    "Frågor om dina möten": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questions about your meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frågor om dina möten"
           }
         }
       }
@@ -3688,6 +3785,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inget hördes"
+          }
+        }
+      }
+    },
+    "Inget möte innehåller det.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No meeting contains that."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inget möte innehåller det."
           }
         }
       }
@@ -5185,6 +5298,54 @@
         }
       }
     },
+    "Läser dina möten…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading your meetings…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läser dina möten…"
+          }
+        }
+      }
+    },
+    "Läste %lld möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read %lld meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läste %lld möten"
+          }
+        }
+      }
+    },
+    "Läste 1 möte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read 1 meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läste 1 möte"
+          }
+        }
+      }
+    },
     "Låt vara": {
       "localizations": {
         "en": {
@@ -6592,6 +6753,22 @@
         }
       }
     },
+    "Rensa sökningen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear the search"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rensa sökningen"
+          }
+        }
+      }
+    },
     "Rensa…": {
       "localizations": {
         "en": {
@@ -6814,6 +6991,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sammanfattningar kräver Apple Intelligence"
+          }
+        }
+      }
+    },
+    "Sammanfattningen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The summary"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfattningen"
           }
         }
       }
@@ -8109,6 +8302,22 @@
         }
       }
     },
+    "Sök i mötena": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sök i mötena"
+          }
+        }
+      }
+    },
     "Sök nu": {
       "localizations": {
         "en": {
@@ -8313,6 +8522,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ta bort mötet…"
+          }
+        }
+      }
+    },
+    "Ta bort svaret": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove the answer"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort svaret"
           }
         }
       }
@@ -9188,6 +9413,22 @@
         }
       }
     },
+    "Vad bestämdes den här veckan?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What was decided this week?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vad bestämdes den här veckan?"
+          }
+        }
+      }
+    },
     "Vad bestämdes?": {
       "localizations": {
         "en": {
@@ -9200,6 +9441,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vad bestämdes?"
+          }
+        }
+      }
+    },
+    "Vad pratade vi om i går?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What did we talk about yesterday?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vad pratade vi om i går?"
+          }
+        }
+      }
+    },
+    "Vad ska jag göra?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What do I need to do?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vad ska jag göra?"
           }
         }
       }
@@ -10431,6 +10704,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna mötet"
+          }
+        }
+      }
+    },
+    "Öppna mötet där det sades": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the meeting where it was said"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna mötet där det sades"
           }
         }
       }

@@ -19,6 +19,8 @@ struct MeetingsPage: View {
     /// The meeting you were reading, kept while you visit other pages.
     @State private var open: UUID? = MeetingsPage.lastOpen
     static var lastOpen: UUID?
+    /// Opened from a search hit or an answer's source: the moment to show.
+    static var focusAt: Double?
 
     var body: some View {
         GeometryReader { geo in
@@ -34,7 +36,8 @@ struct MeetingsPage: View {
                         .id(id)
                         .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
                 } else {
-                    MeetingList(session: session, store: store, voices: voices, dictation: dictation) { id in
+                    MeetingList(session: session, store: store, voices: voices, dictation: dictation) { id, at in
+                        MeetingsPage.focusAt = at
                         withAnimation(.spring(duration: 0.45, bounce: 0.12)) { open = id }
                     }
                     .transition(.opacity)
@@ -110,8 +113,15 @@ private struct MeetingList: View {
     @ObservedObject var voices: VoiceModels
     @ObservedObject var dictation: Dictation
     @ObservedObject private var notes = MeetingNotes.shared
-    let open: (UUID) -> Void
+    @ObservedObject private var library = MeetingLibrary.shared
+    let open: (UUID, Double?) -> Void
     @State private var confirmDelete: MeetingRecord?
+    @State private var query = ""
+    /// What the search found — a moment after you stop typing.
+    @State private var matches: [MeetingMatch] = []
+
+    private var searching: Bool { !query.trimmingCharacters(in: .whitespaces).isEmpty }
+    private var canAsk: Bool { MeetingNotes.isAvailable && store.meetings.contains { !$0.words.isEmpty } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -122,15 +132,21 @@ private struct MeetingList: View {
             if store.meetings.isEmpty {
                 EmptyArchive().staggered(2)
             } else {
+                LibrarySearchField(query: $query).staggered(2)
+                LibraryAnswers(library: library, open: open)
+            }
+            if searching {
+                SearchResults(matches: matches, query: query, open: open)
+            } else if !store.meetings.isEmpty {
                 ForEach(Array(groups.enumerated()), id: \.element.title) { n, group in
                     VStack(alignment: .leading, spacing: 10) {
                         SectionTitle(group.title)
                         VStack(spacing: 0) {
                             ForEach(Array(group.meetings.enumerated()), id: \.element.id) { i, record in
                                 if i > 0 { CardDivider() }
-                                MeetingRow(record: record, writing: notes.writing.contains(record.id)) { open(record.id) }
+                                MeetingRow(record: record, writing: notes.writing.contains(record.id)) { open(record.id, nil) }
                                     .contextMenu {
-                                        Button("Öppna") { open(record.id) }
+                                        Button("Öppna") { open(record.id, nil) }
                                         Button("Ta bort…", role: .destructive) { confirmDelete = record }
                                     }
                             }
@@ -142,7 +158,23 @@ private struct MeetingList: View {
                 }
             }
         }
+        .padding(.bottom, canAsk ? 90 : 0)
+        .task(id: query + "\(store.meetings.count)") {
+            guard searching else { matches = []; return }
+            try? await Task.sleep(for: .milliseconds(120))
+            guard !Task.isCancelled else { return }
+            matches = MeetingSearch.find(query, in: store.meetings.filter { $0.id != session.record?.id })
+        }
+        #if DEBUG
+        .onAppear {   // screenshots: `--search-query "ord"`, `--ask-query "fråga"`
+            let args = CommandLine.arguments
+            if let i = args.firstIndex(of: "--search-query"), i + 1 < args.count { query = args[i + 1] }
+            if let i = args.firstIndex(of: "--ask-query"), i + 1 < args.count { library.ask(args[i + 1]) }
+        }
+        #endif
         .pageLayout()
+        .overlay(alignment: .bottom) { if canAsk { LibraryAskBar(library: library) } }
+        .animation(.easeOut(duration: 0.2), value: searching)
         .confirmationDialog("Ta bort mötet?", isPresented: Binding(get: { confirmDelete != nil },
                                                                    set: { if !$0 { confirmDelete = nil } })) {
             Button("Ta bort", role: .destructive) {
@@ -557,6 +589,11 @@ struct MeetingView: View {
         .onDisappear { if MeetingPlayer.shared.meeting == record.id { MeetingPlayer.shared.stop() } }
         .onAppear {
             title = record.title
+            if let at = MeetingsPage.focusAt, !live {
+                MeetingsPage.focusAt = nil
+                tab = .transcript
+                focusTurn = MeetingText.turns(record.words, paragraphs: true).last { $0.start <= at + 0.05 }?.id
+            }
             #if DEBUG
             if CommandLine.arguments.contains("--meeting-text") { tab = .transcript }
             #endif

@@ -114,6 +114,78 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --search "ord"`: what the meeting search finds, printed.
+        if let i = args.firstIndex(of: "--search"), i + 1 < args.count {
+            // `--times 12`: the meetings a dozen times over (in memory only) — a big library.
+            let times = args.firstIndex(of: "--times").flatMap { $0 + 1 < args.count ? Int(args[$0 + 1]) : nil } ?? 1
+            let all = (0..<times).flatMap { _ in MeetingStore.shared.meetings.map { var r = $0; r.id = UUID(); return r } }
+            var found: [MeetingMatch] = []
+            for round in 1...2 {
+                let t0 = Date()
+                found = MeetingSearch.find(args[i + 1], in: all)
+                print(String(format: "%d möten av %d, varv %d (%.0f ms)", found.count, all.count, round, Date().timeIntervalSince(t0) * 1000))
+            }
+            if times > 1 { exit(0) }
+            for m in found {
+                print("• \(m.record.title)")
+                for h in m.hits {
+                    let at = h.at.map { " [\(MeetingView.duration($0))]" } ?? ""
+                    print("    \(h.kind): \(h.who.map { $0 + ": " } ?? "")\(h.text)\(at)")
+                }
+            }
+            exit(0)
+        }
+        // `Mindtalk --ask-all "fråga"`: a question across all meetings, as the Möten page asks it.
+        if let i = args.firstIndex(of: "--ask-all"), i + 1 < args.count {
+            Task { @MainActor in
+                let question = args[i + 1]
+                let local = BetterNotes.shared.isActive
+                let meetings = MeetingStore.shared.meetings.filter { !$0.words.isEmpty }
+                let context = LibraryContext(question: question, meetings: meetings, budget: local ? 12_000 : Lines.appleBudget)
+                print("Modell: \(local ? "Gemma 4" : "Apple Intelligence") · läser \(context.meetings) möten, \(context.text.split(separator: " ").count) ord")
+                if args.contains("--show-context") { print(context.text) }
+                let t0 = Date()
+                do {
+                    let reply = try await MeetingNotes.answerAcross(question, context: context, history: "", local: local)
+                    print(String(format: "Svar (%.1f s): %@", Date().timeIntervalSince(t0), reply.answer))
+                    let titles = Dictionary(uniqueKeysWithValues: meetings.map { ($0.id, $0.title) })
+                    for n in reply.lines {
+                        if let s = context.sources[n] {
+                            print("  källa [\(n)]: \(titles[s.meeting] ?? "?") \(s.at.map { MeetingView.duration($0) } ?? "")")
+                        }
+                    }
+                } catch { print("Fel: \(error)") }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
+        // `Mindtalk --render-search out.png "sökord" "fråga"`: the search results and an
+        // answer drawn to an image, without a window (the screen may be locked).
+        if let i = args.firstIndex(of: "--render-search"), i + 3 < args.count {
+            Task { @MainActor in
+                NSApplication.shared.appearance = NSAppearance(named: args.contains("--dark") ? .darkAqua : .aqua)
+                let library = MeetingLibrary.shared
+                library.ask(args[i + 3])
+                await library.waitUntilAnswered()
+                let view = VStack(alignment: .leading, spacing: 20) {
+                    LibraryAnswers(library: library) { _, _ in }
+                    SearchResults(matches: MeetingSearch.find(args[i + 2], in: MeetingStore.shared.meetings),
+                                  query: args[i + 2]) { _, _ in }
+                }
+                .padding(28)
+                .frame(width: 720)
+                .background(DS.Colors.paper)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --gemma-download`: fetches Gemma 4 without the window, printing how
         // far it is — continuing an earlier try. Stop it with Ctrl-C to test that.
         if args.contains("--gemma-download") {
