@@ -3449,6 +3449,22 @@
         }
       }
     },
+    "Hörlurarnas mikrofon slutade fungera – inspelningen fortsätter med Macens mikrofon.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The headphones' microphone stopped working – recording continues with the Mac's microphone."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hörlurarnas mikrofon slutade fungera – inspelningen fortsätter med Macens mikrofon."
+          }
+        }
+      }
+    },
     "Hörs ofta som (valfritt)": {
       "extractionState": "stale",
       "localizations": {
@@ -5380,6 +5396,22 @@
         }
       }
     },
+    "Mikrofonen ger inget ljud – är den avstängd?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The microphone isn't sending any sound – is it muted?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofonen ger inget ljud – är den avstängd?"
+          }
+        }
+      }
+    },
     "Mikrofonen kopplades bort – inspelningen fortsätter med Macens mikrofon.": {
       "localizations": {
         "en": {
@@ -5392,6 +5424,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mikrofonen kopplades bort – inspelningen fortsätter med Macens mikrofon."
+          }
+        }
+      }
+    },
+    "Mikrofonen slutade ge ljud – startar om den…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The microphone stopped sending sound – restarting it…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofonen slutade ge ljud – startar om den…"
           }
         }
       }

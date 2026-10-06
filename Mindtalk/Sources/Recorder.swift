@@ -11,6 +11,15 @@ final class Recorder: @unchecked Sendable {
     var onChunk: (@Sendable ([Float]) -> Void)?
     /// The input went away mid-recording. Delivered on the main queue.
     var onInterrupted: (@Sendable () -> Void)?
+    /// The input is still there but sends nothing but zeros — no signal at all, which
+    /// a quiet room never gives (a Bluetooth headset whose link was taken over).
+    /// Once per start, on the main queue.
+    var onSignalLost: (@Sendable () -> Void)?
+
+    /// The device being recorded from — the chosen one, or the system input it resolved to.
+    private(set) var inputDevice: AudioDeviceID?
+    /// Recording from AirPods or another Bluetooth headset.
+    var usesBluetooth: Bool { inputDevice.map(Self.isBluetooth) ?? false }
 
     private let lifecycleLock = NSLock()
     private let lock = NSLock()
@@ -26,6 +35,13 @@ final class Recorder: @unchecked Sendable {
     private var lastAudio = Date()
     private var hardwareStarted = false
     private var interruptionReported = false
+    /// Since when every sample has been exactly zero (nil while there's signal).
+    private var zeroSince: Date?
+    private var startedAt = Date()
+    private var signalLossReported = false
+    #if DEBUG
+    var zerosAfter: TimeInterval?
+    #endif
     private var samples: [Float] = []
     /// False for the level preview in the mic picker — nothing is kept.
     private let keepSamples: Bool
@@ -126,7 +142,9 @@ final class Recorder: @unchecked Sendable {
         queue = created; context = state; generation = state.takeUnretainedValue().generation
         running = true; stopping = false; hardwareStarted = false; interruptionReported = false
         lastAudio = Date()
+        zeroSince = nil; startedAt = Date(); signalLossReported = false
         lock.unlock()
+        inputDevice = device ?? Self.defaultInput()
         // A device that is changing format (AirPods switching to their headset
         // mode, a call app taking the mic) asks to be tried again a moment later.
         var status = AudioQueueStart(created, nil)
@@ -196,6 +214,27 @@ final class Recorder: @unchecked Sendable {
         return running && !stopping ? Date().timeIntervalSince(lastAudio) : 0
     }
 
+    /// The system's input device right now.
+    static func defaultInput() -> AudioDeviceID? {
+        var id = AudioDeviceID(0)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultInputDevice,
+                                                 mScope: kAudioObjectPropertyScopeGlobal,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        let status = AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &id)
+        return status == noErr && id != 0 ? id : nil
+    }
+
+    static func isBluetooth(_ id: AudioDeviceID) -> Bool {
+        var transport = UInt32(0)
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyTransportType,
+                                                 mScope: kAudioObjectPropertyScopeGlobal,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &transport) == noErr else { return false }
+        return transport == kAudioDeviceTransportTypeBluetooth || transport == kAudioDeviceTransportTypeBluetoothLE
+    }
+
     private static func deviceUID(_ id: AudioDeviceID) -> CFString? {
         var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyDeviceUID,
                                                  mScope: kAudioObjectPropertyScopeGlobal,
@@ -259,12 +298,34 @@ final class Recorder: @unchecked Sendable {
             guard recorder.running, recorder.queue == queue else { recorder.lock.unlock(); return }
             let count = Int(buffer.pointee.mAudioDataByteSize) / MemoryLayout<Float>.size
             let data = buffer.pointee.mAudioData.assumingMemoryBound(to: Float.self)
-            let chunk = Array(UnsafeBufferPointer(start: data, count: count))
+            var chunk = Array(UnsafeBufferPointer(start: data, count: count))
+            #if DEBUG
+            // `--signal-test`: the signal dies after a few seconds, as a taken-over headset's does.
+            if let after = recorder.zerosAfter, Date().timeIntervalSince(recorder.startedAt) > after {
+                chunk = [Float](repeating: 0, count: chunk.count)
+            }
+            #endif
             var sum: Float = 0
             for value in chunk { sum += value * value }
             let rms: Float = chunk.isEmpty ? 0 : (sum / Float(chunk.count)).squareRoot()
             recorder.hardwareStarted = true
             if !chunk.isEmpty { recorder.lastAudio = Date() }
+            // Pure zeros: no signal. A headset gives some while it starts up, so only
+            // after the first three seconds, and only when it lasts a second and a half.
+            var signalLost = false
+            if !chunk.isEmpty {
+                if chunk.allSatisfy({ $0 == 0 }) {
+                    let now = Date()
+                    if recorder.zeroSince == nil { recorder.zeroSince = now }
+                    if !recorder.signalLossReported, now.timeIntervalSince(recorder.startedAt) > 3,
+                       now.timeIntervalSince(recorder.zeroSince!) >= 1.5 {
+                        recorder.signalLossReported = true
+                        signalLost = true
+                    }
+                } else {
+                    recorder.zeroSince = nil
+                }
+            }
             if recorder.keepSamples { recorder.samples += chunk }
             let generation = recorder.generation
             // Hold the lock through re-enqueueing so stop cannot dispose the
@@ -275,6 +336,16 @@ final class Recorder: @unchecked Sendable {
             if !chunk.isEmpty { recorder.onChunk?(chunk) }
             recorder.onLevel?(min(1, rms * 12))
             if status != noErr, let generation { recorder.reportInterruption(generation: generation) }
+            if signalLost, let generation {
+                Self.log.error("input sends only zeros")
+                DispatchQueue.main.async { [weak recorder] in
+                    guard let recorder else { return }
+                    recorder.lock.lock()
+                    let current = recorder.running && recorder.generation == generation
+                    recorder.lock.unlock()
+                    if current { recorder.onSignalLost?() }
+                }
+            }
         }
     }
 

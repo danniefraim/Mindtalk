@@ -225,6 +225,7 @@ final class MeetingSession: ObservableObject {
             recorder.onChunk = { chunk in intake.append(chunk) }
             recorder.onLevel = { level in Task { @MainActor in MeetingSession.shared.heard(level) } }
             recorder.onInterrupted = { Task { @MainActor in MeetingSession.shared.inputChanged() } }
+            recorder.onSignalLost = { Task { @MainActor in MeetingSession.shared.signalLost() } }
             let chosen = Microphones.shared.selectedDeviceID
             do {
                 try recorder.start(device: chosen)
@@ -255,7 +256,10 @@ final class MeetingSession: ObservableObject {
         lastSave = date
         lastHeard = date
         phase = .starting
-        Cue.start()
+        lastRestart = nil
+        // Not into a Bluetooth headset: when a sound there ends, macOS may hand the
+        // headset's link over (to a phone it's also paired with) and the mic goes dead.
+        if !recorder.usesBluetooth { Cue.start() }
         activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated],
                                                          reason: "Recording a meeting")
         MeetingStore.shared.save(new)
@@ -817,8 +821,39 @@ final class MeetingSession: ObservableObject {
 
     private func heard(_ level: Float) {
         guard isRecording else { return }
-        if level > 0.04 { lastHeard = Date() }
+        if level > 0.04 {
+            lastHeard = Date()
+            if warning == Self.restarting { warning = nil }      // back
+        }
         LiveMeter.shared.push(level)
+    }
+
+    /// When the microphone was last opened again after losing its signal.
+    private var lastRestart: Date?
+    private static var restarting: String { String(localized: "Mikrofonen slutade ge ljud – startar om den…") }
+
+    /// The microphone sends nothing but zeros. Opened again — the usual cure. When it
+    /// dies again within half a minute: a headset carries on with the Mac's own mic;
+    /// any other mic stays (it may be muted on purpose) and you're told.
+    private func signalLost() {
+        guard isRecording else { return }
+        let device = recorder.inputDevice
+        let bluetooth = recorder.usesBluetooth
+        let again = lastRestart.map { Date().timeIntervalSince($0) < 30 } ?? false
+        lastRestart = Date()
+        _ = recorder.stop()
+        Self.log.error("meeting: input lost its signal (bluetooth \(bluetooth), again \(again))")
+        if !again, (try? recorder.start(device: device)) != nil {
+            warning = Self.restarting
+            return
+        }
+        if bluetooth, let builtIn = Microphones.shared.devices.first(where: \.isBuiltIn)?.id,
+           (try? recorder.start(device: builtIn)) != nil {
+            warning = String(localized: "Hörlurarnas mikrofon slutade fungera – inspelningen fortsätter med Macens mikrofon.")
+            return
+        }
+        try? recorder.start(device: device)
+        warning = String(localized: "Mikrofonen ger inget ljud – är den avstängd?")
     }
 
     /// The microphone went away (unplugged, AirPods gone): carry on with the system input.

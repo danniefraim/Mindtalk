@@ -93,6 +93,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --signal-test`: the microphone's signal dies after 4 s — it must be
+        // noticed then, and not during a headset's quiet start.
+        if args.contains("--signal-test") {
+            let recorder = Recorder(keepSamples: false)
+            let healthy = args.contains("--healthy")       // no signal loss: nothing may be reported
+            recorder.zerosAfter = healthy ? nil : 4
+            let t0 = Date()
+            recorder.onSignalLost = {
+                let t = Date().timeIntervalSince(t0)
+                let ok = !healthy && (5.0...7.5).contains(t)
+                print(String(format: "Ingen signal upptäckt efter %.1f s (%@)", t, ok ? "rätt" : "FEL"))
+                exit(ok ? 0 : 1)
+            }
+            do { try recorder.start() } catch { print("Fel: \(error)"); exit(1) }
+            print("Mikrofon: \(recorder.usesBluetooth ? "Bluetooth" : "inte Bluetooth")")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 12) {
+                print(healthy ? "Inget falsklarm på 12 s (rätt)" : "FEL: inget upptäcktes")
+                exit(healthy ? 0 : 1)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --gemma-download`: fetches Gemma 4 without the window, printing how
         // far it is — continuing an earlier try. Stop it with Ctrl-C to test that.
         if args.contains("--gemma-download") {

@@ -573,7 +573,11 @@ final class Dictation: ObservableObject {
             if !TextInserter.dryRun { MediaControl.shared.begin() }
         }
         hud.show()
-        if !startCuePlayed { startCuePlayed = true; Cue.start() }
+        if !startCuePlayed {
+            startCuePlayed = true
+            // Not into a Bluetooth headset (MeetingSession.start says why).
+            if !recorder.usesBluetooth { Cue.start() }
+        }
     }
 
     private func begin() {
