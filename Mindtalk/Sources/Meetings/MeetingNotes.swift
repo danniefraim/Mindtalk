@@ -26,6 +26,8 @@ struct MeetingSummary: Codable, Equatable {
         var at: Double? = nil
         /// Tasks: ticked off.
         var done: Bool? = nil
+        /// You marked this moment during the meeting.
+        var marked: Bool? = nil
     }
 
     /// A short title for the meeting, used unless you named it yourself.
@@ -117,8 +119,21 @@ final class MeetingNotes: ObservableObject {
     static func selfTest(question: String) async {
         let args = CommandLine.arguments
         let wanted = args.firstIndex(of: "--title").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
-        guard let record = MeetingStore.shared.meetings.first(where: { wanted == nil || $0.title.contains(wanted!) })
+        guard let found = MeetingStore.shared.meetings.first(where: { wanted == nil || $0.title.contains(wanted!) })
         else { return print("Inga möten.") }
+        // `--own-notes "rad|rad"` and `--marks "decision@30,task@55"`: as if written and
+        // marked during the meeting — on a copy, nothing saved.
+        var record = found
+        if let i = args.firstIndex(of: "--own-notes"), i + 1 < args.count {
+            record.notes = args[i + 1].split(separator: "|").map { MeetingRecord.Note(text: String($0), at: nil) }
+        }
+        if let i = args.firstIndex(of: "--marks"), i + 1 < args.count {
+            record.marks = args[i + 1].split(separator: ",").compactMap { part -> MeetingRecord.Mark? in
+                let p = part.split(separator: "@")
+                guard p.count == 2, let kind = MeetingRecord.Mark.Kind(rawValue: String(p[0])), let at = Double(p[1]) else { return nil }
+                return MeetingRecord.Mark(at: at, kind: kind)
+            }
+        }
         let lines = Lines(record)
         print("Språk: \(lines.language), \(lines.lines.count) rader, \(lines.parts().count) del(ar)")
         do {
@@ -129,7 +144,7 @@ final class MeetingNotes: ObservableObject {
             print(String(format: "\n(%.1f s)\nTitel: %@\nÖversikt: %@", Date().timeIntervalSince(t0), s.title ?? "–", s.overview))
             let show = { (title: String, items: [MeetingSummary.Item]) in
                 print(title)
-                for i in items { print("  - \(i.text)\(i.owner.map { " (\($0))" } ?? "")  [\(i.at.map { MeetingView.duration($0) } ?? "ingen källa")]") }
+                for i in items { print("  - \(i.marked == true ? "⚑ " : "")\(i.text)\(i.owner.map { " (\($0))" } ?? "")  [\(i.at.map { MeetingView.duration($0) } ?? "ingen källa")]") }
             }
             show("Beslut:", s.decisions); show("Att göra:", s.tasks); show("Viktigt:", s.points)
             let t1 = Date()
@@ -227,7 +242,7 @@ final class MeetingNotes: ObservableObject {
         if local {
             for part in lines.parts(budget: Lines.localBudget) {
                 let p = parsePlain(try await LocalWriter.shared.respond(
-                    plainPrompt(lines.language) + "\n\nTranscript:\n" + part))
+                    plainPrompt(lines.language) + "\n\n" + lines.guidance + "Transcript:\n" + part))
                 outcomes.append(Outcomes(decisions: p.decisions, tasks: p.tasks))
                 overviews.append(Overview(title: p.title, summary: p.summary, points: p.points))
             }
@@ -242,7 +257,7 @@ final class MeetingNotes: ObservableObject {
                 overviews[0].summary = merged
                 overviews = [overviews[0]] + overviews.dropFirst().map { Overview(title: "", summary: "", points: $0.points) }
             }
-            var summary = finish(lines, outcomes: outcomes, overviews: overviews)
+            var summary = await withMarks(finish(lines, outcomes: outcomes, overviews: overviews), lines, local: true)
             summary.writer = "Gemma 4"
             return summary
         }
@@ -251,7 +266,7 @@ final class MeetingNotes: ObservableObject {
         // health…) that they allow as plain text — then the same notes are asked for
         // as lines in a fixed format and read back.
         for part in lines.parts() {
-            let text = "Transcript:\n" + part
+            let text = lines.guidance + "Transcript:\n" + part
             var fallback: Plain?
             do {
                 outcomes.append(try await session(instructions(lines.language, "Find the decisions and the tasks."))
@@ -296,7 +311,99 @@ final class MeetingNotes: ObservableObject {
                 in \(lines.language), in two or three sentences. Only use what is in the summaries.
                 """).respond(to: parts, options: options).content) ?? overviews.map(\.summary).joined(separator: " ")
         }
-        return finish(lines, outcomes: outcomes, overviews: overviews)
+        return await withMarks(finish(lines, outcomes: outcomes, overviews: overviews), lines, local: false)
+    }
+
+    /// The moments you marked: each one is in the notes — the item the model wrote
+    /// about it if there is one (flagged as yours), otherwise one written from the
+    /// lines around it. A mark is pressed just after something is said, so it
+    /// covers the line it falls in and the one before.
+    nonisolated private static func withMarks(_ summary: MeetingSummary, _ lines: Lines, local: Bool) async -> MeetingSummary {
+        var summary = summary
+        for mark in lines.marks {
+            // Pressed just after it was said: the item the model wrote about those
+            // seconds, flagged as yours — or a new one, from the sentences there.
+            let near: (MeetingSummary.Item) -> Bool = { item in
+                guard let at = item.at else { return false }
+                return at >= mark.at - 20 && at <= mark.at + 4
+            }
+            func flag(_ items: inout [MeetingSummary.Item]) -> Bool {
+                guard let k = items.firstIndex(where: near) else { return false }
+                items[k].marked = true
+                return true
+            }
+            switch mark.kind {
+            case .decision: if flag(&summary.decisions) { continue }
+            case .task: if flag(&summary.tasks) { continue }
+            case .important: if flag(&summary.points) || flag(&summary.decisions) || flag(&summary.tasks) { continue }
+            }
+            guard let said = lines.around(mark.at) else { continue }
+            let text = await phrase(mark.kind, said.text, lines.language, local: local)
+                ?? firstSentences(said.text.split(separator: "\n").last.map { String($0.split(separator: ":", maxSplits: 1).last ?? "") } ?? "", 1)
+            // Already in the notes in other words (often from your own notes): that one, flagged.
+            let keys = Lines.keys(text)
+            let same: (MeetingSummary.Item) -> Bool = { Lines.overlap(keys, Lines.keys($0.text)) >= 0.5 }
+            func flagSame(_ items: inout [MeetingSummary.Item]) -> Bool {
+                guard let k = items.firstIndex(where: same) else { return false }
+                items[k].marked = true
+                return true
+            }
+            switch mark.kind {
+            case .decision: if flagSame(&summary.decisions) { continue }
+            case .task: if flagSame(&summary.tasks) { continue }
+            case .important: if flagSame(&summary.points) { continue }
+            }
+            var item = MeetingSummary.Item(text: text.trimmingCharacters(in: .whitespaces), at: max(0, mark.at - 2), marked: true)
+            switch mark.kind {
+            case .decision: summary.decisions.append(item)
+            case .task:
+                item.owner = lines.person(said.speaker)
+                summary.tasks.append(item)
+            case .important: summary.points.append(item)
+            }
+        }
+        for keyPath in [\MeetingSummary.decisions, \.tasks, \.points] {
+            summary[keyPath: keyPath].sort { ($0.at ?? .infinity) < ($1.at ?? .infinity) }
+        }
+        return summary
+    }
+
+    /// One short sentence for a marked moment, from the sentences around it.
+    nonisolated private static func phrase(_ kind: MeetingRecord.Mark.Kind, _ said: String, _ language: String,
+                                           local: Bool) async -> String? {
+        let what = switch kind {
+        case .decision: "a decision"
+        case .task: "a task someone takes on"
+        case .important: "something important"
+        }
+        let ask = "This is what was said in a meeting, the last line just before someone pressed a button to mark it " +
+            "as \(what):\n\n\(said)\n\nWrite what was marked as one short sentence in \(language), at most 15 words, " +
+            "only from what was said. Just the sentence."
+        do {
+            var line: String
+            if local {
+                line = try await LocalWriter.shared.respond(ask, maxTokens: 60)
+            } else {
+                line = try await LanguageModelSession(model: model,
+                                                      instructions: "You write one short note about a moment in a meeting.")
+                    .respond(to: ask, generating: MarkPhrase.self, options: options).content.sentence
+            }
+            line = line.split(separator: "\n").first.map(String.init) ?? line
+            // "1. …", "[2] …", "- …": a list the model started.
+            if let r = line.range(of: #"^\s*(\[\d+\]|\d+[.)]|[-–•])\s*"#, options: .regularExpression) { line.removeSubrange(r) }
+            line = line.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: "”", with: "")
+            let clean = firstSentences(tidy(line), 1)
+            return clean.isEmpty || clean.count > 160 ? nil : clean
+        } catch {
+            log.error("notes, mark: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
+    @Generable
+    struct MarkPhrase {
+        @Guide(description: "One short sentence, at most 15 words.")
+        var sentence: String
     }
 
     /// From what the model wrote to the notes shown: every item checked against the
@@ -387,6 +494,14 @@ final class MeetingNotes: ObservableObject {
         let date = record.date.formatted(Date.FormatStyle(date: .long, time: .shortened).locale(AppLanguage.locale))
         let people = cast.order.map { cast.name(of: $0) }.joined(separator: ", ")
         out += people.isEmpty ? "\(date)\n\n" : "\(date) · \(people)\n\n"
+        if let informed = record.informed {
+            let time = informed.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale))
+            out += String(localized: "Deltagarna informerades om inspelningen kl. \(time).") + "\n\n"
+        }
+        let own = record.notes.map(\.text).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        if !own.isEmpty {
+            out += "## " + String(localized: "Dina anteckningar") + "\n" + own.map { "- " + $0 }.joined(separator: "\n") + "\n\n"
+        }
         guard let s = record.summary else { return out + MeetingText.plain(record) }
         out += s.overview + "\n"
         func section(_ title: String, _ items: [MeetingSummary.Item], task: Bool = false) {
@@ -511,6 +626,12 @@ struct Lines: Sendable {
 
     let lines: [Line]
     let language: String
+    /// Your own notes and marks (MeetingNotesBox.swift): they steer the notes.
+    let notes: [String]
+    let marks: [(at: Double, kind: MeetingRecord.Mark.Kind)]
+    /// Sentence by sentence, each with its moment — for the marks, which point at
+    /// a few seconds rather than a whole line.
+    let sentences: [Line]
     var wordCount: Int { lines.reduce(0) { $0 + $1.text.split(separator: " ").count } }
     private let people: [String]
 
@@ -536,6 +657,23 @@ struct Lines: Sendable {
             }
         }
         self.lines = lines
+        var sentences: [Line] = []
+        var sentence: [String] = []
+        var sentenceStart = 0.0
+        let cast = record.cast
+        for (k, w) in record.words.enumerated() {
+            if sentence.isEmpty { sentenceStart = w.start }
+            sentence.append(w.text)
+            let ends = w.text.last.map { ".?!".contains($0) } ?? false
+            if ends || k == record.words.count - 1 {
+                let who = w.speaker.map { $0 >= 0 ? cast.name(of: $0) : "?" } ?? "?"
+                sentences.append(Line(speaker: who, text: MeetingText.clean(sentence.joined(separator: " ")), start: sentenceStart))
+                sentence = []
+            }
+        }
+        self.sentences = sentences
+        notes = record.notes.map { $0.text.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        marks = record.marks.map { ($0.at, $0.kind) }.sorted { $0.at < $1.at }
         people = Array(Set(lines.map(\.speaker)))
         let all = lines.map(\.text).joined(separator: " ")
         language = Self.languageName(of: all) ?? (record.language == .swedish ? "Swedish" : "English")
@@ -594,6 +732,26 @@ struct Lines: Sendable {
     }
 
     func start(ofLine n: Int) -> Double? { lines.indices.contains(n - 1) ? lines[n - 1].start : nil }
+
+    /// Your notes, put before the transcript: what mattered to you, to be covered.
+    var guidance: String {
+        guard !notes.isEmpty else { return "" }
+        return "The note-taker wrote these notes during the meeting. They show what mattered most to them: " +
+            "make sure each one is covered, with the details from the transcript — " +
+            "besides everything else in the meeting worth noting.\nNotes:\n" +
+            notes.map { "- " + $0 }.joined(separator: "\n") + "\n\n"
+    }
+
+    /// The line being said at `at`.
+    func index(at: Double) -> Int? { lines.lastIndex { $0.start <= at + 0.5 } ?? (lines.isEmpty ? nil : 0) }
+
+    /// What was said just before a mark (it's pressed after) and a moment after.
+    func around(_ at: Double) -> (text: String, speaker: String)? {
+        let near = sentences.filter { $0.start >= at - 16 && $0.start <= at + 6 }
+        let picked = near.isEmpty ? sentences.last { $0.start <= at + 0.5 }.map { [$0] } ?? [] : near
+        guard let main = picked.last(where: { $0.start <= at + 2 }) ?? picked.first else { return nil }
+        return (picked.map { "\($0.speaker): \($0.text)" }.joined(separator: "\n"), main.speaker)
+    }
 
     enum Cue { case decision, intent }
 

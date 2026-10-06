@@ -4,7 +4,8 @@ import SwiftUI
 //
 // Who spoke when, as one strip: a lane per speaker, their turns drawn in their
 // quiet colour — a monologue, a ping-pong, a four-way debate each look their own.
-// Decisions (diamonds) and tasks (rings) sit above it where they were said. Point
+// Decisions (diamonds) and tasks (rings) sit above it where they were said, and
+// the moments you marked as small flags in the accent colour. Point
 // at it to see who spoke then; click or drag to listen from there. In the list, a
 // small one tells meetings apart at a glance.
 
@@ -33,11 +34,11 @@ struct MeetingRibbon: View {
                 .overlay(alignment: .topLeading) { if !compact { hoverLabel(width: geo.size.width) } }
                 .contentShape(Rectangle())
                 .onContinuousHover { phase in
-                    guard !compact, !live else { return }
+                    guard !compact, !live, record.hasAudio else { return }
                     if case .active(let p) = phase { hover = p.x } else { hover = nil }
                 }
                 .gesture(DragGesture(minimumDistance: 0).onChanged { v in
-                    guard !compact, !live else { return }
+                    guard !compact, !live, record.hasAudio else { return }
                     let t = max(0, min(1, v.location.x / geo.size.width)) * duration
                     if player.meeting == record.id { player.seek(to: t) } else { player.play(record.id, from: t) }
                 })
@@ -68,6 +69,8 @@ struct MeetingRibbon: View {
             for item in summary.decisions { if let at = item.at { diamond(&ctx, x(at)) } }
             for item in summary.tasks { if let at = item.at { ring(&ctx, x(at)) } }
         }
+        // The moments you marked.
+        for mark in record.marks { flag(&ctx, x(mark.at)) }
         // Listening: where you are.
         if player.meeting == record.id {
             let px = x(player.time)
@@ -85,6 +88,14 @@ struct MeetingRibbon: View {
         p.move(to: CGPoint(x: x, y: 1)); p.addLine(to: CGPoint(x: x + 3.5, y: 4.5))
         p.addLine(to: CGPoint(x: x, y: 8)); p.addLine(to: CGPoint(x: x - 3.5, y: 4.5)); p.closeSubpath()
         ctx.fill(p, with: .color(DS.Colors.ink))
+    }
+
+    private func flag(_ ctx: inout GraphicsContext, _ x: CGFloat) {
+        ctx.fill(Path(roundedRect: CGRect(x: x - 0.6, y: 0, width: 1.2, height: 9), cornerRadius: 0.6), with: .color(DS.Colors.accent))
+        var p = Path()
+        p.move(to: CGPoint(x: x + 0.6, y: 0)); p.addLine(to: CGPoint(x: x + 5.5, y: 2.2)); p.addLine(to: CGPoint(x: x + 0.6, y: 4.4))
+        p.closeSubpath()
+        ctx.fill(p, with: .color(DS.Colors.accent))
     }
 
     private func ring(_ ctx: inout GraphicsContext, _ x: CGFloat) {

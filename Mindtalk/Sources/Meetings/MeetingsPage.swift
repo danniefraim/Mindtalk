@@ -86,6 +86,20 @@ enum MeetingEdits {
         case .saved(let store, let id): store.move(words: range, to: speaker, in: id)
         }
     }
+
+    @MainActor func notes(_ text: String) {
+        switch self {
+        case .live(let s): s.setNotes(text)
+        case .saved(let store, let id): store.setNotes(text, in: id)
+        }
+    }
+
+    @MainActor func removeMark(_ mark: UUID) {
+        switch self {
+        case .live(let s): s.removeMark(mark)
+        case .saved(let store, let id): store.removeMark(mark, in: id)
+        }
+    }
 }
 
 // MARK: - The list
@@ -501,6 +515,7 @@ struct MeetingView: View {
     @ObservedObject private var epoch = WindowEpoch.shared
     @State private var title = ""
     @State private var confirmDelete = false
+    @State private var confirmRemoveAudio = false
     @State private var copied = false
     @State private var tab: Tab = .summary
     /// "Visa i texten" from a source: the turn to scroll to.
@@ -526,7 +541,7 @@ struct MeetingView: View {
                                        changed: showChanges ? Set(record.heal?.changed ?? []) : [])
                             .transition(.opacity.combined(with: .offset(y: 6)))
                     } else {
-                        SummaryView(record: record, turns: turns, cast: cast, notes: notes, width: width) { at in
+                        SummaryView(record: record, turns: turns, cast: cast, notes: notes, width: width, edit: edit) { at in
                             focusTurn = turns.last { $0.start <= at + 0.05 }?.id
                             withAnimation(.spring(duration: 0.35, bounce: 0.15)) { tab = .transcript }
                         }
@@ -554,6 +569,14 @@ struct MeetingView: View {
             Button("Avbryt", role: .cancel) {}
         } message: {
             Text("Inspelningen, texten och sammanfattningen tas bort från din Mac och går inte att få tillbaka.")
+        }
+        .confirmationDialog("Ta bort inspelningen?", isPresented: $confirmRemoveAudio) {
+            Button("Flytta till papperskorgen", role: .destructive) {
+                if case .saved(let store, let id) = edit { store.removeAudio(of: id) }
+            }
+            Button("Avbryt", role: .cancel) {}
+        } message: {
+            Text("Ljudet flyttas till papperskorgen. Texten, dina anteckningar och sammanfattningen finns kvar, men det går inte längre att lyssna på mötet.")
         }
     }
 
@@ -620,6 +643,11 @@ struct MeetingView: View {
                     .padding(.top, 4)
                     .transition(.opacity)
             }
+            if let session, session.isRecording {
+                LiveNotesBox(session: session)
+                    .frame(maxWidth: 620, alignment: .leading)
+                    .padding(.top, 2)
+            }
             healLine
             banner
         }
@@ -635,7 +663,11 @@ struct MeetingView: View {
 
     private var meta: String {
         let when = MeetingRecord.when(record.date)
-        return live ? when : "\(when) · \(Self.duration(record.duration))"
+        guard !live else { return when }
+        var parts = [when, Self.duration(record.duration)]
+        if record.informed != nil { parts.append(String(localized: "deltagarna informerades")) }
+        if !record.hasAudio { parts.append(String(localized: "inspelningen borttagen")) }
+        return parts.joined(separator: " · ")
     }
 
     /// What listening through the whole meeting changed — and a way to see it.
@@ -669,7 +701,7 @@ struct MeetingView: View {
 
     /// A meeting that didn't get its final pass: say so, and offer it.
     @ViewBuilder private var banner: some View {
-        if !live, MeetingSession.shared.phase == .idle, !record.finished || !record.refined, !record.words.isEmpty {
+        if !live, record.hasAudio, MeetingSession.shared.phase == .idle, !record.finished || !record.refined, !record.words.isEmpty {
             HStack(spacing: 10) {
                 Image(systemName: record.finished ? "text.badge.checkmark" : "exclamationmark.circle")
                     .foregroundStyle(record.finished ? DS.Colors.muted : DS.Colors.warning)
@@ -728,10 +760,13 @@ struct MeetingView: View {
                     Divider()
                     Button("Sammanfatta igen") { notes.summarize(record.id) }
                         .disabled(!MeetingNotes.isAvailable || notes.writing.contains(record.id))
-                    Button("Lyssna igenom mötet igen") { MeetingSession.shared.finishInterrupted(record.id) }
-                        .disabled(MeetingSession.shared.phase != .idle)
-                    Button("Visa inspelningen i Finder") {
-                        NSWorkspace.shared.activateFileViewerSelecting([MeetingStore.audioURL(for: record.id)])
+                    if record.hasAudio {
+                        Button("Lyssna igenom mötet igen") { MeetingSession.shared.finishInterrupted(record.id) }
+                            .disabled(MeetingSession.shared.phase != .idle)
+                        Button("Visa inspelningen i Finder") {
+                            NSWorkspace.shared.activateFileViewerSelecting([MeetingStore.audioURL(for: record.id)])
+                        }
+                        Button("Ta bort inspelningen…") { confirmRemoveAudio = true }
                     }
                     Divider()
                     Button("Ta bort mötet…", role: .destructive) { confirmDelete = true }
@@ -827,7 +862,6 @@ private struct TranscriptView: View {
     var changed: Set<Int> = []
     @ObservedObject private var player = MeetingPlayer.shared
     @State private var atBottom = true
-    @State private var consent = true
 
     private var live: Bool { session != nil }
 
@@ -835,18 +869,17 @@ private struct TranscriptView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    if live, consent, session?.isRecording == true {
-                        Label("Berätta för de andra att mötet spelas in.", systemImage: "person.2.wave.2")
-                            .font(.system(size: 13))
-                            .foregroundStyle(DS.Colors.muted)
+                    if let session {
+                        ConsentCard(session: session)
+                            .frame(maxWidth: 580, alignment: .leading)
                             .padding(.bottom, 18)
-                            .transition(.opacity)
                     }
                     if turns.isEmpty { empty }
                     ForEach(Array(turns.enumerated()), id: \.element.id) { i, turn in
                         let newSpeaker = i == 0 || turns[i - 1].speaker != turn.speaker
                         let end = i + 1 < turns.count ? turns[i + 1].id : record.words.count
-                        let playing = isPlaying(turn, next: i + 1 < turns.count ? turns[i + 1].start : .infinity)
+                        let next = i + 1 < turns.count ? turns[i + 1].start : .infinity
+                        let playing = isPlaying(turn, next: next)
                         TurnRow(turn: turn, cast: cast, showName: newSpeaker, live: live,
                                 isLast: i == turns.count - 1,
                                 playing: playing,
@@ -855,9 +888,11 @@ private struct TranscriptView: View {
                                 changed: changed,
                                 karaoke: playing ? player.time : nil,
                                 focused: focusTurn == turn.id,
-                                play: live ? nil : { player.play(record.id, from: turn.start) },
+                                play: live || !record.hasAudio ? nil : { player.play(record.id, from: turn.start) },
                                 move: turn.id < end && turn.pending.isEmpty
-                                    ? { speaker in withAnimation(.snappy) { edit.move(turn.id..<end, to: speaker) } } : nil)
+                                    ? { speaker in withAnimation(.snappy) { edit.move(turn.id..<end, to: speaker) } } : nil,
+                                marks: record.marks.filter { $0.at >= (i == 0 ? -.infinity : turn.start) && $0.at < next },
+                                removeMark: { id in withAnimation(.snappy) { edit.removeMark(id) } })
                             .padding(.top, i == 0 ? 0 : newSpeaker ? 22 : 6)
                             .id(turn.id)
                     }
@@ -917,12 +952,6 @@ private struct TranscriptView: View {
                 DispatchQueue.main.async { proxy.scrollTo("end", anchor: .bottom) }
             }
         }
-        .onAppear {
-            guard live else { return }
-            let left = 20 - Date().timeIntervalSince(session?.startedAt ?? Date())
-            if left <= 0 { consent = false; return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + left) { withAnimation(.easeOut(duration: 0.4)) { consent = false } }
-        }
     }
 
     private var playingTurn: Int? {
@@ -972,6 +1001,9 @@ private struct TurnRow: View {
     let focused: Bool
     let play: (() -> Void)?
     let move: ((Int) -> Void)?
+    /// The moments you marked during this turn.
+    var marks: [MeetingRecord.Mark] = []
+    var removeMark: ((UUID) -> Void)? = nil
 
     private var speaker: Int? { turn.speaker.flatMap { $0 >= 0 ? $0 : nil } }
     private var showsChanges: Bool { !changed.isEmpty && (firstIndex..<(firstIndex + words.count)).contains { changed.contains($0) } }
@@ -985,6 +1017,7 @@ private struct TurnRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 if showName { nameRow }
                 bubble
+                if !marks.isEmpty { markRow }
             }
         }
         .contextMenu {
@@ -1002,6 +1035,24 @@ private struct TurnRow: View {
             }
         }
         .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    /// "Beslut 3:12" — what you marked while this was said.
+    private var markRow: some View {
+        HStack(spacing: 6) {
+            ForEach(marks) { mark in
+                Label("\(mark.kind.title) \(MeetingView.duration(mark.at))", systemImage: mark.kind.symbol)
+                    .font(.system(size: 11.5, weight: .semibold)).monospacedDigit()
+                    .padding(.horizontal, 9)
+                    .frame(height: 24)
+                    .background(Capsule().fill(DS.Colors.chip))
+                    .contextMenu {
+                        if let removeMark { Button("Ta bort markeringen") { removeMark(mark.id) } }
+                    }
+                    .help("Du markerade det här under mötet")
+            }
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))
     }
 
     private var nameRow: some View {
@@ -1127,7 +1178,9 @@ private struct SummaryView: View {
     let cast: Cast
     @ObservedObject var notes: MeetingNotes
     let width: CGFloat
+    let edit: MeetingEdits
     let showInText: (Double) -> Void
+    @State private var addingNotes = false
 
     private var writing: Bool { notes.writing.contains(record.id) }
     /// Just written again: say so for a moment.
@@ -1138,7 +1191,17 @@ private struct SummaryView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 30) {
                     Color.clear.frame(height: 0).id("top")
+                    ownNotes
                     notesSection
+                    if record.notes.isEmpty, !addingNotes {
+                        Button { withAnimation(.easeOut(duration: 0.2)) { addingNotes = true } } label: {
+                            Label("Egna anteckningar", systemImage: "plus")
+                                .font(.system(size: 12.5, weight: .semibold))
+                                .foregroundStyle(DS.Colors.muted)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Skriv det som var viktigt för dig – sammanfattningen bygger på det")
+                    }
                     if let error = notes.failed[record.id] {
                         Label(error, systemImage: "exclamationmark.triangle")
                             .font(.system(size: 13)).foregroundStyle(DS.Colors.warning)
@@ -1165,6 +1228,15 @@ private struct SummaryView: View {
                     justRewritten = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { justRewritten = false }
                 }
+            }
+        }
+    }
+
+    /// What you wrote yourself — first, since it's what mattered to you.
+    @ViewBuilder private var ownNotes: some View {
+        if !record.notes.isEmpty || addingNotes {
+            SavedNotes(record: record, edit: edit, startEditing: addingNotes) { at in
+                MeetingPlayer.shared.play(record.id, from: max(0, at - 8))
             }
         }
     }
@@ -1361,6 +1433,11 @@ private struct NotesList: View {
                 .foregroundStyle(done ? DS.Colors.muted : .primary)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            if item.marked == true {
+                Image(systemName: "flag.fill").font(.system(size: 10.5)).foregroundStyle(DS.Colors.muted)
+                    .help("Du markerade det här under mötet")
+                    .accessibilityLabel("Markerat av dig")
+            }
             if let owner = item.owner { OwnerTag(name: owner, cast: cast) }
             if let at = item.at {
                 Receipt(at: at, record: record, cast: cast, turns: turns, showInText: showInText)
@@ -1460,12 +1537,14 @@ private struct Receipt: View {
                         .frame(width: 360, alignment: .leading)
                 }
                 HStack(spacing: 8) {
-                    Button {
-                        MeetingPlayer.shared.play(record.id, from: at)
-                    } label: {
-                        Label("Lyssna", systemImage: "play.fill")
+                    if record.hasAudio {
+                        Button {
+                            MeetingPlayer.shared.play(record.id, from: at)
+                        } label: {
+                            Label("Lyssna", systemImage: "play.fill")
+                        }
+                        .buttonStyle(.ink)
                     }
-                    .buttonStyle(.ink)
                     Button("Visa i texten") {
                         open = false
                         showInText(at)

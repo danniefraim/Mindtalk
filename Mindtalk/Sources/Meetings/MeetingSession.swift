@@ -317,6 +317,53 @@ final class MeetingSession: ObservableObject {
         MeetingStore.shared.save(record)
     }
 
+    /// Where the recording is now, in seconds — the time notes and marks are given.
+    var elapsed: Double { Double(intake?.count ?? 0) / Double(Self.rate) }
+
+    /// Your notes as typed: new lines get the moment they were begun. Saved a moment
+    /// after you stop typing, not at every key.
+    func setNotes(_ text: String) {
+        guard var record else { return }
+        let notes = MeetingRecord.notes(from: text, old: record.notes, now: isRecording ? elapsed : nil)
+        guard notes != record.notes else { return }
+        record.notes = notes
+        self.record = record
+        notesSave?.cancel()
+        notesSave = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, let record = self?.record else { return }
+            MeetingStore.shared.save(record)
+        }
+    }
+    private var notesSave: Task<Void, Never>?
+
+    /// A moment worth finding again. Pressed just after it was said: it points a few
+    /// seconds back.
+    @discardableResult
+    func mark(_ kind: MeetingRecord.Mark.Kind) -> MeetingRecord.Mark? {
+        guard var record, isRecording else { return nil }
+        let mark = MeetingRecord.Mark(at: max(0, elapsed - 4), kind: kind)
+        record.marks.append(mark)
+        self.record = record
+        MeetingStore.shared.save(record)
+        return mark
+    }
+
+    func removeMark(_ id: UUID) {
+        guard var record else { return }
+        record.marks.removeAll { $0.id == id }
+        self.record = record
+        MeetingStore.shared.save(record)
+    }
+
+    /// You told the others it's recorded.
+    func informed() {
+        guard var record, record.informed == nil else { return }
+        record.informed = Date()
+        self.record = record
+        MeetingStore.shared.save(record)
+    }
+
     /// Mindtalk is quitting mid-meeting: keep what has been written. It opens as
     /// an unfinished meeting next time, ready to be finished.
     func saveBeforeQuit() {
@@ -744,6 +791,7 @@ final class MeetingSession: ObservableObject {
         #endif
         Dictation.shared.meetingEnded()
         if let finished { MeetingNotes.shared.summarize(finished) }
+        MeetingStore.shared.applyRetention()
     }
 
     // MARK: Input

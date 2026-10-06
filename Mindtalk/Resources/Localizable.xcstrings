@@ -37,6 +37,16 @@
         }
       }
     },
+    "%@ %@": {
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %@"
+          }
+        }
+      }
+    },
     "%@ %lld %%": {
       "extractionState": "stale",
       "localizations": {
@@ -449,6 +459,22 @@
         }
       }
     },
+    "%lld dagar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld days"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld dagar"
+          }
+        }
+      }
+    },
     "%lld dagar i rad": {
       "localizations": {
         "en": {
@@ -477,6 +503,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld dikteringar"
+          }
+        }
+      }
+    },
+    "%lld inspelningar är äldre än så": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld recordings are older than that"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld inspelningar är äldre än så"
           }
         }
       }
@@ -526,6 +568,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "1 diktering"
+          }
+        }
+      }
+    },
+    "1 inspelning är äldre än så": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 recording is older than that"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 inspelning är äldre än så"
           }
         }
       }
@@ -731,6 +789,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Allt skrivs på din Mac. Texten finns under fliken Text."
+          }
+        }
+      }
+    },
+    "Alltid": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Always"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alltid"
           }
         }
       }
@@ -978,6 +1052,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Att göra"
+          }
+        }
+      }
+    },
+    "Att läsa upp när mötet börjar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To read out when the meeting starts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Att läsa upp när mötet börjar"
           }
         }
       }
@@ -1325,7 +1415,24 @@
         }
       }
     },
+    "Berätta att mötet spelas in": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tell the others it's being recorded"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Berätta att mötet spelas in"
+          }
+        }
+      }
+    },
     "Berätta för de andra att mötet spelas in.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1533,6 +1640,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "De tas bort från din Mac och går inte att få tillbaka. ⌃⌥V har sedan inget att klistra in."
+          }
+        }
+      }
+    },
+    "Deltagarna informerades om inspelningen kl. %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Participants were told about the recording at %@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deltagarna informerades om inspelningen kl. %@."
           }
         }
       }
@@ -1849,6 +1972,22 @@
         }
       }
     },
+    "Dina anteckningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your notes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dina anteckningar"
+          }
+        }
+      }
+    },
     "Dina möten hamnar här.": {
       "localizations": {
         "en": {
@@ -1930,6 +2069,22 @@
         }
       }
     },
+    "Du markerade det här under mötet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You marked this during the meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du markerade det här under mötet"
+          }
+        }
+      }
+    },
     "Dubbelklicka för att ändra": {
       "localizations": {
         "en": {
@@ -1992,6 +2147,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dölj ändringar"
+          }
+        }
+      }
+    },
+    "Egna anteckningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your own notes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Egna anteckningar"
           }
         }
       }
@@ -2206,6 +2377,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Flytta till Program"
+          }
+        }
+      }
+    },
+    "Flytta till papperskorgen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to Trash"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flytta till papperskorgen"
           }
         }
       }
@@ -2665,6 +2852,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Göm Mindtalk"
+          }
+        }
+      }
+    },
+    "Göm – utan att notera att de andra vet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide – without noting that the others know"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Göm – utan att notera att de andra vet"
           }
         }
       }
@@ -3587,6 +3790,22 @@
         }
       }
     },
+    "Jag har berättat": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I've told them"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jag har berättat"
+          }
+        }
+      }
+    },
     "Jag hör nästan ingenting – är rätt mikrofon vald?": {
       "localizations": {
         "en": {
@@ -3599,6 +3818,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Jag hör nästan ingenting – är rätt mikrofon vald?"
+          }
+        }
+      }
+    },
+    "Jag spelar in mötet med Mindtalk för att få anteckningar. Allt stannar på min dator. Säg till om du hellre vill att jag inte gör det.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I'm recording this meeting with Mindtalk to get notes. Everything stays on my computer. Tell me if you'd rather I didn't."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jag spelar in mötet med Mindtalk för att få anteckningar. Allt stannar på min dator. Säg till om du hellre vill att jag inte gör det."
           }
         }
       }
@@ -4497,6 +4732,22 @@
         }
       }
     },
+    "Ljudet flyttas till papperskorgen. Texten, dina anteckningar och sammanfattningen finns kvar, men det går inte längre att lyssna på mötet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The audio is moved to the Trash. The text, your notes and the summary stay, but you can no longer listen to the meeting."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ljudet flyttas till papperskorgen. Texten, dina anteckningar och sammanfattningen finns kvar, men det går inte längre att lyssna på mötet."
+          }
+        }
+      }
+    },
     "Ljudet kan inte sparas – är disken full? Texten skrivs ändå.": {
       "localizations": {
         "en": {
@@ -4605,6 +4856,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lyssna från %@"
+          }
+        }
+      }
+    },
+    "Lyssna från när du skrev det": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listen from when you wrote it"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssna från när du skrev det"
           }
         }
       }
@@ -4854,6 +5121,22 @@
         }
       }
     },
+    "Markera %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markera %@"
+          }
+        }
+      }
+    },
     "Markera allt": {
       "extractionState": "stale",
       "localizations": {
@@ -4867,6 +5150,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Markera allt"
+          }
+        }
+      }
+    },
+    "Markera det som just sades: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark what was just said: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markera det som just sades: %@"
           }
         }
       }
@@ -4899,6 +5198,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Markera som klar"
+          }
+        }
+      }
+    },
+    "Markerat av dig": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marked by you"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markerat av dig"
           }
         }
       }
@@ -5486,6 +5801,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nedladdningen blev inte komplett."
+          }
+        }
+      }
+    },
+    "Noteras i mötet, så att det syns i efterhand att de andra visste": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noted in the meeting, so it shows afterwards that the others knew"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noteras i mötet, så att det syns i efterhand att de andra visste"
           }
         }
       }
@@ -6244,6 +6575,22 @@
         }
       }
     },
+    "Sammanfatta igen i menyn ⋯ så tas ändringarna med.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Summarize Again in the ⋯ menu to include the changes."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfatta igen i menyn ⋯ så tas ändringarna med."
+          }
+        }
+      }
+    },
     "Sammanfattat av %@. Stämmer något inte? Klicka på en tid och lyssna själv.": {
       "localizations": {
         "en": {
@@ -6337,6 +6684,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skicka frågan (↩)"
+          }
+        }
+      }
+    },
+    "Skriv det som var viktigt för dig – sammanfattningen bygger på det": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Write what mattered to you – the summary builds on it"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriv det som var viktigt för dig – sammanfattningen bygger på det"
+          }
+        }
+      }
+    },
+    "Skriv en anteckning – en rad per sak": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Write a note – one line per thing"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriv en anteckning – en rad per sak"
           }
         }
       }
@@ -6763,6 +7142,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Spara"
+          }
+        }
+      }
+    },
+    "Spara inspelningar": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep recordings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spara inspelningar"
           }
         }
       }
@@ -7647,6 +8043,54 @@
         }
       }
     },
+    "Ta bort inspelningen?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove the recording?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort inspelningen?"
+          }
+        }
+      }
+    },
+    "Ta bort inspelningen…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Recording…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort inspelningen…"
+          }
+        }
+      }
+    },
+    "Ta bort markeringen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Mark"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort markeringen"
+          }
+        }
+      }
+    },
     "Ta bort mötet?": {
       "localizations": {
         "en": {
@@ -8019,6 +8463,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Texten är där på ett par tiondels sekunder."
+          }
+        }
+      }
+    },
+    "Texten, dina anteckningar och sammanfattningen finns kvar. Inspelningarna går att hämta ur papperskorgen tills den töms.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text, your notes and the summary stay. The recordings can be restored from the Trash until it's emptied."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten, dina anteckningar och sammanfattningen finns kvar. Inspelningarna går att hämta ur papperskorgen tills den töms."
+          }
+        }
+      }
+    },
+    "Texten, dina anteckningar och sammanfattningen sparas alltid. Äldre inspelningar flyttas till papperskorgen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text, your notes and the summary are always kept. Older recordings are moved to the Trash."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten, dina anteckningar och sammanfattningen sparas alltid. Äldre inspelningar flyttas till papperskorgen."
           }
         }
       }
@@ -8678,6 +9154,22 @@
         }
       }
     },
+    "Viktigt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Important"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Viktigt"
+          }
+        }
+      }
+    },
     "Vilket språk pratar du?": {
       "extractionState": "stale",
       "localizations": {
@@ -9006,6 +9498,22 @@
         }
       }
     },
+    "Visas när ett möte börjar, tills du trycker ”Jag har berättat”. Det noteras i mötet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shown when a meeting starts, until you press “I've told them”. It's noted in the meeting."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visas när ett möte börjar, tills du trycker ”Jag har berättat”. Det noteras i mötet."
+          }
+        }
+      }
+    },
     "Välj en annan genväg": {
       "localizations": {
         "en": {
@@ -9219,6 +9727,22 @@
         }
       }
     },
+    "deltagarna informerades": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "participants were told"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "deltagarna informerades"
+          }
+        }
+      }
+    },
     "för att diktera": {
       "localizations": {
         "en": {
@@ -9315,6 +9839,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "i veckan"
+          }
+        }
+      }
+    },
+    "inspelningen borttagen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "recording removed"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "inspelningen borttagen"
           }
         }
       }
@@ -9568,7 +10108,6 @@
       }
     },
     "Ångra": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9597,6 +10136,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ångra dig"
+          }
+        }
+      }
+    },
+    "Återställ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Återställ"
           }
         }
       }
@@ -9681,6 +10236,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna mötet"
+          }
+        }
+      }
+    },
+    "–": {
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "–"
           }
         }
       }

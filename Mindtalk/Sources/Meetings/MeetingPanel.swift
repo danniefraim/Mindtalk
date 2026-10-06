@@ -197,9 +197,11 @@ final class MeetingPanel: ObservableObject {
     }
 }
 
-/// Floats without becoming the app you type in.
+/// Floats beside your work. It takes the keyboard only when you click into your
+/// notes (becomesKeyOnlyIfNeeded), and even then Mindtalk doesn't become the
+/// active app — the one you were in stays in front.
 private final class FloatingPanel: NSPanel {
-    override var canBecomeKey: Bool { false }
+    override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 }
 
@@ -234,7 +236,6 @@ private struct LivePanel: View {
     let expand: () -> Void
     let close: () -> Void
     @State private var atBottom = true
-    @State private var consent = true
 
     var body: some View {
         let record = session.record
@@ -245,10 +246,6 @@ private struct LivePanel: View {
             Rectangle().fill(DS.Colors.divider).frame(height: 0.5)
             transcript(turns, cast)
             footer
-        }
-        .task {
-            try? await Task.sleep(for: .seconds(20))
-            withAnimation(.easeOut(duration: 0.4)) { consent = false }
         }
     }
 
@@ -280,13 +277,8 @@ private struct LivePanel: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    if consent, session.isRecording {
-                        Label("Berätta för de andra att mötet spelas in.", systemImage: "person.2.wave.2")
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(DS.Colors.muted)
-                            .padding(.bottom, 14)
-                            .transition(.opacity)
-                    }
+                    ConsentCard(session: session, compact: true)
+                        .padding(.bottom, 14)
                     if turns.isEmpty { empty }
                     ForEach(Array(turns.enumerated()), id: \.element.id) { i, turn in
                         let newSpeaker = i == 0 || turns[i - 1].speaker != turn.speaker
@@ -364,6 +356,7 @@ private struct LivePanel: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .transition(.opacity)
             }
+            if session.isRecording { LiveNotesBox(session: session, compact: true) }
             switch session.phase {
             case .finishing(let what):
                 HStack(spacing: 12) {

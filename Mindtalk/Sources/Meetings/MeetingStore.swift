@@ -47,6 +47,35 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     /// Stretches you gave to another speaker. Kept by their time, so they hold
     /// when the words are written again (the final pass, the voices catching up).
     var moves: [Move] = []
+    /// Your own notes, a line each, with the moment in the meeting you began it
+    /// (nil for lines written afterwards). The summary builds on them.
+    var notes: [Note] = []
+    /// Moments you marked while it ran: a decision, a task, something important.
+    var marks: [Mark] = []
+    /// When you told the others the meeting is recorded (MeetingConsent).
+    var informed: Date?
+    /// The recording went to the Trash (kept for a set time, or removed by you);
+    /// the text and the notes stay.
+    var audioRemoved: Date?
+
+    var hasAudio: Bool { audioRemoved == nil }
+    var notesText: String { notes.map(\.text).joined(separator: "\n") }
+
+    struct Note: Codable, Equatable {
+        var text: String
+        var at: Double?
+    }
+
+    struct Mark: Codable, Equatable, Identifiable {
+        var id = UUID()
+        var at: Double
+        var kind: Kind
+
+        enum Kind: String, Codable, CaseIterable, Identifiable {
+            case decision, task, important
+            var id: String { rawValue }
+        }
+    }
 
     struct Move: Codable, Equatable {
         var start: Double
@@ -86,6 +115,10 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         finished = try c.decodeIfPresent(Bool.self, forKey: .finished) ?? true
         heal = try c.decodeIfPresent(Heal.self, forKey: .heal)
         moves = try c.decodeIfPresent([Move].self, forKey: .moves) ?? []
+        notes = try c.decodeIfPresent([Note].self, forKey: .notes) ?? []
+        marks = try c.decodeIfPresent([Mark].self, forKey: .marks) ?? []
+        informed = try c.decodeIfPresent(Date.self, forKey: .informed)
+        audioRemoved = try c.decodeIfPresent(Date.self, forKey: .audioRemoved)
     }
 
     /// Speakers in the order they first spoke.
@@ -143,6 +176,43 @@ struct Cast: Equatable {
 }
 
 extension MeetingRecord {
+    /// Your notes as you typed them, each line keeping the moment it was begun: an
+    /// unchanged line keeps its time wherever it moved, a line being typed or edited
+    /// (one begins like the other) keeps the time of the line it was, and a new line
+    /// gets `now` (nil after the meeting).
+    static func notes(from text: String, old: [Note], now: Double?) -> [Note] {
+        let lines = text.components(separatedBy: "\n")
+        var out = [Note?](repeating: nil, count: lines.count)
+        var used = Set<Int>()
+        func blank(_ s: String) -> Bool { s.trimmingCharacters(in: .whitespaces).isEmpty }
+        // The same line, anywhere.
+        for (i, line) in lines.enumerated() where !blank(line) {
+            if let k = old.indices.first(where: { !used.contains($0) && old[$0].text == line }) {
+                out[i] = Note(text: line, at: old[k].at)
+                used.insert(k)
+            }
+        }
+        // The same line, changed: one begins like the other.
+        for (i, line) in lines.enumerated() where out[i] == nil && !blank(line) {
+            if let k = old.indices.first(where: { !used.contains($0) && alike(old[$0].text, line) }) {
+                out[i] = Note(text: line, at: old[k].at)
+                used.insert(k)
+            }
+        }
+        var notes = lines.enumerated().map { i, line in out[i] ?? Note(text: line, at: blank(line) ? nil : now) }
+        // Trailing empty lines carry nothing.
+        while let last = notes.last, blank(last.text) { notes.removeLast() }
+        return notes
+    }
+
+    private static func alike(_ a: String, _ b: String) -> Bool {
+        let a = a.lowercased(), b = b.lowercased()
+        guard !a.isEmpty, !b.isEmpty else { return false }
+        if a.hasPrefix(b) || b.hasPrefix(a) { return true }
+        let common = zip(a, b).prefix { $0 == $1 }.count
+        return common >= max(3, min(a.count, b.count) / 2)
+    }
+
     /// Gives the words in `range` to `speaker`, and remembers it by their time.
     mutating func move(words range: Range<Int>, to speaker: Int) {
         let range = range.clamped(to: 0..<words.count)
@@ -361,9 +431,66 @@ final class MeetingStore: ObservableObject {
         save(record)
     }
 
+    /// Your notes, edited after the meeting.
+    func setNotes(_ text: String, in id: UUID) {
+        guard var record = meetings.first(where: { $0.id == id }) else { return }
+        let notes = MeetingRecord.notes(from: text, old: record.notes, now: nil)
+        guard notes != record.notes else { return }
+        record.notes = notes
+        save(record)
+    }
+
+    func removeMark(_ mark: UUID, in id: UUID) {
+        guard var record = meetings.first(where: { $0.id == id }) else { return }
+        record.marks.removeAll { $0.id == mark }
+        save(record)
+    }
+
+    /// The recording to the Trash; the text, notes and summary stay.
+    func removeAudio(of id: UUID) {
+        guard var record = meetings.first(where: { $0.id == id }), record.hasAudio else { return }
+        if MeetingPlayer.shared.meeting == id { MeetingPlayer.shared.stop() }
+        let url = Self.audioURL(for: id)
+        if FileManager.default.fileExists(atPath: url.path) {
+            do { try FileManager.default.trashItem(at: url, resultingItemURL: nil) } catch {
+                NSLog("Mindtalk: could not move a recording to the Trash: \(error.localizedDescription)")
+                return
+            }
+        }
+        record.audioRemoved = Date()
+        save(record)
+    }
+
+    /// Meetings whose recording is older than the time recordings are kept
+    /// (Inställningar → Möten). Only finished ones — never a meeting still to be finished.
+    func recordingsPast(days: Int) -> [UUID] {
+        guard days > 0 else { return [] }
+        let limit = Date().addingTimeInterval(-Double(days) * 86_400)
+        return meetings.filter { $0.hasAudio && $0.finished && $0.refined && $0.date < limit }.map(\.id)
+    }
+
+    /// Keeps recordings no longer than you chose. At launch and after each meeting.
+    func applyRetention() {
+        for id in recordingsPast(days: MeetingAudio.keepDays) { removeAudio(of: id) }
+    }
+
     /// Removes the meeting — text and recording — from the Mac.
     func delete(_ id: UUID) {
         try? FileManager.default.removeItem(at: Self.folder(for: id))
         meetings.removeAll { $0.id == id }
+    }
+}
+
+/// How long recordings are kept. Text, notes and summary stay either way.
+enum MeetingAudio {
+    static let choices = [0, 90, 30, 7]          // 0: always
+
+    static var keepDays: Int {
+        get { UserDefaults.standard.integer(forKey: "meetingAudioDays") }
+        set { UserDefaults.standard.set(newValue, forKey: "meetingAudioDays") }
+    }
+
+    static func title(_ days: Int) -> String {
+        days == 0 ? String(localized: "Alltid") : String(localized: "\(days) dagar")
     }
 }

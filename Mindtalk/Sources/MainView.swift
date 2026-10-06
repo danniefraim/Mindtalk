@@ -416,6 +416,8 @@ struct SettingsPage: View {
                 .staggered(3)
             BetterNotesCard(notes: .shared)
                 .staggered(3)
+            MeetingPrivacyCard()
+                .staggered(3)
 
             SectionTitle("Behörigheter och ljud")
             .staggered(4)
