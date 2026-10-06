@@ -57,6 +57,9 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     /// The recording went to the Trash (kept for a set time, or removed by you);
     /// the text and the notes stay.
     var audioRemoved: Date?
+    /// Speakers Mindtalk named itself, from a voice you named before (VoiceMemory),
+    /// with how sure it was. Cleared when you name them yourself.
+    var recognized: [String: Float] = [:]
 
     var hasAudio: Bool { audioRemoved == nil }
     var notesText: String { notes.map(\.text).joined(separator: "\n") }
@@ -119,6 +122,7 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         marks = try c.decodeIfPresent([Mark].self, forKey: .marks) ?? []
         informed = try c.decodeIfPresent(Date.self, forKey: .informed)
         audioRemoved = try c.decodeIfPresent(Date.self, forKey: .audioRemoved)
+        recognized = try c.decodeIfPresent([String: Float].self, forKey: .recognized) ?? [:]
     }
 
     /// Speakers in the order they first spoke.
@@ -427,8 +431,14 @@ final class MeetingStore: ObservableObject {
 
     func name(speaker: Int, in id: UUID, as name: String) {
         guard var record = meetings.first(where: { $0.id == id }) else { return }
-        record.names[String(speaker)] = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        record.names[String(speaker)] = name
+        record.recognized[String(speaker)] = nil
         save(record)
+        // Remembered for the next meeting (when you've switched that on).
+        guard !name.isEmpty, record.hasAudio else { return }
+        let words = record.words
+        Task { await VoiceMemory.shared.learn(words: words, audio: Self.audioURL(for: id), names: [String(speaker): name]) }
     }
 
     /// Your notes, edited after the meeting.

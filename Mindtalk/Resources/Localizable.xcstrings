@@ -1920,6 +1920,22 @@
         }
       }
     },
+    "Det är inte %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That's not %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det är inte %@"
+          }
+        }
+      }
+    },
     "Diktering": {
       "localizations": {
         "en": {
@@ -2853,6 +2869,22 @@
         }
       }
     },
+    "Ge en talare ett namn en gång, så känner Mindtalk igen rösten i kommande möten. Ett röstavtryck sparas, inget ljud, och bara på din Mac. Fråga dem du spelar in om det är okej.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name a speaker once and Mindtalk recognises the voice in future meetings. A voiceprint is kept – no audio – and only on your Mac. Ask the people you record if that's okay."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ge en talare ett namn en gång, så känner Mindtalk igen rösten i kommande möten. Ett röstavtryck sparas, inget ljud, och bara på din Mac. Fråga dem du spelar in om det är okej."
+          }
+        }
+      }
+    },
     "Ge talaren ett namn": {
       "localizations": {
         "en": {
@@ -2979,6 +3011,86 @@
           "stringUnit": {
             "state": "translated",
             "value": "Genvägar"
+          }
+        }
+      }
+    },
+    "Glöm %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forget %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Glöm %@"
+          }
+        }
+      }
+    },
+    "Glöm %@s röst": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forget %@'s voice"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Glöm %@s röst"
+          }
+        }
+      }
+    },
+    "Glöm alla": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forget all"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Glöm alla"
+          }
+        }
+      }
+    },
+    "Glöm alla röster…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forget all voices…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Glöm alla röster…"
+          }
+        }
+      }
+    },
+    "Glömma alla röster?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forget all voices?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Glömma alla röster?"
           }
         }
       }
@@ -3656,6 +3768,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "I går %@"
+          }
+        }
+      }
+    },
+    "Igenkänd röst": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recognised voice"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Igenkänd röst"
           }
         }
       }
@@ -4581,6 +4709,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Källkod"
+          }
+        }
+      }
+    },
+    "Känn igen röster": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recognise voices"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Känn igen röster"
           }
         }
       }
@@ -5752,6 +5897,38 @@
         }
       }
     },
+    "Mindtalk kände igen rösten – klicka för att ändra": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk recognised the voice – click to change"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk kände igen rösten – klicka för att ändra"
+          }
+        }
+      }
+    },
+    "Mindtalk kände igen rösten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk recognised the voice."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk kände igen rösten."
+          }
+        }
+      }
+    },
     "Mindtalk lyssnar så länge du håller in.": {
       "localizations": {
         "en": {
@@ -6849,6 +7026,38 @@
         }
       }
     },
+    "Röstavtrycken tas bort. Namnen i dina möten finns kvar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The voiceprints are removed. The names in your meetings stay."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Röstavtrycken tas bort. Namnen i dina möten finns kvar."
+          }
+        }
+      }
+    },
+    "Röster Mindtalk känner igen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voices Mindtalk recognises"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Röster Mindtalk känner igen"
+          }
+        }
+      }
+    },
     "Rösterna kunde inte startas – texten skrivs utan talare.": {
       "localizations": {
         "en": {
@@ -6878,6 +7087,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Röstkommandon"
+          }
+        }
+      }
+    },
+    "Röstmodellen kunde inte laddas ned: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The voice model couldn't be downloaded: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Röstmodellen kunde inte laddas ned: %@"
           }
         }
       }

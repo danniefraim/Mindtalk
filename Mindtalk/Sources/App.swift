@@ -186,6 +186,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --voice-test`: a voiceprint for every speaker with enough speech in
+        // every meeting, and how alike they are — to set the threshold.
+        if args.contains("--voice-test") {
+            Task { @MainActor in
+                let memory = VoiceMemory.shared
+                memory.prepare()
+                while case .downloading = memory.state { try? await Task.sleep(for: .milliseconds(300)) }
+                guard memory.state == .ready else { print("Modellen: \(memory.state)"); exit(1) }
+                var prints: [(label: String, named: String?, print: [Float])] = []
+                let t0 = Date()
+                for record in MeetingStore.shared.meetings {
+                    let url = MeetingStore.audioURL(for: record.id)
+                    for speaker in Set(record.words.compactMap(\.speaker)).filter({ $0 >= 0 }).sorted() {
+                        guard let p = await VoicePrints.shared.print(of: speaker, in: record.words, audio: url) else { continue }
+                        let name = record.names[String(speaker)].flatMap { $0.isEmpty ? nil : $0 }
+                        prints.append(("\(record.title.prefix(22)) · \(name ?? "T\(speaker)")", name, p))
+                    }
+                }
+                print(String(format: "%d röstavtryck på %.1f s", prints.count, Date().timeIntervalSince(t0)))
+                var same: [Float] = [], other: [Float] = []
+                for i in prints.indices { for j in prints.indices where j > i {
+                    guard let a = prints[i].named, let b = prints[j].named else { continue }
+                    let c = VoiceMemory.cosine(prints[i].print, prints[j].print)
+                    (a == b ? { same.append(c) } : { other.append(c) })()
+                    print(String(format: "  %@ %.2f  %@ ↔ %@", a == b ? "SAMMA " : "OLIKA ", c, prints[i].label, prints[j].label))
+                }}
+                print(String(format: "Samma person: %.2f–%.2f · olika: %.2f–%.2f", same.min() ?? 0, same.max() ?? 0,
+                             other.min() ?? 0, other.max() ?? 0))
+                print("Onamngivna mot namngivna (bästa):")
+                for u in prints where u.named == nil {
+                    let best = prints.filter { $0.named != nil }.map { ($0.named!, VoiceMemory.cosine(u.print, $0.print)) }
+                        .sorted { $0.1 > $1.1 }
+                    var byName: [String: Float] = [:]
+                    for (n, c) in best where byName[n] == nil { byName[n] = c }
+                    let line = byName.sorted { $0.value > $1.value }.map { String(format: "%@ %.2f", $0.key, $0.value) }.joined(separator: ", ")
+                    print("  \(u.label): \(line)")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --gemma-download`: fetches Gemma 4 without the window, printing how
         // far it is — continuing an earlier try. Stop it with Ctrl-C to test that.
         if args.contains("--gemma-download") {
@@ -216,6 +257,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             } ?? .swedish
             let speed = args.firstIndex(of: "--speed").flatMap { j in j + 1 < args.count ? Double(args[j + 1]) : nil } ?? 1
             Task {
+                // `--voices-from "titel,titel"`: knowing the voices named in those meetings.
+                if let v = args.firstIndex(of: "--voices-from"), v + 1 < args.count {
+                    await VoiceMemory.shared.test(learningFrom: args[v + 1].split(separator: ",").map(String.init))
+                }
                 await MeetingSession.shared.simulate(file: URL(fileURLWithPath: args[i + 1]), language: model, speed: speed)
                 exit(0)
             }

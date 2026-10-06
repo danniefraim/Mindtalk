@@ -471,6 +471,8 @@ private struct SpeakerStack: View {
 private struct SpeakerChip: View {
     let speaker: Int
     let cast: Cast
+    /// Named by Mindtalk from a voice you named before.
+    var recognized = false
     let rename: (String) -> Void
     let merge: (Int) -> Void
     @State private var editing = false
@@ -486,6 +488,10 @@ private struct SpeakerChip: View {
                 SpeakerMark(speaker: speaker, cast: cast, size: 18)
                 Text(cast.name(of: speaker)).font(.system(size: 12.5, weight: .medium)).lineLimit(1)
                     .frame(maxWidth: 150, alignment: .leading).fixedSize()
+                if recognized {
+                    Image(systemName: "person.wave.2").font(.system(size: 10.5)).foregroundStyle(DS.Colors.muted)
+                        .accessibilityLabel("Igenkänd röst")
+                }
             }
             .padding(.leading, 3)
             .padding(.trailing, 10)
@@ -494,11 +500,18 @@ private struct SpeakerChip: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .help("Ge talaren ett namn")
+        .help(recognized ? "Mindtalk kände igen rösten – klicka för att ändra" : "Ge talaren ett namn")
         .accessibilityHint("Ge talaren ett namn")
         .popover(isPresented: $editing, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Vem är det här?").font(.system(size: 13, weight: .semibold))
+                if recognized {
+                    HStack(spacing: 8) {
+                        Text("Mindtalk kände igen rösten.").font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                        Button("Det är inte \(cast.name(of: speaker))") { editing = false; rename("") }
+                            .buttonStyle(.plain).font(.system(size: 12, weight: .semibold))
+                    }
+                }
                 TextField(cast.name(of: speaker), text: $draft)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 220)
@@ -665,7 +678,7 @@ struct MeetingView: View {
                     Text(meta).font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
                         .padding(.trailing, 4)
                     ForEach(cast.order, id: \.self) { s in
-                        SpeakerChip(speaker: s, cast: cast,
+                        SpeakerChip(speaker: s, cast: cast, recognized: record.recognized[String(s)] != nil,
                                     rename: { edit.name(s, $0) },
                                     merge: { other in withAnimation(.snappy) { edit.merge(s, into: other) } })
                     }

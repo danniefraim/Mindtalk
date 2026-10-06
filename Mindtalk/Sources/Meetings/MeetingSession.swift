@@ -319,6 +319,7 @@ final class MeetingSession: ObservableObject {
 
     func name(speaker: Int, as name: String) {
         record?.names[String(speaker)] = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        record?.recognized[String(speaker)] = nil
         if let record { MeetingStore.shared.save(record) }
     }
 
@@ -728,14 +729,28 @@ final class MeetingSession: ObservableObject {
                 Vocabulary.shared.noteHeard(heard.fixed)
                 #endif
             }
+            // Voices you've named in earlier meetings, named here too (when switched on).
+            MeetingRecord.apply(record?.moves ?? [], to: &words)
+            let found = await VoiceMemory.shared.recognise(words: words, audio: url, names: record?.names ?? [:])
             guard var updated = record else { return }       // names may have changed meanwhile
             MeetingRecord.apply(updated.moves, to: &words)
+            for (speaker, match) in found where (updated.names[String(speaker)] ?? "").isEmpty {
+                updated.names[String(speaker)] = match.name
+                updated.recognized[String(speaker)] = match.score
+            }
             if !updated.words.isEmpty { updated.heal = Self.heal(from: updated.words, to: words) }
             updated.words = words
             updated.refined = true
             record = updated
             MeetingStore.shared.save(updated)
-            Self.log.info("meeting refined: \(words.count) words")
+            Self.log.info("meeting refined: \(words.count) words, \(found.count) voices recognised")
+            // The names you gave, remembered — not the ones Mindtalk gave itself.
+            let given = updated.names.filter { updated.recognized[$0.key] == nil }
+            #if DEBUG
+            if simulation == nil { await VoiceMemory.shared.learn(words: words, audio: url, names: given) }
+            #else
+            await VoiceMemory.shared.learn(words: words, audio: url, names: given)
+            #endif
         } catch {
             // The live transcript stays.
             Self.log.error("refine: \(error.localizedDescription, privacy: .public)")
