@@ -10,14 +10,16 @@ import Foundation
 //   • deletions of hesitation sounds, words said twice, spoken punctuation
 //     ("punkt", "comma"), or what a self-correction replaces ("tisdag, nej jag
 //     menar onsdag" → "onsdag").
-// Nothing may be added, and a negation (inte, aldrig, not, don't…) is never
-// dropped — "jag godkänner inte" can't become "jag godkänner". Only ordinary
+// Nothing may be added, no question mark may go, and a negation (inte, aldrig,
+// not, don't…) is never dropped — "jag godkänner inte" can't become "jag godkänner". Only ordinary
 // punctuation may appear; control and bidi characters are refused.
 // Self-contained, so it can be tested on its own.
 
 enum PolishGuard {
     static func accepts(_ polished: String, as original: String) -> Bool {
         guard onlyOrdinaryCharacters(polished), !gluesWords(polished, original) else { return false }
+        // A question stays a question: "Blir det fel? Eller är det jag?" can't become one statement.
+        guard polished.filter({ $0 == "?" }).count >= original.filter({ $0 == "?" }).count else { return false }
         let before = words(original), after = words(polished)
         guard !after.isEmpty, Double(after.count) >= Double(before.count) * 0.5 else { return false }
 
@@ -45,9 +47,11 @@ enum PolishGuard {
         return regex.matches(in: normalized, range: NSRange(location: 0, length: ns.length)).map { ns.substring(with: $0.range) }
     }
 
-    /// The same word, or one split into two/three, or two/three joined into one.
+    /// The same word, its form corrected ("tryck" → "trycker"), or one split into
+    /// two/three, or two/three joined into one.
     private static func match(_ before: [String], _ i: Int, _ after: [String], _ j: Int) -> (before: Int, after: Int)? {
         if before[i] == after[j] { return (1, 1) }
+        if sameWordOtherForm(before[i], after[j]) { return (1, 1) }
         // Numbers are never joined or split: "1 2" isn't "12".
         if before[i].contains(where: \.isNumber) || after[j].contains(where: \.isNumber) { return nil }
         for n in 2...3 {
@@ -56,6 +60,22 @@ enum PolishGuard {
         }
         return nil
     }
+
+    /// One is the other plus an ending of at most three letters, the shorter at least
+    /// four letters long — a corrected form ("tryck"/"trycker", "hund"/"hunden"),
+    /// never another word. Never for numbers ("tjugo"/"tjugofem") or a negation.
+    static func sameWordOtherForm(_ a: String, _ b: String) -> Bool {
+        let (short, long) = a.count <= b.count ? (a, b) : (b, a)
+        guard short.count >= 4, long.count - short.count <= 3, long.hasPrefix(short) else { return false }
+        if negations.contains(short) || negations.contains(long) { return false }
+        return !numberWords.contains { short.hasPrefix($0) || long.hasPrefix($0) }
+    }
+
+    /// Beginnings of number words (four letters or more — shorter ones never pass the length rule).
+    private static let numberWords = ["noll", "fyra", "åtta", "elva", "tolv", "tret", "fjor", "femt", "sext", "sjut",
+                                      "arto", "nitt", "tjug", "fyrt", "åtti", "hundra", "tuse", "milj",
+                                      "zero", "four", "five", "seve", "eigh", "nine", "elev", "twel", "thir", "fift",
+                                      "twen", "fort", "hundred", "thou", "mill"]
 
     // MARK: What may be dropped
 

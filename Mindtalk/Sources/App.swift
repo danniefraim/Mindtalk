@@ -227,6 +227,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --polish-recent 30`: the latest dictations through the AI polish —
+        // before, after and how long — nothing typed or saved.
+        if let i = args.firstIndex(of: "--polish-recent") {
+            let n = i + 1 < args.count ? Int(args[i + 1]) ?? 30 : 30
+            Task { @MainActor in
+                let url = SpeechModel.rootDirectory.deletingLastPathComponent().appendingPathComponent("Recent.json")
+                struct Item: Decodable { let text: String }
+                let items = (try? JSONDecoder().decode([Item].self, from: Data(contentsOf: url))) ?? []
+                print("Apple Intelligence: \(Polisher.status)")
+                var times: [Double] = []
+                var changed = 0, kept = 0
+                for (k, item) in items.prefix(n).enumerated() {
+                    // As a dictation goes: the rules first, then the polish.
+                    let rules = TextCleanup.apply(item.text, fillers: true, commands: false)
+                    let t0 = Date()
+                    let polished = await Polisher.shared.polish(rules)
+                    let t = Date().timeIntervalSince(t0)
+                    times.append(t)
+                    let out = polished ?? rules
+                    if out != item.text { changed += 1 } else { kept += 1 }
+                    print("\n#\(k + 1) (\(String(format: "%.2f", t)) s)\nFÖRE:  \(item.text)" +
+                          (rules != item.text ? "\nREGEL: \(rules)" : "") +
+                          "\nEFTER: \(out == item.text ? "(oförändrad)" : out)\(polished == nil ? "  [putsning avvisad/ingen]" : "")")
+                }
+                let sorted = times.sorted()
+                if !sorted.isEmpty {
+                    print(String(format: "\n%d texter: %d ändrade, %d oförändrade/avvisade · tid median %.2f s, längsta %.2f s",
+                                 sorted.count, changed, kept, sorted[sorted.count / 2], sorted.last!))
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
+        // `Mindtalk --guard-test`: what the AI polish may and may not do to a dictation,
+        // and the rules for what the speech model gets wrong.
+        if args.contains("--guard-test") {
+            let guardCases: [(String, String, Bool)] = [
+                ("Jag tryck på att ladda ner gemma", "Jag trycker på att ladda ner gemma", true),
+                ("Jag skickar det till hund", "Jag skickar det till hunden", true),
+                ("Jag godkänner inte avtalet", "Jag godkänner avtalet", false),
+                ("Det kostar tjugo kronor", "Det kostar tjugofem kronor", false),
+                ("Sa Nelly någonting om mat", "Sa Nelly något om mat", false),
+                ("Kan du kolla på detta", "Kan du titta på detta", false),
+                ("Vi ses på tisdag, nej jag menar onsdag", "Vi ses på onsdag", true),
+                ("Blir det fel? Eller är det jag som läser fel?", "Blir det fel eller är det jag som läser fel?", false),
+                ("Den är bättre så vi borde ha den", "Den är bättre, så vi borde ha den", true),
+            ]
+            let ruleCases: [(String, String)] = [
+                ("Johan vill bygga med kubeh.", "Johan vill bygga med kub."),
+                ("Fick detta svar av. Peter?", "Fick detta svar av Peter?"),
+                ("Den låg längst ner där i. Fönstret där man pratar.", "Den låg längst ner där i fönstret där man pratar."),
+                ("Det var det jag tänkte på. Sen gick vi hem.", "Det var det jag tänkte på. Sen gick vi hem."),
+                ("Yeah, det är okej, meh.", "Yeah, det är okej, meh."),
+            ]
+            var failed = 0
+            for (before, after, want) in guardCases where PolishGuard.accepts(after, as: before) != want {
+                failed += 1; print("FEL spärr: \(before) → \(after)")
+            }
+            for (input, want) in ruleCases {
+                let got = TextCleanup.apply(input, fillers: true, commands: true)
+                if got != want { failed += 1; print("FEL regel: \(input) → \(got)") }
+            }
+            print(failed == 0 ? "Polish guard and rules self-test passed (\(guardCases.count + ruleCases.count) cases)." : "\(failed) fel")
+            exit(failed == 0 ? 0 : 1)
+        }
         // `Mindtalk --gemma-download`: fetches Gemma 4 without the window, printing how
         // far it is — continuing an earlier try. Stop it with Ctrl-C to test that.
         if args.contains("--gemma-download") {
