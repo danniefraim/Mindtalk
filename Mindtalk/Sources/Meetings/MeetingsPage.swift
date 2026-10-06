@@ -497,12 +497,13 @@ private struct SpeakerChip: View {
             editing = true
         } label: {
             HStack(spacing: 6) {
-                SpeakerMark(speaker: speaker, cast: cast, size: 18)
+                VoiceBadge(speaker: speaker, cast: cast, size: 18)
                 Text(cast.name(of: speaker)).font(.system(size: 12.5, weight: .medium)).lineLimit(1)
                     .frame(maxWidth: 150, alignment: .leading).fixedSize()
                 if recognized {
-                    Image(systemName: "person.wave.2").font(.system(size: 10.5)).foregroundStyle(DS.Colors.muted)
+                    Image(systemName: "checkmark.seal.fill").font(.system(size: 10.5)).foregroundStyle(DS.Colors.muted)
                         .accessibilityLabel("Igenkänd röst")
+                        .help("Mindtalk kände igen rösten")
                 }
             }
             .padding(.leading, 3)

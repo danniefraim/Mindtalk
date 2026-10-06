@@ -51,6 +51,13 @@ final class MeetingSession: ObservableObject {
     /// "Vem är här?": the meeting starts with a round of names (VoiceScanner).
     @Published private(set) var introducing = false
     private var introductionTask: Task<Void, Never>?
+    /// Voices of the round Mindtalk has tried to recognise — until then the scanner
+    /// says "Känner igen rösten…" rather than asking for a name.
+    @Published private(set) var introChecked: Set<Int> = []
+    /// Their voiceprints, for the rings (in memory only, never saved).
+    @Published private(set) var introPrints: [Int: [Float]] = [:]
+    /// Recording from a Bluetooth headset — no sounds then (they can cost the mic).
+    var usesBluetooth: Bool { recorder.usesBluetooth }
 
     /// Ending: the moment it ends, unless you undo it. Recording goes on until then.
     @Published private(set) var stopAt: Date?
@@ -304,6 +311,8 @@ final class MeetingSession: ObservableObject {
 
     private func beginIntroduction() {
         introducing = true
+        introChecked = []
+        introPrints = [:]
         introductionTask = Task { @MainActor [weak self] in
             var checked: [Int: Double] = [:]          // speaker → speech heard when last checked
             while let self, self.introducing, self.isRecording {
@@ -325,6 +334,8 @@ final class MeetingSession: ObservableObject {
             && heard - (checked[speaker] ?? 0) >= 3 && heard <= 40 {
             checked[speaker] = heard
             guard let print = await VoicePrints.shared.print(of: speaker, in: record.words, samples: audio) else { continue }
+            introPrints[speaker] = print
+            defer { introChecked.insert(speaker) }
             let taken = Set((self.record?.names.values ?? [:].values).filter { !$0.isEmpty })
             guard let match = VoiceMemory.shared.match(print, excluding: taken),
                   var latest = self.record, (latest.names[String(speaker)] ?? "").isEmpty else { continue }

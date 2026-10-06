@@ -540,6 +540,7 @@
       }
     },
     "%lld röster hittade": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3443,6 +3444,7 @@
       }
     },
     "Här i rummet": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3771,6 +3773,7 @@
       }
     },
     "Hörde: ”%@%@”": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4842,6 +4845,7 @@
       }
     },
     "Känd röst": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4879,7 +4883,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recognizing the voice…"
+            "value": "Recognising the voice…"
           }
         },
         "sv": {
@@ -4902,6 +4906,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Känner igen rösterna…"
+          }
+        }
+      }
+    },
+    "Känner igen…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recognising…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Känner igen…"
           }
         }
       }
@@ -5440,6 +5460,7 @@
       }
     },
     "Lyssnar efter röster": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5467,6 +5488,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lyssnar igenom hela mötet…"
+          }
+        }
+      }
+    },
+    "Lyssnar på rösten…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listening to the voice…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssnar på rösten…"
           }
         }
       }
@@ -6073,6 +6110,22 @@
         }
       }
     },
+    "Mindtalk kände igen rösten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk recognised the voice"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk kände igen rösten"
+          }
+        }
+      }
+    },
     "Mindtalk kände igen rösten – klicka för att ändra": {
       "localizations": {
         "en": {
@@ -6101,6 +6154,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mindtalk kände igen rösten."
+          }
+        }
+      }
+    },
+    "Mindtalk känner igen %@s röst": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk knows %@'s voice"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk känner igen %@s röst"
           }
         }
       }
@@ -6562,6 +6631,7 @@
       }
     },
     "Ny röst hittad": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6573,6 +6643,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ny röst hittad"
+          }
+        }
+      }
+    },
+    "Ny röst – vem är det?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New voice – who is it?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ny röst – vem är det?"
           }
         }
       }
@@ -11356,6 +11442,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "–"
+          }
+        }
+      }
+    },
+    "”%@%@”": {
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "”%@%@”"
           }
         }
       }

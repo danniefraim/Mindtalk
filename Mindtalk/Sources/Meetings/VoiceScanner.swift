@@ -1,19 +1,24 @@
+import AppKit
 import SwiftUI
 
 // MARK: - Vem är här? (the introduction round)
 //
-// "Starta med presentation" begins the meeting with a scanner: a radar that sweeps
-// the room while everyone says hello and their name, one at a time. Each new voice
-// appears as a blip in its colour; a card asks who it is — the name already filled
-// in when they said "jag heter Anna". A voice you've named before is greeted
-// instead: "Välkommen tillbaka, Anna" (VoiceMemory, when switched on). "Alla är här"
-// and the meeting goes on — recording since the first word, everyone named.
+// "Med presentation" begins the meeting with the room's voices finding their place:
+// a slow aurora that wakes when someone speaks and takes on each voice's colour,
+// and for every voice a ring of its own — its shape drawn from the voiceprint, so
+// no two are alike (VoiceSigil.swift). Whoever is speaking makes their ring breathe
+// and ripple. A voice you've named before is greeted — "Välkommen tillbaka, Anna";
+// a new one gets a glass card asking who it is, the name already filled in when
+// they said "jag heter Erik". "Alla är här" and the meeting goes on, recorded from
+// the first word, everyone named.
 
 struct VoiceScanner: View {
     @ObservedObject var session: MeetingSession
     @ObservedObject private var memory = VoiceMemory.shared
     @State private var drafts: [Int: String] = [:]
     @State private var later: Set<Int> = []
+    @State private var greeting: String?
+    @State private var greeted: Set<Int> = []
     @FocusState private var nameFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -50,8 +55,12 @@ struct VoiceScanner: View {
     /// Who is talking right now: the speaker of the last word, if it was just said.
     private var activeSpeaker: Int? {
         guard let last = (session.pending.last ?? session.record?.words.last), let s = last.speaker, s >= 0 else { return nil }
-        let now = session.elapsed
-        return now - last.end < 1.4 ? s : nil
+        return session.elapsed - last.end < 1.4 ? s : nil
+    }
+
+    /// Recognition is on and still listening to this voice: don't ask for a name yet.
+    private func recognising(_ v: Voice) -> Bool {
+        memory.enabled && !memory.people.isEmpty && !session.introChecked.contains(v.speaker) && v.speech < 8
     }
 
     /// The newest voice without a name, waiting for one.
@@ -59,200 +68,295 @@ struct VoiceScanner: View {
 
     var body: some View {
         let voices = self.voices
-        HStack(alignment: .center, spacing: 28) {
-            radar(voices)
-                .aspectRatio(1, contentMode: .fit)
-                .frame(maxWidth: 520)
-            VStack(alignment: .leading, spacing: 16) {
-                status(voices)
-                if let voice = unnamed { newVoiceCard(voice, voices: voices).id(voice.speaker) }
-                inRoom(voices)
-                ConsentCard(session: session, compact: true)
-                Button { withAnimation(.spring(duration: 0.4, bounce: 0.15)) { session.endIntroduction() } } label: {
-                    Text(voices.isEmpty ? "Hoppa över" : "Alla är här – fortsätt")
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(maxWidth: .infinity, minHeight: 42)
-                }
-                .buttonStyle(.ink)
-                .keyboardShortcut(.defaultAction)
-            }
-            .frame(width: 290)
-        }
-        .padding(.horizontal, 36)
-        .padding(.top, 28)
-        .padding(.bottom, 90)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .animation(.spring(duration: 0.45, bounce: 0.2), value: voices)
-    }
-
-    // MARK: The radar
-
-    private func radar(_ voices: [Voice]) -> some View {
-        TimelineView(.animation(paused: reduceMotion)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            let level = Double(LiveMeter.shared.levels.last ?? 0)
-            Canvas { ctx, size in
-                let r = min(size.width, size.height) / 2
-                let c = CGPoint(x: size.width / 2, y: size.height / 2)
-                let green = Color(red: 0.36, green: 0.79, blue: 0.65)
-                // The rings breathe with the room.
-                for k in 1...4 {
-                    let rr = r * CGFloat(k) / 4.4
-                    ctx.stroke(Path(ellipseIn: CGRect(x: c.x - rr, y: c.y - rr, width: rr * 2, height: rr * 2)),
-                               with: .color(green.opacity(0.12 + 0.25 * level * Double(5 - k) / 4)), lineWidth: 1)
-                }
-                var cross = Path()
-                cross.move(to: CGPoint(x: c.x, y: c.y - r * 0.92)); cross.addLine(to: CGPoint(x: c.x, y: c.y + r * 0.92))
-                cross.move(to: CGPoint(x: c.x - r * 0.92, y: c.y)); cross.addLine(to: CGPoint(x: c.x + r * 0.92, y: c.y))
-                ctx.stroke(cross, with: .color(green.opacity(0.1)), lineWidth: 1)
-                // The sweep.
-                if !reduceMotion {
-                    let angle = Angle.degrees((t * 110).truncatingRemainder(dividingBy: 360) - 90)
-                    var wedge = Path()
-                    wedge.move(to: c)
-                    wedge.addArc(center: c, radius: r * 0.92, startAngle: angle - .degrees(38), endAngle: angle, clockwise: false)
-                    wedge.closeSubpath()
-                    ctx.fill(wedge, with: .linearGradient(Gradient(colors: [green.opacity(0), green.opacity(0.28)]),
-                                                          startPoint: point(c, r * 0.6, angle - .degrees(38)),
-                                                          endPoint: point(c, r * 0.6, angle)))
-                    var beam = Path(); beam.move(to: c); beam.addLine(to: point(c, r * 0.92, angle))
-                    ctx.stroke(beam, with: .color(green.opacity(0.9)), lineWidth: 1.5)
-                }
-                ctx.fill(Path(ellipseIn: CGRect(x: c.x - 4, y: c.y - 4, width: 8, height: 8)), with: .color(green))
-                // The voices.
-                for (n, v) in voices.enumerated() {
-                    let a = Angle.radians(Double(n) * 2.39996 - 1.2)
-                    let p = point(c, r * (0.42 + 0.12 * CGFloat(n % 3)), a)
-                    let colour = SpeakerMark.fill(v.lane)
-                    if activeSpeaker == v.speaker && !reduceMotion {
-                        for k in 0..<2 {
-                            let phase = (t * 0.9 + Double(k) * 0.5).truncatingRemainder(dividingBy: 1)
-                            let pr = 8 + 26 * phase
-                            ctx.stroke(Path(ellipseIn: CGRect(x: p.x - pr, y: p.y - pr, width: pr * 2, height: pr * 2)),
-                                       with: .color(colour.opacity(0.7 * (1 - phase))), lineWidth: 2)
-                        }
-                    }
-                    let br: CGFloat = activeSpeaker == v.speaker ? 11 : 8
-                    ctx.fill(Path(ellipseIn: CGRect(x: p.x - br, y: p.y - br, width: br * 2, height: br * 2)), with: .color(colour))
-                    ctx.stroke(Path(ellipseIn: CGRect(x: p.x - br, y: p.y - br, width: br * 2, height: br * 2)),
-                               with: .color(.white.opacity(0.9)), lineWidth: 1.5)
-                    let label = Text(v.name ?? String(localized: "Ny röst"))
-                        .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(.white.opacity(v.name == nil ? 0.6 : 0.95))
-                    ctx.draw(label, at: CGPoint(x: p.x, y: p.y + br + 12), anchor: .top)
+        GeometryReader { geo in
+            TimelineView(.animation(paused: reduceMotion)) { context in
+                let t = context.date.timeIntervalSinceReferenceDate
+                let level = roomLevel
+                ZStack {
+                    aurora(voices, time: t, level: level)
+                    orbs(voices, in: geo.size, time: t, level: level)
                 }
             }
+            .overlay(alignment: .topLeading) { heading(voices).padding(32) }
+            .overlay(alignment: .topTrailing) { consent.padding(24) }
+            .overlay(alignment: .bottomTrailing) { card(voices).padding(24) }
+            .overlay(alignment: .bottomLeading) { continueButton(voices).padding(24) }
+            .overlay(alignment: .top) { greetingToast.padding(.top, 28) }
         }
-        .background(RoundedRectangle(cornerRadius: 28, style: .continuous).fill(Color(white: 0.025)))
-        .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous)
-            .strokeBorder(Color(red: 0.36, green: 0.79, blue: 0.65).opacity(0.22), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(voices.isEmpty ? "Lyssnar efter röster" : "\(voices.count) röster hittade")
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(.white.opacity(0.08), lineWidth: 1))
+        .padding(.horizontal, 28)
+        .padding(.top, 24)
+        .padding(.bottom, 88)
+        .environment(\.colorScheme, .dark)
+        .animation(.spring(duration: 0.55, bounce: 0.25), value: voices)
+        .onChange(of: voices.count) { old, new in if new > old { chime("Pop") } }
+        .onChange(of: session.record?.recognized ?? [:]) { _, recognized in welcome(recognized) }
     }
 
-    private func point(_ c: CGPoint, _ r: CGFloat, _ a: Angle) -> CGPoint {
-        CGPoint(x: c.x + r * cos(a.radians), y: c.y + r * sin(a.radians))
+    /// The room's level, a little smoothed — the light shouldn't flicker.
+    private var roomLevel: Double {
+        let levels = LiveMeter.shared.levels.suffix(5)
+        return levels.isEmpty ? 0 : min(1, Double(levels.reduce(0, +)) / Double(levels.count) * 1.6)
     }
 
-    // MARK: Beside it
+    // MARK: Light
 
-    @ViewBuilder private func status(_ voices: [Voice]) -> some View {
+    private func aurora(_ voices: [Voice], time: Double, level: Double) -> some View {
+        let clock = Float(reduceMotion ? 0 : time.truncatingRemainder(dividingBy: 10_000))
+        return GeometryReader { geo in
+            let layout = Layout(size: geo.size)
+            let data: [Float] = voices.prefix(8).enumerated().flatMap { i, v -> [Float] in
+                let p = layout.position(i, of: voices.count)
+                let glow = activeSpeaker == v.speaker ? 0.35 + 0.65 * level : 0.12
+                return [Float(p.x / max(geo.size.width, 1)), Float(p.y / max(geo.size.height, 1)), Float(glow)]
+                    + Self.rgb(SpeakerMark.fill(v.lane))
+            }
+            Rectangle()
+                .colorEffect(ShaderLibrary.aurora(.float2(geo.size), .float(clock), .float(Float(level)), .floatArray(data)))
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// A speaker's colour, made vivid for a dark room: light comes in colour, not grey.
+    static func rgb(_ color: Color) -> [Float] {
+        let c = NSColor(color).usingColorSpace(.sRGB) ?? .white
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        c.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        let vivid = NSColor(hue: h, saturation: max(s, 0.62), brightness: 0.92, alpha: 1).usingColorSpace(.sRGB) ?? c
+        return [vivid.redComponent, vivid.greenComponent, vivid.blueComponent].map(Float.init)
+    }
+
+    /// Where the voices sit: around an ellipse in the middle of the room.
+    struct Layout {
+        let size: CGSize
+        var center: CGPoint { CGPoint(x: size.width / 2, y: size.height * 0.5) }
+        func position(_ i: Int, of n: Int) -> CGPoint {
+            guard n > 1 else { return center }
+            let rx = size.width * 0.27, ry = size.height * 0.23
+            let a = -Double.pi / 2 + Double(i) / Double(n) * 2 * .pi
+            return CGPoint(x: center.x + rx * cos(a), y: center.y + ry * sin(a))
+        }
+    }
+
+    // MARK: Voices
+
+    private func orbs(_ voices: [Voice], in size: CGSize, time: Double, level: Double) -> some View {
+        let layout = Layout(size: size)
+        let n = voices.count
+        return ZStack {
+            // The ripples of whoever is speaking.
+            Canvas { ctx, _ in
+                guard !reduceMotion, let active = activeSpeaker, let i = voices.firstIndex(where: { $0.speaker == active }) else { return }
+                let p = layout.position(i, of: n)
+                let colour = SpeakerMark.fill(voices[i].lane)
+                for k in 0..<3 {
+                    let phase = (time * 0.7 + Double(k) / 3).truncatingRemainder(dividingBy: 1)
+                    let r = 56 + 150 * phase
+                    ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)),
+                               with: .color(colour.opacity(0.45 * (1 - phase))), lineWidth: 1.5)
+                }
+            }
+            ForEach(Array(voices.enumerated()), id: \.element.id) { i, v in
+                orb(v, time: time, level: activeSpeaker == v.speaker ? level : 0.05)
+                    .position(layout.position(i, of: n))
+                    .transition(.scale(scale: 0.2).combined(with: .opacity))
+            }
+            if voices.isEmpty { listening(time: time, level: level).position(layout.center) }
+        }
+    }
+
+    private func shape(for v: Voice) -> [Double] {
+        if let name = v.name, let remembered = VoiceShape.remembered(name) { return remembered }
+        if let print = session.introPrints[v.speaker] { return VoiceShape.from(print: print) }
+        return VoiceShape.from(seed: "\(session.record?.id.uuidString ?? "")-\(v.speaker)")
+    }
+
+    private func orb(_ v: Voice, time: Double, level: Double) -> some View {
+        let colour = Color(nsColor: NSColor(SpeakerMark.fill(v.lane)).blended(withFraction: 0.18, of: .white) ?? .white)
+        // The ring sits exactly on its place; the name hangs just beneath it.
+        return ZStack {
+            Circle().fill(RadialGradient(colors: [colour.opacity(0.28 + 0.4 * level), .clear],
+                                         center: .center, startRadius: 2, endRadius: 64))
+            VoiceSigil(shape: shape(for: v), color: colour, level: level, lineWidth: 2.6, time: reduceMotion ? 0 : time)
+                .frame(width: 118, height: 118)
+            Circle().fill(.white).frame(width: 11, height: 11)
+                .shadow(color: colour, radius: 10)
+        }
+        .frame(width: 150, height: 150)
+        .overlay(alignment: .bottom) { label(v, colour: colour).fixedSize().offset(y: 12) }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(v.name ?? String(localized: "Ny röst"))
+    }
+
+    @ViewBuilder private func label(_ v: Voice, colour: Color) -> some View {
+        Group {
+            if let name = v.name {
+                HStack(spacing: 6) {
+                    Text(name).font(.system(size: 15, weight: .semibold))
+                    if v.known { Image(systemName: "checkmark.seal.fill").font(.system(size: 11)).foregroundStyle(colour) }
+                }
+                .shadow(color: .black.opacity(0.5), radius: 6)
+            } else if recognising(v) {
+                Text("Känner igen…").font(.system(size: 13)).foregroundStyle(.white.opacity(0.6))
+            } else {
+                Text("Ny röst").font(.system(size: 13, weight: .medium)).foregroundStyle(.white.opacity(0.7))
+            }
+        }
+        .foregroundStyle(.white)
+        .contentTransition(.opacity)
+    }
+
+    /// Before the first voice: a quiet ring that listens.
+    private func listening(time: Double, level: Double) -> some View {
+        VoiceSigil(shape: VoiceShape.from(seed: "listening"), color: .white.opacity(0.55), level: 0.2 + level,
+                   lineWidth: 1.4, time: reduceMotion ? 0 : time)
+            .frame(width: 130, height: 130)
+            .opacity(0.5 + 0.5 * level)
+    }
+
+    // MARK: Text and cards
+
+    private func heading(_ voices: [Voice]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Vem är här?").font(.system(size: 26, weight: .regular, design: .serif))
+            Text("Vem är här?").font(.system(size: 30, weight: .regular, design: .serif)).foregroundStyle(.white)
             Group {
-                if let greeted = voices.last(where: { $0.known }), activeSpeaker == greeted.speaker {
-                    Text("Välkommen tillbaka, \(greeted.name ?? "")")
-                } else if unnamed != nil {
-                    Text("En ny röst – vem är det?")
-                } else if voices.isEmpty {
-                    Text("Säg hej och ditt namn – en i taget.")
-                } else {
-                    Text("Fler i rummet? Säg hej.")
-                }
+                if let v = unnamed, recognising(v) { Text("Lyssnar på rösten…") }
+                else if unnamed != nil { Text("En ny röst – vem är det?") }
+                else if voices.isEmpty { Text("Säg hej och ditt namn – en i taget.") }
+                else { Text("Fler i rummet? Säg hej.") }
             }
             .font(.system(size: 14))
-            .foregroundStyle(DS.Colors.muted)
+            .foregroundStyle(.white.opacity(0.6))
             .contentTransition(.opacity)
         }
     }
 
-    private func newVoiceCard(_ voice: Voice, voices: [Voice]) -> some View {
-        let cast = session.record?.cast ?? Cast(words: [], names: [:])
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("Ny röst hittad").font(.system(size: 12, weight: .semibold)).foregroundStyle(DS.Colors.muted)
-            HStack(spacing: 10) {
-                SpeakerMark(speaker: voice.speaker, cast: cast, size: 26)
-                // Not "Namn": macOS would offer your contacts in a box over the card.
-                TextField("Vem är det?", text: Binding(get: { drafts[voice.speaker] ?? Self.spokenName(in: voice.said) ?? "" },
-                                                       set: { drafts[voice.speaker] = $0 }))
-                    .textFieldStyle(.roundedBorder)
-                    .textContentType(nil)
-                    .autocorrectionDisabled(true)
-                    .focused($nameFocused)
-                    .onSubmit { save(voice) }
-            }
-            if !voice.said.isEmpty {
-                Text("Hörde: ”\(String(voice.said.prefix(90)))\(voice.said.count > 90 ? "…" : "")”")
-                    .font(.system(size: 12)).foregroundStyle(DS.Colors.muted).lineLimit(2)
-            }
-            HStack(spacing: 8) {
-                Button("Spara") { save(voice) }.buttonStyle(.ink).fixedSize()
-                let others = voices.filter { $0.speaker != voice.speaker }
-                if !others.isEmpty {
-                    Menu("Samma som…") {
-                        ForEach(others) { o in
-                            Button(o.name ?? cast.name(of: o.speaker)) {
-                                withAnimation(.snappy) { session.merge(voice.speaker, into: o.speaker) }
-                            }
-                        }
-                    }
-                    .menuStyle(.borderlessButton).fixedSize()
-                    .help("Två röster som är samma person slås ihop")
+    @ViewBuilder private var consent: some View {
+        if session.record?.informed == nil {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Berätta att mötet spelas in").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
+                Text("”\(MeetingConsent.text)”")
+                    .font(.system(size: 12.5, design: .serif)).italic().foregroundStyle(.white.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
+                Button { withAnimation(.snappy) { session.informed() } } label: {
+                    Label("Jag har berättat", systemImage: "checkmark").font(.system(size: 12, weight: .semibold))
                 }
-                Spacer()
-                Button("Senare") { later.insert(voice.speaker) }.buttonStyle(.plain)
-                    .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+                .buttonStyle(.glass)
             }
+            .padding(14)
+            .frame(width: 260, alignment: .leading)
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing)))
         }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.card))
-        .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
-        .onAppear { nameFocused = true }
     }
+
+    @ViewBuilder private func card(_ voices: [Voice]) -> some View {
+        if let voice = unnamed {
+            let cast = session.record?.cast ?? Cast(words: [], names: [:])
+            VStack(alignment: .leading, spacing: 10) {
+                if recognising(voice) {
+                    HStack(spacing: 10) {
+                        ProgressView().controlSize(.small)
+                        Text("Känner igen rösten…").font(.system(size: 13.5, weight: .medium))
+                    }
+                } else {
+                    Text("Ny röst – vem är det?").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                    // Not "Namn": macOS would offer your contacts in a box over the card.
+                    TextField("Vem är det?", text: Binding(get: { drafts[voice.speaker] ?? Self.spokenName(in: voice.said) ?? "" },
+                                                           set: { drafts[voice.speaker] = $0 }))
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 18, weight: .semibold))
+                        .textContentType(nil)
+                        .autocorrectionDisabled(true)
+                        .focused($nameFocused)
+                        .onSubmit { save(voice) }
+                        .onAppear { nameFocused = true }
+                    if !voice.said.isEmpty {
+                        Text("”\(String(voice.said.prefix(80)))\(voice.said.count > 80 ? "…" : "")”")
+                            .font(.system(size: 12)).foregroundStyle(.white.opacity(0.55)).lineLimit(2)
+                    }
+                    HStack(spacing: 8) {
+                        Button("Spara") { save(voice) }.buttonStyle(.glassProminent).fixedSize()
+                        let others = voices.filter { $0.speaker != voice.speaker }
+                        if !others.isEmpty {
+                            Menu("Samma som…") {
+                                ForEach(others) { o in
+                                    Button(o.name ?? cast.name(of: o.speaker)) {
+                                        withAnimation(.snappy) { session.merge(voice.speaker, into: o.speaker) }
+                                    }
+                                }
+                            }
+                            .menuStyle(.button).buttonStyle(.glass).fixedSize()
+                        }
+                        Spacer(minLength: 0)
+                        Button("Senare") { later.insert(voice.speaker) }.buttonStyle(.plain)
+                            .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(.white.opacity(0.6))
+                    }
+                }
+            }
+            .padding(16)
+            .frame(width: 300, alignment: .leading)
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .id(voice.speaker)
+            .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
+        }
+    }
+
+    @ViewBuilder private var greetingToast: some View {
+        if let greeting {
+            HStack(spacing: 10) {
+                Image(systemName: "checkmark.seal.fill")
+                Text("Välkommen tillbaka, \(greeting)").font(.system(size: 15, weight: .semibold))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 18)
+            .frame(height: 44)
+            .glassEffect(.regular, in: Capsule())
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+
+    private func continueButton(_ voices: [Voice]) -> some View {
+        Button { withAnimation(.spring(duration: 0.5, bounce: 0.15)) { session.endIntroduction() } } label: {
+            Text(voices.isEmpty ? "Hoppa över" : "Alla är här – fortsätt")
+                .font(.system(size: 14, weight: .semibold))
+                .padding(.horizontal, 10)
+                .frame(minHeight: 32)
+        }
+        .buttonStyle(.glassProminent)
+        .controlSize(.large)
+        .keyboardShortcut(.defaultAction)
+    }
+
+    // MARK: Actions
 
     private func save(_ voice: Voice) {
         let name = (drafts[voice.speaker] ?? Self.spokenName(in: voice.said) ?? "").trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
-        withAnimation(.spring(duration: 0.4, bounce: 0.2)) { session.name(speaker: voice.speaker, as: name) }
+        withAnimation(.spring(duration: 0.45, bounce: 0.25)) { session.name(speaker: voice.speaker, as: name) }
         drafts[voice.speaker] = nil
     }
 
-    @ViewBuilder private func inRoom(_ voices: [Voice]) -> some View {
-        let named = voices.filter { $0.name != nil }
-        if !named.isEmpty {
-            let cast = session.record?.cast ?? Cast(words: [], names: [:])
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Här i rummet").font(.system(size: 12, weight: .semibold)).foregroundStyle(DS.Colors.muted)
-                ForEach(named) { v in
-                    HStack(spacing: 10) {
-                        SpeakerMark(speaker: v.speaker, cast: cast, size: 22)
-                        Text(v.name ?? "").font(.system(size: 13.5, weight: .medium))
-                        if v.known {
-                            Label("Känd röst", systemImage: "person.wave.2").font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
-                        }
-                        Spacer()
-                        if activeSpeaker == v.speaker {
-                            Waveform(levels: Array(LiveMeter.shared.levels.suffix(10)), gap: 2, color: SpeakerMark.fill(v.lane))
-                                .frame(width: 44, height: 16)
-                                .transition(.opacity)
-                        }
-                    }
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
+    /// A known voice found: greeted, once.
+    private func welcome(_ recognized: [String: Float]) {
+        guard let record = session.record else { return }
+        for key in recognized.keys {
+            guard let s = Int(key), !greeted.contains(s), let name = record.names[key], !name.isEmpty else { continue }
+            greeted.insert(s)
+            chime("Glass")
+            withAnimation(.spring(duration: 0.5, bounce: 0.3)) { greeting = name }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                if greeting == name { withAnimation(.easeOut(duration: 0.4)) { greeting = nil } }
             }
-            .padding(14)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.card))
         }
+    }
+
+    /// A soft sound — never into a Bluetooth headset (its mic can go when a sound there ends).
+    private func chime(_ name: String) {
+        guard Settings.sounds, !session.usesBluetooth, let sound = NSSound(named: name)?.copy() as? NSSound else { return }
+        sound.volume = 0.12
+        sound.play()
     }
 
     // MARK: "Jag heter Anna"
