@@ -7,7 +7,7 @@ import os
 //
 // Your words are fixed in the text afterwards (Vocabulary.swift) — but a name
 // the speech model has never seen often comes out as something that merely
-// sounds alike: "Mindakt", "Torespam", "Nelly". Here the model is given the
+// sounds alike: "Mindakt", "Whisper Flow", "Kelly". Here the model is given the
 // list too. After a dictation, when a word in the text resembles one of your
 // terms, a small second model (Parakeet CTC 110M, ~100 MB, downloaded once)
 // listens to the audio for the term, and the text is corrected where the term
@@ -195,7 +195,7 @@ actor VocabularyBoost {
     // MARK: Mindtalk's own rule on top of the acoustic comparison
 
     /// Of the candidates the library found acoustic evidence for: the phrase must also
-    /// look like the term (≥ 0.65 alike in letters — "Nelly"/"Nellie" 0.67, "kissa"/
+    /// look like the term (≥ 0.65 alike in letters — "Kelly"/"Kellie" 0.67, "kissa"/
     /// "Lisa" 0.60), and of a longer phrase only the part that matches the term best
     /// is replaced ("Klang AI är" keeps its "är"). Punctuation stays.
     struct Edit { let range: Range<Int>; let text: String; let term: String }
