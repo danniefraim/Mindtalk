@@ -41,7 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 do {
                     let samples = try Recorder.load(URL(fileURLWithPath: args[i + 1]))
                     let t0 = Date()
-                    // `--boost "Mindact,Nellie"`: the same audio without and with the terms (VocabularyBoost).
+                    // `--boost "Mindact,Anna"`: the same audio without and with the terms (VocabularyBoost).
                     if let b = args.firstIndex(of: "--boost"), b + 1 < args.count {
                         let terms = VocabularyBoost.terms(from: args[b + 1].split(separator: ",").map(String.init))
                         await VocabularyBoost.shared.prepare()
