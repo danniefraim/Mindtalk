@@ -125,8 +125,7 @@ struct VoiceScanner: View {
     private func figure(for v: Voice) -> VoiceFigure? {
         if recognising(v) { return nil }
         if let name = v.name, let remembered = VoiceFigure.remembered(name) { return remembered }
-        if let print = session.introPrints[v.speaker] { return VoiceFigure.from(print: print) }
-        return VoiceFigure.from(seed: "\(session.record?.id.uuidString ?? "")-\(v.speaker)")
+        return session.introFigure(of: v.speaker)
     }
 
     private func colour(_ v: Voice?) -> Color {
@@ -216,7 +215,7 @@ struct VoiceScanner: View {
             let cast = session.record?.cast ?? Cast(words: [], names: [:])
             VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
-                        VoiceFigureMark(figure: figure(for: voice) ?? VoiceFigure.from(seed: "\(voice.speaker)"),
+                        VoiceFigureMark(figure: figure(for: voice) ?? session.introFigure(of: voice.speaker),
                                         color: SpeakerMark.fill(voice.lane), lineWidth: 1)
                             .frame(width: 16, height: 16)
                         Text("Ny röst – vem är det?").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.7))

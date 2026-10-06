@@ -54,8 +54,9 @@ final class MeetingSession: ObservableObject {
     /// Voices of the round Mindtalk has tried to recognise — until then the scanner
     /// says "Känner igen rösten…" rather than asking for a name.
     @Published private(set) var introChecked: Set<Int> = []
-    /// Their voiceprints, for the rings (in memory only, never saved).
-    @Published private(set) var introPrints: [Int: [Float]] = [:]
+    /// The figures of new voices in the round (VoiceFigure), from their voiceprints —
+    /// kept when the voice is named and saved.
+    @Published private(set) var introFigures: [Int: VoiceFigure] = [:]
     /// Recording from a Bluetooth headset — no sounds then (they can cost the mic).
     var usesBluetooth: Bool { recorder.usesBluetooth }
 
@@ -313,7 +314,7 @@ final class MeetingSession: ObservableObject {
     private func beginIntroduction() {
         introducing = true
         introChecked = []
-        introPrints = [:]
+        introFigures = [:]
         introductionTask = Task { @MainActor [weak self] in
             var checked: [Int: Double] = [:]          // speaker → speech heard when last checked
             while let self, self.introducing, self.isRecording {
@@ -335,11 +336,16 @@ final class MeetingSession: ObservableObject {
             && heard - (checked[speaker] ?? 0) >= 3 && heard <= 40 {
             checked[speaker] = heard
             guard let print = await VoicePrints.shared.print(of: speaker, in: record.words, samples: audio) else { continue }
-            introPrints[speaker] = print
             defer { introChecked.insert(speaker) }
             let taken = Set((self.record?.names.values ?? [:].values).filter { !$0.isEmpty })
             guard let match = VoiceMemory.shared.match(print, excluding: taken),
-                  var latest = self.record, (latest.names[String(speaker)] ?? "").isEmpty else { continue }
+                  var latest = self.record, (latest.names[String(speaker)] ?? "").isEmpty else {
+                // A new voice: its figure, once, unlike the others in the room.
+                if introFigures[speaker] == nil {
+                    introFigures[speaker] = VoiceMemory.shared.figureForNew(print, alsoAvoiding: Set(introFigures.values.map(\.rhythm)))
+                }
+                continue
+            }
             latest.names[String(speaker)] = match.name
             latest.recognized[String(speaker)] = match.score
             self.record = latest
@@ -406,7 +412,15 @@ final class MeetingSession: ObservableObject {
         if let record { MeetingStore.shared.save(record) }
     }
 
+    /// The figure a voice of the introduction round is shown with: from its print once
+    /// Mindtalk has one, otherwise from its number.
+    func introFigure(of speaker: Int) -> VoiceFigure {
+        introFigures[speaker] ?? VoiceFigure.from(seed: "\(record?.id.uuidString ?? "")-\(speaker)")
+    }
+
     func name(speaker: Int, as name: String) {
+        // A new voice named in the round keeps the figure it was shown with.
+        if introducing, let figure = introFigures[speaker] { VoiceMemory.shared.reserve(figure, for: name) }
         record?.names[String(speaker)] = name.trimmingCharacters(in: .whitespacesAndNewlines)
         record?.recognized[String(speaker)] = nil
         if let record { MeetingStore.shared.save(record) }

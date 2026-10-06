@@ -27,6 +27,9 @@ final class VoiceMemory: ObservableObject {
         /// Up to five voiceprints from different meetings — rooms and mics differ.
         var prints: [[Float]]
         var updated = Date()
+        /// Their figure (VoiceFigure), chosen when the voice was first saved and never
+        /// changed after — the same person looks the same in every meeting.
+        var figure: VoiceFigure?
     }
 
     enum State: Equatable { case missing, downloading(Double), ready, failed(String) }
@@ -43,9 +46,46 @@ final class VoiceMemory: ObservableObject {
     private var testing = false
     @Published private(set) var state: State = VoiceMemory.isInstalled ? .ready : .missing
 
+    /// Figures shown for new voices in the introduction round, waiting for those voices
+    /// to be saved under the names they were given.
+    private var reserved: [String: VoiceFigure] = [:]
+
     private init() {
         people = Self.loadPeople()
+        giveFigures()
         if enabled { prepare() }
+    }
+
+    // MARK: Figures
+
+    /// Rhythms already worn by people you know.
+    var takenRhythms: Set<Int> { Set(people.compactMap { $0.figure?.rhythm }) }
+
+    /// A person's figure.
+    func figure(of name: String) -> VoiceFigure? {
+        people.first { Self.key($0.name) == Self.key(name) }?.figure
+    }
+
+    /// The figure a new voice gets — unlike anyone you know (and anyone in `others`).
+    func figureForNew(_ print: [Float], alsoAvoiding others: Set<Int> = []) -> VoiceFigure {
+        VoiceFigure.from(print: print, avoiding: takenRhythms.union(others))
+    }
+
+    /// A new voice was shown with this figure and given this name: saved, it keeps it.
+    func reserve(_ figure: VoiceFigure, for name: String) {
+        reserved[Self.key(name)] = figure
+    }
+
+    /// People saved before figures were kept get theirs now, from all their prints,
+    /// each unlike the ones before them.
+    private func giveFigures() {
+        var changed = false
+        for i in people.indices where people[i].figure == nil {
+            guard let mean = VoiceFigure.mean(people[i].prints) else { continue }
+            people[i].figure = VoiceFigure.from(print: mean, avoiding: takenRhythms)
+            changed = true
+        }
+        if changed { save() }
     }
 
     // MARK: The model (CAM++, about 16 MB, in Mindtalk's own folder)
@@ -256,8 +296,11 @@ final class VoiceMemory: ObservableObject {
                 if people[i].prints.count > 5 { people[i].prints.removeFirst() }
                 people[i].name = name
                 people[i].updated = Date()
+                if people[i].figure == nil { people[i].figure = figureForNew(print) }
+                reserved[Self.key(name)] = nil
             } else {
-                people.append(Person(name: name.trimmingCharacters(in: .whitespaces), prints: [print]))
+                let figure = reserved.removeValue(forKey: Self.key(name)) ?? figureForNew(print)
+                people.append(Person(name: name.trimmingCharacters(in: .whitespaces), prints: [print], figure: figure))
             }
         }
         save()

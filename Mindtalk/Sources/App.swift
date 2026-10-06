@@ -159,6 +159,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --render-voices out.png [--dark]`: the voices Mindtalk knows, as in
+        // Settings, drawn to an image.
+        if let i = args.firstIndex(of: "--render-voices"), i + 1 < args.count {
+            Task { @MainActor in
+                NSApplication.shared.appearance = NSAppearance(named: args.contains("--dark") ? .darkAqua : .aqua)
+                let renderer = ImageRenderer(content: VoiceMemoryCard(memory: VoiceMemory.shared).padding(28).frame(width: 720).background(DS.Colors.paper))
+                renderer.scale = 2
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --render-search out.png "sökord" "fråga"`: the search results and an
         // answer drawn to an image, without a window (the screen may be locked).
         if let i = args.firstIndex(of: "--render-search"), i + 3 < args.count {

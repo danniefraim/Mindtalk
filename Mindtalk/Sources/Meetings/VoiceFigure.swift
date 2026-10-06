@@ -11,7 +11,7 @@ import SwiftUI
 // with voice recognition off) gets a figure from its number instead — nothing about
 // the voice itself is used then.
 
-struct VoiceFigure: Equatable {
+struct VoiceFigure: Codable, Equatable {
     /// The two rhythms: how many times the curve swings across and up.
     var a: Int
     var b: Int
@@ -31,20 +31,32 @@ struct VoiceFigure: Equatable {
         return SIMD3(sin(Double(a) * w + phase) * 0.95, sin(Double(b) * w) * 0.8, cos(Double(b) * w + depth) * 0.5)
     }
 
-    /// From a voiceprint: the rhythm from where its energy lies, the offsets from two
-    /// smooth projections — a slightly different recording moves them a little, not
-    /// into another figure.
-    static func from(print: [Float]) -> VoiceFigure {
+    /// The figure's rhythm as one number, to tell figures apart (3 and 2 → 32).
+    var rhythm: Int { a * 10 + b }
+
+    /// From a voiceprint: the rhythm from where its energy lies — the strongest one
+    /// no one in `taken` has, so people you know look different — and the offsets
+    /// from two smooth projections of the print.
+    static func from(print: [Float], avoiding taken: Set<Int> = []) -> VoiceFigure {
         guard print.count >= rhythms.count * 4 else { return from(seed: "?") }
         let size = print.count / rhythms.count
         let energy = (0..<rhythms.count).map { g in print[(g * size)..<((g + 1) * size)].reduce(Float(0)) { $0 + $1 * $1 } }
-        let pick = energy.indices.max { energy[$0] < energy[$1] } ?? 0
+        let ranked = energy.indices.sorted { energy[$0] > energy[$1] }
+        let pick = ranked.first { !taken.contains(rhythms[$0].0 * 10 + rhythms[$0].1) } ?? ranked[0]
         func angle(_ f: Double) -> Double {
             var s = 0.0, c = 0.0
             for (i, v) in print.enumerated() { s += Double(v) * sin(Double(i) * f); c += Double(v) * cos(Double(i) * f) }
             return atan2(s, c)
         }
         return VoiceFigure(a: rhythms[pick].0, b: rhythms[pick].1, phase: angle(0.37), depth: angle(0.91) / .pi * maxDepth)
+    }
+
+    /// The average of several prints — steadier than any one recording.
+    static func mean(_ prints: [[Float]]) -> [Float]? {
+        guard let first = prints.first else { return nil }
+        var mean = [Float](repeating: 0, count: first.count)
+        for p in prints where p.count == first.count { for i in p.indices { mean[i] += p[i] } }
+        return mean
     }
 
     /// From anything else (the speaker's number): the same seed, the same figure.
@@ -58,20 +70,16 @@ struct VoiceFigure: Equatable {
         return VoiceFigure(a: pick.0, b: pick.1, phase: next() * 2 * .pi, depth: (next() * 2 - 1) * maxDepth)
     }
 
-    /// The person's figure, if Mindtalk remembers their voice: from the average of
-    /// their prints, steadier than any one recording.
+    /// The person's figure, if Mindtalk remembers their voice — chosen when the voice
+    /// was first saved, and kept for good.
     @MainActor static func remembered(_ name: String) -> VoiceFigure? {
-        let key = name.lowercased().trimmingCharacters(in: .whitespaces)
         #if DEBUG
         // Screenshots: the demo meeting's people are "remembered" without real voices.
+        let key = name.lowercased().trimmingCharacters(in: .whitespaces)
         if CommandLine.arguments.contains("--demo-meeting"), ["anna", "erik"].contains(key) { return from(seed: key) }
         #endif
-        guard VoiceMemory.shared.enabled, !key.isEmpty,
-              let person = VoiceMemory.shared.people.first(where: { $0.name.lowercased() == key }),
-              let first = person.prints.first else { return nil }
-        var mean = [Float](repeating: 0, count: first.count)
-        for p in person.prints where p.count == first.count { for i in p.indices { mean[i] += p[i] } }
-        return from(print: mean)
+        guard VoiceMemory.shared.enabled else { return nil }
+        return VoiceMemory.shared.figure(of: name)
     }
 }
 
