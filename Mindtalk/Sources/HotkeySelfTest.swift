@@ -23,7 +23,8 @@ enum HotkeySelfTest {
             try await capture()
             try await reset()
             try await fnCombination()
-            print("Hotkey self-test passed (model, modifier combinations, shortcuts, capture, reset and fn).")
+            try await meetingChord()
+            print("Hotkey self-test passed (model, modifier combinations, shortcuts, capture, reset, fn and meeting shortcut).")
             return 0
         } catch {
             print("Hotkey self-test failed: \(error.localizedDescription)")
@@ -353,6 +354,44 @@ enum HotkeySelfTest {
         await drainCallbacks()
         try require(typed.calls == ["press"], "fn + Option did not work again after release: \(typed.calls)")
         print("Passed fn combinations with arrow, function and navigation keys")
+    }
+
+    /// ⌃⌥⌘M starts or ends a meeting in every app — exactly that combination, once
+    /// per press, and never while a new one is being picked.
+    private static func meetingChord() async throws {
+        let m = UInt16(kVK_ANSI_M)
+        let chord: CGEventFlags = [.maskControl, .maskAlternate, .maskCommand]
+        let probe = Probe(hotkey: .default)
+        probe.listener.meetingChord = .meetingDefault
+        probe.listener.onMeetingChord = { [weak probe] in probe?.calls.append("meeting") }
+
+        try require(!(try probe.send(.keyDown, m, chord)), "The meeting shortcut reached the app")
+        try require(!(try probe.send(.keyDown, m, chord, repeatKey: true)), "A held meeting shortcut reached the app")
+        try require(!(try probe.send(.keyUp, m, chord)), "The meeting shortcut's release reached the app")
+        await drainCallbacks()
+        try require(probe.calls == ["meeting"], "The meeting shortcut did not fire exactly once: \(probe.calls)")
+
+        probe.calls = []
+        try require(try probe.send(.keyDown, m, [.maskCommand]), "⌘M was taken")
+        try require(try probe.send(.keyDown, m, [.maskControl, .maskAlternate, .maskCommand, .maskShift]), "⌃⌥⇧⌘M was taken")
+        try require(try probe.send(.keyDown, m, []), "M was taken")
+        probe.listener.pickingChord = true
+        try require(try probe.send(.keyDown, m, chord), "The shortcut was taken while picking a new one")
+        probe.listener.pickingChord = false
+        probe.listener.meetingChord = nil
+        try require(try probe.send(.keyDown, m, chord), "The shortcut was taken while turned off")
+        await drainCallbacks()
+        try require(probe.calls.isEmpty, "Other keys started a meeting: \(probe.calls)")
+
+        // The dictation key (right ⌥) held as part of it: no dictation, a meeting.
+        let held = Probe(hotkey: .default)
+        held.listener.meetingChord = .meetingDefault
+        held.listener.onMeetingChord = { [weak held] in held?.calls.append("meeting") }
+        _ = try held.send(.flagsChanged, UInt16(kVK_RightOption), flags(0x40, [.maskAlternate]))
+        _ = try held.send(.keyDown, m, flags(0x40, chord))
+        await drainCallbacks()
+        try require(held.calls == ["press", "chord", "meeting"], "Right ⌥ in the meeting shortcut: \(held.calls)")
+        print("Passed meeting shortcut in every app, exact match, picking and off")
     }
 
     private static func combination(_ mask: UInt64) throws -> Hotkey {

@@ -1046,6 +1046,22 @@
         }
       }
     },
+    "Av. Inne i Mindtalk fungerar ⇧⌘R.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off. Inside Mindtalk, ⇧⌘R works."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Av. Inne i Mindtalk fungerar ⇧⌘R."
+          }
+        }
+      }
+    },
     "Avbryt": {
       "localizations": {
         "en": {
@@ -2008,7 +2024,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "En liten lyssnare (%@) laddas ned första gången, så att namn stavas rätt redan från början."
+            "value": "En liten lyssnare (%@) laddas ned när du lägger till ett eget ord, så att namn stavas rätt redan från början."
           }
         }
       }
@@ -2321,6 +2337,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Från en annan app, t.ex. ett mötesprogram"
+          }
+        }
+      }
+    },
+    "Fungerar i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Works in every app. Inside Mindtalk, ⇧⌘R works too."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fungerar i alla appar. Inne i Mindtalk fungerar även ⇧⌘R."
           }
         }
       }
@@ -3279,6 +3311,22 @@
         }
       }
     },
+    "Ingen genväg": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No shortcut"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ingen genväg"
+          }
+        }
+      }
+    },
     "Ingen sammanfattning än.": {
       "localizations": {
         "en": {
@@ -3665,6 +3713,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klicka och håll in önskade modifierartangenter tillsammans. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter."
+          }
+        }
+      }
+    },
+    "Klicka och tryck en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click, then press a key together with ⌘, ⌃ or ⌥. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klicka och tryck en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter."
           }
         }
       }
@@ -5292,6 +5356,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mötet blev för långt för Apple Intelligence."
+          }
+        }
+      }
+    },
+    "Mötet fortsätter i en liten panel bredvid det du gör": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting continues in a small panel beside what you're doing"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet fortsätter i en liten panel bredvid det du gör"
           }
         }
       }
@@ -6997,6 +7077,23 @@
         }
       }
     },
+    "Starta och avsluta möte": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start and end a meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starta och avsluta möte"
+          }
+        }
+      }
+    },
     "Starta om": {
       "localizations": {
         "en": {
@@ -7123,6 +7220,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stäng"
+          }
+        }
+      }
+    },
+    "Stäng av genvägen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn off the shortcut"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stäng av genvägen"
+          }
+        }
+      }
+    },
+    "Stäng av mötesgenvägen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn off the meeting shortcut"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stäng av mötesgenvägen"
+          }
+        }
+      }
+    },
+    "Stäng fönstret så fortsätter mötet i en liten panel.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close the window and the meeting continues in a small panel."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stäng fönstret så fortsätter mötet i en liten panel."
           }
         }
       }
@@ -8158,6 +8303,22 @@
         }
       }
     },
+    "Tryck en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press a key together with ⌘, ⌃ or ⌥. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter."
+          }
+        }
+      }
+    },
     "Tryck för att börja, tryck igen för att klistra in.": {
       "localizations": {
         "en": {
@@ -8202,6 +8363,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tryck igen för att avsluta"
+          }
+        }
+      }
+    },
+    "Tryck kombinationen…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press the combination…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck kombinationen…"
           }
         }
       }
@@ -8635,6 +8812,7 @@
       }
     },
     "Visa i panelen": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8748,6 +8926,7 @@
       }
     },
     "Visa mötet i panelen": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8759,6 +8938,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa mötet i panelen"
+          }
+        }
+      }
+    },
+    "Visa som panel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show as panel"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa som panel"
           }
         }
       }

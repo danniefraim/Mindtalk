@@ -1,5 +1,6 @@
 import ServiceManagement
 import SwiftUI
+import Carbon.HIToolbox
 
 // MARK: - Main window
 //
@@ -301,6 +302,8 @@ struct SettingsPage: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var showMicPicker = false
     @State private var appLanguage = AppLanguage.chosen
+    @State private var meetingShortcut = Settings.meetingShortcut
+    @State private var pickingMeetingKey = false
 
     /// Set before opening Settings to land on "Om Mindtalk".
     static var jumpToAbout = false
@@ -326,6 +329,15 @@ struct SettingsPage: View {
                 CardDivider()
                 CardRow(title: "Klistra in senaste igen", detail: "Om texten hamnade fel – ställ markören rätt och tryck.") {
                     KeyChip(text: "⌃ ⌥ V")
+                }
+                CardDivider()
+                CardRow(title: "Starta och avsluta möte", detail: pickingMeetingKey
+                        ? String(localized: "Tryck en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
+                        : meetingShortcut == nil
+                            ? String(localized: "Av. Inne i Mindtalk fungerar ⇧⌘R.")
+                            : String(localized: "Fungerar i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.")) {
+                    MeetingShortcutField(chord: $meetingShortcut, picking: $pickingMeetingKey)
+                        .disabled(!dictation.accessibilityGranted)
                 }
             }
             .card()
@@ -470,6 +482,79 @@ private struct ShortcutField: View {
         .disabled(!dictation.accessibilityGranted)
         .help(LocalizedStringKey(dictation.accessibilityGranted ? "Klicka och håll in önskade modifierartangenter tillsammans. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter."
                                              : "Tillåt Hjälpmedel först."))
+    }
+}
+
+/// The meeting shortcut: click, then press it — a key with ⌘, ⌃ or ⌥.
+private struct MeetingShortcutField: View {
+    @Binding var chord: KeyChord?
+    @Binding var picking: Bool
+    @State private var monitor: Any?
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button { picking ? stop() : start() } label: {
+                HStack(spacing: 10) {
+                    if picking {
+                        Text("Tryck kombinationen…").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                    } else if let chord {
+                        KeyChip(text: chord.chip)
+                    } else {
+                        Text("Ingen genväg").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                    }
+                    Spacer(minLength: 16)
+                    Image(systemName: "pencil").foregroundStyle(DS.Colors.muted)
+                }
+                .padding(.leading, 8)
+                .padding(.trailing, 12)
+                .frame(width: chord == nil || picking ? 280 : 244)
+                .frame(minHeight: 38)
+                .background(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous).fill(DS.Colors.field))
+                .overlay(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
+                    .strokeBorder(picking ? DS.Colors.ink : DS.Colors.fieldStroke, lineWidth: 1))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Klicka och tryck en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
+            if chord != nil, !picking {
+                Button { set(nil) } label: {
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 15)).foregroundStyle(DS.Colors.faint)
+                        .frame(width: 28, height: 38).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Stäng av genvägen")
+                .accessibilityLabel("Stäng av mötesgenvägen")
+            }
+        }
+        .onDisappear { stop() }
+    }
+
+    private func start() {
+        picking = true
+        KeyListener.shared.pickingChord = true
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.keyCode == UInt16(kVK_Escape) { stop(); return nil }
+            let new = KeyChord(keyCode: event.keyCode, modifiers: UInt64(event.modifierFlags.rawValue))
+            // ⌃⌥V is "klistra in senaste igen"; a key on its own would stop typing it.
+            let pasteLast = KeyChord(keyCode: UInt16(kVK_ANSI_V), modifiers: CGEventFlags([.maskControl, .maskAlternate]).rawValue)
+            guard new.isValid, new != pasteLast else { NSSound.beep(); return nil }
+            set(new)
+            stop()
+            return nil
+        }
+    }
+
+    private func stop() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+        picking = false
+        KeyListener.shared.pickingChord = false
+    }
+
+    private func set(_ new: KeyChord?) {
+        chord = new
+        Settings.meetingShortcut = new
+        KeyListener.shared.meetingChord = new
     }
 }
 

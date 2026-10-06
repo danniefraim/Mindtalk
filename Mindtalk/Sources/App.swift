@@ -197,6 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             .store(in: &cancellables)
 
         dictation.start()
+        KeyListener.shared.onMeetingChord = { [weak self] in self?.toggleMeeting() }
         Vocabulary.shared.prepareListener()
         #if DEBUG
         if CommandLine.arguments.contains("--simulate-keys") { return simulateKeys() }
@@ -635,6 +636,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             #endif
             if !window.setFrameUsingName("MindtalkMain") { window.center() }
             self.window = window
+        } else if window?.isVisible != true {
+            // Shown again: text that changed while it was closed is drawn afresh.
+            WindowEpoch.shared.reopened()
         }
         windowOpen = true
         Self.updateDockPolicy()

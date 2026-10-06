@@ -498,6 +498,7 @@ struct MeetingView: View {
     var back: (() -> Void)? = nil
 
     @ObservedObject private var notes = MeetingNotes.shared
+    @ObservedObject private var epoch = WindowEpoch.shared
     @State private var title = ""
     @State private var confirmDelete = false
     @State private var copied = false
@@ -532,6 +533,7 @@ struct MeetingView: View {
                         .transition(.opacity.combined(with: .offset(y: 6)))
                     }
                 }
+                .id(epoch.value)   // see WindowEpoch
                 .frame(maxHeight: .infinity)
             }
             bottomBar
@@ -691,6 +693,19 @@ struct MeetingView: View {
 
     @ViewBuilder private var actions: some View {
         HStack(spacing: 8) {
+            // The meeting beside your work instead — the same as closing the window.
+            if let session, session.isBusy {
+                Button { MeetingPanel.shared.collapse() } label: {
+                    Label("Visa som panel", systemImage: "pip.enter")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .padding(.horizontal, 12)
+                        .frame(height: 30)
+                        .background(Capsule().fill(DS.Colors.chip))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .help("Mötet fortsätter i en liten panel bredvid det du gör")
+            }
             Button(action: copy) {
                 Image(systemName: copied ? "checkmark" : "doc.on.doc")
                     .contentTransition(.symbolEffect(.replace))
@@ -896,10 +911,17 @@ private struct TranscriptView: View {
                 }
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: atBottom)
             }
+            // Built anew mid-meeting (WindowEpoch): back to where the conversation is.
+            .onAppear {
+                guard live, !turns.isEmpty else { return }
+                DispatchQueue.main.async { proxy.scrollTo("end", anchor: .bottom) }
+            }
         }
         .onAppear {
             guard live else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 20) { withAnimation(.easeOut(duration: 0.4)) { consent = false } }
+            let left = 20 - Date().timeIntervalSince(session?.startedAt ?? Date())
+            if left <= 0 { consent = false; return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + left) { withAnimation(.easeOut(duration: 0.4)) { consent = false } }
         }
     }
 
@@ -1500,6 +1522,8 @@ private struct WritingPlaceholder: View {
 /// it, a word when something needs attention.
 private struct LiveBar: View {
     @ObservedObject var session: MeetingSession
+    /// Until the panel has been used once: closing the window doesn't end the meeting.
+    @AppStorage(MeetingPanel.tipSeenKey) private var panelTipSeen = false
     private var armed: Bool { session.stopArmed }
 
     var body: some View {
@@ -1525,6 +1549,9 @@ private struct LiveBar: View {
     private var caption: (text: String, warning: Bool)? {
         if case .finishing = session.phase { return (String(localized: "Texten blir mer exakt när det är klart."), false) }
         if let w = session.warning { return (w, true) }
+        if !panelTipSeen, session.isRecording {
+            return (String(localized: "Stäng fönstret så fortsätter mötet i en liten panel."), false)
+        }
         return nil
     }
 
@@ -1546,18 +1573,6 @@ private struct LiveBar: View {
                     }
                 }
                 LiveWave().frame(width: 96, height: 22).accessibilityHidden(true)
-                // The meeting in its panel instead, beside your work.
-                Button { MeetingPanel.shared.collapse() } label: {
-                    Image(systemName: "arrow.down.right.and.arrow.up.left")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.85))
-                        .frame(width: 32, height: 32)
-                        .background(Circle().fill(.white.opacity(0.14)))
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .help("Visa i panelen")
-                .accessibilityLabel("Visa mötet i panelen")
                 stopButton
             }
         }

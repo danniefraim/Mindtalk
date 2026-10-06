@@ -12,6 +12,20 @@ enum Settings {
         set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "hotkey") }
     }
 
+    /// The meeting shortcut, in every app. nil: turned off.
+    static var meetingShortcut: KeyChord? {
+        get {
+            if defaults.bool(forKey: "meetingShortcutOff") { return nil }
+            guard let data = defaults.data(forKey: "meetingShortcut"),
+                  let chord = try? JSONDecoder().decode(KeyChord.self, from: data), chord.isValid else { return .meetingDefault }
+            return chord
+        }
+        set {
+            defaults.set(newValue == nil, forKey: "meetingShortcutOff")
+            if let newValue { defaults.set(try? JSONEncoder().encode(newValue), forKey: "meetingShortcut") }
+        }
+    }
+
     /// The language you dictate in. Swedish by default on a Swedish Mac.
     static var engine: SpeechModel {
         get {

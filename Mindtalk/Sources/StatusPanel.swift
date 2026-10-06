@@ -161,13 +161,13 @@ struct StatusPanelView: View {
                 }
                 if meeting.isRecording {
                     PanelRow(title: meeting.stopArmed ? String(localized: "Tryck igen för att avsluta") : String(localized: "Avsluta mötet"),
-                             shortcut: "⇧⌘R") {
+                             shortcut: Self.meetingKeys) {
                         meeting.requestStop()
                     }
                 }
                 PanelSeparator()
             } else if VoiceModels.isInstalled {
-                PanelRow(title: "Starta möte", shortcut: "⇧⌘R") {
+                PanelRow(title: "Starta möte", shortcut: Self.meetingKeys) {
                     close()
                     AppDelegate.startMeeting()
                 }
@@ -193,6 +193,11 @@ struct StatusPanelView: View {
         .overlay(RoundedRectangle(cornerRadius: PanelMetrics.corner, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 0.5))
         .fixedSize(horizontal: false, vertical: true)
         .background(shortcuts)
+    }
+
+    /// The meeting shortcut that works everywhere — or Mindtalk's own ⇧⌘R when it's off.
+    static var meetingKeys: String {
+        Settings.meetingShortcut.map { $0.chip.replacingOccurrences(of: " ", with: "") } ?? "⇧⌘R"
     }
 
     /// ⌘1 / ⌘2 switch language, ⌘, opens Settings, ⌘Q quits — as the rows show.

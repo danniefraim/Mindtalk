@@ -188,6 +188,45 @@ struct Hotkey: Codable, Equatable {
     }
 }
 
+// MARK: - The meeting shortcut
+
+/// A key together with ⌘, ⌃ or ⌥ (and perhaps ⇧), heard in every app — the meeting
+/// shortcut. ⇧⌘R stays Mindtalk's own: Chrome and Safari use it to reload.
+struct KeyChord: Codable, Equatable {
+    var keyCode: UInt16
+    /// Only ⌘ ⌃ ⌥ ⇧ — the same bits in CGEventFlags and NSEvent.ModifierFlags.
+    var modifiers: UInt64
+
+    static let relevant: UInt64 = CGEventFlags([.maskCommand, .maskControl, .maskAlternate, .maskShift]).rawValue
+    /// ⌃⌥⌘M — M for möte, and taken by no common app.
+    static let meetingDefault = KeyChord(keyCode: UInt16(kVK_ANSI_M),
+                                         modifiers: CGEventFlags([.maskControl, .maskAlternate, .maskCommand]).rawValue)
+
+    init(keyCode: UInt16, modifiers: UInt64) {
+        self.keyCode = keyCode
+        self.modifiers = modifiers & Self.relevant
+    }
+
+    /// Needs ⌘, ⌃ or ⌥ — with only ⇧ it would be typing.
+    var isValid: Bool { modifiers & CGEventFlags([.maskCommand, .maskControl, .maskAlternate]).rawValue != 0 }
+
+    func matches(_ keyCode: UInt16, _ flags: CGEventFlags) -> Bool {
+        keyCode == self.keyCode && flags.rawValue & Self.relevant == modifiers
+    }
+
+    /// "⌃ ⌥ ⌘ M", in the order macOS writes them.
+    var chip: String {
+        var parts: [String] = []
+        let f = CGEventFlags(rawValue: modifiers)
+        if f.contains(.maskControl) { parts.append("⌃") }
+        if f.contains(.maskAlternate) { parts.append("⌥") }
+        if f.contains(.maskShift) { parts.append("⇧") }
+        if f.contains(.maskCommand) { parts.append("⌘") }
+        parts.append(Hotkey(keyCode: keyCode, modifierMask: 0).name)
+        return parts.joined(separator: " ")
+    }
+}
+
 // MARK: - Global key listener
 
 /// Listens to every key press system-wide through a CGEvent tap (needs Accessibility).
@@ -206,6 +245,11 @@ final class KeyListener {
     var onSpaceWhileHeld: (() -> Bool)?
     /// ⌃⌥V: type the last dictation again. Always swallowed.
     var onPasteLast: (() -> Void)?
+    /// The meeting shortcut, in every app (nil: off). Swallowed.
+    var meetingChord: KeyChord? = Settings.meetingShortcut
+    var onMeetingChord: (() -> Void)?
+    /// A new meeting shortcut is being picked: the keys go to the picker.
+    var pickingChord = false
     /// Regular keys are captured on press; modifier combinations on final release.
     var capture: ((Hotkey) -> Void)? {
         didSet {
@@ -288,6 +332,18 @@ final class KeyListener {
             self.capture = nil
             if Int(keyCode) != kVK_Escape { capture(Hotkey(keyCode: keyCode, modifierMask: 0)) }
             else { capture(hotkey) }                                          // Esc = keep the old one
+            return nil
+        }
+
+        // The meeting shortcut. A dictation key held as part of it is a chord, not a dictation.
+        if let chord = meetingChord, !pickingChord, type == .keyDown || type == .keyUp, chord.matches(keyCode, event.flags) {
+            if type == .keyDown, !isRepeat {
+                if hotkey.modifierKeys.count > 1, event.flags.rawValue & hotkey.modifierMask != 0 {
+                    modifierShortcutUsed = true
+                }
+                if isDown { later { $0.onChord?() } }
+                later { $0.onMeetingChord?() }
+            }
             return nil
         }
 

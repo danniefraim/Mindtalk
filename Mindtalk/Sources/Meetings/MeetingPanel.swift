@@ -110,9 +110,13 @@ final class MeetingPanel: ObservableObject {
         AppDelegate.showWindow(page: .meetings)
     }
 
-    /// Back from the window to the panel — the arrow in the window, or closing it.
+    /// Set once the panel has been used: the window stops explaining it.
+    static let tipSeenKey = "meetingPanelTipSeen"
+
+    /// Back from the window to the panel — "Visa som panel" in the window, or closing it.
     func collapse(closingWindow: Bool = true) {
         guard MeetingSession.shared.isBusy else { return }
+        UserDefaults.standard.set(true, forKey: Self.tipSeenKey)
         home = .panel
         if closingWindow, AppDelegate.mainWindowVisible { AppDelegate.hideMainWindow() }
         show()
@@ -121,6 +125,7 @@ final class MeetingPanel: ObservableObject {
     /// The large window was closed while a meeting runs: the panel takes over.
     func mainWindowClosed() {
         guard MeetingSession.shared.isBusy, home == .window else { return }
+        UserDefaults.standard.set(true, forKey: Self.tipSeenKey)
         home = .panel
         show()
     }
@@ -263,7 +268,7 @@ private struct LivePanel: View {
                 Text(session.record?.title ?? "").font(.system(size: 13.5, weight: .semibold)).lineLimit(1)
             }
             Spacer(minLength: 8)
-            PanelIconButton(symbol: "arrow.up.left.and.arrow.down.right", help: "Visa i Mindtalks fönster", action: expand)
+            PanelIconButton(symbol: "pip.exit", help: "Visa i Mindtalks fönster", action: expand)
             PanelIconButton(symbol: "xmark", help: "Stäng panelen – inspelningen fortsätter", action: close)
         }
         .padding(.leading, 18)
@@ -512,4 +517,17 @@ private struct PanelWave: View {
     var body: some View {
         Waveform(levels: meter.levels, gap: 2.5, color: DS.Colors.ink)
     }
+}
+
+/// Counts the times the large window is shown again after being closed.
+///
+/// macOS draws selectable text upside down when it was added or changed while its
+/// window was closed — as happens when a meeting goes on in the panel. Views
+/// with such text take this as their identity, so they are built anew, right side
+/// up, each time the window comes back.
+@MainActor
+final class WindowEpoch: ObservableObject {
+    static let shared = WindowEpoch()
+    @Published private(set) var value = 0
+    func reopened() { value += 1 }
 }
