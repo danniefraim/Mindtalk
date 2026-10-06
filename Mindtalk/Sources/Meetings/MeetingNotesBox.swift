@@ -266,8 +266,16 @@ struct MeetingPrivacyCard: View {
     @State private var asking: Int?
     @State private var consent = MeetingConsent.text
 
+    @State private var summaryLanguage = SummaryLanguage.chosen
+
     var body: some View {
         VStack(spacing: 0) {
+            CardRow(title: "Sammanfattningens språk",
+                    detail: String(localized: "Mötets språk skriver anteckningarna på det språk som talades. Välj ett språk för att alltid få dem på det.")) {
+                MenuPicker(options: SummaryLanguage.allCases.map { ($0, $0.title) }, selection: $summaryLanguage)
+                    .onChange(of: summaryLanguage) { _, new in SummaryLanguage.chosen = new }
+            }
+            CardDivider()
             CardRow(title: "Spara inspelningar",
                     detail: String(localized: "Texten, dina anteckningar och sammanfattningen sparas alltid. Äldre inspelningar flyttas till papperskorgen.")) {
                 MenuPicker(options: MeetingAudio.choices.map { ($0, MeetingAudio.title($0)) },

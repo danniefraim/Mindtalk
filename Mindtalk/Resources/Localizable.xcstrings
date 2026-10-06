@@ -6239,6 +6239,38 @@
         }
       }
     },
+    "Mötets språk": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting's language"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötets språk"
+          }
+        }
+      }
+    },
+    "Mötets språk skriver anteckningarna på det språk som talades. Välj ett språk för att alltid få dem på det.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting's language writes the notes in the language that was spoken. Choose a language to always get them in it."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötets språk skriver anteckningarna på det språk som talades. Välj ett språk för att alltid få dem på det."
+          }
+        }
+      }
+    },
     "Namn": {
       "extractionState": "stale",
       "localizations": {
@@ -6764,6 +6796,54 @@
         }
       }
     },
+    "På engelska": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In English"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "På engelska"
+          }
+        }
+      }
+    },
+    "På mötets språk": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In the meeting's language"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "På mötets språk"
+          }
+        }
+      }
+    },
+    "På svenska": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Swedish"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "På svenska"
+          }
+        }
+      }
+    },
     "Radera": {
       "extractionState": "stale",
       "localizations": {
@@ -7232,6 +7312,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sammanfattningen"
+          }
+        }
+      }
+    },
+    "Sammanfattningens språk": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summary language"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfattningens språk"
           }
         }
       }

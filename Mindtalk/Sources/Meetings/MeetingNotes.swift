@@ -17,6 +17,44 @@ import os
 // The model reads about 3 000 words at a time, so a long meeting is read in
 // parts and the parts' notes are put together.
 
+/// The language meeting notes are written in: the meeting's own (as spoken), or one
+/// you choose — notes in English from a meeting held in Swedish, for instance.
+enum SummaryLanguage: String, CaseIterable, Identifiable {
+    case meeting, swedish, english
+    var id: String { rawValue }
+
+    static var chosen: SummaryLanguage {
+        get { UserDefaults.standard.string(forKey: "summaryLanguage").flatMap(SummaryLanguage.init) ?? .meeting }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "summaryLanguage") }
+    }
+
+    var title: String {
+        switch self {
+        case .meeting: return String(localized: "Mötets språk")
+        case .swedish: return "Svenska"
+        case .english: return "English"
+        }
+    }
+
+    /// In the ⋯ menu: "Sammanfatta igen › På engelska".
+    var menuTitle: String {
+        switch self {
+        case .meeting: return String(localized: "På mötets språk")
+        case .swedish: return String(localized: "På svenska")
+        case .english: return String(localized: "På engelska")
+        }
+    }
+
+    /// What the model is told ("Swedish"), or nil for the meeting's own.
+    var name: String? {
+        switch self {
+        case .meeting: return nil
+        case .swedish: return "Swedish"
+        case .english: return "English"
+        }
+    }
+}
+
 struct MeetingSummary: Codable, Equatable {
     struct Item: Codable, Equatable, Identifiable {
         var id = UUID()
@@ -64,12 +102,13 @@ final class MeetingNotes: ObservableObject {
     static var isAvailable: Bool { Polisher.status == .available || BetterNotes.shared.isActive }
 
     /// Writes (or rewrites) the notes for a saved meeting.
-    func summarize(_ id: UUID) {
+    func summarize(_ id: UUID, in choice: SummaryLanguage = .chosen) {
         guard Self.isAvailable, !writing.contains(id),
               let record = MeetingStore.shared.meetings.first(where: { $0.id == id }), !record.words.isEmpty else { return }
         writing.insert(id)
         failed[id] = nil
-        let lines = Lines(record)
+        var lines = Lines(record)
+        if let name = choice.name { lines.write(in: name) }
         let local = BetterNotes.shared.isActive
         Task {
             defer { writing.remove(id) }
@@ -134,7 +173,9 @@ final class MeetingNotes: ObservableObject {
                 return MeetingRecord.Mark(at: at, kind: kind)
             }
         }
-        let lines = Lines(record)
+        var lines = Lines(record)
+        // `--in English`: notes in another language than the meeting's.
+        if let i = args.firstIndex(of: "--in"), i + 1 < args.count { lines.write(in: args[i + 1]) }
         print("Språk: \(lines.language), \(lines.lines.count) rader, \(lines.parts().count) del(ar)")
         do {
             let t0 = Date()
@@ -409,7 +450,7 @@ final class MeetingNotes: ObservableObject {
             ? "Write the task as a short action in \(language), without saying who does it (that is shown next to it) — " +
               "no I, he, she or name, just what is to be done."
             : "Write it as one short sentence in \(language). Name people as the lines name them (for example " +
-              "\"Talare 1\"); never write I, he, she or they for a person." +
+              "\"\(language == "English" ? "Speaker 1" : "Talare 1")\"); never write I, he, she or they for a person." +
               (kind == .important ? " Say what is important, not that someone finds it important: if the ▶ line only " +
                "says \"that's important\", write what it refers to from the lines before it." : "")
         let ask = "These lines were said in a meeting. Someone pressed a button to mark \(what) while the line " +
@@ -708,16 +749,35 @@ struct Lines: Sendable {
         }
     }
 
-    let lines: [Line]
-    let language: String
+    private(set) var lines: [Line]
+    /// The language the notes are written in — the meeting's own unless you chose another.
+    private(set) var language: String
+    /// The notes are in another language than what was said: an item can't be matched
+    /// to its line by shared words, so the line the model names is trusted when it exists.
+    private(set) var translating = false
+
+    mutating func write(in name: String) {
+        translating = name != language
+        language = name
+        // Unnamed speakers in the notes' language: "Speaker 2" in English notes, "Talare 2" in Swedish.
+        let (from, to) = name == "English" ? ("Talare", "Speaker") : name == "Swedish" ? ("Speaker", "Talare") : ("", "")
+        guard !from.isEmpty else { return }
+        func relabel(_ who: String) -> String {
+            who.range(of: #"^\#(from) \d+$"#, options: .regularExpression) != nil
+                ? who.replacingOccurrences(of: from, with: to) : who
+        }
+        lines = lines.map { Line(speaker: relabel($0.speaker), text: $0.text, start: $0.start) }
+        sentences = sentences.map { Line(speaker: relabel($0.speaker), text: $0.text, start: $0.start) }
+        people = people.map(relabel)
+    }
     /// Your own notes and marks (MeetingNotesBox.swift): they steer the notes.
     let notes: [String]
     let marks: [(at: Double, kind: MeetingRecord.Mark.Kind)]
     /// Sentence by sentence, each with its moment — for the marks, which point at
     /// a few seconds rather than a whole line.
-    let sentences: [Line]
+    private(set) var sentences: [Line]
     var wordCount: Int { lines.reduce(0) { $0 + $1.text.split(separator: " ").count } }
-    private let people: [String]
+    private var people: [String]
 
     @MainActor init(_ record: MeetingRecord) {
         var lines: [Line] = []
@@ -867,6 +927,10 @@ struct Lines: Sendable {
     /// The item, with the moment it was said — if the line the model named (or one
     /// close to it) really says it. `strict`: without a matching line, drop the item.
     func checked(_ text: String, line: Int, strict: Bool = false) -> MeetingSummary.Item? {
+        if translating {
+            guard let at = start(ofLine: line) else { return strict || text.isEmpty ? nil : MeetingSummary.Item(text: text) }
+            return MeetingSummary.Item(text: text, at: at)
+        }
         let words = Self.keys(text)
         let named = line - 1
         var best: (index: Int, score: Double)?

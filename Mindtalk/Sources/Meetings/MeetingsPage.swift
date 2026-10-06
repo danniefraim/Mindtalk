@@ -803,8 +803,14 @@ struct MeetingView: View {
                     Button("Kopiera texten") { put(MeetingText.plain(record)) }
                     Button("Spara som…") { export() }
                     Divider()
-                    Button("Sammanfatta igen") { notes.summarize(record.id) }
-                        .disabled(!MeetingNotes.isAvailable || notes.writing.contains(record.id))
+                    Menu("Sammanfatta igen") {
+                        ForEach(SummaryLanguage.allCases) { choice in
+                            Button(choice.menuTitle) {
+                                notes.summarize(record.id, in: choice)
+                            }
+                        }
+                    }
+                    .disabled(!MeetingNotes.isAvailable || notes.writing.contains(record.id))
                     if record.hasAudio {
                         Button("Lyssna igenom mötet igen") { MeetingSession.shared.finishInterrupted(record.id) }
                             .disabled(MeetingSession.shared.phase != .idle)
