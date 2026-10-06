@@ -7441,6 +7441,22 @@
         }
       }
     },
+    "Spelar in tills nedräkningen är klar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording until the countdown ends."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spelar in tills nedräkningen är klar."
+          }
+        }
+      }
+    },
     "Spelar in, %@": {
       "localizations": {
         "en": {

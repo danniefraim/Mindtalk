@@ -372,6 +372,11 @@ private struct LivePanel: View {
                 .accessibilityElement(children: .combine)
             default:
                 if session.stopping {
+                    Text("Spelar in tills nedräkningen är klar.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(DS.Colors.muted)
+                        .frame(maxWidth: .infinity)
+                        .transition(.opacity)
                     StopCountdown(session: session)
                         .padding(.leading, 18)
                         .padding(.trailing, 7)

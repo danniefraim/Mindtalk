@@ -1628,6 +1628,7 @@ private struct LiveBar: View {
 
     private var caption: (text: String, warning: Bool)? {
         if case .finishing = session.phase { return (String(localized: "Texten blir mer exakt när det är klart."), false) }
+        if session.stopping { return (String(localized: "Spelar in tills nedräkningen är klar."), false) }
         if let w = session.warning { return (w, true) }
         if !panelTipSeen, session.isRecording {
             return (String(localized: "Stäng fönstret så fortsätter mötet i en liten panel."), false)
