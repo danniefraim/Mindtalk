@@ -472,6 +472,9 @@ final class MeetingStore: ObservableObject {
     func name(speaker: Int, in id: UUID, as name: String) {
         guard var record = meetings.first(where: { $0.id == id }) else { return }
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let old = record.names[String(speaker)] {
+            VoiceMemory.shared.corrected(from: old, to: name, meeting: id.uuidString)
+        }
         record.names[String(speaker)] = name
         record.recognized[String(speaker)] = nil
         save(record)

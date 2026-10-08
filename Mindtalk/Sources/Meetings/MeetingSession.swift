@@ -632,6 +632,9 @@ final class MeetingSession: ObservableObject {
     func name(speaker: Int, as name: String) {
         // A new voice named in the round keeps the figure it was shown with.
         if introducing, let figure = introFigures[speaker] { VoiceMemory.shared.reserve(figure, for: name) }
+        if let record, let old = record.names[String(speaker)] {
+            VoiceMemory.shared.corrected(from: old, to: name, meeting: record.id.uuidString)
+        }
         record?.names[String(speaker)] = name.trimmingCharacters(in: .whitespacesAndNewlines)
         record?.recognized[String(speaker)] = nil
         if let record { MeetingStore.shared.save(record) }

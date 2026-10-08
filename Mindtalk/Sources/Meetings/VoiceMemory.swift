@@ -228,6 +228,60 @@ final class VoiceMemory: ObservableObject {
         name.lowercased().trimmingCharacters(in: .whitespaces)
     }
 
+    /// A name corrected in a meeting ("Mattias" → "Mathias"). The voice remembered
+    /// under the old name follows: all of it when it's the same name spelled another
+    /// way, or when it was only ever named in this meeting; otherwise just this
+    /// meeting's print leaves it (learned again under the new name). A spelling fix
+    /// also goes into your Ordlista, so it's written right from now on.
+    func corrected(from old: String, to new: String, meeting: String) {
+        let old = old.trimmingCharacters(in: .whitespaces), new = new.trimmingCharacters(in: .whitespaces)
+        guard Self.isRealName(old), Self.isRealName(new), Self.key(old) != Self.key(new) else { return }
+        let alike = Self.spelledAlike(old, new)
+        if alike { Vocabulary.shared.add(word: new, heardAs: old) }
+        if let figure = reserved.removeValue(forKey: Self.key(old)) { reserved[Self.key(new)] = figure }
+        guard let i = people.firstIndex(where: { Self.key($0.name) == Self.key(old) }) else { return }
+        let sources = people[i].sources ?? []
+        if alike || sources == [meeting] {
+            if let j = people.firstIndex(where: { Self.key($0.name) == Self.key(new) }) {
+                // Already known under the new name: one person.
+                var into = people[j]
+                into.prints += people[i].prints
+                into.sources = (into.sources ?? Array(repeating: "", count: into.prints.count - people[i].prints.count))
+                    + (people[i].sources ?? Array(repeating: "", count: people[i].prints.count))
+                while into.prints.count > 5 { into.prints.removeFirst(); into.sources?.removeFirst() }
+                into.updated = Date()
+                people[j] = into
+                people.remove(at: i)
+            } else {
+                people[i].name = new
+                people[i].updated = Date()
+            }
+        } else if let k = sources.firstIndex(of: meeting), k < people[i].prints.count {
+            people[i].prints.remove(at: k)
+            people[i].sources?.remove(at: k)
+            if people[i].prints.isEmpty { people.remove(at: i) }
+        }
+        save()
+        Self.log.notice("voice renamed in a meeting (same name spelled differently: \(alike))")
+    }
+
+    /// "Mattias" and "Mathias", "Eric" and "Erik": the same start, a letter or two apart —
+    /// but not one name grown from the other ("Johan", "Johanna").
+    nonisolated static func spelledAlike(_ a: String, _ b: String) -> Bool {
+        let a = Array(a.lowercased()), b = Array(b.lowercased())
+        guard let first = a.first, first == b.first, abs(a.count - b.count) <= 1,
+              !a.starts(with: b), !b.starts(with: a) else { return false }
+        var row = Array(0...b.count)
+        for i in 1...a.count {
+            var next = [i] + Array(repeating: 0, count: b.count)
+            for j in 1...b.count {
+                next[j] = min(row[j] + 1, next[j - 1] + 1, row[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1))
+            }
+            row = next
+        }
+        return row[b.count] <= 2
+    }
+
     /// The default "Talare 2" isn't a name; anything you typed is.
     private static func isRealName(_ name: String) -> Bool {
         let n = name.trimmingCharacters(in: .whitespaces)

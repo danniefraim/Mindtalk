@@ -170,6 +170,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                                   ("This is John.", false), ("Sara", true), ("Nästa", true), ("Hallå", true)] {
                 print("\(text) → \(IntroRound.name(in: text, whole: whole) ?? "–")")
             }
+            for (a, b) in [("Mattias", "Mathias"), ("Eric", "Erik"), ("Anna", "Erik"), ("Johan", "Johanna"), ("Sara", "Sarah"), ("Per", "Pelle")] {
+                print("\(a) ~ \(b): \(VoiceMemory.spelledAlike(a, b))")
+            }
             exit(0)
         }
         // `Mindtalk --render-voices out.png [--dark]`: the voices Mindtalk knows, as in
