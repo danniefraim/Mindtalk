@@ -556,18 +556,26 @@ private struct SpeakerChip: View {
 
 /// "Vem är här?" while the round lasts, the meeting after — watching the session
 /// itself, so the meeting is there the moment the round ends, not at the next word.
-private struct IntroductionGate<Meeting: View>: View {
+private struct IntroductionGate<Meeting: View, Bar: View>: View {
     @ObservedObject var session: MeetingSession
     @ViewBuilder let meeting: () -> Meeting
+    @ViewBuilder let bar: () -> Bar
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             if session.introducing {
+                // The round fills the room; the recording pill floats at its foot.
                 VoiceScanner(session: session)
                     .transition(.opacity)
+                bar()
             } else {
-                meeting()
-                    .transition(.opacity)
+                // The meeting: the text above, your notes and the pill below it — the
+                // text ends where they begin, nothing slides in behind them.
+                VStack(spacing: 0) {
+                    meeting().frame(maxHeight: .infinity)
+                    bar()
+                }
+                .transition(.opacity)
             }
         }
         .animation(.easeOut(duration: 0.35), value: session.introducing)
@@ -628,13 +636,15 @@ struct MeetingView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        Group {
             if let session {
-                IntroductionGate(session: session) { meeting }
+                IntroductionGate(session: session) { meeting } bar: { LiveBar(session: session) }
             } else {
-                meeting
+                ZStack(alignment: .bottom) {
+                    meeting
+                    bottomBar
+                }
             }
-            bottomBar
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onDisappear { if MeetingPlayer.shared.meeting == record.id { MeetingPlayer.shared.stop() } }
@@ -931,9 +941,10 @@ struct MeetingView: View {
 
 /// Paper fading out under a floating bar, so text slides under it rather than being cut.
 private struct BottomScrim: View {
+    var height: CGFloat = 70
     var body: some View {
         LinearGradient(colors: [DS.Colors.paper.opacity(0), DS.Colors.paper], startPoint: .top, endPoint: .bottom)
-            .frame(height: 70)
+            .frame(height: height)
             .allowsHitTesting(false)
     }
 }
@@ -985,8 +996,7 @@ private struct TranscriptView: View {
                 .pageColumn(width)
                 .padding(.top, 8)
             }
-            .contentMargins(.bottom, session.map { $0.isRecording ? ($0.showsOpening ? 470 : 270) : 120 } ?? 120,
-                            for: .scrollContent)
+            .contentMargins(.bottom, live ? 28 : 120, for: .scrollContent)
             .scrollContentBackground(.hidden)
             .onScrollGeometryChange(for: Bool.self) { geo in
                 geo.contentOffset.y + geo.containerSize.height >= geo.contentSize.height - 80
@@ -1012,7 +1022,7 @@ private struct TranscriptView: View {
             }
             .overlay(alignment: .bottom) {
                 ZStack(alignment: .bottom) {
-                    BottomScrim()
+                    BottomScrim(height: live ? 22 : 70)
                     if live, !atBottom, !turns.isEmpty {
                         Button {
                             withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) }
@@ -1025,7 +1035,7 @@ private struct TranscriptView: View {
                                 .background(Capsule().fill(DS.Colors.ink))
                         }
                         .buttonStyle(.plain)
-                        .padding(.bottom, session?.isRecording == true ? 250 : 96)
+                        .padding(.bottom, live ? 14 : 96)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
