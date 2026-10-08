@@ -1406,7 +1406,6 @@
       }
     },
     "Avsluta": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6225,6 +6224,7 @@
       }
     },
     "Markera det som sägs just nu: %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6273,6 +6273,7 @@
       }
     },
     "Markerat": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8538,6 +8539,7 @@
       }
     },
     "Skriv en anteckning – en rad per sak": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

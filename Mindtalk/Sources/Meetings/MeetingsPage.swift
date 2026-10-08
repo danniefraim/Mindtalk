@@ -1035,8 +1035,9 @@ private struct TranscriptView: View {
             // Follow the conversation — unless you've scrolled up to read. On what the
             // text takes up, not on how many words: a new name row, a mark or a line
             // that settles also grows it.
-            .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height } action: { old, new in
-                guard live, following, !userScrolling, new > old else { return }
+            // (Or when the room for it shrinks: a card below appears, the note grows.)
+            .onScrollGeometryChange(for: [CGFloat].self) { [$0.contentSize.height, $0.containerSize.height] } action: { old, new in
+                guard live, following, !userScrolling, new != old else { return }
                 withAnimation(.smooth(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) }
             }
             // Listening: the text follows the voice.

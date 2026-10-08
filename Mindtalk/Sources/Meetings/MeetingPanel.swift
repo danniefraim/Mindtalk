@@ -188,10 +188,14 @@ final class MeetingPanel: ObservableObject {
         panel.minSize = NSSize(width: 320, height: 360)
         panel.maxSize = NSSize(width: 560, height: 1400)
         // Buttons answer the first click although the panel never becomes active.
-        panel.contentView = ClickThroughHostingView(
+        let host = ClickThroughHostingView(
             rootView: MeetingPanelView(session: .shared, panel: self,
                                        expand: { [weak self] in self?.expand() },
                                        close: { [weak self] in self?.hide() }))
+        // The panel's size is yours (and fits the screen); a long transcript scrolls
+        // inside it rather than stretching the panel past the bottom of the screen.
+        host.sizingOptions = []
+        panel.contentView = host
         panel.setContentSize(size)
         panel.setFrameAutosaveName("MindtalkMeetingPanel")
         return panel
@@ -204,7 +208,13 @@ final class MeetingPanel: ObservableObject {
         let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main ?? NSScreen.screens.first
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         if panel.setFrameUsingName("MindtalkMeetingPanel"),
-           NSScreen.screens.contains(where: { $0.visibleFrame.intersects(panel.frame.insetBy(dx: 40, dy: 40)) }) {
+           let home = NSScreen.screens.first(where: { $0.visibleFrame.intersects(panel.frame.insetBy(dx: 40, dy: 40)) }) {
+            // Where you put it — but whole on that screen, never taller than it.
+            let room = home.visibleFrame
+            var frame = panel.frame
+            frame.size.height = min(frame.height, room.height)
+            frame.origin.y = min(max(frame.minY, room.minY), room.maxY - frame.height)
+            if frame != panel.frame { panel.setFrame(frame, display: false) }
             return
         }
         let size = NSSize(width: 380, height: min(720, visible.height - 48))
@@ -272,6 +282,10 @@ private struct LivePanel: View {
     let expand: () -> Void
     let close: () -> Void
     @State private var atBottom = true
+    /// As in the window: following the newest text until you scroll up yourself —
+    /// not decided by where the view happens to be when the panel's room changes.
+    @State private var following = true
+    @State private var userScrolling = false
 
     var body: some View {
         let record = session.record
@@ -341,18 +355,27 @@ private struct LivePanel: View {
                 geo.contentOffset.y + geo.containerSize.height >= geo.contentSize.height - 60
             } action: { _, bottom in
                 atBottom = bottom
+                if bottom { following = true }
             }
-            // Follow the conversation — unless you've scrolled up to read. When the text
-            // grows (by any means: words, a name row, a mark) and you were at its end.
-            .onScrollGeometryChange(for: [CGFloat].self) { geo in
-                [geo.contentOffset.y + geo.containerSize.height, geo.contentSize.height]
-            } action: { old, new in
-                guard new[1] > old[1], old[0] >= old[1] - 60 else { return }
+            // Only your own scrolling stops the following: where it ends decides.
+            .onScrollPhaseChange { _, phase in
+                switch phase {
+                case .tracking, .interacting, .decelerating: userScrolling = true
+                case .idle:
+                    if userScrolling { userScrolling = false; following = atBottom }
+                default: break
+                }
+            }
+            // Follow the conversation — when the text grows (words, a name row, a mark)
+            // or the room for it shrinks (a card below appears).
+            .onScrollGeometryChange(for: [CGFloat].self) { geo in [geo.contentSize.height, geo.containerSize.height] } action: { old, new in
+                guard following, !userScrolling, new != old else { return }
                 withAnimation(.smooth(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) }
             }
             .overlay(alignment: .bottom) {
-                if !atBottom, !turns.isEmpty {
+                if !following, !turns.isEmpty {
                     Button {
+                        following = true
                         withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) }
                     } label: {
                         Label("Till nu", systemImage: "arrow.down")
@@ -367,7 +390,7 @@ private struct LivePanel: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .animation(.spring(duration: 0.35, bounce: 0.15), value: atBottom)
+            .animation(.spring(duration: 0.35, bounce: 0.15), value: following)
         }
     }
 
@@ -401,7 +424,6 @@ private struct LivePanel: View {
             }
             if session.isRecording {
                 OpeningCard(session: session, compact: true) { MeetingPanel.shared.roundInWindow() }
-                LiveNotesBox(session: session, compact: true)
             }
             switch session.phase {
             case .finishing(let what):
@@ -427,19 +449,26 @@ private struct LivePanel: View {
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .background(Capsule().fill(DS.Colors.ink))
                         .transition(.opacity)
-                } else {
-                    Button { withAnimation(.spring(duration: 0.3, bounce: 0.15)) { _ = session.requestStop() } } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "stop.fill").font(.system(size: 10.5, weight: .bold))
-                            Text("Avsluta mötet").font(.system(size: 13.5, weight: .semibold))
+                } else if session.isRecording {
+                    // As in the window: one island — your note, the marks, stop. (The
+                    // time is at the top of the panel.)
+                    NoteIsland(session: session, compact: true) { EmptyView() } trailing: {
+                        Button { withAnimation(.spring(duration: 0.3, bounce: 0.15)) { _ = session.requestStop() } } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "stop.fill").font(.system(size: 9.5, weight: .bold))
+                                Text("Avsluta").font(.system(size: 12.5, weight: .semibold))
+                            }
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 12)
+                            .frame(height: 32)
+                            .background(Capsule().fill(.white))
+                            .contentShape(Capsule())
                         }
-                        .foregroundStyle(DS.Colors.onInk)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(Capsule().fill(DS.Colors.ink))
-                        .contentShape(Capsule())
+                        .buttonStyle(.plain)
+                        .help("Avsluta mötet – du kan ångra i några sekunder")
+                        .accessibilityLabel("Avsluta mötet")
                     }
-                    .buttonStyle(.plain)
-                    .help("Avsluta mötet – du kan ångra i några sekunder")
+                    .transition(.opacity)
                 }
             }
         }

@@ -158,59 +158,61 @@ private struct RoundShortcut: ViewModifier {
     }
 }
 
-/// Your notes while the meeting runs, and the three marks.
-struct LiveNotesBox: View {
-    @ObservedObject var session: MeetingSession
-    var compact = false
-    @State private var text = ""
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ZStack(alignment: .topLeading) {
-                if text.isEmpty {
-                    Text("Skriv en anteckning – en rad per sak")
-                        .font(.system(size: 13))
-                        .foregroundStyle(DS.Colors.faint)
-                        .padding(.top, 8)
-                        .padding(.leading, 5)
-                        .allowsHitTesting(false)
-                }
-                TextEditor(text: $text)
-                    .font(.system(size: 13))
-                    .scrollContentBackground(.hidden)
-                    .focused($focused)
-                    .frame(minHeight: compact ? 44 : 40, maxHeight: compact ? 120 : 96)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.horizontal, 7)
-            .padding(.vertical, 2)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(DS.Colors.field))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(focused ? DS.Colors.ink.opacity(0.5) : DS.Colors.fieldStroke, lineWidth: 1))
-            MarkBar(compact: compact) { kind in
-                // With a spring, so the label pops in under the words.
-                withAnimation(.spring(duration: 0.35, bounce: 0.35)) { _ = session.mark(kind) }
-            }
-        }
-        .onAppear { text = session.record?.notesText ?? "" }
-        .onChange(of: text) { _, new in session.setNotes(new) }
-    }
-}
-
 /// While a meeting records, in the window: one island at the foot of the text — the
 /// time, a note (a line per thing), the marks, stop. Dark in both appearances, as
 /// the recording pill always was.
 struct NoteIsland<Leading: View, Trailing: View>: View {
     @ObservedObject var session: MeetingSession
+    /// The panel: too narrow for one row — the note above, the marks and stop below.
+    var compact = false
     @ViewBuilder var leading: Leading
     @ViewBuilder var trailing: Trailing
     @State private var text = ""
     @FocusState private var focused: Bool
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            leading
+        Group {
+            if compact {
+                VStack(spacing: 8) {
+                    field
+                    HStack(spacing: 10) {
+                        leading
+                        marks
+                        Spacer(minLength: 0)
+                        trailing
+                    }
+                    .padding(.leading, 4)
+                }
+                .padding(8)
+                .frame(maxWidth: .infinity)
+            } else {
+                HStack(alignment: .center, spacing: 12) {
+                    leading
+                    field
+                    marks
+                    trailing
+                }
+                .padding(.leading, 18)
+                .padding(.trailing, 7)
+                .padding(.vertical, 7)
+                .frame(maxWidth: 680)
+            }
+        }
+        .background(RoundedRectangle(cornerRadius: compact ? 20 : 23, style: .continuous).fill(Color(white: 0.07)))
+        .overlay(RoundedRectangle(cornerRadius: compact ? 20 : 23, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
+        .shadow(color: .black.opacity(compact ? 0.18 : 0.28), radius: 10, y: 4)
+        .environment(\.colorScheme, .dark)
+        .onAppear { text = session.record?.notesText ?? "" }
+        .onChange(of: text) { _, new in session.setNotes(new) }
+    }
+
+    private var marks: some View {
+        MarkIcons { kind in
+            withAnimation(.spring(duration: 0.35, bounce: 0.35)) { _ = session.mark(kind) }
+        }
+    }
+
+    private var field: some View {
             ZStack(alignment: .topLeading) {
                 if text.isEmpty {
                     Text("Anteckning – en rad per sak")
@@ -232,21 +234,6 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
             .padding(.vertical, 1)
             .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(.white.opacity(focused ? 0.1 : 0.06)))
             .animation(.easeOut(duration: 0.2), value: focused)
-            MarkIcons { kind in
-                withAnimation(.spring(duration: 0.35, bounce: 0.35)) { _ = session.mark(kind) }
-            }
-            trailing
-        }
-        .padding(.leading, 18)
-        .padding(.trailing, 7)
-        .padding(.vertical, 7)
-        .frame(maxWidth: 680)
-        .background(RoundedRectangle(cornerRadius: 23, style: .continuous).fill(Color(white: 0.07)))
-        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.28), radius: 10, y: 4)
-        .environment(\.colorScheme, .dark)
-        .onAppear { text = session.record?.notesText ?? "" }
-        .onChange(of: text) { _, new in session.setNotes(new) }
     }
 }
 
@@ -282,58 +269,6 @@ private struct MarkIcons: View {
                 .accessibilityLabel("Markera \(kind.title.lowercased())")
             }
         }
-    }
-}
-
-/// Beslut · Att göra · Viktigt — one joined row, each with its icon in its own
-/// quiet colour. A press flashes the part you pressed and says it took.
-private struct MarkBar: View {
-    var compact = false
-    let mark: (MeetingRecord.Mark.Kind) -> Void
-    @State private var flashed: MeetingRecord.Mark.Kind?
-    @State private var hovered: MeetingRecord.Mark.Kind?
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(MeetingRecord.Mark.Kind.allCases.enumerated()), id: \.element) { i, kind in
-                if i > 0 { Rectangle().fill(DS.Colors.fieldStroke).frame(width: 0.5).padding(.vertical, 8) }
-                segment(kind)
-            }
-        }
-        .frame(height: compact ? 46 : 48)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(DS.Colors.field))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-
-    private func segment(_ kind: MeetingRecord.Mark.Kind) -> some View {
-        let on = flashed == kind
-        return Button {
-            mark(kind)
-            withAnimation(.easeOut(duration: 0.15)) { flashed = kind }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                if flashed == kind { withAnimation(.easeOut(duration: 0.4)) { flashed = nil } }
-            }
-        } label: {
-            VStack(spacing: 3) {
-                Image(systemName: on ? "checkmark" : kind.symbol)
-                    .font(.system(size: 14.5, weight: .semibold))
-                    .foregroundStyle(kind.tint)
-                    .contentTransition(.symbolEffect(.replace))
-                    .frame(height: 17)
-                Text(on ? String(localized: "Markerat") : kind.title)
-                    .font(.system(size: 11.5, weight: .medium))
-                    .foregroundStyle(on ? kind.tint : .primary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(on ? kind.tint.opacity(0.14) : hovered == kind ? DS.Colors.chip.opacity(0.7) : .clear)
-            .contentShape(Rectangle())
-            .scaleEffect(on ? 0.97 : 1)
-        }
-        .buttonStyle(.plain)
-        .onHover { hovered = $0 ? kind : (hovered == kind ? nil : hovered) }
-        .help("Markera det som sägs just nu: \(kind.title.lowercased())")
-        .accessibilityLabel("Markera \(kind.title.lowercased())")
     }
 }
 

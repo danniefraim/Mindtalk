@@ -439,6 +439,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 Self.showWindow(page: .meetings)
                 MeetingSession.shared.start(introducing: args.contains("--round"))
                 print("[auto] möte startat, runda: \(MeetingSession.shared.introducing), fel: \(MeetingSession.shared.lastError ?? "inget")")
+                // `--in-panel`: the meeting in its panel, as when started from the menu bar.
+                if args.contains("--in-panel") {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) { MeetingPanel.shared.collapse() }
+                }
             }
         }
         if let i = args.firstIndex(of: "--relisten"), i + 1 < args.count {
