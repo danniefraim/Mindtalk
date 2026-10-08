@@ -1097,6 +1097,24 @@ private struct TranscriptView: View {
     }
 }
 
+extension MeetingTurn {
+    /// What was said, with others' "Mm" in its place — small and muted, named.
+    @MainActor func spoken(cast: Cast) -> Text {
+        guard !asides.isEmpty else { return Text(text) }
+        var out = Text("")
+        var from = text.startIndex
+        for aside in asides {
+            let cut = text.index(text.startIndex, offsetBy: min(aside.at, text.count))
+            if cut > from { out = Text("\(out)\(String(text[from..<cut]))") }
+            let tag = Text(" (\(cast.name(of: aside.speaker)): \(aside.text))")
+                .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+            out = Text("\(out)\(tag)")
+            from = max(from, cut)
+        }
+        return Text("\(out)\(String(text[from...]))")
+    }
+}
+
 /// One turn: the speaker's mark in the margin, their name, and what they said —
 /// what's still being written in grey, ending in Mindtalk's cursor.
 private struct TurnRow: View {
@@ -1220,7 +1238,7 @@ private struct TurnRow: View {
     }
 
     private func text(cursor: Bool?) -> Text {
-        var out = Text(turn.text)
+        var out = turn.spoken(cast: cast)
         if !turn.pending.isEmpty {
             let pending = Text(turn.text.isEmpty ? turn.pending : " " + turn.pending).foregroundStyle(DS.Colors.muted)
             out = Text("\(out)\(pending)")

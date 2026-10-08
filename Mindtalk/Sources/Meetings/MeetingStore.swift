@@ -261,6 +261,16 @@ struct MeetingTurn: Identifiable, Equatable {
     var text: String
     /// Still being written: may change.
     var pending: String
+    /// Someone else's "Mm" or "Ja" while this was said — shown in its place in the text
+    /// rather than as a turn of its own that would split this one in two.
+    var asides: [Aside] = []
+
+    struct Aside: Equatable {
+        let speaker: Int
+        let text: String
+        /// Where in `text` it was said (characters).
+        let at: Int
+    }
 }
 
 enum MeetingText {
@@ -282,12 +292,23 @@ enum MeetingText {
         let all = words.map { ($0, false) } + pending.map { ($0, true) }
         for (i, (word, isPending)) in all.enumerated() {
             var speaker = word.speaker
+            // Words still being written that no voice has claimed yet, after a pause:
+            // someone may have taken over — a row of their own until it's known.
+            let unclaimed = isPending && speaker == nil && previous.map { word.start - $0.end >= 1.0 } ?? false
+            if unclaimed, current?.speaker != nil {
+                flush()
+                current = (i, nil, word.start, [], [word.text])
+                previous = word
+                continue
+            }
             if speaker == nil || speaker == MeetingWord.unknown { speaker = current?.speaker ?? speaker }
             defer { previous = word }
             var breaks = false
-            if paragraphs, !isPending, let c = current, c.pending.isEmpty, let previous {
+            if paragraphs, let c = current, let previous {
                 let sentenceOver = previous.text.last.map { ".?!".contains($0) } ?? false
-                breaks = word.start - previous.end >= 2 || (c.words.count >= 60 && sentenceOver)
+                breaks = isPending || !c.pending.isEmpty
+                    ? word.start - previous.end >= 2
+                    : word.start - previous.end >= 2 || (c.words.count >= 60 && sentenceOver)
             }
             if !breaks, let c = current, c.speaker == speaker || speaker == nil || speaker == MeetingWord.unknown {
                 if isPending { current?.pending.append(word.text) } else if c.pending.isEmpty {
@@ -301,19 +322,60 @@ enum MeetingText {
             current = (i, speaker, word.start, isPending ? [] : [word.text], isPending ? [word.text] : [])
         }
         flush()
-        return turns
+        return paragraphs ? folded(turns) : turns
+    }
+
+    /// For reading: a turn that came out empty (only "eh") goes, and someone else's
+    /// short "Mm", "Ja", "Precis" goes into the turn it interrupted — which then reads
+    /// on as one, instead of being split in two by it.
+    @MainActor static func folded(_ turns: [MeetingTurn]) -> [MeetingTurn] {
+        var out: [MeetingTurn] = []
+        var rejoin = false
+        for turn in turns {
+            if turn.text.isEmpty && turn.pending.isEmpty { rejoin = true; continue }
+            if let speaker = turn.speaker, speaker >= 0, turn.pending.isEmpty, isBackchannel(turn.text),
+               let last = out.last, let other = last.speaker, other >= 0, other != speaker {
+                out[out.count - 1].asides.append(.init(speaker: speaker, text: turn.text, at: last.text.count))
+                rejoin = true
+                continue
+            }
+            if rejoin, let last = out.last, last.speaker == turn.speaker, last.pending.isEmpty {
+                out[out.count - 1].text += last.text.isEmpty ? turn.text : " " + turn.text
+                out[out.count - 1].pending = turn.pending
+                out[out.count - 1].asides += turn.asides
+            } else {
+                out.append(turn)
+            }
+            rejoin = false
+        }
+        return out
+    }
+
+    private static let backchannels: Set<String> = [
+        "mm", "mhm", "mmm", "hm", "ja", "jaa", "japp", "jo", "precis", "exakt", "okej", "ok", "absolut", "visst",
+        "just det", "jaha", "aha", "nej", "nä", "yes", "yeah", "right", "sure", "okay", "uh-huh", "ja ja", "mm mm",
+    ]
+
+    static func isBackchannel(_ text: String) -> Bool {
+        let key = text.lowercased().filter { $0.isLetter || $0 == " " || $0 == "-" }
+            .trimmingCharacters(in: .whitespaces)
+        return key.split(separator: " ").count <= 2 && backchannels.contains(key)
     }
 
     /// Hesitation sounds out, your spellings in — as for dictation. Remembered,
     /// since a live meeting redraws its turns twice a second.
     @MainActor static func clean(_ raw: String) -> String {
         if let done = cache[raw] { return done }
+        if let done = older[raw] { cache[raw] = done; return done }
         let text = Vocabulary.shared.reapply(TextCleanup.apply(raw, fillers: Settings.removeFillers, commands: false))
-        if cache.count > 4_000 { cache.removeAll() }
+        // Two generations: when this one fills, it becomes the older one — what's still
+        // on screen is found there, rather than all cleaned again in one frame.
+        if cache.count > 2_000 { older = cache; cache = [:] }
         cache[raw] = text
         return text
     }
     @MainActor private static var cache: [String: String] = [:]
+    @MainActor private static var older: [String: String] = [:]
 
     /// Who spoke when: runs of one speaker, a pause of up to 1.5 s kept inside.
     struct Segment: Equatable {

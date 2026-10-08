@@ -555,7 +555,7 @@ private struct PanelTurn: View {
     }
 
     private var text: Text {
-        var out = Text(turn.text)
+        var out = turn.spoken(cast: cast)
         if !turn.pending.isEmpty {
             let pending = Text(turn.text.isEmpty ? turn.pending : " " + turn.pending).foregroundStyle(DS.Colors.muted)
             out = Text("\(out)\(pending)")

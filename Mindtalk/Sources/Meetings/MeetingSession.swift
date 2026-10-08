@@ -901,7 +901,11 @@ final class MeetingSession: ObservableObject {
     /// say otherwise, and only publishes a change.
     private func setPending(_ words: [MeetingWord]) {
         var words = words
-        if let speaker = pending.first?.speaker { for j in words.indices { words[j].speaker = speaker } }
+        // A word read again keeps its speaker; a new one waits for the voices (it is
+        // not handed the speaker of whoever happened to talk before it).
+        for j in words.indices where words[j].speaker == nil {
+            words[j].speaker = pending.first { abs($0.start - words[j].start) < 0.2 }?.speaker
+        }
         if words != pending { pending = words }
     }
 
@@ -936,13 +940,25 @@ final class MeetingSession: ObservableObject {
         MeetingRecord.apply(record?.moves ?? [], to: &words, from: from)
         // The page redraws on every change: only say so when there is one.
         if words != before { record?.words = words }
-        // Still being written: whoever is speaking in them so far.
-        let frames = scores.count / VoiceTracker.speakers
-        if let first = pending.first, let last = pending.last, Int(first.start * 100) < frames {
-            let s = Self.speaker(in: scores, from: first.start, to: last.end)
-            let mapped = s >= 0 ? (map[s] ?? s) : s
+        // Still being written: whoever the voices hear in each part of them. Beyond
+        // what they've heard so far (they lag a few seconds), a word goes on with the
+        // speaker before it when there's no real pause — after one, it waits ("Känner
+        // igen rösten…") rather than showing up under the wrong name.
+        if !pending.isEmpty {
             var labelled = pending
-            for j in labelled.indices { labelled[j].speaker = aliases[mapped] ?? mapped }
+            _ = Self.assignSentences(&labelled, from: 0, scores: scores, final: true)
+            var before = words.last
+            for j in labelled.indices {
+                if let s = labelled[j].speaker, s >= 0 {
+                    let mapped = map[s] ?? s
+                    labelled[j].speaker = aliases[mapped] ?? mapped
+                } else if let b = before, let bs = b.speaker, bs >= 0, labelled[j].start - b.end < 1.0 {
+                    labelled[j].speaker = bs
+                } else {
+                    labelled[j].speaker = nil
+                }
+                before = labelled[j]
+            }
             if labelled != pending { pending = labelled }
         }
     }
@@ -1324,6 +1340,10 @@ final class MeetingSession: ObservableObject {
         var sums = [Float](repeating: 0, count: n)
         for f in a..<b { for s in 0..<n { sums[s] += scores[f * n + s] } }
         guard let best = sums.indices.max(by: { sums[$0] < sums[$1] }) else { return MeetingWord.unknown }
+        // Two voices about as strong (talking at once, or a near tie): undecided — the
+        // words stay with whoever spoke before rather than flip back and forth.
+        let second = sums.indices.filter { $0 != best }.map { sums[$0] }.max() ?? 0
+        guard (sums[best] - second) / Float(b - a) >= 0.02 else { return MeetingWord.unknown }
         return sums[best] / Float(b - a) > 0.05 ? best : MeetingWord.unknown
     }
 
