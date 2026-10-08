@@ -422,10 +422,12 @@ final class IntroRound: ObservableObject {
     private func nameInTurn() -> (name: String, from: Double, to: Double)? {
         let heardTo = seconds(cursor)
         for run in Self.utterances(turnWords()).reversed() {
-            guard let first = run.first, let last = run.last, last.end <= heardTo - 0.5 else { continue }
+            // (The speech model can stretch the last word over the quiet after it —
+            // "här" 11.8–15.6 — so a pause the microphone hears counts too.)
+            guard let first = run.first, let last = run.last, last.end <= heardTo - 0.5 || silence >= 0.5 else { continue }
             let text = MeetingText.clean(run.map(\.text).joined(separator: " "))
             guard let name = Self.name(in: text, whole: true) else { continue }
-            return (name, first.start - 0.1, last.end + 0.1)
+            return (name, first.start - 0.1, min(last.end, last.start + 1.2) + 0.1)
         }
         return nil
     }
