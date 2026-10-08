@@ -117,3 +117,82 @@ enum RewriteCompare {
     }
 }
 #endif
+
+#if DEBUG
+import MLX
+import MLXLLM
+import MLXLMCommon
+
+// `Mindtalk --rewrite-models 20 out.json dir`: the same dictations and instruction
+// through one MLX model in a folder, the answers and times saved as JSON — run it once
+// per model, then `--rewrite-report` puts them side by side.
+extension RewriteCompare {
+    struct Answer: Codable { let original: String; let rules: String; let text: String; let seconds: Double; let language: String }
+
+    @MainActor static func items(_ count: Int) -> [String] {
+        let url = SpeechModel.rootDirectory.deletingLastPathComponent().appendingPathComponent("Recent.json")
+        struct Item: Decodable { let text: String }
+        return ((try? JSONDecoder().decode([Item].self, from: Data(contentsOf: url))) ?? [])
+            .map(\.text)
+            .sorted { $0.split(separator: " ").count > $1.split(separator: " ").count }
+            .prefix(count).map { $0 }
+    }
+
+    @MainActor static func runModel(count: Int, folder: URL, out: URL) async {
+        let t0 = Date()
+        guard let model = try? await loadModelContainer(from: folder, using: TokenizerFolder()) else {
+            print("Kunde inte ladda \(folder.lastPathComponent)"); return
+        }
+        print(String(format: "%@ laddad på %.0f s", folder.lastPathComponent, Date().timeIntervalSince(t0)))
+        var answers: [Answer] = []
+        for (k, text) in items(count).enumerated() {
+            let rules = TextCleanup.apply(text, fillers: true, commands: false)
+            let lang = languageName(rules)
+            let session = ChatSession(model, generateParameters: GenerateParameters(maxTokens: 700, temperature: 0),
+                                      additionalContext: ["enable_thinking": false])
+            let t = Date()
+            let answer = (try? await session.respond(to: instructions(lang.name) + "\n\nDictation:\n" + rules)) ?? "⚠︎ inget svar"
+            let secs = Date().timeIntervalSince(t)
+            let clean = answer.replacingOccurrences(of: #"(?s)<think>.*?</think>"#, with: "", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            answers.append(Answer(original: text, rules: rules, text: clean, seconds: secs, language: languageName(clean).code))
+            print(String(format: "#%d %.1f s%@", k + 1, secs, languageName(clean).code == lang.code ? "" : " · fel språk"))
+        }
+        try? JSONEncoder().encode(answers).write(to: out)
+        print("Sparat: \(out.path)")
+    }
+
+    /// `--rewrite-report out.html name=file.json …`: the saved answers side by side.
+    static func report(columns: [(String, URL)], out: URL) {
+        let sets = columns.compactMap { name, url -> (String, [Answer])? in
+            guard let data = try? Data(contentsOf: url), let a = try? JSONDecoder().decode([Answer].self, from: data) else { return nil }
+            return (name, a)
+        }
+        guard let first = sets.first?.1 else { return }
+        func median(_ v: [Double]) -> Double { let s = v.sorted(); return s.isEmpty ? 0 : s[s.count / 2] }
+        var h = """
+        <!doctype html><html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Skriftspråk: modeller</title><style>
+        :root{--bg:#fbfbfb;--ink:#111;--muted:#666;--card:#fff;--line:#e6e6e6}
+        @media (prefers-color-scheme: dark){:root{--bg:#0e0e0e;--ink:#f2f2f2;--muted:#a9a9a9;--card:#1a1a1a;--line:#2c2c2c}}
+        body{background:var(--bg);color:var(--ink);font:14.5px/1.5 -apple-system,system-ui,sans-serif;margin:0;padding:32px 16px}
+        main{max-width:1500px;margin:0 auto}h1{font:400 30px ui-serif,Georgia,serif;margin:0 0 6px}.sum{color:var(--muted);margin-bottom:24px}
+        .row{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+        .grid{display:grid;grid-template-columns:repeat(\(sets.count + 1),minmax(0,1fr));gap:14px}@media (max-width:900px){.grid{grid-template-columns:1fr}}
+        h3{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;font-weight:600}
+        </style></head><body><main><h1>Skriftspråk: mindre modeller mot Gemma 4 26B</h1><div class="sum">
+        """
+        h += sets.map { esc($0.0) + String(format: ": median %.1f s, längsta %.1f s", median($0.1.map(\.seconds)), $0.1.map(\.seconds).max() ?? 0) }
+            .joined(separator: " · ") + "</div>"
+        for i in first.indices {
+            h += "<div class=\"row\"><div class=\"grid\"><div><h3>#\(i + 1) Dikterat</h3>\(esc(first[i].rules))</div>"
+            for (name, a) in sets where i < a.count {
+                h += "<div><h3>\(esc(name)) · \(String(format: "%.1f", a[i].seconds)) s</h3>\(esc(a[i].text))</div>"
+            }
+            h += "</div></div>"
+        }
+        try? (h + "</main></body></html>").write(to: out, atomically: true, encoding: .utf8)
+        print("Rapport: \(out.path)")
+    }
+}
+#endif

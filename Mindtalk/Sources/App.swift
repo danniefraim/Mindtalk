@@ -243,6 +243,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --rewrite-models 20 out.json folder` and `--rewrite-report out.html name=file.json …`
+        if let i = args.firstIndex(of: "--rewrite-models"), i + 3 < args.count {
+            Task { @MainActor in
+                await RewriteCompare.runModel(count: Int(args[i + 1]) ?? 20, folder: URL(fileURLWithPath: args[i + 3]),
+                                              out: URL(fileURLWithPath: args[i + 2]))
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
+        if let i = args.firstIndex(of: "--rewrite-report"), i + 2 < args.count {
+            let cols = args[(i + 2)...].compactMap { a -> (String, URL)? in
+                let p = a.split(separator: "=", maxSplits: 1); return p.count == 2 ? (String(p[0]), URL(fileURLWithPath: String(p[1]))) : nil
+            }
+            RewriteCompare.report(columns: cols, out: URL(fileURLWithPath: args[i + 1]))
+            exit(0)
+        }
         // `Mindtalk --rewrite-compare 20 out.html`: written language, Apple against Gemma (RewriteCompare).
         if let i = args.firstIndex(of: "--rewrite-compare"), i + 2 < args.count {
             Task { @MainActor in

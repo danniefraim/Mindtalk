@@ -243,7 +243,7 @@ actor LocalWriter {
 }
 
 /// The model's tokenizer, read from its folder by swift-transformers, in MLX's terms.
-private struct TokenizerFolder: MLXLMCommon.TokenizerLoader {
+struct TokenizerFolder: MLXLMCommon.TokenizerLoader {
     func load(from directory: URL) async throws -> any MLXLMCommon.Tokenizer {
         TokenizerBridge(try await Tokenizers.AutoTokenizer.from(modelFolder: directory))
     }
