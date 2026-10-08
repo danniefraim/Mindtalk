@@ -4,7 +4,8 @@
 FluidAudio is compiled into Mindtalk, so its licence (Apache 2.0) and the
 third-party notices it carries (among them fastcluster, BSD) must travel with
 the app. The speech models are downloaded by the user from Hugging Face and
-are credited here too (CC BY 4.0).
+are credited here too (CC BY 4.0). The voice model (ReDimNet2+) is included
+in the app, so its licences are written out in full.
 
 Run after `make build` (it reads the resolved package checkout), and again
 whenever FluidAudio is updated:  python3 scripts/acknowledgements.py
@@ -72,6 +73,67 @@ Gemma 4 26B-A4B (instruction-tuned) — by Google DeepMind
   https://huggingface.co/lmstudio-community/gemma-4-26B-A4B-it-MLX-4bit
   Licence: Apache License, Version 2.0
   https://www.apache.org/licenses/LICENSE-2.0
+
+
+VOICE MODEL (INCLUDED)
+{rule}
+
+"Känn igen röster" turns a voice into a voiceprint with this model. It is
+included in Mindtalk and runs on your Mac; nothing is downloaded or sent.
+
+ReDimNet2+ — by LAB260
+  https://huggingface.co/lab260/redimnet2-plus
+  Weights licence: Apache License, Version 2.0 (full text under FluidAudio below)
+  Built on ReDimNet2 by Palabra.ai: https://github.com/PalabraAI/redimnet2
+  Converted to Core ML and quantised to 8 bits by Mindact Solutions AB.
+
+ReDimNet2+ code licence:
+
+MIT License
+
+Copyright (c) 2026 LAB260 
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+ReDimNet2 code licence:
+
+MIT License
+
+Copyright (c) 2026 Palabra.ai
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 
 FLUIDAUDIO {version}
