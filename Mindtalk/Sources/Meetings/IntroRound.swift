@@ -488,8 +488,9 @@ final class IntroRound: ObservableObject {
     }
 
     /// A name in what was said: "jag heter Anna", "det är Anna", "Anna här" — or, said
-    /// on its own (`whole`), just "Anna": a capitalised word that isn't an ordinary
-    /// word in the language (your Ordlista's words count as names).
+    /// on its own (`whole`), just "Anna": a first name people in Sweden have (or one in
+    /// your Ordlista, or a voice you've named), not an ordinary word — so a misheard
+    /// sound never becomes someone's name.
     static func name(in text: String, whole: Bool) -> String? {
         if let name = VoiceScanner.spokenName(in: text) { return name }
         let ns = text as NSString
@@ -501,16 +502,14 @@ final class IntroRound: ObservableObject {
         guard whole else { return nil }
         let tokens = text.split(whereSeparator: { !$0.isLetter && $0 != "-" }).map(String.init)
         guard (1...3).contains(tokens.count) else { return nil }
-        let names = tokens.filter { t in
+        let capitalised = { (t: String) in
             t.count >= 2 && t.first?.isUppercase == true && !VoiceScanner.greetings.contains(t.lowercased())
                 && !TextCleanup.isOrdinaryWord(t.lowercased(), in: text)
         }
-        guard let first = names.first else { return nil }
-        // "Anna Svensson": both, when said together.
-        if names.count == 2, let i = tokens.firstIndex(of: first), i + 1 < tokens.count, tokens[i + 1] == names[1] {
-            return first + " " + names[1]
-        }
-        return first
+        guard let i = tokens.firstIndex(where: { capitalised($0) && FirstNames.isName($0) }) else { return nil }
+        // "Anna Svensson": the surname too, when said with it.
+        if i + 1 < tokens.count, capitalised(tokens[i + 1]) { return tokens[i] + " " + tokens[i + 1] }
+        return tokens[i]
     }
 
     /// Keeps the round's place in a countdown the scanner can show.

@@ -44,6 +44,22 @@ Gemma 4 26B-A4B (instruction-tuned) — by Google DeepMind
   https://www.apache.org/licenses/LICENSE-2.0
 
 
+FIRST NAMES (INCLUDED)
+========================================================================
+
+The round of introductions ("Vem är här?") takes a name said on its own only
+if it is one of the first names people in Sweden have — so a misheard sound
+never becomes someone's name. The list (FirstNames.txt) is every first name
+at least twenty people carried in 2020.
+
+Source: Statistiska centralbyrån (Statistics Sweden, SCB),
+  "Statistik över namn efter födelseland 2020",
+  via Svensk nationell datatjänst: https://doi.org/10.5878/fc4h-rp11
+  Licence: Creative Commons Attribution 4.0 International (CC BY 4.0)
+  https://creativecommons.org/licenses/by/4.0/
+  Reduced to the names alone (no counts) by Mindact Solutions AB.
+
+
 VOICE MODEL (INCLUDED)
 ========================================================================
 

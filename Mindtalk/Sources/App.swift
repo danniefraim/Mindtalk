@@ -167,7 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                                   ("Okej, det blir bra.", true), ("Erik här.", true), ("Jag heter Lisa.", false),
                                   ("Det här var Johan. Hej", false), ("Det här var Johan Hej hej", false), ("Hej, det är Karin.", false), ("Johan", true),
                                   ("Per", true), ("Bra", true), ("Tack", true), ("Stockholm", true), ("Johanna Berg här", true),
-                                  ("This is John.", false), ("Sara", true), ("Nästa", true), ("Hallå", true)] {
+                                  ("This is John.", false), ("Sara", true), ("Nästa", true), ("Hallå", true), ("Nigg", true), ("Käll", true), ("Mathias", true), ("Nellie här", true), ("Liam", true)] {
                 print("\(text) → \(IntroRound.name(in: text, whole: whole) ?? "–")")
             }
             for (a, b) in [("Mattias", "Mathias"), ("Eric", "Erik"), ("Anna", "Erik"), ("Johan", "Johanna"), ("Sara", "Sarah"), ("Per", "Pelle")] {

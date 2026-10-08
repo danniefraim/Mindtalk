@@ -5,7 +5,8 @@ FluidAudio is compiled into Mindtalk, so its licence (Apache 2.0) and the
 third-party notices it carries (among them fastcluster, BSD) must travel with
 the app. The speech models are downloaded by the user from Hugging Face and
 are credited here too (CC BY 4.0). The voice model (ReDimNet2+) is included
-in the app, so its licences are written out in full.
+in the app, so its licences are written out in full; so is the list of first
+names (SCB, CC BY 4.0) the round of introductions uses.
 
 Run after `make build` (it reads the resolved package checkout), and again
 whenever FluidAudio is updated:  python3 scripts/acknowledgements.py
@@ -73,6 +74,22 @@ Gemma 4 26B-A4B (instruction-tuned) — by Google DeepMind
   https://huggingface.co/lmstudio-community/gemma-4-26B-A4B-it-MLX-4bit
   Licence: Apache License, Version 2.0
   https://www.apache.org/licenses/LICENSE-2.0
+
+
+FIRST NAMES (INCLUDED)
+{rule}
+
+The round of introductions ("Vem är här?") takes a name said on its own only
+if it is one of the first names people in Sweden have — so a misheard sound
+never becomes someone's name. The list (FirstNames.txt) is every first name
+at least twenty people carried in 2020.
+
+Source: Statistiska centralbyrån (Statistics Sweden, SCB),
+  "Statistik över namn efter födelseland 2020",
+  via Svensk nationell datatjänst: https://doi.org/10.5878/fc4h-rp11
+  Licence: Creative Commons Attribution 4.0 International (CC BY 4.0)
+  https://creativecommons.org/licenses/by/4.0/
+  Reduced to the names alone (no counts) by Mindact Solutions AB.
 
 
 VOICE MODEL (INCLUDED)
