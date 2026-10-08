@@ -116,10 +116,6 @@ final class MeetingSession: ObservableObject {
 
     private static let rate = 16_000
 
-    #if DEBUG
-    /// Self-test: an audio file played in as if it were the microphone.
-    private var simulation: (start: Date, speed: Double)?
-
     /// `--fake-mic fil.caf` (DEBUG): a real meeting, window and all, heard from a recording.
     static var fakeMic: URL? {
         #if DEBUG
@@ -130,6 +126,10 @@ final class MeetingSession: ObservableObject {
         nil
         #endif
     }
+
+    #if DEBUG
+    /// Self-test: an audio file played in as if it were the microphone.
+    private var simulation: (start: Date, speed: Double)?
 
     #if DEBUG
     private func feedFake(_ url: URL) {
