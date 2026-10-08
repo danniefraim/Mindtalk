@@ -1,0 +1,440 @@
+import AppKit
+import Foundation
+import os
+
+// MARK: - The guided round ("Vem är här?")
+//
+// One person at a time: "Tur 1 – säg hej, ditt namn och vad du gör här." Mindtalk
+// knows whose turn it is, so it doesn't wait for the voices to be told apart: the
+// audio from that person's first word is theirs. A ring fills as they speak; from a
+// second and a half of speech the voice is compared with the people you know, twice
+// a second — a known voice is greeted at once ("Välkommen tillbaka, Anna"), a new one
+// is asked for its name (filled in when they said it). Then the next turn. A short
+// silence after someone has spoken moves the round on by itself; "Nästa" is there
+// to skip the wait. When nobody new speaks, it counts down and ends.
+//
+// After the round, each turn is matched to the voice the live separation heard in
+// that stretch, and the names go there.
+//
+// Measured on real meetings (scripts in the scratchpad bench): recognition is safe
+// from 1.5 s of speech with the usual thresholds (0.60, lead 0.10) — strangers never
+// scored above 0.58 — and most known voices are found within 2–3 s. Pauses inside an
+// introduction are often 0.7–1 s, so a turn ends only after a longer silence.
+
+@MainActor
+final class IntroRound: ObservableObject {
+    enum Phase: Equatable {
+        case ready              // "Tur 2 – nästa person"
+        case listening          // the ring filling
+        case known(String)      // "Välkommen tillbaka, Anna"
+        case new                // the name card
+        case same(String)       // the last person again
+        case closing            // nobody new: counting down to the meeting
+    }
+
+    struct Capture: Identifiable, Equatable {
+        let id = UUID()
+        let name: String
+        let known: Bool
+        let score: Float?
+        let from: Double
+        let to: Double
+        let print: [Float]?
+        let figure: VoiceFigure
+        let colour: Int
+    }
+
+    @Published private(set) var turn = 1
+    @Published private(set) var phase: Phase = .ready
+    /// The ring: how much of the speech needed has been heard (0…1).
+    @Published private(set) var progress: Double = 0
+    @Published private(set) var captures: [Capture] = []
+    /// The figure the cloud falls into, once there is a voice.
+    @Published private(set) var figure: VoiceFigure?
+    /// Nothing heard for a while in this turn.
+    @Published private(set) var quiet = false
+    /// A new voice: the name said ("jag heter Erik"), and when it saves by itself.
+    @Published var draft = ""
+    @Published private(set) var autoSaveAt: Date?
+    /// Typed by hand: a name said aloud no longer replaces it.
+    private var typed = false
+    /// Where the name card's listening began (seconds into the meeting).
+    private var askedAt = 0.0
+    @Published private(set) var closingAt: Date?
+    /// The round wants to end (the countdown ran out): the scanner fades it out.
+    @Published private(set) var wantsToEnd = false
+
+    private weak var session: MeetingSession?
+    private var task: Task<Void, Never>?
+    private static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "Meeting")
+
+    // The turn, in samples of the meeting's opening audio (16 kHz).
+    private var turnStart = 0
+    private var cursor = 0
+    private var speechStart: Int?
+    private var voiced = 0.0
+    private var silence = 0.0
+    private var lastSpeech = Date()
+    private var phaseSince = Date()
+    private var inSpeech = false
+    private var runFrames = 0
+    private var floor: [Float] = []
+    private var checking = false
+    private var lastCheck = 0.0
+    private var turnPrint: [Float]?
+    private var knownMatch: (name: String, score: Float)?
+
+    private static let rate = 16_000.0
+    private static let frame = 320                  // 20 ms
+    private static let needed = 3.0                 // seconds of speech for a full ring
+
+    init(session: MeetingSession) {
+        self.session = session
+        cursor = session.openingCountForRound
+        turnStart = cursor
+    }
+
+    func start() {
+        beginTurn()
+        task = Task { [weak self] in
+            while let self, !Task.isCancelled {
+                await self.tick()
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+        }
+    }
+
+    func stop() {
+        task?.cancel()
+        task = nil
+    }
+
+    var recognitionOn: Bool {
+        let memory = VoiceMemory.shared
+        return memory.enabled && memory.state == .ready && memory.people.contains { !$0.prints.isEmpty }
+    }
+
+    // MARK: Turns
+
+    private func beginTurn() {
+        session?.keepRoundAudio()
+        turnStart = cursor
+        speechStart = nil
+        voiced = 0
+        silence = 0
+        inSpeech = false
+        runFrames = 0
+        lastCheck = 0
+        turnPrint = nil
+        knownMatch = nil
+        progress = 0
+        quiet = false
+        figure = nil
+        draft = ""
+        spokenDraft = ""
+        typed = false
+        autoSaveAt = nil
+        closingAt = nil
+        lastSpeech = Date()
+        set(.ready)
+    }
+
+    private func set(_ new: Phase) {
+        phase = new
+        phaseSince = Date()
+    }
+
+    /// "Nästa": on to the next person without waiting for the silence.
+    func next() {
+        switch phase {
+        case .listening where voiced >= 1.5: Task { await finishTurn() }
+        case .known: captureKnown()
+        case .new: save()
+        case .same, .ready, .listening, .closing: break
+        }
+    }
+
+    /// The name card: saved, the voice joins the room.
+    func save() {
+        guard case .new = phase else { return }
+        let name = draft.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        let colour = captures.count
+        let fig = figure ?? VoiceFigure.from(seed: "\(name)-\(colour)")
+        captures.append(Capture(name: name, known: false, score: nil, from: seconds(speechStart ?? turnStart),
+                                to: seconds(cursor), print: turnPrint, figure: fig, colour: colour))
+        VoiceMemory.shared.reserve(fig, for: name)
+        Self.log.notice("round: turn \(self.turn) named after \(Int(Date().timeIntervalSince(self.phaseSince))) s")
+        turn += 1
+        beginTurn()
+    }
+
+    /// Typing in the name card: it waits for you rather than saving by itself.
+    func typing() {
+        guard draft != spokenDraft else { return }
+        autoSaveAt = nil
+        typed = true
+    }
+    private var spokenDraft = ""
+
+    /// The name card put away: the voice stays unnamed ("Talare 2"), on to the next.
+    func skipName() {
+        guard case .new = phase else { return }
+        turn += 1
+        beginTurn()
+    }
+
+    private func captureKnown() {
+        guard let knownMatch else { return }
+        let colour = captures.count
+        let fig = VoiceFigure.remembered(knownMatch.name) ?? VoiceFigure.from(seed: knownMatch.name)
+        captures.append(Capture(name: knownMatch.name, known: true, score: knownMatch.score,
+                                from: seconds(speechStart ?? turnStart), to: seconds(cursor),
+                                print: turnPrint, figure: fig, colour: colour))
+        turn += 1
+        beginTurn()
+    }
+
+    private func seconds(_ sample: Int) -> Double { Double(sample) / Self.rate }
+
+    // MARK: Listening
+
+    private func tick() async {
+        guard let session, session.introducing else { return }
+        let fresh = session.roundAudio(from: cursor)
+        let since = Date().timeIntervalSince(phaseSince)
+        analyse(fresh)
+        cursor += fresh.count
+
+        switch phase {
+        case .ready:
+            // A moment for the prompt (and the last person's tail) before listening.
+            if since >= 0.8 { speechStart = nil; voiced = 0; silence = 0; set(.listening) }
+        case .listening:
+            progress = min(1, voiced / Self.needed)
+            quiet = speechStart == nil && Date().timeIntervalSince(lastSpeech) > 7
+            // Nobody new for a while (and someone has introduced themselves): end.
+            if speechStart == nil, !captures.isEmpty, Date().timeIntervalSince(lastSpeech) > 10 {
+                closingAt = Date().addingTimeInterval(4)
+                set(.closing)
+                return
+            }
+            if recognitionOn, voiced >= 1.5, !checking, seconds(cursor) - lastCheck >= 0.5 {
+                await check()
+            }
+            guard case .listening = phase else { return }
+            // Done: enough speech, then a real pause (introductions pause 0.7–1 s inside).
+            if (voiced >= 3.5 && silence >= 1.4) || voiced >= 10 {
+                await finishTurn()
+            }
+        case .known:
+            // Greeted: on when they stop, or after a few seconds anyway.
+            if (silence >= 1.2 && since >= 1.2) || since >= 4 { captureKnown() }
+        case .new:
+            // Someone says the name ("Anna", "det är Anna"): it fills in, and saves itself.
+            if !typed, let name = heardName() { propose(name, saveIn: 2) }
+            if let at = autoSaveAt, Date() >= at { save() }
+        case .same:
+            if since >= 2.2 { beginTurn() }
+        case .closing:
+            if inSpeech { beginTurn(); return }
+            if let at = closingAt, Date() >= at, !wantsToEnd { wantsToEnd = true }
+        }
+    }
+
+    /// Levels in 20 ms frames against the room's own floor (its quietest tenth over the
+    /// last five seconds): speech 10 dB above it, silence under 6 dB above it.
+    private func analyse(_ samples: [Float]) {
+        var i = 0
+        while i + Self.frame <= samples.count {
+            var sum: Float = 0
+            for k in i..<(i + Self.frame) { sum += samples[k] * samples[k] }
+            let db = 10 * log10(sum / Float(Self.frame) + 1e-10)
+            floor.append(db)
+            if floor.count > 250 { floor.removeFirst(floor.count - 250) }
+            let sorted = floor.sorted()
+            let quietest = sorted[sorted.count / 10]
+            let speaking = db > quietest + 10 && db > -62
+            let silent = db < quietest + 6 || db < -66
+            if speaking { runFrames += 1 } else if silent { runFrames = 0 }
+            if runFrames >= 10 { inSpeech = true }      // 200 ms of speech: it has begun
+            if silent { inSpeech = false }
+            if inSpeech, speechStart == nil, case .listening = phase {
+                speechStart = max(turnStart, cursor + i - 10 * Self.frame - 1_600)
+            }
+            if case .ready = phase { i += Self.frame; continue }
+            if inSpeech {
+                voiced += 0.02
+                silence = 0
+                lastSpeech = Date()
+            } else if speechStart != nil {
+                silence += 0.02
+            }
+            i += Self.frame
+        }
+    }
+
+    /// From a second and a half of speech, twice a second: is it someone you know?
+    private func check() async {
+        guard let session, let start = speechStart else { return }
+        checking = true
+        defer { checking = false }
+        lastCheck = seconds(cursor)
+        let audio = session.roundAudio(from: start, to: cursor)
+        guard let print = await VoicePrints.shared.print(raw: audio) else { return }
+        guard case .listening = phase else { return }
+        turnPrint = print
+        // The person of the last turn again (talking on, or out of turn).
+        if let previous = captures.last, let p = previous.print, VoiceMemory.cosine(print, p) >= VoiceMemory.sameVoice {
+            Self.log.notice("round: turn \(self.turn) is the last voice again")
+            set(.same(previous.name))
+            return
+        }
+        let taken = Set(captures.map(\.name))
+        VoiceMemory.shared.logBest(print, speaker: -turn, heard: voiced)
+        if let match = VoiceMemory.shared.match(print, excluding: taken) {
+            knownMatch = match
+            figure = VoiceFigure.remembered(match.name)
+            progress = 1
+            Self.log.notice("round: turn \(self.turn) known after \(self.voiced, format: .fixed(precision: 1)) s of speech")
+            set(.known(match.name))
+        }
+    }
+
+    /// The turn heard out without a known voice: a new one — its name asked for.
+    private func finishTurn() async {
+        guard let session, case .listening = phase else { return }
+        let start = speechStart ?? turnStart
+        if turnPrint == nil || recognitionOn {
+            turnPrint = await VoicePrints.shared.print(raw: session.roundAudio(from: start, to: cursor)) ?? turnPrint
+        }
+        guard case .listening = phase else { return }
+        if let print = turnPrint, let previous = captures.last, let p = previous.print,
+           VoiceMemory.cosine(print, p) >= VoiceMemory.sameVoice {
+            set(.same(previous.name))
+            return
+        }
+        if recognitionOn, let print = turnPrint, let match = VoiceMemory.shared.match(print, excluding: Set(captures.map(\.name))) {
+            knownMatch = match
+            figure = VoiceFigure.remembered(match.name)
+            set(.known(match.name))
+            return
+        }
+        progress = 1
+        let avoid = Set(captures.map(\.figure.rhythm))
+        figure = turnPrint.map { VoiceMemory.shared.figureForNew($0, alsoAvoiding: avoid) }
+            ?? VoiceFigure.from(seed: "turn-\(turn)-\(session.record?.id.uuidString ?? "")")
+        // "Jag heter Erik": the name from what was said in this turn.
+        let from = seconds(start) - 0.3, to = seconds(cursor) + 0.3
+        let said = ((session.record?.words ?? []) + session.pending)
+            .filter { $0.end > from && $0.start < to }.map(\.text).joined(separator: " ")
+        askedAt = seconds(cursor)
+        set(.new)
+        if let name = Self.name(in: MeetingText.clean(said), whole: false) { propose(name, saveIn: 3) }
+    }
+
+    private func propose(_ name: String, saveIn seconds: Double) {
+        guard name != draft, !captures.contains(where: { $0.name.lowercased() == name.lowercased() }) else { return }
+        draft = name
+        spokenDraft = name
+        autoSaveAt = Date().addingTimeInterval(seconds)
+        Self.log.notice("round: turn \(self.turn) heard its name")
+    }
+
+    /// What was said since the card asked — the latest short utterance, if it names someone.
+    private func heardName() -> String? {
+        guard let session else { return nil }
+        let words = ((session.record?.words ?? []) + session.pending).filter { $0.start >= askedAt - 0.2 }
+        guard !words.isEmpty else { return nil }
+        // The last utterance: words with no pause over 0.8 s between them.
+        var last: [MeetingWord] = []
+        for w in words {
+            if let p = last.last, w.start - p.end > 0.8 { last = [] }
+            last.append(w)
+        }
+        return Self.name(in: MeetingText.clean(last.map(\.text).joined(separator: " ")), whole: true)
+    }
+
+    /// A name in what was said: "jag heter Anna", "det är Anna", "Anna här" — or, said
+    /// on its own (`whole`), just "Anna": a capitalised word that isn't an ordinary
+    /// word in the language (your Ordlista's words count as names).
+    static func name(in text: String, whole: Bool) -> String? {
+        if let name = VoiceScanner.spokenName(in: text) { return name }
+        let ns = text as NSString
+        if let here = try? NSRegularExpression(pattern: #"(\p{Lu}[\p{L}\-]+)(?: [\p{Lu}][\p{L}\-]+)? här\b"#),
+           let m = here.firstMatch(in: text, range: NSRange(location: 0, length: ns.length)) {
+            let candidate = ns.substring(with: m.range(at: 1))
+            if !TextCleanup.isOrdinaryWord(candidate.lowercased(), in: text) { return candidate }
+        }
+        guard whole else { return nil }
+        let tokens = text.split(whereSeparator: { !$0.isLetter && $0 != "-" }).map(String.init)
+        guard (1...3).contains(tokens.count) else { return nil }
+        let names = tokens.filter { t in
+            t.count >= 2 && t.first?.isUppercase == true && !VoiceScanner.greetings.contains(t.lowercased())
+                && !TextCleanup.isOrdinaryWord(t.lowercased(), in: text)
+        }
+        guard let first = names.first else { return nil }
+        // "Anna Svensson": both, when said together.
+        if names.count == 2, let i = tokens.firstIndex(of: first), i + 1 < tokens.count, tokens[i + 1] == names[1] {
+            return first + " " + names[1]
+        }
+        return first
+    }
+
+    /// Keeps the round's place in a countdown the scanner can show.
+    var secondsLeft: Int? {
+        if case .closing = phase, let closingAt { return max(0, Int(ceil(closingAt.timeIntervalSinceNow))) }
+        return nil
+    }
+
+    // MARK: After the round
+
+    /// Each turn to the voice the live separation heard most in its stretch — the name
+    /// goes there (a known voice also marked as recognised). Returns the turns not
+    /// placed yet (their words may still be settling).
+    static func bind(_ captures: [Capture], into record: inout MeetingRecord, words: [MeetingWord]) -> [Capture] {
+        var left: [Capture] = []
+        for c in captures {
+            var share: [Int: Double] = [:]
+            for w in words where w.end > c.from && w.start < c.to {
+                guard let s = w.speaker, s >= 0 else { continue }
+                share[s, default: 0] += min(w.end, c.to) - max(w.start, c.from)
+            }
+            guard let speaker = share.max(by: { $0.value < $1.value })?.key, share[speaker, default: 0] >= 0.6 else {
+                left.append(c)
+                continue
+            }
+            let key = String(speaker)
+            // Two turns heard as one voice: the first keeps it.
+            guard (record.names[key] ?? "").isEmpty || record.names[key] == c.name else { continue }
+            if record.names.values.contains(c.name), record.names[key] != c.name { continue }
+            record.names[key] = c.name
+            if c.known, let score = c.score { record.recognized[key] = score }
+        }
+        return left
+    }
+
+    #if DEBUG
+    /// Screenshots: a round in a given state (`--demo-phase listening|known|new|ready`).
+    func demo(_ phase: String) {
+        captures = [Capture(name: "Anna", known: true, score: 0.8, from: 1, to: 6, print: nil,
+                            figure: VoiceFigure.from(seed: "anna"), colour: 0)]
+        turn = 2
+        switch phase {
+        case "listening": progress = 0.55; set(.listening)
+        case "known": figure = VoiceFigure.from(seed: "erik"); progress = 1; knownMatch = ("Erik", 0.8); set(.known("Erik"))
+        case "new": figure = VoiceFigure.from(seed: "sara"); progress = 1; draft = "Sara"; set(.new)
+        default: set(.ready)
+        }
+        task?.cancel()
+    }
+
+    /// Self-test: a name typed for a new voice (`--round-names "Anna,Erik"`).
+    func typeForTest(_ names: [String]) {
+        guard case .new = phase else { return }
+        let i = captures.filter { !$0.known }.count
+        if draft.isEmpty, i < names.count { draft = names[i] }
+        save()
+    }
+    #endif
+}

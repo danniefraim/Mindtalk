@@ -132,17 +132,36 @@ final class MeetingSession: ObservableObject {
     private var simulation: (start: Date, speed: Double)?
 
     #if DEBUG
+    private var lastRoundState = ""
+
     private func feedFake(_ url: URL) {
         simulation = (Date(), 1)              // nothing learned, no notes written
         Task { @MainActor in
             guard let source = try? AudioChunks(url: url) else { return print("Fel: kan inte läsa \(url.path)") }
             var lastReport = 0
-            while isRecording || phase == .starting, let chunk = try? source.next(seconds: 0.1) {
-                intake?.append(chunk)
+            // Paced by the clock, not by the sleeps: macOS stretches a background app's
+            // timers, and a mic doesn't wait.
+            let began = Date()
+            var fed = 0.0
+            feeding: while isRecording || phase == .starting {
+                var chunk: [Float] = []
+                while fed < Date().timeIntervalSince(began) {
+                    guard let more = try? source.next(seconds: 0.1), !more.isEmpty else { break feeding }
+                    intake?.append(more)
+                    chunk = more
+                    fed += 0.1
+                }
                 let rms = sqrt(chunk.reduce(0) { $0 + $1 * $1 } / Float(max(1, chunk.count)))
                 heard(min(1, rms * 8))
                 if let at = Self.argSeconds("--introduce-at"), elapsed >= at, !introducing, !introductionHeld {
                     print("[\(Int(elapsed)) s] Presentationsrunda trycks"); introduce()
+                }
+                if let round {
+                    let state = "tur \(round.turn) \(round.phase) ring \(Int(round.progress * 100)) % · i rummet \(round.captures.map(\.name))"
+                    if state != lastRoundState { lastRoundState = state; print("[\(String(format: "%.1f", elapsed)) s] \(state)") }
+                    if case .new = round.phase, let i = CommandLine.arguments.firstIndex(of: "--round-names"), i + 1 < CommandLine.arguments.count {
+                        round.typeForTest(CommandLine.arguments[i + 1].split(separator: ",").map(String.init))
+                    }
                 }
                 if let n = Self.argSeconds("--name-at"), elapsed >= n, introducing, let r = record,
                    r.names.values.allSatisfy(\.isEmpty) {
@@ -457,13 +476,40 @@ final class MeetingSession: ObservableObject {
         introducing = true
         introChecked = []
         introFigures = [:]
-        introductionTask = Task { @MainActor [weak self] in
-            var checked: [Int: Double] = [:]          // speaker → speech heard when last checked
-            while let self, self.introducing, self.isRecording {
-                try? await Task.sleep(for: .seconds(1.2))
-                await self.recogniseIntroduced(&checked)
-            }
+        roundLeft = []
+        // The guided round: one person at a time (IntroRound).
+        let round = IntroRound(session: self)
+        self.round = round
+        round.start()
+        #if DEBUG
+        if let phase = CommandLine.arguments.firstIndex(of: "--demo-phase").flatMap({ $0 + 1 < CommandLine.arguments.count ? CommandLine.arguments[$0 + 1] : nil }) {
+            round.demo(phase)
         }
+        #endif
+    }
+
+    /// The guided round while it runs.
+    @Published private(set) var round: IntroRound?
+    /// Turns not yet placed on a voice (their words were still settling).
+    private var roundLeft: [IntroRound.Capture] = []
+
+    var openingCountForRound: Int { intake?.openingCount ?? 0 }
+    func keepRoundAudio() { intake?.keepOpening(seconds: 180) }
+    func roundAudio(from start: Int, to end: Int? = nil) -> [Float] {
+        guard let intake else { return [] }
+        return intake.opening(from: start, to: end ?? intake.openingCount)
+    }
+
+    /// The round's names onto the voices — now, and again as the words settle.
+    private func placeRound(_ captures: [IntroRound.Capture]) {
+        guard var latest = record, !captures.isEmpty else { return }
+        let before = latest.names
+        roundLeft = IntroRound.bind(captures, into: &latest, words: latest.words + pending)
+        if latest.names != before {
+            record = latest
+            MeetingStore.shared.save(latest)
+        }
+        Self.log.notice("round: \(captures.count - self.roundLeft.count) of \(captures.count) turns placed on voices")
     }
 
     /// The voices introduced so far that you've named before, named — each checked again
@@ -505,6 +551,21 @@ final class MeetingSession: ObservableObject {
         Self.log.notice("round: ends at \(Int(self.elapsed)) s, words \(self.record?.words.count ?? 0) + \(self.pending.count)")
         introducing = false
         introductionHeld = true
+        if let round {
+            round.stop()
+            placeRound(round.captures)
+            self.round = nil
+            // Words still settling: try the rest again a few times.
+            if !roundLeft.isEmpty {
+                Task { @MainActor [weak self] in
+                    for _ in 0..<12 {
+                        try? await Task.sleep(for: .seconds(3))
+                        guard let self, self.isRecording, !self.roundLeft.isEmpty else { return }
+                        self.placeRound(self.roundLeft)
+                    }
+                }
+            }
+        }
         // The round showed the reminder to tell the others: not again after it.
         if record?.informed == nil { consentDismissed = true }
         introductionTask?.cancel()
@@ -696,7 +757,7 @@ final class MeetingSession: ObservableObject {
             try? await Task.sleep(for: .seconds(5))
             guard isRecording else { continue }
             let behind = elapsed - settled
-            Self.log.notice("live: \(Int(self.elapsed)) s · words \(self.record?.words.count ?? 0) + \(self.pending.count) · settled \(self.settled, format: .fixed(precision: 1)) s · behind \(behind, format: .fixed(precision: 1)) s · steps \(self.steps) · last step \(Int(self.lastStepTook * 1000)) ms, \(Int(Date().timeIntervalSince(self.lastStep))) s ago · round \(self.introducing)")
+            Self.log.notice("live: \(Int(self.elapsed)) s · words \(self.record?.words.count ?? 0) + \(self.pending.count) · settled \(self.settled, format: .fixed(precision: 1)) s · behind \(behind, format: .fixed(precision: 1)) s · steps \(self.steps) · last step \(Int(self.lastStepTook * 1000)) ms, \(Int(Date().timeIntervalSince(self.lastStep))) s ago · round \(self.introducing) · audio \(Double(self.intake?.count ?? 0) / Double(Self.rate), format: .fixed(precision: 1)) s · waiting at \(self.pending.map { String(format: "%.1f–%.1f", $0.start, $0.end) }.joined(separator: " "), privacy: .public)")
         }
     }
 
@@ -732,7 +793,12 @@ final class MeetingSession: ObservableObject {
         if window.count > longest { window = Array(window.prefix(longest)) }
         let windowEnd = Double(from + window.count) / Double(Self.rate)
         let fresh = windowEnd - settled
-        guard fresh >= 0.5 || (final && fresh > 0) else { return resolveSpeakers(final: false) }
+        guard fresh >= 0.5 || (final && fresh > 0) else {
+            #if DEBUG
+            if CommandLine.arguments.contains("--trace-live") { print(String(format: "[steg] inget nytt: fönster till %.1f, avklarat %.1f, ljud %.1f", windowEnd, settled, Double(intake.count) / Double(Self.rate))) }
+            #endif
+            return resolveSpeakers(final: false)
+        }
 
         let timed: [WordTiming]
         do {
@@ -794,6 +860,13 @@ final class MeetingSession: ObservableObject {
                 if cut == nil { cut = heard.lastIndex { $0.end <= windowEnd - 2.5 } }
             }
         }
+        #if DEBUG
+        if CommandLine.arguments.contains("--trace-live") {
+            print(String(format: "[steg] fönster %.1f–%.1f · nytt %.1f · hört %@ · skär %@", base, windowEnd, fresh,
+                         heard.map { String(format: "%@ %.1f–%.1f", $0.text, $0.start, $0.end) }.joined(separator: ", "),
+                         cut.map(String.init) ?? "–"))
+        }
+        #endif
         if let cut {
             #if DEBUG
             report(settled: heard[...cut])
@@ -1367,6 +1440,15 @@ final class AudioIntake: @unchecked Sendable {
     private var openingLimit = 3 * 60 * 16_000
     static let longestOpening = 10 * 60 * 16_000
     func openingSamples() -> [Float] { lock.withLock { opening } }
+    /// How much of the opening there is, and a part of it — the round reads it a
+    /// tenth of a second at a time.
+    var openingCount: Int { lock.withLock { opening.count } }
+    func opening(from start: Int, to end: Int) -> [Float] {
+        lock.withLock {
+            let a = max(0, start), b = min(end, opening.count)
+            return a < b ? Array(opening[a..<b]) : []
+        }
+    }
 
     /// A round begins: keep the opening going this much longer (if it still runs
     /// unbroken from the start), at most ten minutes in all.

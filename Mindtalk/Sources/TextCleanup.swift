@@ -56,7 +56,7 @@ enum TextCleanup {
     /// A word written in lowercase in the text's own language — checked only in that
     /// language, since "bill" is an English word but "Bill" is a name. Your list's
     /// words are names, whatever the dictionary says.
-    private static func isOrdinaryWord(_ lower: String, in text: String) -> Bool {
+    static func isOrdinaryWord(_ lower: String, in text: String) -> Bool {
         guard Thread.isMainThread, !namesThatAreWords.contains(lower) else { return false }
         return MainActor.assumeIsolated {
             if Vocabulary.shared.entries.contains(where: { $0.word.lowercased() == lower }) { return false }

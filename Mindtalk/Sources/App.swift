@@ -161,6 +161,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --test-names`: which said phrases name someone in the round.
+        if args.contains("--test-names") {
+            for (text, whole) in [("Anna", true), ("Anna.", true), ("Anna Svensson", true), ("Hej", true), ("Ja.", true),
+                                  ("Okej, det blir bra.", true), ("Erik här.", true), ("Jag heter Lisa.", false),
+                                  ("Det här var Johan. Hej", false), ("Det här var Johan Hej hej", false), ("Hej, det är Karin.", false), ("Johan", true),
+                                  ("Per", true), ("Bra", true), ("Tack", true), ("Stockholm", true), ("Johanna Berg här", true),
+                                  ("This is John.", false), ("Sara", true), ("Nästa", true), ("Hallå", true)] {
+                print("\(text) → \(IntroRound.name(in: text, whole: whole) ?? "–")")
+            }
+            exit(0)
+        }
         // `Mindtalk --render-voices out.png [--dark]`: the voices Mindtalk knows, as in
         // Settings, drawn to an image.
         if let i = args.firstIndex(of: "--render-voices"), i + 1 < args.count {

@@ -415,6 +415,14 @@ actor VoicePrints {
         return try? embedder.embed(audio: audio)
     }
 
+    /// A print of a stretch of audio known to be one voice (a turn of the round) —
+    /// from a second and a half: short prints miss more, but strangers don't score
+    /// higher (measured on real meetings).
+    func print(raw audio: [Float]) async -> [Float]? {
+        guard audio.count >= 24_000, (try? load()) != nil, let embedder else { return nil }
+        return try? embedder.embed(audio: audio)
+    }
+
     /// A speaker's longest stretches of speech, trimmed at the ends, up to half a minute.
     static func stretches(of speaker: Int, in words: [MeetingWord]) -> [(start: Double, end: Double)] {
         var stretches: [(start: Double, end: Double)] = []

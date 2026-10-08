@@ -1,112 +1,27 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Vem är här? (the introduction round)
+// MARK: - Vem är här? (the guided round)
 //
-// "Med presentation" begins the meeting with the room's voices, one at a time: a
-// slowly turning sphere of light listens; when someone speaks, Mindtalk compares
-// their voice with the ones it knows, and the cloud falls into that voice's own
-// figure, in its colour (VoiceFigure.swift), as the name rises out of the blur. A
-// voice you've named before is known at once; a new one gets a glass card asking
-// who it is — the name already filled in when they said "jag heter Erik". Those
-// found gather in the corner, "I rummet". "Alla är här" and the meeting goes on,
-// recorded from the first word, everyone named.
+// One person at a time (IntroRound.swift): "Tur 1 – säg hej, ditt namn och vad du gör
+// här." A ring fills around the cloud as they speak; a voice Mindtalk knows is
+// greeted in a second or two ("Välkommen tillbaka, Anna") and the round moves on by
+// itself; a new one gets a card with the name it said filled in. Those found gather
+// in the corner, "I rummet". When nobody new speaks, it counts down and the meeting
+// goes on — recorded from the first word, everyone named.
 
 struct VoiceScanner: View {
     @ObservedObject var session: MeetingSession
     @ObservedObject private var memory = VoiceMemory.shared
-    @State private var drafts: [Int: String] = [:]
-    @State private var later: Set<Int> = []
-    @State private var greeted: Set<Int> = []
     /// The dark coming in (the panel), then what's in it (the cloud, the words).
     @State private var lit = false
     @State private var shown = false
     @FocusState private var nameFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// A voice in the room once it has said something real — a second and a half.
-    struct Voice: Identifiable, Equatable {
-        let speaker: Int
-        let lane: Int
-        let speech: Double
-        let name: String?
-        let known: Bool
-        let said: String
-        var id: Int { speaker }
-    }
-
-    private var voices: [Voice] {
-        guard let record = session.record else { return [] }
-        let cast = record.cast
-        var speech: [Int: Double] = [:]
-        var words: [Int: [String]] = [:]
-        for w in record.words + session.pending {
-            guard let s = w.speaker, s >= 0 else { continue }
-            speech[s, default: 0] += w.end - w.start
-            words[s, default: []].append(w.text)
-        }
-        return cast.order.enumerated().compactMap { lane, s in
-            guard (speech[s] ?? 0) >= 1.5 else { return nil }
-            let name = record.names[String(s)].flatMap { $0.isEmpty ? nil : $0 }
-            let said = MeetingText.clean((words[s] ?? []).prefix(40).joined(separator: " "))
-            return Voice(speaker: s, lane: lane, speech: speech[s] ?? 0, name: name,
-                         known: record.recognized[String(s)] != nil, said: said)
-        }
-    }
-
-    /// Who is talking right now: the speaker of the last word, if it was just said.
-    private var activeSpeaker: Int? {
-        guard let last = (session.pending.last ?? session.record?.words.last), let s = last.speaker, s >= 0 else { return nil }
-        return session.elapsed - last.end < 1.4 ? s : nil
-    }
-
-    /// Recognition is on and still listening to this voice: don't ask for a name yet.
-    private func recognising(_ v: Voice) -> Bool {
-        // Still comparing until ten seconds of speech: a first try on a few words can
-        // miss a voice Mindtalk knows (it tries again every few seconds meanwhile).
-        v.name == nil && memory.enabled && memory.people.contains { !$0.prints.isEmpty } && v.speech < 10
-    }
-
-    /// The newest voice without a name, waiting for one.
-    private var unnamed: Voice? { voices.last { $0.name == nil && !later.contains($0.speaker) } }
-
-    /// The voice in the middle: whoever spoke last.
-    private func focus(_ voices: [Voice]) -> Voice? {
-        #if DEBUG
-        if let i = CommandLine.arguments.firstIndex(of: "--demo-focus"), i + 1 < CommandLine.arguments.count,
-           let s = Int(CommandLine.arguments[i + 1]), let v = voices.first(where: { $0.speaker == s }) { return v }
-        #endif
-        guard let record = session.record else { return nil }
-        for w in (record.words + session.pending).suffix(400).reversed() {
-            if let s = w.speaker, let v = voices.first(where: { $0.speaker == s }) { return v }
-        }
-        return voices.last
-    }
-
     var body: some View {
-        let voices = self.voices
-        let focus = self.focus(voices)
-        GeometryReader { geo in
-            Constellation(figure: focus.flatMap(figure(for:)), color: colour(focus), level: roomLevel,
-                          searching: focus.map(recognising) ?? false)
-            .overlay(alignment: .topLeading) {
-                Text("Vem är här?").font(.system(size: 32, weight: .regular, design: .serif))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .accessibilityAddTraits(.isHeader).padding(.leading, 40).padding(.top, 34)
-            }
-            .overlay(alignment: .topTrailing) {
-                VStack(alignment: .trailing, spacing: 14) {
-                    continueButton(voices)
-                    consent
-                }
-                .padding(24)
-            }
-            .overlay(alignment: .bottom) { identity(focus, width: geo.size.width).padding(.bottom, 40) }
-            .overlay(alignment: .bottomLeading) { room(voices).padding(.leading, 40).padding(.bottom, 38) }
-            .overlay(alignment: .bottomTrailing) { card(voices).padding(24) }
-            // The lights go down first, then the room appears in the dark.
-            .opacity(shown ? 1 : 0)
-            .background(Color(red: 0.008, green: 0.008, blue: 0.012).opacity(lit ? 1 : 0))
+        Group {
+            if let round = session.round { Room(scanner: self, round: round, lit: lit, shown: shown) } else { Color.clear }
         }
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(.white.opacity(lit ? 0.08 : 0), lineWidth: 1))
@@ -115,95 +30,209 @@ struct VoiceScanner: View {
         .padding(.top, 24)
         .padding(.bottom, 88)
         .environment(\.colorScheme, .dark)
-        .animation(.spring(duration: 0.55, bounce: 0.2), value: voices)
         .onAppear(perform: enter)
-        .onChange(of: voices.count) { old, new in
-            guard new > old else { return }
-            chime("Pop")
-            AccessibilityNotification.Announcement(String(localized: "En ny röst")).post()
+    }
+
+    /// The scene, following the round.
+    private struct Room: View {
+        let scanner: VoiceScanner
+        @ObservedObject var round: IntroRound
+        let lit: Bool
+        let shown: Bool
+        @FocusState private var nameFocused: Bool
+
+        var body: some View {
+            GeometryReader { geo in
+                TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+                    let colour = SpeakerMark.fill(round.captures.count)
+                    Constellation(figure: round.figure, color: colour, level: scanner.roomLevel,
+                                  searching: round.phase == .listening && round.progress > 0)
+                    .overlay { ring(in: geo.size, colour: colour) }
+                    .overlay(alignment: .topLeading) { heading.padding(.leading, 40).padding(.top, 34) }
+                    .overlay(alignment: .topTrailing) {
+                        scanner.continueButton(round).padding(24)
+                    }
+                    .overlay(alignment: .bottom) { prompt(width: geo.size.width).padding(.bottom, 40) }
+                    .overlay(alignment: .bottomLeading) { room.padding(.leading, 40).padding(.bottom, 38) }
+                    .overlay(alignment: .bottomTrailing) { card.padding(24) }
+                    .opacity(shown ? 1 : 0)
+                    .background(Color(red: 0.008, green: 0.008, blue: 0.012).opacity(lit ? 1 : 0))
+                }
+            }
+            .animation(.spring(duration: 0.5, bounce: 0.2), value: round.captures)
+            .animation(.easeOut(duration: 0.35), value: round.phase)
+            .onChange(of: round.phase) { _, phase in
+                switch phase {
+                case .known(let name):
+                    scanner.chime("Glass")
+                    AccessibilityNotification.Announcement(String(localized: "Känd röst: \(name)")).post()
+                case .new:
+                    scanner.chime("Pop")
+                    nameFocused = true
+                default: break
+                }
+            }
+            .onChange(of: round.captures.count) { old, new in if new > old { scanner.chime("Pop") } }
+            .onChange(of: round.wantsToEnd) { _, end in if end { scanner.leave() } }
         }
-        .onChange(of: session.record?.recognized ?? [:]) { _, recognized in welcome(recognized) }
+
+        /// The ring around the cloud: fills as the person speaks (Face ID–like).
+        @ViewBuilder private func ring(in size: CGSize, colour: Color) -> some View {
+            if round.phase == .listening {
+                let r = min(size.width, size.height) * 0.28 * 1.16
+                let c = Constellation.rgb(colour)
+                ZStack {
+                    Circle().stroke(.white.opacity(0.08), lineWidth: 1.5)
+                    Circle().trim(from: 0, to: round.progress)
+                        .stroke(Color(red: c.x, green: c.y, blue: c.z), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .animation(.easeOut(duration: 0.25), value: round.progress)
+                }
+                .frame(width: r * 2, height: r * 2)
+                .position(x: size.width / 2, y: size.height * 0.42)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+        }
+
+        private var heading: some View {
+            HStack(alignment: .firstTextBaseline, spacing: 14) {
+                Text("Vem är här?").font(.system(size: 32, weight: .regular, design: .serif))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .accessibilityAddTraits(.isHeader)
+                // One dot per person: found, and the one whose turn it is.
+                HStack(spacing: 6) {
+                    ForEach(0..<max(round.turn, round.captures.count), id: \.self) { i in
+                        Circle().fill(i < round.captures.count ? .white.opacity(0.85) : .white.opacity(0.25))
+                            .frame(width: 6, height: 6)
+                    }
+                }
+                .accessibilityHidden(true)
+            }
+        }
+
+        /// Below the cloud: the turn, what Mindtalk is doing, and the name once it knows it.
+        private func prompt(width: CGFloat) -> some View {
+            let (status, big, line): (String, String?, String) = {
+                switch round.phase {
+                case .ready:
+                    return round.turn == 1
+                        ? (String(localized: "Tur 1"), String(localized: "Vem börjar?"), String(localized: "Säg hej, ditt namn och vad du gör här."))
+                        : (String(localized: "Tur \(round.turn)"), String(localized: "Nästa person"), String(localized: "Samma sak – en i taget."))
+                case .listening:
+                    return round.quiet
+                        ? (String(localized: "Hör ingen"), nil, String(localized: "Prata lite närmare."))
+                        : (String(localized: "Lyssnar"), nil, String(localized: "Fortsätt prata…"))
+                case .known(let name):
+                    return (String(localized: "Känd röst"), name, String(localized: "Välkommen tillbaka."))
+                case .new:
+                    let name = round.draft.trimmingCharacters(in: .whitespaces)
+                    return (String(localized: "Ny röst"), name.isEmpty ? String(localized: "Ny röst") : name,
+                            name.isEmpty ? String(localized: "Vem är det? Säg namnet.") : String(localized: "Stämmer namnet?"))
+                case .same(let name):
+                    return (String(localized: "Samma röst"), String(localized: "\(name) igen"), String(localized: "Nästa person, tack."))
+                case .closing:
+                    return (String(localized: "Alla här?"), String(localized: "\(round.captures.count) i rummet"),
+                            String(localized: "Fortsätter om \(round.secondsLeft ?? 0) …"))
+                }
+            }()
+            let accent = Constellation.rgb(SpeakerMark.fill(round.captures.count))
+            let tint = Color(red: accent.x, green: accent.y, blue: accent.z)
+            let dim: Bool = { if case .ready = round.phase { return true }; if case .new = round.phase, round.draft.isEmpty { return true }; return false }()
+            return VStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    Circle().fill(tint).frame(width: 6, height: 6).shadow(color: tint, radius: 6)
+                    Text(status).textCase(.uppercase).tracking(2.4)
+                        .font(.system(size: 12, weight: .regular, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.55))
+                }
+                Text(big ?? " ")
+                    .font(.system(size: min(88, max(52, width * 0.075)), weight: .regular, design: .serif)).italic()
+                    .foregroundStyle(.white.opacity(dim ? 0.55 : 1))
+                    .lineLimit(1).minimumScaleFactor(0.5)
+                    .frame(maxWidth: max(200, width - 2 * 340))
+                    .opacity(big == nil ? 0 : 1)
+                    .blur(radius: big == nil ? 14 : 0)
+                    .contentTransition(.opacity)
+                Text(line).font(.system(size: 14)).foregroundStyle(.white.opacity(0.6))
+                if round.phase == .listening || { if case .known = round.phase { return true }; return false }() {
+                    Button { round.next() } label: {
+                        Text("Nästa").font(.system(size: 12.5, weight: .semibold)).padding(.horizontal, 6)
+                    }
+                    .buttonStyle(.glass)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(round.phase == .listening && round.progress < 0.5)
+                    .help("Nästa person (↩)")
+                }
+            }
+            .accessibilityElement(children: .combine)
+        }
+
+        /// The ones found so far.
+        @ViewBuilder private var room: some View {
+            if !round.captures.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("I rummet").textCase(.uppercase).tracking(2.2)
+                        .font(.system(size: 11, design: .monospaced)).foregroundStyle(.white.opacity(0.4))
+                    ForEach(round.captures) { c in
+                        let rgb = Constellation.rgb(SpeakerMark.fill(c.colour))
+                        let tint = Color(red: rgb.x, green: rgb.y, blue: rgb.z)
+                        HStack(spacing: 10) {
+                            VoiceFigureMark(figure: c.figure, color: tint, lineWidth: 1).frame(width: 16, height: 16)
+                            Text(c.name).font(.system(size: 15)).foregroundStyle(.white.opacity(0.85))
+                            if c.known { Image(systemName: "checkmark.seal.fill").font(.system(size: 10.5)).foregroundStyle(tint) }
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .leading)))
+                    }
+                }
+            }
+        }
+
+        /// A new voice: who is it? The name said is filled in and saves by itself.
+        @ViewBuilder private var card: some View {
+            if case .new = round.phase {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Ny röst – säg namnet, eller skriv det").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                    // Not "Namn": macOS would offer your contacts in a box over the card.
+                    TextField("Vem är det?", text: $round.draft)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 18, weight: .semibold))
+                        .textContentType(nil)
+                        .autocorrectionDisabled(true)
+                        .focused($nameFocused)
+                        .onSubmit { round.save() }
+                    if let at = round.autoSaveAt {
+                        TimelineView(.periodic(from: .now, by: 0.25)) { _ in
+                            Text("Sparas om \(max(0, Int(ceil(at.timeIntervalSinceNow)))) s – skriv för att ändra")
+                                .font(.system(size: 12)).foregroundStyle(.white.opacity(0.55))
+                        }
+                    }
+                    HStack(spacing: 8) {
+                        Button("Spara") { round.save() }.buttonStyle(.glassProminent).fixedSize()
+                            .disabled(round.draft.trimmingCharacters(in: .whitespaces).isEmpty)
+                        Spacer(minLength: 0)
+                        Button("Hoppa över") { round.skipName() }.buttonStyle(.plain)
+                            .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(.white.opacity(0.6))
+                    }
+                }
+                .padding(16)
+                .frame(width: 300, alignment: .leading)
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
+                .onChange(of: round.draft) { _, _ in round.typing() }
+            }
+        }
     }
 
     /// The room's level, a little smoothed — the light shouldn't flicker.
-    private var roomLevel: Double {
+    var roomLevel: Double {
         let levels = LiveMeter.shared.levels.suffix(5)
         return levels.isEmpty ? 0 : min(1, Double(levels.reduce(0, +)) / Double(levels.count) * 1.6)
     }
 
-    // MARK: The voice in the middle
-
-    /// The figure to fall into — none while Mindtalk is still comparing the voice.
-    private func figure(for v: Voice) -> VoiceFigure? {
-        if recognising(v) { return nil }
-        if let name = v.name, let remembered = VoiceFigure.remembered(name) { return remembered }
-        return session.introFigure(of: v.speaker)
-    }
-
-    private func colour(_ v: Voice?) -> Color {
-        v.map { SpeakerMark.fill($0.lane) } ?? Color(red: 0.36, green: 0.79, blue: 0.65)
-    }
-
-    /// Below the cloud: what Mindtalk is doing, and the name once it knows it.
-    private func identity(_ v: Voice?, width: CGFloat) -> some View {
-        let status: LocalizedStringKey
-        let name: String?
-        switch v {
-        case nil: status = "Lyssnar…"; name = nil
-        case let v? where v.name == nil && recognising(v): status = "Jämför röstavtryck…"; name = nil
-        case let v? where v.name == nil: status = "Vem är det?"; name = String(localized: "Ny röst")
-        case let v? where v.known: status = "Känd röst"; name = v.name
-        case let v?: status = "Ny röst"; name = v.name
-        }
-        let accent = Constellation.rgb(colour(v))
-        return VStack(spacing: 12) {
-            HStack(spacing: 10) {
-                Circle().fill(Color(red: accent.x, green: accent.y, blue: accent.z)).frame(width: 6, height: 6)
-                    .shadow(color: Color(red: accent.x, green: accent.y, blue: accent.z), radius: 6)
-                Text(status).textCase(.uppercase).tracking(2.4)
-                    .font(.system(size: 12, weight: .regular, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.55))
-                    .contentTransition(.opacity)
-            }
-            Text(name ?? " ")
-                .font(.system(size: min(96, max(56, width * 0.08)), weight: .regular, design: .serif)).italic()
-                .foregroundStyle(.white.opacity(v?.name == nil ? 0.45 : 1))
-                .lineLimit(1).minimumScaleFactor(0.5)
-                .frame(maxWidth: max(200, width - 2 * 340))
-                .opacity(name == nil ? 0 : 1)
-                .blur(radius: name == nil ? 14 : 0)
-                .animation(.easeOut(duration: 0.6), value: name)
-                .id(v?.speaker)
-                .transition(.opacity)
-        }
-        .animation(.easeOut(duration: 0.4), value: v?.speaker)
-        .allowsHitTesting(false)
-        .accessibilityElement(children: .combine)
-    }
-
-    /// The ones found so far.
-    @ViewBuilder private func room(_ voices: [Voice]) -> some View {
-        let named = voices.filter { $0.name != nil }
-        if !named.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("I rummet").textCase(.uppercase).tracking(2.2)
-                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(.white.opacity(0.4))
-                ForEach(named) { v in
-                    let c = Constellation.rgb(SpeakerMark.fill(v.lane))
-                    let tint = Color(red: c.x, green: c.y, blue: c.z)
-                    HStack(spacing: 10) {
-                        Circle().fill(tint).frame(width: 6, height: 6).shadow(color: tint, radius: 5)
-                        Text(v.name ?? "").font(.system(size: 15)).foregroundStyle(.white.opacity(0.85))
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .leading)))
-                }
-            }
-        }
-    }
-
     // MARK: Text and cards
 
-    @ViewBuilder private var consent: some View {
+    @ViewBuilder var consent: some View {
         if session.record?.informed == nil {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Berätta att mötet spelas in").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
@@ -222,67 +251,17 @@ struct VoiceScanner: View {
         }
     }
 
-    @ViewBuilder private func card(_ voices: [Voice]) -> some View {
-        if let voice = unnamed, !recognising(voice) {
-            let cast = session.record?.cast ?? Cast(words: [], names: [:])
-            VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        VoiceFigureMark(figure: figure(for: voice) ?? session.introFigure(of: voice.speaker),
-                                        color: SpeakerMark.fill(voice.lane), lineWidth: 1)
-                            .frame(width: 16, height: 16)
-                        Text("Ny röst – vem är det?").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
-                    }
-                    // Not "Namn": macOS would offer your contacts in a box over the card.
-                    TextField("Vem är det?", text: Binding(get: { drafts[voice.speaker] ?? Self.spokenName(in: voice.said) ?? "" },
-                                                           set: { drafts[voice.speaker] = $0 }))
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 18, weight: .semibold))
-                        .textContentType(nil)
-                        .autocorrectionDisabled(true)
-                        .focused($nameFocused)
-                        .onSubmit { save(voice) }
-                        .onAppear { nameFocused = true }
-                    if !voice.said.isEmpty {
-                        Text("”\(String(voice.said.prefix(80)))\(voice.said.count > 80 ? "…" : "")”")
-                            .font(.system(size: 12)).foregroundStyle(.white.opacity(0.55)).lineLimit(2)
-                    }
-                    HStack(spacing: 8) {
-                        Button("Spara") { save(voice) }.buttonStyle(.glassProminent).fixedSize()
-                        let others = voices.filter { $0.speaker != voice.speaker }
-                        if !others.isEmpty {
-                            Menu("Samma som…") {
-                                ForEach(others) { o in
-                                    Button(o.name ?? cast.name(of: o.speaker)) {
-                                        withAnimation(.snappy) { session.merge(voice.speaker, into: o.speaker) }
-                                    }
-                                }
-                            }
-                            .menuStyle(.button).buttonStyle(.glass).fixedSize()
-                        }
-                        Spacer(minLength: 0)
-                        Button("Senare") { later.insert(voice.speaker) }.buttonStyle(.plain)
-                            .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(.white.opacity(0.6))
-                    }
-            }
-            .padding(16)
-            .frame(width: 300, alignment: .leading)
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .id(voice.speaker)
-            .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
-        }
-    }
-
-    private func continueButton(_ voices: [Voice]) -> some View {
+    func continueButton(_ round: IntroRound) -> some View {
         Button(action: leave) {
-            Text(voices.isEmpty ? "Hoppa över" : "Alla är här – fortsätt")
+            Text(round.captures.isEmpty ? "Hoppa över" : "Alla är här – fortsätt")
                 .font(.system(size: 14, weight: .semibold))
                 .padding(.horizontal, 10)
                 .frame(minHeight: 32)
         }
         .buttonStyle(.glassProminent)
         .controlSize(.large)
-        // Return saves the name being typed; it ends the round only when no name is asked for.
-        .keyboardShortcut(unnamed == nil ? .defaultAction : nil)
+        .keyboardShortcut(.return, modifiers: .command)
+        .help("Alla är här (⌘↩)")
     }
 
     // MARK: Actions
@@ -302,7 +281,7 @@ struct VoiceScanner: View {
     }
 
     /// "Alla är här": the room fades, the lights come up, and the meeting is there.
-    private func leave() {
+    func leave() {
         guard !reduceMotion else { session.endIntroduction(); return }
         withAnimation(.easeIn(duration: 0.3)) { shown = false }
         withAnimation(.easeInOut(duration: 0.6).delay(0.2)) { lit = false }
@@ -311,27 +290,8 @@ struct VoiceScanner: View {
         }
     }
 
-    private func save(_ voice: Voice) {
-        let name = (drafts[voice.speaker] ?? Self.spokenName(in: voice.said) ?? "").trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return }
-        withAnimation(.spring(duration: 0.45, bounce: 0.25)) { session.name(speaker: voice.speaker, as: name) }
-        drafts[voice.speaker] = nil
-    }
-
-    /// A known voice found: a soft sound, once — the name rises in the middle.
-    private func welcome(_ recognized: [String: Float]) {
-        for key in recognized.keys {
-            guard let s = Int(key), !greeted.contains(s) else { continue }
-            greeted.insert(s)
-            chime("Glass")
-            if let name = session.record?.names[key], !name.isEmpty {
-                AccessibilityNotification.Announcement(String(localized: "Känd röst: \(name)")).post()
-            }
-        }
-    }
-
     /// A soft sound — never into a Bluetooth headset (its mic can go when a sound there ends).
-    private func chime(_ name: String) {
+    func chime(_ name: String) {
         guard Settings.sounds, !session.usesBluetooth, let sound = NSSound(named: name)?.copy() as? NSSound else { return }
         sound.volume = 0.12
         sound.play()
@@ -343,12 +303,20 @@ struct VoiceScanner: View {
     /// and not an ordinary word that happens to start a sentence.
     static func spokenName(in text: String) -> String? {
         // The lead-in in any case ("Jag heter", "jag heter"), the name with its capital.
-        let pattern = #"(?i:jag heter|jag är|mitt namn är|det är|här är|i'm|i am|my name is|this is)[ ,]+(\p{Lu}[\p{L}\-]+(?: \p{Lu}[\p{L}\-]+)?)"#
+        let pattern = #"(?i:jag heter|jag är|mitt namn är|det här är|det här var|det är|här är|i'm|i am|my name is|this is)[ ,]+(\p{Lu}[\p{L}\-]+(?: \p{Lu}[\p{L}\-]+)?)"#
         guard let regex = try? NSRegularExpression(pattern: pattern),
               let m = regex.firstMatch(in: text, range: NSRange(location: 0, length: (text as NSString).length)) else { return nil }
-        let name = (text as NSString).substring(with: m.range(at: 1))
+        var name = (text as NSString).substring(with: m.range(at: 1))
         guard name.first?.isUppercase == true,
               !["Jag", "Det", "Du", "Vi", "Ni", "Bra", "Okej", "Nu", "Här", "The", "It"].contains(name) else { return nil }
+        // "Mattias Hej": the next person's greeting, not a surname.
+        let parts = name.split(separator: " ").map(String.init)
+        if parts.count == 2, greetings.contains(parts[1].lowercased()) {
+            name = parts[0]
+        }
         return name
     }
+
+    /// What people say before or between names — never a name.
+    static let greetings: Set<String> = ["hej", "hejsan", "hallå", "tjena", "tja", "tjenare", "morsning", "god", "hi", "hello", "hey", "ja", "nej", "okej", "ok", "tack"]
 }
