@@ -39,7 +39,7 @@ final class IntroRound: ObservableObject {
         let score: Float?
         let from: Double
         let to: Double
-        let print: [Float]?
+        var print: [Float]?
         let figure: VoiceFigure
         let colour: Int
     }
@@ -223,12 +223,27 @@ final class IntroRound: ObservableObject {
                 set(.closing)
                 return
             }
-            if recognitionOn, voiced >= 1.5, !checking, seconds(cursor) - lastCheck >= 0.5 {
+            // The name, the moment it's said ("Mattias", "jag heter Anna"): thanked, on to
+            // the next. The voice itself is learned from the whole meeting afterwards —
+            // nobody has to talk on for it here.
+            if let heard = nameInTurn() {
+                if let again = captures.first(where: { Self.sameName($0.name, heard.name) }) {
+                    Self.log.notice("round: turn \(self.turn) said a name already in the room")
+                    set(.same(again.name))
+                } else {
+                    captureHeard(heard.name, from: heard.from, to: heard.to)
+                }
+                return
+            }
+            // A second and a half of speech: someone already here talking on, or a voice
+            // you've named before?
+            if voiced >= 1.5, !checking, seconds(cursor) - lastCheck >= 0.5, VoiceMemory.shared.state == .ready {
                 await check()
             }
             guard case .listening = phase else { return }
-            // Done: enough speech, then a real pause (introductions pause 0.7–1 s inside).
-            if (voiced >= 3.5 && silence >= 1.4) || voiced >= 10 {
+            // Talked, but no name: asked for it. (After a few words and a pause, or a
+            // few seconds of speech and a pause, or ten seconds whatever.)
+            if (voiced >= 3.5 && silence >= 1.4) || voiced >= 10 || saidWithoutName() {
                 await finishTurn()
             }
         case .known:
@@ -236,7 +251,13 @@ final class IntroRound: ObservableObject {
             if (silence >= 1.2 && since >= 1.2) || since >= 4 { captureKnown() }
         case .new:
             // Someone says the name ("Anna", "det är Anna"): it fills in, and saves itself.
-            if !typed, let name = heardName() { propose(name, saveIn: 2) }
+            if !typed, let name = heardName() {
+                if let again = captures.first(where: { Self.sameName($0.name, name) }) {
+                    set(.same(again.name))
+                    return
+                }
+                propose(name, saveIn: 1.2)
+            }
             if let at = autoSaveAt, Date() >= at { save() }
         case .same:
             if since >= 2.2 { beginTurn() }
@@ -289,11 +310,12 @@ final class IntroRound: ObservableObject {
         guard case .listening = phase else { return }
         turnPrint = print
         // The person of the last turn again (talking on, or out of turn).
-        if let previous = captures.last, let p = previous.print, VoiceMemory.cosine(print, p) >= VoiceMemory.sameVoice {
-            Self.log.notice("round: turn \(self.turn) is the last voice again")
+        if let previous = captures.first(where: { c in c.print.map { VoiceMemory.cosine(print, $0) >= VoiceMemory.sameVoice } ?? false }) {
+            Self.log.notice("round: turn \(self.turn) is a voice already in the room")
             set(.same(previous.name))
             return
         }
+        guard recognitionOn else { return }
         let taken = Set(captures.map(\.name))
         VoiceMemory.shared.logBest(print, speaker: -turn, heard: voiced)
         if let match = VoiceMemory.shared.match(print, excluding: taken) {
@@ -334,11 +356,79 @@ final class IntroRound: ObservableObject {
             .filter { $0.end > from && $0.start < to }.map(\.text).joined(separator: " ")
         askedAt = seconds(cursor)
         set(.new)
-        if let name = Self.name(in: MeetingText.clean(said), whole: false) { propose(name, saveIn: 3) }
+        if let name = Self.name(in: MeetingText.clean(said), whole: false) { propose(name, saveIn: 1.5) }
+    }
+
+    /// "Mattias" and "Mattias Karlsson" are the same person in a round.
+    static func sameName(_ a: String, _ b: String) -> Bool {
+        let first = { (s: String) in s.split(separator: " ").first.map { $0.lowercased() } ?? "" }
+        return first(a) == first(b)
+    }
+
+    /// This turn's words — after the last person added, so their tail doesn't count.
+    private func turnWords() -> [MeetingWord] {
+        guard let session else { return [] }
+        let after = max(seconds(turnStart) - 0.3, captures.last.map { $0.to } ?? 0)
+        return ((session.record?.words ?? []) + session.pending).filter { $0.start >= after }
+    }
+
+    /// The words in runs, split where someone paused (0.8 s).
+    private static func utterances(_ words: [MeetingWord]) -> [[MeetingWord]] {
+        var runs: [[MeetingWord]] = []
+        for w in words {
+            if let p = runs.last?.last, w.start - p.end <= 0.8 { runs[runs.count - 1].append(w) } else { runs.append([w]) }
+        }
+        return runs
+    }
+
+    /// A name said in this turn, with where it was said. Only once half a second of
+    /// sound has followed it: the speech model can still be finishing the word.
+    private func nameInTurn() -> (name: String, from: Double, to: Double)? {
+        let heardTo = seconds(cursor)
+        for run in Self.utterances(turnWords()).reversed() {
+            guard let first = run.first, let last = run.last, last.end <= heardTo - 0.5 else { continue }
+            let text = MeetingText.clean(run.map(\.text).joined(separator: " "))
+            guard let name = Self.name(in: text, whole: true) else { continue }
+            return (name, first.start - 0.1, last.end + 0.1)
+        }
+        return nil
+    }
+
+    /// Some words said and then a pause, none of them a name: time to ask.
+    private func saidWithoutName() -> Bool {
+        let words = turnWords()
+        guard words.count >= 4, let last = words.last else { return false }
+        return seconds(cursor) - last.end >= 1.5
+    }
+
+    /// A new person by the name they said — no card, no waiting.
+    private func captureHeard(_ name: String, from: Double, to: Double) {
+        let colour = captures.count
+        let remembered = VoiceFigure.remembered(name)
+        let avoid = Set(captures.map(\.figure.rhythm))
+        let fig = remembered ?? turnPrint.map { VoiceMemory.shared.figureForNew($0, alsoAvoiding: avoid) }
+            ?? VoiceFigure.from(seed: "\(name)-\(colour)")
+        captures.append(Capture(name: name, known: false, score: nil, from: from, to: to, print: turnPrint,
+                                figure: fig, colour: colour))
+        if remembered == nil { VoiceMemory.shared.reserve(fig, for: name) }
+        // Its voice, from what it said (when that was long enough): so someone talking
+        // on in the next turn is heard as them, not as a new person.
+        if turnPrint == nil, to - from >= 1.5, let session {
+            let audio = session.roundAudio(from: Int(from * Self.rate), to: Int(to * Self.rate))
+            let id = captures.last!.id
+            Task { [weak self] in
+                guard let print = await VoicePrints.shared.print(raw: audio),
+                      let self, let i = self.captures.firstIndex(where: { $0.id == id }) else { return }
+                self.captures[i].print = print
+            }
+        }
+        Self.log.notice("round: turn \(self.turn) said its name after \(Date().timeIntervalSince(self.phaseSince), format: .fixed(precision: 1)) s")
+        turn += 1
+        beginTurn()
     }
 
     private func propose(_ name: String, saveIn seconds: Double) {
-        guard name != draft, !captures.contains(where: { $0.name.lowercased() == name.lowercased() }) else { return }
+        guard name != draft, !captures.contains(where: { Self.sameName($0.name, name) }) else { return }
         draft = name
         spokenDraft = name
         autoSaveAt = Date().addingTimeInterval(seconds)
@@ -404,7 +494,8 @@ final class IntroRound: ObservableObject {
                 guard let s = w.speaker, s >= 0 else { continue }
                 share[s, default: 0] += min(w.end, c.to) - max(w.start, c.from)
             }
-            guard let speaker = share.max(by: { $0.value < $1.value })?.key, share[speaker, default: 0] >= 0.6 else {
+            // A name said on its own is half a second: enough to place it.
+            guard let speaker = share.max(by: { $0.value < $1.value })?.key, share[speaker, default: 0] >= 0.35 else {
                 left.append(c)
                 continue
             }
