@@ -614,6 +614,7 @@ final class MeetingSession: ObservableObject {
 
     func stop() {
         guard isRecording else { return }
+        applyNotes()
         endIntroduction()
         stopCountdown?.cancel()
         stopCountdown = nil
@@ -677,7 +678,22 @@ final class MeetingSession: ObservableObject {
     /// Your notes as typed: new lines get the moment they were begun. Saved a moment
     /// after you stop typing, not at every key.
     func setNotes(_ text: String) {
-        guard var record else { return }
+        // Typed: taken in once you pause — the page isn't redrawn for every key.
+        notesDraft = text
+        notesApply?.cancel()
+        notesApply = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled else { return }
+            self?.applyNotes()
+        }
+    }
+    private var notesDraft: String?
+    private var notesApply: Task<Void, Never>?
+
+    private func applyNotes() {
+        notesApply?.cancel()
+        guard let text = notesDraft, var record else { return }
+        notesDraft = nil
         let notes = MeetingRecord.notes(from: text, old: record.notes, now: isRecording ? elapsed : nil)
         guard notes != record.notes else { return }
         record.notes = notes
@@ -686,7 +702,7 @@ final class MeetingSession: ObservableObject {
         notesSave = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1))
             guard !Task.isCancelled, let record = self?.record else { return }
-            MeetingStore.shared.save(record)
+            MeetingStore.shared.saveQuietly(record)
         }
     }
     private var notesSave: Task<Void, Never>?
@@ -752,7 +768,7 @@ final class MeetingSession: ObservableObject {
             if Date().timeIntervalSince(lastSave) > 20, var record {
                 lastSave = Date()
                 record.duration = Double(intake?.count ?? 0) / Double(Self.rate)
-                MeetingStore.shared.save(record)
+                MeetingStore.shared.saveQuietly(record)
             }
             checkInput()
             try? await Task.sleep(for: .milliseconds(400))
@@ -1269,7 +1285,7 @@ final class MeetingSession: ObservableObject {
         guard isRecording else { return }
         if level > 0.04 {
             lastHeard = Date()
-            if warning == Self.restarting { warning = nil }      // back
+            if warning == Self.restarting || warning == Self.silent { warning = nil }      // back
         }
         LiveMeter.shared.push(level)
     }
@@ -1277,6 +1293,17 @@ final class MeetingSession: ObservableObject {
     /// When the microphone was last opened again after losing its signal.
     private var lastRestart: Date?
     private static var restarting: String { String(localized: "Mikrofonen slutade ge ljud – startar om den…") }
+    private static var silent: String { String(localized: "Mikrofonen ger inget ljud – är den avstängd?") }
+
+    /// Something you should know but needn't do anything about: said, then let go of
+    /// after a while — it doesn't hang over the rest of the meeting.
+    private func inform(_ text: String) {
+        warning = text
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(12))
+            if self?.warning == text { self?.warning = nil }
+        }
+    }
 
     /// The microphone sends nothing but zeros. Opened again — the usual cure. When it
     /// dies again within half a minute: a headset carries on with the Mac's own mic;
@@ -1295,11 +1322,11 @@ final class MeetingSession: ObservableObject {
         }
         if bluetooth, let builtIn = Microphones.shared.devices.first(where: \.isBuiltIn)?.id,
            (try? recorder.start(device: builtIn)) != nil {
-            warning = String(localized: "Hörlurarnas mikrofon slutade fungera – inspelningen fortsätter med Macens mikrofon.")
+            inform(String(localized: "Hörlurarnas mikrofon slutade fungera – inspelningen fortsätter med Macens mikrofon."))
             return
         }
         try? recorder.start(device: device)
-        warning = String(localized: "Mikrofonen ger inget ljud – är den avstängd?")
+        warning = Self.silent
     }
 
     /// The microphone went away (unplugged, AirPods gone): carry on with the system input.
@@ -1310,7 +1337,7 @@ final class MeetingSession: ObservableObject {
         _ = recorder.stop()
         do {
             try recorder.start(device: nil)
-            warning = String(localized: "Mikrofonen kopplades bort – inspelningen fortsätter med Macens mikrofon.")
+            inform(String(localized: "Mikrofonen kopplades bort – inspelningen fortsätter med Macens mikrofon."))
         } catch {
             warning = error.localizedDescription
         }

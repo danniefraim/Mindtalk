@@ -206,6 +206,9 @@ final class IntroRound: ObservableObject {
 
     private func tick() async {
         guard let session, session.introducing else { return }
+        // Not before the speech model is ready: names are found in its words. The audio
+        // waits (it's kept), and is listened to once it is.
+        guard session.phase != .starting else { return }
         let fresh = session.roundAudio(from: cursor)
         let since = Date().timeIntervalSince(phaseSince)
         analyse(fresh)

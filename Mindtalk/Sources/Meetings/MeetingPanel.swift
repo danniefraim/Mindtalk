@@ -339,10 +339,13 @@ private struct LivePanel: View {
             } action: { _, bottom in
                 atBottom = bottom
             }
-            // Follow the conversation — unless you've scrolled up to read.
-            .onChange(of: (session.record?.words.count ?? 0) + (turns.last?.pending.count ?? 0)) { _, _ in
-                guard atBottom else { return }
-                withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo("end", anchor: .bottom) }
+            // Follow the conversation — unless you've scrolled up to read. When the text
+            // grows (by any means: words, a name row, a mark) and you were at its end.
+            .onScrollGeometryChange(for: [CGFloat].self) { geo in
+                [geo.contentOffset.y + geo.containerSize.height, geo.contentSize.height]
+            } action: { old, new in
+                guard new[1] > old[1], old[0] >= old[1] - 60 else { return }
+                withAnimation(.smooth(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) }
             }
             .overlay(alignment: .bottom) {
                 if !atBottom, !turns.isEmpty {
@@ -540,13 +543,14 @@ private struct PanelTurn: View {
             text
                 // Words settle from grey into ink rather than switching.
                 .contentTransition(.interpolate)
-                .animation(.easeInOut(duration: 0.45), value: turn.text)
                 .font(.system(size: 14.5))
                 .lineSpacing(3.5)
                 .padding(.horizontal, 13)
                 .padding(.vertical, 9)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 15, style: .continuous).fill(DS.Colors.card))
+                // The bubble grows with its text, rather than snapping to the new size.
+                .animation(.smooth(duration: 0.4), value: turn.text)
             if !marks.isEmpty {
                 MarkChips(marks: marks, compact: true, remove: removeMark)
                     .transition(.scale(scale: 0.6, anchor: .topLeading).combined(with: .opacity))

@@ -125,6 +125,12 @@ struct VoiceScanner: View {
         /// Below the cloud: the turn, what Mindtalk is doing, and the name once it knows it.
         private var words: (status: String, big: String?, line: String) {
             {
+                // The speech model still loading (it can take a minute after a macOS
+                // update): recording already, but nothing to listen with yet.
+                if scanner.session.phase == .starting {
+                    return (String(localized: "Förbereder"), String(localized: "Ett ögonblick …"),
+                            String(localized: "Inspelningen är igång. Efter en uppdatering av macOS kan det ta upp till en minut."))
+                }
                 switch round.phase {
                 // Asked until someone starts talking — not only for the moment the turn opens.
                 // Right after someone was added, thanked first: "Tack, Anna! Nästa person…"

@@ -20,8 +20,13 @@ struct MeetingRibbon: View {
     @State private var hover: CGFloat?
 
     private var duration: Double {
-        max(record.duration, segments.last?.end ?? 0, record.words.last?.end ?? 0, 1)
+        let heard = max(record.duration, segments.last?.end ?? 0, record.words.last?.end ?? 0, 1)
+        guard live else { return heard }
+        // Recording: a horizon that steps out now and then (2, 5, 10 … minutes) — the
+        // strip fills towards it, rather than everything squeezing left at every word.
+        return Self.horizons.first { $0 >= heard * 1.1 } ?? heard * 1.25
     }
+    private static let horizons: [Double] = [2, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240].map { $0 * 60 }
     private var lanes: Int { max(1, cast.order.count) }
     private var laneHeight: CGFloat { compact ? max(2, (18 - CGFloat(lanes - 1) * 1.5) / CGFloat(lanes)) : 5 }
     private var laneGap: CGFloat { compact ? 1.5 : 3 }

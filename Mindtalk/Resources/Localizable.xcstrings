@@ -21,6 +21,16 @@
         }
       }
     },
+    " (%@: %@)": {
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " (%@: %@)"
+          }
+        }
+      }
+    },
     " och ": {
       "localizations": {
         "en": {
@@ -2594,6 +2604,22 @@
         }
       }
     },
+    "Ett ögonblick …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One moment …"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ett ögonblick …"
+          }
+        }
+      }
+    },
     "Fel person? Ta bort namnet": {
       "localizations": {
         "en": {
@@ -3048,6 +3074,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (%@). Laddas ned en gång och fungerar sedan offline."
+          }
+        }
+      }
+    },
+    "Förbereder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Förbereder"
           }
         }
       }
@@ -4356,6 +4398,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Innan ni börjar"
+          }
+        }
+      }
+    },
+    "Inspelningen är igång. Efter en uppdatering av macOS kan det ta upp till en minut.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording has started. After a macOS update this can take up to a minute."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspelningen är igång. Efter en uppdatering av macOS kan det ta upp till en minut."
           }
         }
       }

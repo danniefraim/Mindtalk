@@ -161,6 +161,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --test-turns`: the kept-and-regrouped turns equal turns grouped all anew,
+        // on all meetings joined into one long one, as it grows.
+        if args.contains("--test-turns") {
+            Task { @MainActor in
+                MeetingStore.shared.loadNow()
+                var words: [MeetingWord] = []
+                var shift = 0.0
+                for m in MeetingStore.shared.meetings {
+                    for var w in m.words { w.start += shift; w.end += shift; words.append(w) }
+                    shift = (words.last?.end ?? shift) + 3
+                }
+                var bad = 0, runs = 0
+                let t0 = Date()
+                for n in stride(from: 50, through: words.count, by: 97) {
+                    let settled = Array(words[..<max(0, n - 12)])
+                    var pending = Array(words[max(0, n - 12)..<n])
+                    for j in pending.indices where j % 3 == 0 { pending[j].speaker = nil }
+                    runs += 1
+                    if MeetingText.turns(settled, pending: pending, paragraphs: true)
+                        != MeetingText.turnsAllAnew(settled, pending: pending) { bad += 1 }
+                }
+                print("Turer: \(words.count) ord, \(runs) jämförelser, \(bad) olika (\(Int(Date().timeIntervalSince(t0) * 1000)) ms)")
+                // A two-hour meeting: one update, kept vs all anew.
+                var long = words
+                while long.count < 20_000, let last = long.last {
+                    long += words.map { var w = $0; w.start += last.end + 3; w.end += last.end + 3; return w }
+                }
+                let tail = Array(long.suffix(10))
+                let body = Array(long.dropLast(10))
+                _ = MeetingText.turns(body, pending: tail, paragraphs: true)
+                var t = Date()
+                for _ in 0..<20 { _ = MeetingText.turns(body, pending: tail, paragraphs: true) }
+                let kept = Date().timeIntervalSince(t) / 20 * 1000
+                t = Date()
+                for _ in 0..<20 { _ = MeetingText.turnsAllAnew(body, pending: tail) }
+                let anew = Date().timeIntervalSince(t) / 20 * 1000
+                print(String(format: "%d ord: %.1f ms per uppdatering (förut %.1f ms)", long.count, kept, anew))
+                t = Date()
+                for _ in 0..<20 { var h = Hasher(); for w in body { h.combine(w.speaker) }; _ = h.finalize() }
+                print(String(format: "  hash %.2f ms", Date().timeIntervalSince(t) / 20 * 1000))
+                let all = MeetingText.turns(body, pending: tail, paragraphs: true)
+                t = Date()
+                for _ in 0..<20 { _ = MeetingText.folded(all) }
+                print(String(format: "  vikning %.2f ms (%d turer)", Date().timeIntervalSince(t) / 20 * 1000, all.count))
+                exit(bad == 0 ? 0 : 1)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --test-names`: which said phrases name someone in the round.
         if args.contains("--test-names") {
             for (text, whole) in [("Anna", true), ("Anna.", true), ("Anna Svensson", true), ("Hej", true), ("Ja.", true),

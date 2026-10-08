@@ -280,6 +280,39 @@ enum MeetingText {
     /// endless bubble (and the live view only redraws its last part).
     @MainActor static func turns(_ words: [MeetingWord], pending: [MeetingWord] = [],
                                  paragraphs: Bool = false) -> [MeetingTurn] {
+        guard paragraphs else { return raw(ArraySlice(words), pending: pending, paragraphs: false) }
+        // For reading, redrawn twice a second while a meeting runs: all but the last
+        // few hundred words are grouped once and kept (they've settled), only the end
+        // is grouped anew — so a long meeting costs no more per update than a short one.
+        let p = max(0, (words.count - 400) / 200 * 200)
+        guard p > 0 else { return folded(raw(ArraySlice(words), pending: pending, paragraphs: true)) }
+        var speakers = Hasher()
+        for w in words[..<p] { speakers.combine(w.speaker) }
+        let key = PrefixKey(count: p, speakers: speakers.finalize(), first: words[0].start, last: words[p - 1].start)
+        if prefix?.key != key { prefix = (key, raw(words[..<p], pending: [], paragraphs: true)) }
+        var head = prefix?.turns ?? []
+        guard let open = head.popLast() else { return folded(raw(ArraySlice(words), pending: pending, paragraphs: true)) }
+        // The last kept turn may go on: grouped again from its first word.
+        return folded(head + raw(words[open.id...], pending: pending, paragraphs: true))
+    }
+
+    #if DEBUG
+    @MainActor static func turnsAllAnew(_ words: [MeetingWord], pending: [MeetingWord]) -> [MeetingTurn] {
+        folded(raw(ArraySlice(words), pending: pending, paragraphs: true))
+    }
+    #endif
+
+    private struct PrefixKey: Equatable {
+        let count: Int
+        let speakers: Int
+        let first: Double
+        let last: Double
+    }
+    @MainActor private static var prefix: (key: PrefixKey, turns: [MeetingTurn])?
+
+    /// Groups words into turns (ids are indices in the whole meeting).
+    @MainActor private static func raw(_ words: ArraySlice<MeetingWord>, pending: [MeetingWord],
+                                       paragraphs: Bool) -> [MeetingTurn] {
         var turns: [MeetingTurn] = []
         var current: (id: Int, speaker: Int?, start: Double, words: [String], pending: [String])?
         var previous: MeetingWord?
@@ -290,7 +323,8 @@ enum MeetingText {
                                      pending: c.pending.joined(separator: " ")))
         }
         let all = words.map { ($0, false) } + pending.map { ($0, true) }
-        for (i, (word, isPending)) in all.enumerated() {
+        for (n, (word, isPending)) in all.enumerated() {
+            let i = words.startIndex + n
             var speaker = word.speaker
             // Words still being written that no voice has claimed yet, after a pause:
             // someone may have taken over — a row of their own until it's known.
@@ -322,7 +356,7 @@ enum MeetingText {
             current = (i, speaker, word.start, isPending ? [] : [word.text], isPending ? [word.text] : [])
         }
         flush()
-        return paragraphs ? folded(turns) : turns
+        return turns
     }
 
     /// For reading: a turn that came out empty (only "eh") goes, and someone else's
@@ -357,6 +391,7 @@ enum MeetingText {
     ]
 
     static func isBackchannel(_ text: String) -> Bool {
+        guard text.utf8.count <= 16 else { return false }       // most turns: at once
         let key = text.lowercased().filter { $0.isLetter || $0 == " " || $0 == "-" }
             .trimmingCharacters(in: .whitespaces)
         return key.split(separator: " ").count <= 2 && backchannels.contains(key)
@@ -487,6 +522,7 @@ final class MeetingStore: ObservableObject {
 
     func save(_ record: MeetingRecord) {
         let url = Self.recordURL(for: record.id)
+        Self.writer.sync {}          // a quiet save still on its way lands first, not over this one
         do {
             try Self.prepareFolder(for: record.id)
             let encoder = JSONEncoder()
@@ -500,6 +536,25 @@ final class MeetingStore: ObservableObject {
             meetings.insert(record, at: 0)
         }
     }
+
+    /// While a meeting is recorded (every 20 s, notes): written on a queue of its own,
+    /// so a long meeting's file never stalls the page — and the list isn't redrawn
+    /// for it (it gets the meeting when it ends).
+    func saveQuietly(_ record: MeetingRecord) {
+        let url = Self.recordURL(for: record.id)
+        Self.writer.async {
+            do {
+                try Self.prepareFolder(for: record.id)
+                let encoder = JSONEncoder()
+                encoder.dateEncodingStrategy = .iso8601
+                try encoder.encode(record).write(to: url, options: [.atomic])
+                try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+            } catch {
+                NSLog("Mindtalk: could not save meeting: \(error.localizedDescription)")
+            }
+        }
+    }
+    nonisolated private static let writer = DispatchQueue(label: "ai.mindact.mindtalk.meeting-writer", qos: .utility)
 
     func rename(_ id: UUID, to title: String) {
         let title = title.trimmingCharacters(in: .whitespacesAndNewlines)

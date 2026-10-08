@@ -1018,10 +1018,12 @@ private struct TranscriptView: View {
                 default: break
                 }
             }
-            // Follow the conversation — unless you've scrolled up to read.
-            .onChange(of: record.words.count + (turns.last?.pending.count ?? 0)) { _, _ in
-                guard live, following, !userScrolling else { return }
-                withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("end", anchor: .bottom) }
+            // Follow the conversation — unless you've scrolled up to read. On what the
+            // text takes up, not on how many words: a new name row, a mark or a line
+            // that settles also grows it.
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height } action: { old, new in
+                guard live, following, !userScrolling, new > old else { return }
+                withAnimation(.smooth(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) }
             }
             // Listening: the text follows the voice.
             .onChange(of: playingTurn) { _, id in
@@ -1034,6 +1036,12 @@ private struct TranscriptView: View {
                     withAnimation(.smooth(duration: 0.5)) { proxy.scrollTo(id, anchor: .center) }
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { if focusTurn == id { focusTurn = nil } }
+            }
+            // The text slips away under the header rather than being cut off.
+            .overlay(alignment: .top) {
+                LinearGradient(colors: [DS.Colors.paper, DS.Colors.paper.opacity(0)], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 18)
+                    .allowsHitTesting(false)
             }
             .overlay(alignment: .bottom) {
                 ZStack(alignment: .bottom) {
@@ -1204,11 +1212,13 @@ private struct TurnRow: View {
 
     private var bubble: some View {
         Group {
-            if live && isLast && !turn.pending.isEmpty {
-                // The words still arriving, and the cursor blinking after them.
-                TimelineView(.periodic(from: .now, by: 0.45)) { context in
-                    let on = Int(context.date.timeIntervalSinceReferenceDate / 0.45) % 2 == 0
-                    text(cursor: on)
+            if live && isLast {
+                // The words still arriving, and the cursor blinking after them. One view
+                // whether or not words are pending — so settling fades rather than snaps —
+                // on a fixed beat that a redraw doesn't restart.
+                TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: 0.5)) { context in
+                    let on = Int(context.date.timeIntervalSinceReferenceDate / 0.5) % 2 == 0
+                    text(cursor: turn.pending.isEmpty ? nil : on)
                 }
             } else if !words.isEmpty, karaoke != nil || showsChanges {
                 Text(wordByWord)
@@ -1218,7 +1228,6 @@ private struct TurnRow: View {
         }
         // Live: words settle from grey into ink rather than switching.
         .contentTransition(.interpolate)
-        .animation(live ? .easeInOut(duration: 0.45) : nil, value: turn.text)
         .font(.system(size: 15))
         .lineSpacing(4)
         .textSelection(.enabled)
@@ -1234,6 +1243,8 @@ private struct TurnRow: View {
             }
         }
         .frame(maxWidth: 580, alignment: .leading)
+        // The bubble grows with its text, rather than snapping to the new size.
+        .animation(live ? .smooth(duration: 0.4) : nil, value: turn.text)
         .animation(.easeOut(duration: 0.25), value: playing || focused)
     }
 
@@ -1735,7 +1746,8 @@ private struct LiveBar: View {
     var body: some View {
         VStack(spacing: 10) {
             if let caption {
-                Text(caption.text)
+                // A warning carries its sign, not only its colour (as in the panel).
+                (caption.warning ? Text("\(Image(systemName: "exclamationmark.triangle.fill")) \(caption.text)") : Text(caption.text))
                     .font(.system(size: 12.5, weight: caption.warning ? .medium : .regular))
                     .foregroundStyle(caption.warning ? DS.Colors.warning : DS.Colors.muted)
                     .multilineTextAlignment(.center)
@@ -1766,6 +1778,10 @@ private struct LiveBar: View {
         .animation(.spring(duration: 0.35, bounce: 0.15), value: session.phase)
         .animation(.spring(duration: 0.35, bounce: 0.15), value: session.stopping)
         .animation(.easeOut(duration: 0.25), value: caption?.text)
+        // Read out when a warning appears: it may be the only sign something's off.
+        .onChange(of: session.warning) { _, w in
+            if let w { AccessibilityNotification.Announcement(w).post() }
+        }
     }
 
     private var caption: (text: String, warning: Bool)? {
