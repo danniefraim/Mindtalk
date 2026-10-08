@@ -48,7 +48,11 @@ final class IntroRound: ObservableObject {
     @Published private(set) var phase: Phase = .ready
     /// The ring: how much of the speech needed has been heard (0…1).
     @Published private(set) var progress: Double = 0
-    @Published private(set) var captures: [Capture] = []
+    @Published private(set) var captures: [Capture] = [] {
+        didSet { if captures.count > oldValue.count { thankedAt = Date() } }
+    }
+    /// When the last person was added: "Tack, Anna!" stays up a moment into the next turn.
+    @Published private(set) var thankedAt: Date?
     /// The figure the cloud falls into, once there is a voice.
     @Published private(set) var figure: VoiceFigure?
     /// Nothing heard for a while in this turn.
@@ -417,6 +421,7 @@ final class IntroRound: ObservableObject {
     #if DEBUG
     /// Screenshots: a round in a given state (`--demo-phase listening|known|new|ready`).
     func demo(_ phase: String) {
+        if phase == "first" { set(.ready); task?.cancel(); return }
         captures = [Capture(name: "Anna", known: true, score: 0.8, from: 1, to: 6, print: nil,
                             figure: VoiceFigure.from(seed: "anna"), colour: 0)]
         turn = 2
