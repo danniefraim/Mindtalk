@@ -286,6 +286,15 @@ final class VoiceMemory: ObservableObject {
         return best.1 >= Self.sameVoice && lead >= Self.margin ? (best.0.name, best.1) : nil
     }
 
+    /// For the log (kept by macOS): how close a voice of the round came to the people
+    /// you know — names private, scores readable.
+    func logBest(_ print: [Float], speaker: Int, heard: Double) {
+        let ranked = people.map { ($0.name, Self.similarity(print, $0)) }.sorted { $0.1 > $1.1 }
+        guard let best = ranked.first else { return }
+        let lead = best.1 - (ranked.dropFirst().first?.1 ?? -1)
+        Self.log.notice("introduction: voice \(speaker) after \(Int(heard)) s: best \(best.0, privacy: .private) \(best.1, format: .fixed(precision: 2)), lead \(lead, format: .fixed(precision: 2))")
+    }
+
     /// The voices you've named in a meeting, remembered (or remembered better). A print
     /// that doesn't sound like the person at all is left out: then the speakers were
     /// probably mixed up in that meeting, and it would only teach the wrong voice.
@@ -319,6 +328,13 @@ final class VoiceMemory: ObservableObject {
                 if people[i].figure == nil { people[i].figure = figureForNew(print) }
                 reserved[Self.key(name)] = nil
             } else {
+                // A "new" person whose voice is someone you already know (a voice named
+                // twice, or two people heard as one): not saved — it would only confuse
+                // the two from now on.
+                if let other = people.first(where: { Self.similarity(print, $0) >= Self.sameVoice }) {
+                    Self.log.notice("not learned: a new name for the voice of \(other.name, privacy: .private)")
+                    continue
+                }
                 let figure = reserved.removeValue(forKey: Self.key(name)) ?? figureForNew(print)
                 people.append(Person(name: name.trimmingCharacters(in: .whitespaces), prints: [print], figure: figure,
                                      model: Self.modelID, sources: [source]))

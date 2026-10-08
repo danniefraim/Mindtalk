@@ -408,7 +408,9 @@ final class MeetingSession: ObservableObject {
     /// The voices introduced so far that you've named before, named — each checked again
     /// as it says more, up to half a minute of speech.
     private func recogniseIntroduced(_ checked: inout [Int: Double]) async {
-        guard let record, let intake, VoiceMemory.shared.enabled, !VoiceMemory.shared.people.isEmpty else { return }
+        // Not before the voice model is ready: a check then would call every voice new.
+        guard let record, let intake, VoiceMemory.shared.enabled, VoiceMemory.shared.state == .ready,
+              !VoiceMemory.shared.people.isEmpty else { return }
         var speech: [Int: Double] = [:]
         for w in record.words { if let s = w.speaker, s >= 0 { speech[s, default: 0] += w.end - w.start } }
         let named = Set(record.names.compactMap { $0.value.isEmpty ? nil : $0.key })
@@ -419,6 +421,7 @@ final class MeetingSession: ObservableObject {
             guard let print = await VoicePrints.shared.print(of: speaker, in: record.words, samples: audio) else { continue }
             defer { introChecked.insert(speaker) }
             let taken = Set((self.record?.names.values ?? [:].values).filter { !$0.isEmpty })
+            VoiceMemory.shared.logBest(print, speaker: speaker, heard: heard)
             guard let match = VoiceMemory.shared.match(print, excluding: taken),
                   var latest = self.record, (latest.names[String(speaker)] ?? "").isEmpty else {
                 // A new voice: its figure, once, unlike the others in the room.

@@ -62,7 +62,9 @@ struct VoiceScanner: View {
 
     /// Recognition is on and still listening to this voice: don't ask for a name yet.
     private func recognising(_ v: Voice) -> Bool {
-        v.name == nil && memory.enabled && !memory.people.isEmpty && !session.introChecked.contains(v.speaker) && v.speech < 8
+        // Still comparing until ten seconds of speech: a first try on a few words can
+        // miss a voice Mindtalk knows (it tries again every few seconds meanwhile).
+        v.name == nil && memory.enabled && memory.people.contains { !$0.prints.isEmpty } && v.speech < 10
     }
 
     /// The newest voice without a name, waiting for one.
