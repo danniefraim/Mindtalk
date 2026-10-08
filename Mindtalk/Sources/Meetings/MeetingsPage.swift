@@ -276,10 +276,10 @@ private struct StartCard: View {
                 }
                 .buttonStyle(.soft)
             } else {
-                // One start. The round ("Vem är här?") is offered as the meeting opens;
-                // ⌥-click goes straight into it.
+                // One start: the meeting begins with the round ("Vem är här?"), which
+                // can be skipped.
                 Button {
-                    session.start(introducing: NSEvent.modifierFlags.contains(.option))
+                    session.start(introducing: true)
                 } label: {
                     HStack(spacing: 8) {
                         Circle().fill(DS.Colors.recording).frame(width: 8, height: 8)
@@ -287,8 +287,8 @@ private struct StartCard: View {
                     }
                 }
                 .buttonStyle(.ink)
-                .help("Starta möte (⇧⌘R) – med ⌥ börjar det med en presentationsrunda")
-                .accessibilityHint("Med Alternativ-tangenten börjar mötet med en presentationsrunda")
+                .help("Starta möte (⇧⌘R) – börjar med en presentationsrunda som går att hoppa över")
+                .accessibilityHint("Mötet börjar med en presentationsrunda som går att hoppa över")
                 .disabled(dictation.phase != .idle)
             }
         case .downloading(let p):

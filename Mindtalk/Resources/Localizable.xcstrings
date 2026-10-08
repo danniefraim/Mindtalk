@@ -6198,6 +6198,7 @@
       }
     },
     "Med Alternativ-tangenten börjar mötet med en presentationsrunda": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6811,6 +6812,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mötet blev för långt för Apple Intelligence."
+          }
+        }
+      }
+    },
+    "Mötet börjar med en presentationsrunda som går att hoppa över": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting begins with a round of introductions you can skip"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet börjar med en presentationsrunda som går att hoppa över"
           }
         }
       }
@@ -9215,7 +9232,24 @@
         }
       }
     },
+    "Starta möte (⇧⌘R) – börjar med en presentationsrunda som går att hoppa över": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start meeting (⇧⌘R) – begins with a round of introductions you can skip"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starta möte (⇧⌘R) – börjar med en presentationsrunda som går att hoppa över"
+          }
+        }
+      }
+    },
     "Starta möte (⇧⌘R) – med ⌥ börjar det med en presentationsrunda": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

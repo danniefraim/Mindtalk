@@ -89,7 +89,7 @@ final class MeetingPanel: ObservableObject {
             meetingRan = true
             home = AppDelegate.mainWindowIsKey ? .window : .panel
             if home == .panel, session.introducing {
-                // Started with the round from elsewhere (⌥ in the menu): the round in the
+                // Started from elsewhere (the menu bar, the shortcut): the round in the
                 // window, the meeting in the panel after it.
                 returnToPanel = true
                 expand()
