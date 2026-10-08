@@ -243,6 +243,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --rewrite-compare 20 out.html`: written language, Apple against Gemma (RewriteCompare).
+        if let i = args.firstIndex(of: "--rewrite-compare"), i + 2 < args.count {
+            Task { @MainActor in
+                await RewriteCompare.run(count: Int(args[i + 1]) ?? 20, out: URL(fileURLWithPath: args[i + 2]))
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --polish-recent 30`: the latest dictations through the AI polish —
         // before, after and how long — nothing typed or saved.
         if let i = args.firstIndex(of: "--polish-recent") {
