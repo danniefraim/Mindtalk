@@ -414,6 +414,12 @@ struct SpeakerMark: View {
         (0x9C8646, 0xBBA466), (0x5A8A8C, 0x7CAAAC), (0x76706A, 0x98928C), (0x6A6F86, 0x8C91A8),
     ]
 
+    /// A speaker's colour, the same wherever they appear; none known yet: faint.
+    static func color(of speaker: Int?, in cast: Cast) -> Color {
+        guard let speaker, speaker >= 0 else { return DS.Colors.faint }
+        return fill(cast.number(of: speaker) - 1)
+    }
+
     static func fill(_ position: Int) -> Color {
         let p = pigments[position % pigments.count]
         return Color(nsColor: NSColor(name: nil) { appearance in
@@ -471,14 +477,18 @@ private struct SpeakerStack: View {
 }
 
 /// A speaker's name; click to name them, or to say they're someone else.
-private struct SpeakerChip: View {
+struct SpeakerChip: View {
     let speaker: Int
     let cast: Cast
     /// Named by Mindtalk from a voice you named before.
     var recognized = false
+    /// A capsule in the header, or the name above what they said in the text.
+    var style: Style = .chip
     let rename: (String) -> Void
     let merge: (Int) -> Void
     @State private var editing = false
+
+    enum Style { case chip, name }
     @State private var draft = ""
     @FocusState private var focused: Bool
 
@@ -487,21 +497,26 @@ private struct SpeakerChip: View {
             draft = cast.isNamed(speaker) ? cast.name(of: speaker) : ""
             editing = true
         } label: {
-            HStack(spacing: 6) {
-                VoiceBadge(speaker: speaker, cast: cast, size: 18)
-                Text(cast.name(of: speaker)).font(.system(size: 12.5, weight: .medium)).lineLimit(1)
-                    .frame(maxWidth: 150, alignment: .leading).fixedSize()
-                if recognized {
-                    Image(systemName: "checkmark.seal.fill").font(.system(size: 10.5)).foregroundStyle(DS.Colors.muted)
-                        .accessibilityLabel("Igenkänd röst")
-                        .help("Mindtalk kände igen rösten")
+            switch style {
+            case .chip:
+                HStack(spacing: 6) {
+                    VoiceBadge(speaker: speaker, cast: cast, size: 18)
+                    Text(cast.name(of: speaker)).font(.system(size: 12.5, weight: .medium)).lineLimit(1)
+                        .frame(maxWidth: 150, alignment: .leading).fixedSize()
                 }
+                .padding(.leading, 3)
+                .padding(.trailing, 10)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(DS.Colors.chip))
+                .contentShape(Capsule())
+                .accessibilityLabel(recognized ? String(localized: "\(cast.name(of: speaker)), igenkänd röst") : cast.name(of: speaker))
+            case .name:
+                Text(cast.name(of: speaker))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(SpeakerMark.color(of: speaker, in: cast))
+                    .lineLimit(1)
+                    .contentShape(Rectangle())
             }
-            .padding(.leading, 3)
-            .padding(.trailing, 10)
-            .padding(.vertical, 3)
-            .background(Capsule().fill(DS.Colors.chip))
-            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .help(recognized ? "Mindtalk kände igen rösten – klicka för att ändra" : "Ge talaren ett namn")
@@ -702,12 +717,6 @@ struct MeetingView: View {
                     .buttonStyle(.plain)
                     .keyboardShortcut("[", modifiers: .command)
                     .help("Alla möten (⌘[)")
-                } else if session?.isRecording == true {
-                    HStack(spacing: 7) {
-                        Circle().fill(DS.Colors.recording).frame(width: 7, height: 7)
-                        Text("Spelar in").font(.system(size: 12.5, weight: .semibold))
-                    }
-                    .frame(height: 28)
                 }
                 Spacer()
                 actions
@@ -737,7 +746,7 @@ struct MeetingView: View {
                 }
             }
             if !segments.isEmpty {
-                MeetingRibbon(record: record, cast: cast, segments: segments, live: live)
+                MeetingRibbon(record: record, cast: cast, segments: segments, live: live, now: session?.elapsed)
                     .padding(.top, 4)
                     .transition(.opacity)
             }
@@ -992,8 +1001,13 @@ private struct TranscriptView: View {
                                 move: turn.id < end && turn.pending.isEmpty
                                     ? { speaker in withAnimation(.snappy) { edit.move(turn.id..<end, to: speaker) } } : nil,
                                 marks: record.marks.filter { $0.at >= (i == 0 ? -.infinity : turn.start) && $0.at < next },
-                                removeMark: { id in withAnimation(.snappy) { edit.removeMark(id) } })
-                            .padding(.top, i == 0 ? 0 : newSpeaker ? 22 : 6)
+                                removeMark: { id in withAnimation(.snappy) { edit.removeMark(id) } },
+                                recognized: turn.speaker.map { record.recognized[String($0)] != nil } ?? false,
+                                rename: turn.speaker.flatMap { s in s >= 0 ? { edit.name(s, $0) } : nil },
+                                merge: turn.speaker.flatMap { s in
+                                    s >= 0 ? { other in withAnimation(.snappy) { edit.merge(s, into: other) } } : nil
+                                })
+                            .padding(.top, i == 0 ? 0 : newSpeaker ? 26 : 12)
                             .id(turn.id)
                     }
                     Color.clear.frame(height: 1).id("end")
@@ -1144,24 +1158,42 @@ private struct TurnRow: View {
     /// The moments you marked during this turn.
     var marks: [MeetingRecord.Mark] = []
     var removeMark: ((UUID) -> Void)? = nil
+    /// The name above the text: click it to name or correct them, as in the header.
+    var recognized = false
+    var rename: ((String) -> Void)? = nil
+    var merge: ((Int) -> Void)? = nil
 
     private var speaker: Int? { turn.speaker.flatMap { $0 >= 0 ? $0 : nil } }
     private var showsChanges: Bool { !changed.isEmpty && (firstIndex..<(firstIndex + words.count)).contains { changed.contains($0) } }
 
+    private var tint: Color { SpeakerMark.color(of: speaker, in: cast) }
+    private var lit: Bool { playing || focused }
+
+    /// A document, not a chat: who spoke in a thin line of their colour beside what
+    /// they said, their name above it when it's someone new.
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Group {
-                if showName { SpeakerMark(speaker: speaker, cast: cast, size: 24) } else { Color.clear }
-            }
-            .frame(width: 24, height: 24)
-            VStack(alignment: .leading, spacing: 6) {
-                if showName { nameRow }
-                bubble
-                if !marks.isEmpty {
-                    markRow.transition(.scale(scale: 0.6, anchor: .topLeading).combined(with: .opacity))
-                }
+        VStack(alignment: .leading, spacing: 5) {
+            if showName { nameRow }
+            line
+            if !marks.isEmpty {
+                markRow
+                    .padding(.top, 3)
+                    .transition(.scale(scale: 0.6, anchor: .topLeading).combined(with: .opacity))
             }
         }
+        .padding(.leading, 16)
+        .padding(.vertical, lit ? 7 : 0)
+        .padding(.trailing, lit ? 12 : 0)
+        .background(alignment: .leading) {
+            Capsule().fill(tint.opacity(speaker == nil ? 0.6 : 1)).frame(width: lit ? 3.5 : 2.5)
+        }
+        .background {
+            if lit {
+                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(tint.opacity(0.09)).transition(.opacity)
+            }
+        }
+        .frame(maxWidth: 680, alignment: .leading)
+        .animation(.easeOut(duration: 0.25), value: lit)
         .contextMenu {
             Button("Kopiera") {
                 NSPasteboard.general.clearContents()
@@ -1184,10 +1216,14 @@ private struct TurnRow: View {
 
     private var nameRow: some View {
         HStack(spacing: 8) {
-            Text(speaker.map { cast.name(of: $0) }
-                 ?? (live ? String(localized: "Känner igen rösten…") : String(localized: "Okänd talare")))
-                .font(.system(size: 12.5, weight: .semibold))
-                .foregroundStyle(speaker == nil ? DS.Colors.muted : .primary)
+            if let speaker, let rename, let merge {
+                SpeakerChip(speaker: speaker, cast: cast, recognized: recognized, style: .name, rename: rename, merge: merge)
+            } else {
+                Text(speaker.map { cast.name(of: $0) }
+                     ?? (live ? String(localized: "Känner igen rösten…") : String(localized: "Okänd talare")))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(speaker == nil ? DS.Colors.muted : tint)
+            }
             if let play {
                 Button(action: play) {
                     HStack(spacing: 3) {
@@ -1195,7 +1231,7 @@ private struct TurnRow: View {
                         Text(MeetingView.duration(turn.start)).monospacedDigit()
                     }
                     .font(.system(size: 11.5, weight: .medium))
-                    .foregroundStyle(DS.Colors.muted)
+                    .foregroundStyle(DS.Colors.faint)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -1204,13 +1240,13 @@ private struct TurnRow: View {
             } else {
                 Text(MeetingView.duration(turn.start))
                     .font(.system(size: 11.5, weight: .medium)).monospacedDigit()
-                    .foregroundStyle(DS.Colors.muted)
+                    .foregroundStyle(DS.Colors.faint)
             }
         }
         .accessibilityElement(children: .combine)
     }
 
-    private var bubble: some View {
+    private var line: some View {
         Group {
             if live && isLast {
                 // The words still arriving, and the cursor blinking after them. One view
@@ -1228,24 +1264,12 @@ private struct TurnRow: View {
         }
         // Live: words settle from grey into ink rather than switching.
         .contentTransition(.interpolate)
-        .font(.system(size: 15))
-        .lineSpacing(4)
+        .font(.system(size: 16))
+        .lineSpacing(6)
         .textSelection(.enabled)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(DS.Colors.card))
-        .overlay {
-            if playing || focused {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(DS.Gradients.accent, lineWidth: 1.5)
-                    .shadow(color: DS.Colors.accent.opacity(0.12), radius: 14, y: 6)
-                    .transition(.opacity)
-            }
-        }
-        .frame(maxWidth: 580, alignment: .leading)
-        // The bubble grows with its text, rather than snapping to the new size.
+        .frame(maxWidth: 640, alignment: .leading)
+        // The text grows with its words, rather than snapping to the new size.
         .animation(live ? .smooth(duration: 0.4) : nil, value: turn.text)
-        .animation(.easeOut(duration: 0.25), value: playing || focused)
     }
 
     private func text(cursor: Bool?) -> Text {
@@ -1756,14 +1780,10 @@ private struct LiveBar: View {
                     .background(Capsule().fill(DS.Colors.paper.opacity(0.9)))
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
-            // Your notes and the marks, where your eyes are while it records — as in the panel.
-            if session.isRecording, !session.introducing {
-                // "Innan ni börjar" sits with your notes: where your eyes are, and it
-                // doesn't scroll away as the text grows.
-                VStack(spacing: 10) {
-                    OpeningCard(session: session)
-                    LiveNotesBox(session: session)
-                }
+            // "Innan ni börjar", while it has something to say: above the island, where
+            // your eyes are, and it doesn't scroll away as the text grows.
+            if session.isRecording, !session.introducing, session.showsOpening {
+                OpeningCard(session: session)
                     .padding(12)
                     .frame(maxWidth: 560)
                     .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(DS.Colors.paper))
@@ -1772,7 +1792,14 @@ private struct LiveBar: View {
                     .padding(.horizontal, 24)
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
-            pill
+            // Recording: one island — the time, your note, the marks, stop.
+            if session.isRecording, !session.introducing, !session.stopping {
+                NoteIsland(session: session) { timer } trailing: { stopButton }
+                    .padding(.horizontal, 24)
+                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .bottom)))
+            } else {
+                pill
+            }
         }
         .padding(.bottom, 22)
         .animation(.spring(duration: 0.35, bounce: 0.15), value: session.phase)
@@ -1802,15 +1829,7 @@ private struct LiveBar: View {
                 Text(what).font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
                     .accessibilityLabel(what)
             default:
-                RecordingDot()
-                if let start = session.startedAt {
-                    TimelineView(.periodic(from: start, by: 1)) { context in
-                        Text(MeetingView.duration(context.date.timeIntervalSince(start)))
-                            .font(.system(size: 15, weight: .semibold, design: .rounded)).monospacedDigit()
-                            .foregroundStyle(.white)
-                            .accessibilityLabel("Spelar in, \(MeetingView.spoken(context.date.timeIntervalSince(start)))")
-                    }
-                }
+                timer
                 if session.stopping {
                     StopCountdown(session: session, compact: true, onDark: true)
                         .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .trailing)))
@@ -1830,6 +1849,22 @@ private struct LiveBar: View {
     }
 
     /// One press ends it — with a few seconds to undo, the recording going on meanwhile.
+    /// The red dot and how long it has been going.
+    private var timer: some View {
+        HStack(spacing: 10) {
+            RecordingDot()
+            if let start = session.startedAt {
+                TimelineView(.periodic(from: start, by: 1)) { context in
+                    Text(MeetingView.duration(context.date.timeIntervalSince(start)))
+                        .font(.system(size: 15, weight: .semibold, design: .rounded)).monospacedDigit()
+                        .foregroundStyle(.white)
+                        .accessibilityLabel("Spelar in, \(MeetingView.spoken(context.date.timeIntervalSince(start)))")
+                }
+            }
+        }
+        .fixedSize()
+    }
+
     private var stopButton: some View {
         Button {
             withAnimation(.spring(duration: 0.3, bounce: 0.15)) { _ = session.requestStop() }

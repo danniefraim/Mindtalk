@@ -16,6 +16,8 @@ struct MeetingRibbon: View {
     var compact = false
     /// Recording: grows as the meeting does, nothing to play yet.
     var live = false
+    /// Recording: how far it has come (seconds) — a line where "now" is.
+    var now: Double? = nil
     @ObservedObject private var player = MeetingPlayer.shared
     @State private var hover: CGFloat?
 
@@ -66,7 +68,15 @@ struct MeetingRibbon: View {
             guard let lane = cast.order.firstIndex(of: s.speaker) else { continue }
             let y = markerRow + CGFloat(lane) * (laneHeight + laneGap)
             let rect = CGRect(x: x(s.start), y: y, width: max(compact ? 1.5 : 2.5, x(s.end) - x(s.start)), height: laneHeight)
-            ctx.fill(Path(roundedRect: rect, cornerRadius: laneHeight / 2), with: .color(SpeakerMark.fill(lane)))
+            ctx.fill(Path(roundedRect: rect, cornerRadius: laneHeight / 2),
+                     with: .color(SpeakerMark.color(of: s.speaker, in: cast)))
+        }
+        // Recording: now, with the empty strip to its right still to come.
+        if live, let now, !compact {
+            let nx = min(w - 1, x(now))
+            ctx.fill(Path(roundedRect: CGRect(x: nx - 0.75, y: markerRow - 3, width: 1.5, height: size.height - markerRow + 3),
+                          cornerRadius: 0.75), with: .color(DS.Colors.ink.opacity(0.75)))
+            ctx.fill(Path(ellipseIn: CGRect(x: nx - 2.5, y: markerRow - 6, width: 5, height: 5)), with: .color(DS.Colors.recording))
         }
         guard !compact else { return }
         // Where decisions and tasks were said.

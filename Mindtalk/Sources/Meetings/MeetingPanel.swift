@@ -319,8 +319,11 @@ private struct LivePanel: View {
                         let next = i + 1 < turns.count ? turns[i + 1].start : .infinity
                         PanelTurn(turn: turn, cast: cast, showName: newSpeaker,
                                   marks: (session.record?.marks ?? []).filter { $0.at >= (i == 0 ? -.infinity : turn.start) && $0.at < next },
-                                  removeMark: { id in session.removeMark(id) })
-                            .padding(.top, i == 0 ? 0 : newSpeaker ? 18 : 5)
+                                  removeMark: { id in session.removeMark(id) },
+                                  recognized: turn.speaker.map { session.record?.recognized[String($0)] != nil } ?? false,
+                                  rename: { s, name in session.name(speaker: s, as: name) },
+                                  merge: { s, other in withAnimation(.snappy) { session.merge(s, into: other) } })
+                            .padding(.top, i == 0 ? 0 : newSpeaker ? 20 : 10)
                             .id(turn.id)
                     }
                     Color.clear.frame(height: 16).id("end")      // air under the last words
@@ -523,19 +526,28 @@ private struct PanelTurn: View {
     /// What you marked while this was said.
     var marks: [MeetingRecord.Mark] = []
     var removeMark: ((UUID) -> Void)? = nil
+    /// Click the name to give or correct it, as in the window.
+    var recognized = false
+    var rename: ((Int, String) -> Void)? = nil
+    var merge: ((Int, Int) -> Void)? = nil
 
     private var speaker: Int? { turn.speaker.flatMap { $0 >= 0 ? $0 : nil } }
 
+    /// As in the window: a thin line in the speaker's colour beside what they said.
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             if showName {
                 HStack(spacing: 7) {
-                    SpeakerMark(speaker: speaker, cast: cast, size: 20)
-                    Text(speaker.map { cast.name(of: $0) } ?? String(localized: "Känner igen rösten…"))
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .foregroundStyle(speaker == nil ? DS.Colors.muted : .primary)
+                    if let speaker, let rename, let merge {
+                        SpeakerChip(speaker: speaker, cast: cast, recognized: recognized, style: .name,
+                                    rename: { rename(speaker, $0) }, merge: { merge(speaker, $0) })
+                    } else {
+                        Text(speaker.map { cast.name(of: $0) } ?? String(localized: "Känner igen rösten…"))
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .foregroundStyle(speaker == nil ? DS.Colors.muted : SpeakerMark.color(of: speaker, in: cast))
+                    }
                     Text(MeetingView.duration(turn.start))
-                        .font(.system(size: 11.5, weight: .medium)).monospacedDigit()
+                        .font(.system(size: 11, weight: .medium)).monospacedDigit()
                         .foregroundStyle(DS.Colors.faint)
                 }
                 .accessibilityElement(children: .combine)
@@ -544,17 +556,19 @@ private struct PanelTurn: View {
                 // Words settle from grey into ink rather than switching.
                 .contentTransition(.interpolate)
                 .font(.system(size: 14.5))
-                .lineSpacing(3.5)
-                .padding(.horizontal, 13)
-                .padding(.vertical, 9)
+                .lineSpacing(4.5)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 15, style: .continuous).fill(DS.Colors.card))
-                // The bubble grows with its text, rather than snapping to the new size.
+                // The text grows with its words, rather than snapping to the new size.
                 .animation(.smooth(duration: 0.4), value: turn.text)
             if !marks.isEmpty {
                 MarkChips(marks: marks, compact: true, remove: removeMark)
+                    .padding(.top, 2)
                     .transition(.scale(scale: 0.6, anchor: .topLeading).combined(with: .opacity))
             }
+        }
+        .padding(.leading, 13)
+        .background(alignment: .leading) {
+            Capsule().fill(SpeakerMark.color(of: speaker, in: cast).opacity(speaker == nil ? 0.6 : 1)).frame(width: 2.5)
         }
     }
 

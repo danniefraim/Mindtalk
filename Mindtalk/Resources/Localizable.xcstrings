@@ -330,6 +330,22 @@
         }
       }
     },
+    "%@ – markera det som sägs just nu (⌥⌘%lld)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ – mark what's being said right now (⌥⌘%2$lld)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ – markera det som sägs just nu (⌥⌘%lld)"
+          }
+        }
+      }
+    },
     "%@ – vald mikrofon saknas": {
       "localizations": {
         "en": {
@@ -368,6 +384,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@, %@. Laddas ned en gång och fungerar sedan offline."
+          }
+        }
+      }
+    },
+    "%@, igenkänd röst": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, recognised voice"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, igenkänd röst"
           }
         }
       }
@@ -977,6 +1009,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Annars finns Mindtalk bara i menyraden när fönstret är stängt."
+          }
+        }
+      }
+    },
+    "Anteckning – en rad per sak": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note – one line per thing"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anteckning – en rad per sak"
           }
         }
       }
@@ -4177,6 +4225,7 @@
       }
     },
     "Igenkänd röst": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6255,6 +6304,22 @@
         }
       }
     },
+    "Markerat: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marked: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markerat: %@"
+          }
+        }
+      }
+    },
     "Med Alternativ-tangenten börjar mötet med en presentationsrunda": {
       "extractionState": "stale",
       "localizations": {
@@ -6549,6 +6614,7 @@
       }
     },
     "Mindtalk kände igen rösten": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

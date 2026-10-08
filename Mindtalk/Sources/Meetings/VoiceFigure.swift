@@ -124,14 +124,14 @@ struct VoiceBadge: View {
 
     var body: some View {
         let name = speaker.flatMap { cast.isNamed($0) ? cast.name(of: $0) : nil }
-        HStack(spacing: 4) {
+        // One mark: the voice's figure when Mindtalk knows the voice, otherwise the
+        // initial — in the speaker's colour either way.
+        if let name, let figure = VoiceFigure.remembered(name) {
+            VoiceFigureMark(figure: figure, color: SpeakerMark.color(of: speaker, in: cast), lineWidth: 1.2)
+                .frame(width: size, height: size)
+                .help("Mindtalk känner igen \(name)s röst")
+        } else {
             SpeakerMark(speaker: speaker, cast: cast, size: size)
-            if let name, let figure = VoiceFigure.remembered(name) {
-                VoiceFigureMark(figure: figure, color: SpeakerMark.fill(cast.order.firstIndex(of: speaker ?? -1) ?? 0),
-                                lineWidth: 1)
-                    .frame(width: size, height: size)
-                    .help("Mindtalk känner igen \(name)s röst")
-            }
         }
     }
 }

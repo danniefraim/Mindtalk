@@ -198,6 +198,93 @@ struct LiveNotesBox: View {
     }
 }
 
+/// While a meeting records, in the window: one island at the foot of the text — the
+/// time, a note (a line per thing), the marks, stop. Dark in both appearances, as
+/// the recording pill always was.
+struct NoteIsland<Leading: View, Trailing: View>: View {
+    @ObservedObject var session: MeetingSession
+    @ViewBuilder var leading: Leading
+    @ViewBuilder var trailing: Trailing
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            leading
+            ZStack(alignment: .topLeading) {
+                if text.isEmpty {
+                    Text("Anteckning – en rad per sak")
+                        .font(.system(size: 13.5))
+                        .foregroundStyle(.white.opacity(0.4))
+                        .padding(.top, 7)
+                        .padding(.leading, 5)
+                        .allowsHitTesting(false)
+                }
+                TextEditor(text: $text)
+                    .font(.system(size: 13.5))
+                    .foregroundStyle(.white)
+                    .scrollContentBackground(.hidden)
+                    .focused($focused)
+                    .frame(minHeight: 30, maxHeight: 92)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 1)
+            .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(.white.opacity(focused ? 0.1 : 0.06)))
+            .animation(.easeOut(duration: 0.2), value: focused)
+            MarkIcons { kind in
+                withAnimation(.spring(duration: 0.35, bounce: 0.35)) { _ = session.mark(kind) }
+            }
+            trailing
+        }
+        .padding(.leading, 18)
+        .padding(.trailing, 7)
+        .padding(.vertical, 7)
+        .frame(maxWidth: 680)
+        .background(RoundedRectangle(cornerRadius: 23, style: .continuous).fill(Color(white: 0.07)))
+        .overlay(RoundedRectangle(cornerRadius: 23, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.28), radius: 10, y: 4)
+        .environment(\.colorScheme, .dark)
+        .onAppear { text = session.record?.notesText ?? "" }
+        .onChange(of: text) { _, new in session.setNotes(new) }
+    }
+}
+
+/// The three marks as round buttons in their colours — ⌥⌘1, ⌥⌘2, ⌥⌘3.
+private struct MarkIcons: View {
+    let mark: (MeetingRecord.Mark.Kind) -> Void
+    @State private var flashed: MeetingRecord.Mark.Kind?
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(Array(MeetingRecord.Mark.Kind.allCases.enumerated()), id: \.element) { i, kind in
+                let on = flashed == kind
+                Button {
+                    mark(kind)
+                    AccessibilityNotification.Announcement(String(localized: "Markerat: \(kind.title)")).post()
+                    withAnimation(.easeOut(duration: 0.15)) { flashed = kind }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        if flashed == kind { withAnimation(.easeOut(duration: 0.4)) { flashed = nil } }
+                    }
+                } label: {
+                    Image(systemName: on ? "checkmark" : kind.symbol)
+                        .font(.system(size: 13.5, weight: .semibold))
+                        .foregroundStyle(kind.tint)
+                        .contentTransition(.symbolEffect(.replace))
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(on ? kind.tint.opacity(0.22) : .white.opacity(0.06)))
+                        .scaleEffect(on ? 1.08 : 1)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: [.command, .option])
+                .help("\(kind.title) – markera det som sägs just nu (⌥⌘\(i + 1))")
+                .accessibilityLabel("Markera \(kind.title.lowercased())")
+            }
+        }
+    }
+}
+
 /// Beslut · Att göra · Viktigt — one joined row, each with its icon in its own
 /// quiet colour. A press flashes the part you pressed and says it took.
 private struct MarkBar: View {
