@@ -962,6 +962,11 @@ private struct TranscriptView: View {
     var changed: Set<Int> = []
     @ObservedObject private var player = MeetingPlayer.shared
     @State private var atBottom = true
+    /// Following the newest text — until you scroll up yourself; back at the bottom
+    /// (or "Till nu"), it follows again. Not decided by where the view happens to be
+    /// when a burst of text arrives.
+    @State private var following = true
+    @State private var userScrolling = false
 
     private var live: Bool { session != nil }
 
@@ -1002,11 +1007,21 @@ private struct TranscriptView: View {
                 geo.contentOffset.y + geo.containerSize.height >= geo.contentSize.height - 80
             } action: { _, bottom in
                 atBottom = bottom
+                if bottom { following = true }
+            }
+            // Only your own scrolling stops the following: where it ends decides.
+            .onScrollPhaseChange { _, phase in
+                switch phase {
+                case .tracking, .interacting, .decelerating: userScrolling = true
+                case .idle:
+                    if userScrolling { userScrolling = false; following = atBottom }
+                default: break
+                }
             }
             // Follow the conversation — unless you've scrolled up to read.
             .onChange(of: record.words.count + (turns.last?.pending.count ?? 0)) { _, _ in
-                guard live, atBottom else { return }
-                withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo("end", anchor: .bottom) }
+                guard live, following, !userScrolling else { return }
+                withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("end", anchor: .bottom) }
             }
             // Listening: the text follows the voice.
             .onChange(of: playingTurn) { _, id in
@@ -1023,8 +1038,9 @@ private struct TranscriptView: View {
             .overlay(alignment: .bottom) {
                 ZStack(alignment: .bottom) {
                     BottomScrim(height: live ? 22 : 70)
-                    if live, !atBottom, !turns.isEmpty {
+                    if live, !following, !turns.isEmpty {
                         Button {
+                            following = true
                             withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) }
                         } label: {
                             Label("Till nu", systemImage: "arrow.down")
@@ -1039,12 +1055,15 @@ private struct TranscriptView: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
-                .animation(.spring(duration: 0.35, bounce: 0.15), value: atBottom)
+                .animation(.spring(duration: 0.35, bounce: 0.15), value: following)
             }
             // Built anew mid-meeting (WindowEpoch): back to where the conversation is.
             .onAppear {
                 guard live, !turns.isEmpty else { return }
+                following = true
+                // Once now, and once more after the layout has settled (after the round).
                 DispatchQueue.main.async { proxy.scrollTo("end", anchor: .bottom) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { if following { proxy.scrollTo("end", anchor: .bottom) } }
             }
         }
     }
