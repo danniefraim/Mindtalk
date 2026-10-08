@@ -868,6 +868,7 @@ private struct AboutCard: View {
     private static let parakeet = URL(string: "https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3")!
     private static let fluidAudio = URL(string: "https://github.com/FluidInference/FluidAudio")!
     private static let apache = URL(string: "https://www.apache.org/licenses/LICENSE-2.0")!
+    private static let redimnet = URL(string: "https://huggingface.co/lab260/redimnet2-plus")!
     private static let sparkle = URL(string: "https://github.com/sparkle-project/Sparkle")!
 
     private var version: String {
@@ -891,6 +892,10 @@ private struct AboutCard: View {
             row(title: "NVIDIA Parakeet TDT 0.6B v3",
                 detail: "Grundmodellen båda bygger på, av NVIDIA. CC BY 4.0.") {
                 links([("Modell", Self.parakeet), ("Licens", Self.ccBy)])
+            }
+            CardDivider()
+            row(title: "ReDimNet2+", detail: "Känner igen röster. Av LAB260, byggd på ReDimNet2 av Palabra.ai. Ingår i appen. Apache 2.0.") {
+                links([("Modell", Self.redimnet), ("Licens", Self.apache)])
             }
             CardDivider()
             row(title: "FluidAudio", detail: "Kör modellerna på Neural Engine. Av FluidInference, Apache 2.0.") {

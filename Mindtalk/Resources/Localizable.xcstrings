@@ -4944,6 +4944,23 @@
         }
       }
     },
+    "Känner igen röster. Av LAB260, byggd på ReDimNet2 av Palabra.ai. Ingår i appen. Apache 2.0.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recognises voices. By LAB260, built on ReDimNet2 by Palabra.ai. Included in the app. Apache 2.0."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Känner igen röster. Av LAB260, byggd på ReDimNet2 av Palabra.ai. Ingår i appen. Apache 2.0."
+          }
+        }
+      }
+    },
     "Känner igen rösterna…": {
       "localizations": {
         "en": {
@@ -7534,6 +7551,7 @@
       }
     },
     "Röstmodellen kunde inte laddas ned: %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7545,6 +7563,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Röstmodellen kunde inte laddas ned: %@"
+          }
+        }
+      }
+    },
+    "Röstmodellen kunde inte startas: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The voice model couldn't start: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Röstmodellen kunde inte startas: %@"
           }
         }
       }

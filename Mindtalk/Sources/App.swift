@@ -208,7 +208,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             Task { @MainActor in
                 let memory = VoiceMemory.shared
                 memory.prepare()
-                while case .downloading = memory.state { try? await Task.sleep(for: .milliseconds(300)) }
+                for _ in 0..<100 where memory.state == .missing { try? await Task.sleep(for: .milliseconds(100)) }
                 guard memory.state == .ready else { print("Modellen: \(memory.state)"); exit(1) }
                 var prints: [(label: String, named: String?, print: [Float])] = []
                 let t0 = Date()

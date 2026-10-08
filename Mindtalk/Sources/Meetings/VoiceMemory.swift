@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreML
 import FluidAudio
 import Foundation
 import os
@@ -8,8 +9,8 @@ import SwiftUI
 //
 // Name a speaker once — "Talare 2" is Anna — and the next meeting she's in, Mindtalk
 // names her itself. After each meeting's final pass, every unnamed voice with enough
-// speech is turned into a voiceprint (CAM++, a small speaker model: 192 numbers per
-// voice, no audio) and compared with the people you've named before. A clear match
+// speech is turned into a voiceprint (ReDimNet2+, a small speaker model built into the
+// app: 192 numbers per voice, no audio) and compared with the people you've named before. A clear match
 // gets the name; anything unsure stays "Talare N".
 //
 // A voiceprint is biometric data, so this is off until you switch it on (Inställningar
@@ -30,6 +31,9 @@ final class VoiceMemory: ObservableObject {
         /// Their figure (VoiceFigure), chosen when the voice was first saved and never
         /// changed after — the same person looks the same in every meeting.
         var figure: VoiceFigure?
+        /// The speaker model the prints were made with — prints from different models
+        /// can't be compared (nil: the old CAM++ model).
+        var model: String?
     }
 
     enum State: Equatable { case missing, downloading(Double), ready, failed(String) }
@@ -44,7 +48,7 @@ final class VoiceMemory: ObservableObject {
     /// On — switched on in Settings, or for a self-test (never saved then).
     private var isOn: Bool { enabled || testing }
     private var testing = false
-    @Published private(set) var state: State = VoiceMemory.isInstalled ? .ready : .missing
+    @Published private(set) var state: State = .missing
 
     /// Figures shown for new voices in the introduction round, waiting for those voices
     /// to be saved under the names they were given.
@@ -53,7 +57,22 @@ final class VoiceMemory: ObservableObject {
     private init() {
         people = Self.loadPeople()
         giveFigures()
+        dropOldPrints()
         if enabled { prepare() }
+    }
+
+    /// Prints made with an earlier speaker model mean nothing to this one: they go
+    /// (names and figures stay), and are made again from your meetings (relearn).
+    private func dropOldPrints() {
+        var changed = false
+        for i in people.indices where people[i].model != Self.modelID && !people[i].prints.isEmpty {
+            people[i].prints = []
+            changed = true
+        }
+        if changed { save() }
+        // The old model's own folder is no longer used.
+        let old = SpeechModel.rootDirectory.appendingPathComponent("campplus-321b18e2")
+        if FileManager.default.fileExists(atPath: old.path) { try? FileManager.default.trashItem(at: old, resultingItemURL: nil) }
     }
 
     // MARK: Figures
@@ -88,78 +107,45 @@ final class VoiceMemory: ObservableObject {
         if changed { save() }
     }
 
-    // MARK: The model (CAM++, about 16 MB, in Mindtalk's own folder)
+    // MARK: The model (ReDimNet2+, 13 MB, inside the app — nothing is downloaded)
 
-    nonisolated static let repo = "FluidInference/campplus-coreml"
-    nonisolated static let revision = "321b18e270a4e19e69ef4a13d179b4eac07cec6a"
-    nonisolated static let files: [SpeechModel.RemoteFile] = [
-        .init(path: "CamPlusPlus.mlmodelc/analytics/coremldata.bin", size: 243, sha256: "be20481d48572c431a3ed23606956706d4e224a0c7994ae1ab1920813edafe5f"),
-        .init(path: "CamPlusPlus.mlmodelc/coremldata.bin", size: 337, sha256: "800dc33d00a27621ead3e315fe93ec15a1800aa5d4a111c064cb1c44aeebbf3a"),
-        .init(path: "CamPlusPlus.mlmodelc/model.mil", size: 971728, sha256: "8605afe81896c1c23d1670132817b580dac9d3789b5805a68c6463412c50c52b"),
-        .init(path: "CamPlusPlus.mlmodelc/weights/weight.bin", size: 13854912, sha256: "058c317b6a768cac30fcf89b46676d7df1aa1915357c44ecc7ada4e5b7c11590"),
-        .init(path: "CamPlusPreprocessor.mlmodelc/analytics/coremldata.bin", size: 243, sha256: "11e99d94be389165098b54c5de6f8745ed44de70f6fd294a20ca9548c626df77"),
-        .init(path: "CamPlusPreprocessor.mlmodelc/coremldata.bin", size: 330, sha256: "64fb697bb216eddb9f691250e45fee44b2ef87b52b047ede0063fe7275571f00"),
-        .init(path: "CamPlusPreprocessor.mlmodelc/model.mil", size: 9364, sha256: "c551054a2a8f6ad2dba60ca9fd3512364b1c4114ea4d612bbd90d162487ecdb1"),
-        .init(path: "CamPlusPreprocessor.mlmodelc/weights/weight.bin", size: 1778432, sha256: "09f13054339581673c8b5745954471945a61fea54441b6e55f934f041611143a"),
-    ]
-    nonisolated static var bytes: Int64 { files.reduce(0) { $0 + $1.size } }
+    /// Which model made a print (see Person.model).
+    nonisolated static let modelID = "redimnet2plus-int8-1"
 
-    nonisolated static var directory: URL {
-        SpeechModel.rootDirectory.appendingPathComponent("campplus-\(revision.prefix(8))")
-    }
-    nonisolated private static let completeMarker = ".complete"
-    nonisolated static var isInstalled: Bool {
-        FileManager.default.fileExists(atPath: directory.appendingPathComponent(completeMarker).path)
-    }
+    /// Loads the model (switched on) ahead of the next meeting, and makes prints again
+    /// for anyone who has none.
+    private var preparing: Task<Void, Never>?
 
-    private var installing: Task<Void, Never>?
-
-    /// Fetches the model once (switched on) and loads it ahead of the next meeting.
     func prepare() {
-        guard installing == nil else { return }
-        if Self.isInstalled {
-            state = .ready
-            Task {
-                try? await VoicePrints.shared.load()
-                await learnFromPastMeetings()
-            }
-            return
-        }
-        state = .downloading(0)
-        installing = Task {
-            defer { installing = nil }
+        guard preparing == nil else { return }
+        preparing = Task {
+            defer { preparing = nil }
             do {
-                try await Self.install { p in Task { @MainActor in
-                    if case .downloading = VoiceMemory.shared.state { VoiceMemory.shared.state = .downloading(p) }
-                } }
+                try await VoicePrints.shared.load()
                 state = .ready
-                try? await VoicePrints.shared.load()
-                Self.log.info("voice model installed")
-                await learnFromPastMeetings()
             } catch {
                 Self.log.error("voice model: \(error.localizedDescription, privacy: .public)")
                 state = .failed(error.localizedDescription)
+                return
             }
+            await learnFromPastMeetings()
+            await relearn()
         }
     }
 
-    nonisolated private static func install(progress: @escaping @Sendable (Double) -> Void) async throws {
-        let fm = FileManager.default
-        let staging = directory.deletingLastPathComponent().appendingPathComponent(".staging-campplus-\(revision.prefix(8))")
-        try fm.createDirectory(at: staging, withIntermediateDirectories: true)
-        var done: Int64 = 0
-        for file in files {
-            let base = done
-            try await SpeechModel.download(repo: repo, revision: revision, file: file,
-                                           to: staging.appendingPathComponent(file.path)) { written in
-                progress(Double(base + written) / Double(bytes))
+    /// People you've named whose prints are gone (a new speaker model): learned again
+    /// from the meetings you named them in.
+    func relearn() async {
+        let missing = Set(people.filter { $0.prints.isEmpty }.map { Self.key($0.name) })
+        guard isOn, state == .ready, !missing.isEmpty else { return }
+        for record in MeetingStore.shared.meetings.sorted(by: { $0.date < $1.date }) where record.hasAudio {
+            let given = record.names.filter {
+                record.recognized[$0.key] == nil && Self.isRealName($0.value) && missing.contains(Self.key($0.value))
             }
-            done += file.size
+            guard !given.isEmpty else { continue }
+            await learn(words: record.words, audio: MeetingStore.audioURL(for: record.id), names: given)
         }
-        try Data().write(to: staging.appendingPathComponent(completeMarker))
-        if fm.fileExists(atPath: directory.path) { try fm.removeItem(at: directory) }
-        try fm.moveItem(at: staging, to: directory)
-        progress(1)
+        Self.log.info("voices made again with the new model: \(self.people.filter { !$0.prints.isEmpty }.count) of \(self.people.count)")
     }
 
     /// Switched on for the first time: the people you've already named in your
@@ -202,9 +188,7 @@ final class VoiceMemory: ObservableObject {
     func test(learningFrom titles: [String]) async {
         testing = true
         people = []
-        if !Self.isInstalled { prepare() }
-        while case .downloading = state { try? await Task.sleep(for: .milliseconds(300)) }
-        state = Self.isInstalled ? .ready : state
+        if (try? await VoicePrints.shared.load()) != nil { state = .ready }
         for record in MeetingStore.shared.meetings where titles.contains(where: { record.title.contains($0) }) {
             await learn(words: record.words, audio: MeetingStore.audioURL(for: record.id), names: record.names)
         }
@@ -236,12 +220,16 @@ final class VoiceMemory: ObservableObject {
 
     // MARK: After a meeting
 
-    /// Two voices are the same person from this score on (cosine of CAM++ prints) —
-    /// measured on real meetings: the same voice in different rooms scores
-    /// well above it, two different people well below.
-    nonisolated static let sameVoice: Float = 0.65
+    /// Two voices are the same person from this score on (cosine of ReDimNet2+ prints) —
+    /// measured on real meetings (scripts/voice-models): the same voice in another
+    /// meeting scored 0.64 and up from four seconds of speech, two different people at
+    /// most 0.54.
+    nonisolated static let sameVoice: Float = 0.60
     /// And the best match must beat the next by this much.
     nonisolated static let margin: Float = 0.1
+    /// A new print for someone you know that scores below this against their earlier
+    /// ones is probably someone else's voice (speakers mixed up in that meeting).
+    nonisolated static let notThem: Float = 0.5
 
     /// Who the unnamed voices of a meeting are, among the people you've named. Each
     /// person at most once, the clearest matches first. Returns speaker → (name, score).
@@ -291,8 +279,11 @@ final class VoiceMemory: ObservableObject {
             guard let speaker = Int(key),
                   let print = await VoicePrints.shared.print(of: speaker, in: words, audio: url) else { continue }
             if let i = people.firstIndex(where: { Self.key($0.name) == Self.key(name) }) {
-                if people[i].prints.count >= 2, Self.similarity(print, people[i]) < 0.25 { continue }
+                // Below this it's hardly their voice (the same person scored 0.61 and up
+                // between meetings, others 0.33 on average): left out.
+                if people[i].prints.count >= 2, Self.similarity(print, people[i]) < Self.notThem { continue }
                 people[i].prints.append(print)
+                people[i].model = Self.modelID
                 if people[i].prints.count > 5 { people[i].prints.removeFirst() }
                 people[i].name = name
                 people[i].updated = Date()
@@ -300,7 +291,7 @@ final class VoiceMemory: ObservableObject {
                 reserved[Self.key(name)] = nil
             } else {
                 let figure = reserved.removeValue(forKey: Self.key(name)) ?? figureForNew(print)
-                people.append(Person(name: name.trimmingCharacters(in: .whitespaces), prints: [print], figure: figure))
+                people.append(Person(name: name.trimmingCharacters(in: .whitespaces), prints: [print], figure: figure, model: Self.modelID))
             }
         }
         save()
@@ -312,17 +303,20 @@ final class VoiceMemory: ObservableObject {
         person.prints.map { cosine(print, $0) }.max() ?? -1
     }
 
-    nonisolated static func cosine(_ a: [Float], _ b: [Float]) -> Float { CampPlusEmbedder.cosine(a, b) }
+    nonisolated static func cosine(_ a: [Float], _ b: [Float]) -> Float {
+        guard a.count == b.count else { return -1 }
+        return zip(a, b).reduce(0) { $0 + $1.0 * $1.1 }
+    }
 }
 
 /// Turns a speaker's part of a recording into a voiceprint.
 actor VoicePrints {
     static let shared = VoicePrints()
-    private var embedder: CampPlusEmbedder?
+    private var embedder: SpeakerModel?
 
     func load() throws {
         guard embedder == nil else { return }
-        embedder = CampPlusEmbedder(models: try CampPlusModels.load(from: VoiceMemory.directory))
+        embedder = try SpeakerModel()
     }
 
     /// At least this much clear speech, or no print — a few words say little about a voice.
@@ -359,7 +353,7 @@ actor VoicePrints {
             samples += Self.read(file, from: s.start, to: min(s.end, s.start + Self.maximumSpeech))
         }
         guard samples.count >= Int(Self.minimumSpeech * 16_000) else { return nil }
-        return try? await embedder.embed(audio: samples)
+        return try? embedder.embed(audio: samples)
     }
 
     /// The same, from samples in memory that start at the meeting's start (the
@@ -372,7 +366,7 @@ actor VoicePrints {
             if a < b { audio += samples[a..<b] }
         }
         guard audio.count >= Int(3.5 * 16_000) else { return nil }
-        return try? await embedder.embed(audio: audio)
+        return try? embedder.embed(audio: audio)
     }
 
     /// A speaker's longest stretches of speech, trimmed at the ends, up to half a minute.
@@ -426,9 +420,6 @@ struct VoiceMemoryCard: View {
             CardRow(title: "Känn igen röster", detail: detail) {
                 InkToggle(label: "Känn igen röster", isOn: $memory.enabled)
             }
-            if case .downloading(let p) = memory.state, memory.enabled {
-                ProgressView(value: p).tint(DS.Colors.ink).padding(.horizontal, 22).padding(.bottom, 16)
-            }
             if memory.enabled, !memory.people.isEmpty {
                 CardDivider()
                 VStack(alignment: .leading, spacing: 10) {
@@ -471,8 +462,53 @@ struct VoiceMemoryCard: View {
 
     private var detail: String {
         if case .failed(let why) = memory.state, memory.enabled {
-            return String(localized: "Röstmodellen kunde inte laddas ned: \(why)")
+            return String(localized: "Röstmodellen kunde inte startas: \(why)")
         }
         return String(localized: "Ge en talare ett namn en gång, så känner Mindtalk igen rösten i kommande möten. Ett röstavtryck sparas, inget ljud, och bara på din Mac. Fråga dem du spelar in om det är okej.")
+    }
+}
+
+/// ReDimNet2+ (lab260, Apache 2.0) — the speaker model, inside the app, 8-bit, 13 MB.
+/// Ten-second windows; shorter speech is repeated to fill one (silence would skew the
+/// features), longer speech is averaged over its windows. It runs on the CPU: on the
+/// Neural Engine this model's numbers come out wrong (measured, scripts/voice-models).
+final class SpeakerModel {
+    private let model: MLModel
+    private static let window = 160_000
+
+    init() throws {
+        guard let url = Bundle.main.url(forResource: "ReDimNet2Plus", withExtension: "mlmodelc") else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        let config = MLModelConfiguration()
+        config.computeUnits = .cpuOnly
+        model = try MLModel(contentsOf: url, configuration: config)
+    }
+
+    /// 16 kHz mono samples → a 192-number print, L2-normalised.
+    func embed(audio: [Float]) throws -> [Float] {
+        guard !audio.isEmpty else { throw CocoaError(.coderInvalidValue) }
+        let w = Self.window
+        var sum = [Float](repeating: 0, count: 192)
+        var start = 0
+        while start < audio.count {
+            let piece = audio[start..<min(start + w, audio.count)]
+            if piece.count < 32_000, start > 0 { break }        // a scrap at the end says little
+            let input = try MLMultiArray(shape: [1, w as NSNumber], dataType: .float32)
+            let p = input.dataPointer.assumingMemoryBound(to: Float32.self)
+            for i in 0..<w { p[i] = piece[piece.startIndex + i % piece.count] }
+            let out = try model.prediction(from: MLDictionaryFeatureProvider(dictionary: ["waveform": MLFeatureValue(multiArray: input)]))
+            guard let e = out.featureValue(for: "embedding")?.multiArrayValue, e.count == sum.count else {
+                throw CocoaError(.coderReadCorrupt)
+            }
+            var v = (0..<e.count).map { e[$0].floatValue }
+            let n = max(sqrt(v.reduce(0) { $0 + $1 * $1 }), 1e-9)
+            let weight = Float(piece.count) / Float(w)
+            v = v.map { $0 / n * weight }
+            for i in sum.indices { sum[i] += v[i] }
+            start += w
+        }
+        let n = max(sqrt(sum.reduce(0) { $0 + $1 * $1 }), 1e-9)
+        return sum.map { $0 / n }
     }
 }
