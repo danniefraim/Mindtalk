@@ -50,7 +50,9 @@ final class MeetingSession: ObservableObject {
     /// Stopping was asked for once; asking again within a few seconds ends the meeting.
     /// "Vem är här?": the meeting starts with a round of names (VoiceScanner).
     @Published private(set) var introducing = false
-    private var introductionTask: Task<Void, Never>?
+    /// Voices you've named before, recognised while the meeting runs (the round does
+    /// its own while it's up).
+    private var recognition: Task<Void, Never>?
     /// Voices of the round Mindtalk has tried to recognise — until then the scanner
     /// says "Känner igen rösten…" rather than asking for a name.
     @Published private(set) var introChecked: Set<Int> = []
@@ -429,6 +431,14 @@ final class MeetingSession: ObservableObject {
         Self.log.info("meeting started (\(self.language.rawValue, privacy: .public))")
         loop = Task { await self.run() }
         heartbeat = Task { await self.beat() }
+        recognition = Task { @MainActor [weak self] in
+            var checked: [Int: Double] = [:]          // speaker → speech heard when last checked
+            while let self, self.isRecording || self.phase == .starting {
+                try? await Task.sleep(for: .seconds(1.5))
+                guard !Task.isCancelled else { return }
+                if !self.introducing { await self.recogniseIntroduced(&checked) }
+            }
+        }
         #if DEBUG
         if let fake = Self.fakeMic { feedFake(fake) }
         #endif
@@ -512,8 +522,10 @@ final class MeetingSession: ObservableObject {
         Self.log.notice("round: \(captures.count - self.roundLeft.count) of \(captures.count) turns placed on voices")
     }
 
-    /// The voices introduced so far that you've named before, named — each checked again
-    /// as it says more, up to half a minute of speech.
+    /// The voices heard so far that you've named before, named — from three seconds of
+    /// speech, each checked again as it says more, up to forty seconds. (From the
+    /// meeting's opening minutes, which are kept in memory; later voices are recognised
+    /// when the meeting is written out.)
     private func recogniseIntroduced(_ checked: inout [Int: Double]) async {
         // Not before the voice model is ready: a check then would call every voice new.
         guard let record, let intake, VoiceMemory.shared.enabled, VoiceMemory.shared.state == .ready,
@@ -522,7 +534,7 @@ final class MeetingSession: ObservableObject {
         for w in record.words { if let s = w.speaker, s >= 0 { speech[s, default: 0] += w.end - w.start } }
         let named = Set(record.names.compactMap { $0.value.isEmpty ? nil : $0.key })
         let audio = intake.openingSamples()
-        for (speaker, heard) in speech where !named.contains(String(speaker)) && heard >= 4
+        for (speaker, heard) in speech where !named.contains(String(speaker)) && heard >= 3
             && heard - (checked[speaker] ?? 0) >= 3 && heard <= 40 {
             checked[speaker] = heard
             guard let print = await VoicePrints.shared.print(of: speaker, in: record.words, samples: audio) else { continue }
@@ -541,7 +553,7 @@ final class MeetingSession: ObservableObject {
             latest.recognized[String(speaker)] = match.score
             self.record = latest
             MeetingStore.shared.save(latest)
-            Self.log.info("introduction: a known voice recognised")
+            Self.log.notice("voices: speaker \(speaker) recognised after \(heard, format: .fixed(precision: 1)) s of speech (\(match.score, format: .fixed(precision: 2)))")
         }
     }
 
@@ -568,8 +580,6 @@ final class MeetingSession: ObservableObject {
         }
         // The round showed the reminder to tell the others: not again after it.
         if record?.informed == nil { consentDismissed = true }
-        introductionTask?.cancel()
-        introductionTask = nil
     }
 
     /// Ending, from a button or the shortcut: a few seconds to undo, and the
@@ -1209,6 +1219,8 @@ final class MeetingSession: ObservableObject {
         loop = nil
         heartbeat?.cancel()
         heartbeat = nil
+        recognition?.cancel()
+        recognition = nil
         finished = record?.id
         record = nil
         startedAt = nil
