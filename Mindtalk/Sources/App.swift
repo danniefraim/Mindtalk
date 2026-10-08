@@ -371,6 +371,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `--auto-meeting [--round]` (with `--fake-mic fil`): starts a meeting by itself once the window is up.
+        if args.contains("--auto-meeting") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                Self.showWindow(page: .meetings)
+                MeetingSession.shared.start(introducing: args.contains("--round"))
+                print("[auto] möte startat, runda: \(MeetingSession.shared.introducing), fel: \(MeetingSession.shared.lastError ?? "inget")")
+            }
+        }
         if let i = args.firstIndex(of: "--relisten"), i + 1 < args.count {
             Task { @MainActor in
                 await MeetingSession.shared.relistenTest(title: args[i + 1])

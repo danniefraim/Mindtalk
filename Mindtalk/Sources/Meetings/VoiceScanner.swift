@@ -291,7 +291,10 @@ struct VoiceScanner: View {
     private func enter() {
         #if DEBUG
         // `--demo-leave`: "Alla är här" pressed by itself after four seconds (screenshots).
-        if CommandLine.arguments.contains("--demo-leave") { DispatchQueue.main.asyncAfter(deadline: .now() + 4) { leave() } }
+        if CommandLine.arguments.contains("--demo-leave") {
+            let after = MeetingSession.argSeconds("--demo-leave") ?? 4
+            DispatchQueue.main.asyncAfter(deadline: .now() + after) { print("[runda] Alla är här trycks"); leave() }
+        }
         #endif
         guard !reduceMotion else { lit = true; shown = true; return }
         withAnimation(.easeInOut(duration: 0.9)) { lit = true }

@@ -120,6 +120,51 @@ final class MeetingSession: ObservableObject {
     /// Self-test: an audio file played in as if it were the microphone.
     private var simulation: (start: Date, speed: Double)?
 
+    /// `--fake-mic fil.caf` (DEBUG): a real meeting, window and all, heard from a recording.
+    static var fakeMic: URL? {
+        #if DEBUG
+        CommandLine.arguments.firstIndex(of: "--fake-mic").flatMap {
+            $0 + 1 < CommandLine.arguments.count ? URL(fileURLWithPath: CommandLine.arguments[$0 + 1]) : nil
+        }
+        #else
+        nil
+        #endif
+    }
+
+    #if DEBUG
+    private func feedFake(_ url: URL) {
+        simulation = (Date(), 1)              // nothing learned, no notes written
+        Task { @MainActor in
+            guard let source = try? AudioChunks(url: url) else { return print("Fel: kan inte läsa \(url.path)") }
+            var lastReport = 0
+            while isRecording || phase == .starting, let chunk = try? source.next(seconds: 0.1) {
+                intake?.append(chunk)
+                let rms = sqrt(chunk.reduce(0) { $0 + $1 * $1 } / Float(max(1, chunk.count)))
+                heard(min(1, rms * 8))
+                if let at = Self.argSeconds("--introduce-at"), elapsed >= at, !introducing, !introductionHeld {
+                    print("[\(Int(elapsed)) s] Presentationsrunda trycks"); introduce()
+                }
+                if let n = Self.argSeconds("--name-at"), elapsed >= n, introducing, let r = record,
+                   r.names.values.allSatisfy(\.isEmpty) {
+                    for s in Set(r.words.compactMap(\.speaker)).filter({ $0 >= 0 }) { name(speaker: s, as: "Person \(s)") }
+                    print("[\(Int(elapsed)) s] namn: \(record?.names ?? [:])")
+                }
+                if Int(elapsed) / 2 > lastReport {
+                    lastReport = Int(elapsed) / 2
+                    print("[\(Int(elapsed)) s] ord \(record?.words.count ?? 0) · väntande \(pending.count) · avklarat \(String(format: "%.1f", settled)) s · runda \(introducing) · fas \(phase)")
+                }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            print("[\(Int(elapsed)) s] ljudet slut")
+            if isRecording { stop() }
+        }
+    }
+    #endif
+
+    static func argSeconds(_ flag: String) -> Double? {
+        CommandLine.arguments.firstIndex(of: flag).flatMap { $0 + 1 < CommandLine.arguments.count ? Double(CommandLine.arguments[$0 + 1]) : nil }
+    }
+
     /// Self-test (`--relisten "titel"`): a copy of a named meeting listened to again, as
     /// "Gör klart" does — are the names (and merges) where they were? The copy is
     /// removed after, nothing is learned.
@@ -188,6 +233,15 @@ final class MeetingSession: ObservableObject {
             while let chunk = try source.next(seconds: 0.1) {
                 intake?.append(chunk)
                 if let at, elapsed >= at, !introducing, !introductionHeld { print("Presentationsrunda vid \(Int(elapsed)) s"); introduce() }
+                // `--name-at 22` and `--end-round-at 28`: names given and "Alla är här" pressed, as in the round.
+                if let n = Self.argSeconds("--name-at"), elapsed >= n, introducing, let r = record, r.names.isEmpty {
+                    for s in Set(r.words.compactMap(\.speaker)).filter({ $0 >= 0 }) { name(speaker: s, as: "Person \(s)") }
+                    print("Namn givna vid \(Int(elapsed)) s: \(record?.names ?? [:])")
+                }
+                if let e = Self.argSeconds("--end-round-at"), elapsed >= e, introducing {
+                    print("Rundan slut vid \(Int(elapsed)) s, ord hittills: \(record?.words.count ?? 0)")
+                    endIntroduction()
+                }
                 try? await Task.sleep(for: .milliseconds(Int(100 / speed)))
             }
         } catch { print("Fel: \(error.localizedDescription)") }
@@ -315,12 +369,14 @@ final class MeetingSession: ObservableObject {
             recorder.onInterrupted = { Task { @MainActor in MeetingSession.shared.inputChanged() } }
             recorder.onSignalLost = { Task { @MainActor in MeetingSession.shared.signalLost() } }
             let chosen = Microphones.shared.selectedDeviceID
-            do {
-                try recorder.start(device: chosen)
-            } catch where chosen != nil {
-                // The chosen mic won't open — the Mac's own will do.
-                Self.log.error("chosen microphone failed, using the system input")
-                try recorder.start(device: nil)
+            if Self.fakeMic == nil {
+                do {
+                    try recorder.start(device: chosen)
+                } catch where chosen != nil {
+                    // The chosen mic won't open — the Mac's own will do.
+                    Self.log.error("chosen microphone failed, using the system input")
+                    try recorder.start(device: nil)
+                }
             }
         } catch {
             intake = nil
@@ -353,6 +409,10 @@ final class MeetingSession: ObservableObject {
         MeetingStore.shared.save(new)
         Self.log.info("meeting started (\(self.language.rawValue, privacy: .public))")
         loop = Task { await self.run() }
+        heartbeat = Task { await self.beat() }
+        #if DEBUG
+        if let fake = Self.fakeMic { feedFake(fake) }
+        #endif
         introductionHeld = false
         consentDismissed = false
         if introducing { beginIntroduction() }
@@ -390,6 +450,7 @@ final class MeetingSession: ObservableObject {
     // MARK: Who's here
 
     private func beginIntroduction() {
+        Self.log.notice("round: begins at \(Int(self.elapsed)) s")
         // The voices are heard from the start of the meeting: keep that audio as long
         // as the round goes on (it is otherwise kept for the first minutes only).
         intake?.keepOpening(seconds: 300)
@@ -441,6 +502,7 @@ final class MeetingSession: ObservableObject {
     /// "Alla är här": on with the meeting.
     func endIntroduction() {
         guard introducing else { return }
+        Self.log.notice("round: ends at \(Int(self.elapsed)) s, words \(self.record?.words.count ?? 0) + \(self.pending.count)")
         introducing = false
         introductionHeld = true
         // The round showed the reminder to tell the others: not again after it.
@@ -604,7 +666,12 @@ final class MeetingSession: ObservableObject {
         }
         if phase == .starting { phase = .recording }
         while !Task.isCancelled, phase == .recording {
+            let t0 = Date()
             await step(final: false)
+            steps += 1
+            lastStep = Date()
+            lastStepTook = lastStep.timeIntervalSince(t0)
+            if lastStepTook > 3 { Self.log.notice("live: slow step \(Int(self.lastStepTook * 1000)) ms") }
             if Date().timeIntervalSince(lastSave) > 20, var record {
                 lastSave = Date()
                 record.duration = Double(intake?.count ?? 0) / Double(Self.rate)
@@ -612,6 +679,24 @@ final class MeetingSession: ObservableObject {
             }
             checkInput()
             try? await Task.sleep(for: .milliseconds(400))
+        }
+    }
+
+    // MARK: How the live text keeps up (in the log macOS keeps)
+
+    private var heartbeat: Task<Void, Never>?
+    private var steps = 0
+    private var lastStep = Date()
+    private var lastStepTook = 0.0
+
+    /// Every five seconds while recording: how far the live text has come. A meeting
+    /// whose text stops shows here where and when — not only that it did.
+    private func beat() async {
+        while !Task.isCancelled, isRecording || phase == .starting {
+            try? await Task.sleep(for: .seconds(5))
+            guard isRecording else { continue }
+            let behind = elapsed - settled
+            Self.log.notice("live: \(Int(self.elapsed)) s · words \(self.record?.words.count ?? 0) + \(self.pending.count) · settled \(self.settled, format: .fixed(precision: 1)) s · behind \(behind, format: .fixed(precision: 1)) s · steps \(self.steps) · last step \(Int(self.lastStepTook * 1000)) ms, \(Int(Date().timeIntervalSince(self.lastStep))) s ago · round \(self.introducing)")
         }
     }
 
@@ -1046,6 +1131,8 @@ final class MeetingSession: ObservableObject {
         steady = nil
         intake = nil
         loop = nil
+        heartbeat?.cancel()
+        heartbeat = nil
         finished = record?.id
         record = nil
         startedAt = nil
