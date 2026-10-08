@@ -131,6 +131,7 @@ final class IntroRound: ObservableObject {
         lastCheck = 0
         turnPrint = nil
         knownMatch = nil
+        candidate = nil
         progress = 0
         quiet = false
         figure = nil
@@ -226,7 +227,7 @@ final class IntroRound: ObservableObject {
             // The name, the moment it's said ("Mattias", "jag heter Anna"): thanked, on to
             // the next. The voice itself is learned from the whole meeting afterwards —
             // nobody has to talk on for it here.
-            if let heard = nameInTurn() {
+            if let heard = nameInTurn(), settled(on: heard.name) {
                 if let again = captures.first(where: { Self.sameName($0.name, heard.name) }) {
                     Self.log.notice("round: turn \(self.turn) said a name already in the room")
                     set(.same(again.name))
@@ -250,8 +251,12 @@ final class IntroRound: ObservableObject {
             // Greeted: on when they stop, or after a few seconds anyway.
             if (silence >= 1.2 && since >= 1.2) || since >= 4 { captureKnown() }
         case .new:
+            if !typed, voiced >= 1.5, !checking, seconds(cursor) - lastCheck >= 0.5, VoiceMemory.shared.state == .ready {
+                await check()
+                guard case .new = phase else { return }
+            }
             // Someone says the name ("Anna", "det är Anna"): it fills in, and saves itself.
-            if !typed, let name = heardName() {
+            if !typed, let name = heardName(), settled(on: name) {
                 if let again = captures.first(where: { Self.sameName($0.name, name) }) {
                     set(.same(again.name))
                     return
@@ -284,7 +289,7 @@ final class IntroRound: ObservableObject {
             if speaking { runFrames += 1 } else if silent { runFrames = 0 }
             if runFrames >= 10 { inSpeech = true }      // 200 ms of speech: it has begun
             if silent { inSpeech = false }
-            if inSpeech, speechStart == nil, case .listening = phase {
+            if inSpeech, speechStart == nil, phase == .listening || phase == .new {
                 speechStart = max(turnStart, cursor + i - 10 * Self.frame - 1_600)
             }
             if case .ready = phase { i += Self.frame; continue }
@@ -307,10 +312,14 @@ final class IntroRound: ObservableObject {
         lastCheck = seconds(cursor)
         let audio = session.roundAudio(from: start, to: cursor)
         guard let print = await VoicePrints.shared.print(raw: audio) else { return }
-        guard case .listening = phase else { return }
-        turnPrint = print
+        // Asked for a name, someone talks: a voice you know (or one already here)
+        // answers it too — not only a name said aloud.
+        let asking = phase == .new
+        guard phase == .listening || asking else { return }
+        if !asking { turnPrint = print }
         // The person of the last turn again (talking on, or out of turn).
-        if let previous = captures.first(where: { c in c.print.map { VoiceMemory.cosine(print, $0) >= VoiceMemory.sameVoice } ?? false }) {
+        // Someone already here, talking on: them again, not a stranger.
+        if let previous = alreadyHere(print) {
             Self.log.notice("round: turn \(self.turn) is a voice already in the room")
             set(.same(previous.name))
             return
@@ -335,8 +344,7 @@ final class IntroRound: ObservableObject {
             turnPrint = await VoicePrints.shared.print(raw: session.roundAudio(from: start, to: cursor)) ?? turnPrint
         }
         guard case .listening = phase else { return }
-        if let print = turnPrint, let previous = captures.last, let p = previous.print,
-           VoiceMemory.cosine(print, p) >= VoiceMemory.sameVoice {
+        if let print = turnPrint, let previous = alreadyHere(print) {
             set(.same(previous.name))
             return
         }
@@ -355,8 +363,36 @@ final class IntroRound: ObservableObject {
         let said = ((session.record?.words ?? []) + session.pending)
             .filter { $0.end > from && $0.start < to }.map(\.text).joined(separator: " ")
         askedAt = seconds(cursor)
+        // Listened to afresh while asking: whoever answers.
+        candidate = nil
+        speechStart = nil
+        voiced = 0
+        silence = 0
+        lastCheck = 0
         set(.new)
         if let name = Self.name(in: MeetingText.clean(said), whole: false) { propose(name, saveIn: 1.5) }
+    }
+
+    /// A name heard is taken once the person has stopped talking and the speech model
+    /// has written it the same way twice — not the first guess at a word still being
+    /// said ("Käll…" for "Känner du igen mig").
+    private var candidate: (name: String, since: Date)?
+    private func settled(on name: String) -> Bool {
+        guard let candidate, candidate.name == name else {
+            self.candidate = (name, Date())
+            return false
+        }
+        return !inSpeech && Date().timeIntervalSince(candidate.since) >= 0.4
+    }
+
+    /// Someone already in the room, by their voice: this round's print of them, or the
+    /// voice you know them by.
+    private func alreadyHere(_ print: [Float]) -> Capture? {
+        if let c = captures.first(where: { c in c.print.map { VoiceMemory.cosine(print, $0) >= VoiceMemory.sameVoice } ?? false }) {
+            return c
+        }
+        guard recognitionOn, let known = VoiceMemory.shared.match(print, excluding: []) else { return nil }
+        return captures.first { Self.sameName($0.name, known.name) }
     }
 
     /// "Mattias" and "Mattias Karlsson" are the same person in a round.

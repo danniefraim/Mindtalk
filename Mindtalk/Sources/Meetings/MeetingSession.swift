@@ -138,6 +138,7 @@ final class MeetingSession: ObservableObject {
 
     private func feedFake(_ url: URL) {
         simulation = (Date(), 1)              // nothing learned, no notes written
+        setvbuf(stdout, nil, _IOLBF, 0)        // each line out at once — a stopped test keeps its output
         Task { @MainActor in
             guard let source = try? AudioChunks(url: url) else { return print("Fel: kan inte läsa \(url.path)") }
             var lastReport = 0
@@ -434,7 +435,7 @@ final class MeetingSession: ObservableObject {
         recognition = Task { @MainActor [weak self] in
             var checked: [Int: Double] = [:]          // speaker → speech heard when last checked
             while let self, self.isRecording || self.phase == .starting {
-                try? await Task.sleep(for: .seconds(1.5))
+                try? await Task.sleep(for: .seconds(1))
                 guard !Task.isCancelled else { return }
                 if !self.introducing { await self.recogniseIntroduced(&checked) }
             }
@@ -522,7 +523,7 @@ final class MeetingSession: ObservableObject {
         Self.log.notice("round: \(captures.count - self.roundLeft.count) of \(captures.count) turns placed on voices")
     }
 
-    /// The voices heard so far that you've named before, named — from three seconds of
+    /// The voices heard so far that you've named before, named — from two seconds of
     /// speech, each checked again as it says more, up to forty seconds. (From the
     /// meeting's opening minutes, which are kept in memory; later voices are recognised
     /// when the meeting is written out.)
@@ -530,14 +531,16 @@ final class MeetingSession: ObservableObject {
         // Not before the voice model is ready: a check then would call every voice new.
         guard let record, let intake, VoiceMemory.shared.enabled, VoiceMemory.shared.state == .ready,
               !VoiceMemory.shared.people.isEmpty else { return }
+        // The words still being written count too: their speaker is known before they settle.
+        let words = record.words + pending
         var speech: [Int: Double] = [:]
-        for w in record.words { if let s = w.speaker, s >= 0 { speech[s, default: 0] += w.end - w.start } }
+        for w in words { if let s = w.speaker, s >= 0 { speech[s, default: 0] += w.end - w.start } }
         let named = Set(record.names.compactMap { $0.value.isEmpty ? nil : $0.key })
         let audio = intake.openingSamples()
-        for (speaker, heard) in speech where !named.contains(String(speaker)) && heard >= 3
-            && heard - (checked[speaker] ?? 0) >= 3 && heard <= 40 {
+        for (speaker, heard) in speech where !named.contains(String(speaker)) && heard >= 2
+            && heard - (checked[speaker] ?? 0) >= 2 && heard <= 40 {
+            guard let print = await VoicePrints.shared.print(of: speaker, in: words, samples: audio, minimum: 2) else { continue }
             checked[speaker] = heard
-            guard let print = await VoicePrints.shared.print(of: speaker, in: record.words, samples: audio) else { continue }
             defer { introChecked.insert(speaker) }
             let taken = Set((self.record?.names.values ?? [:].values).filter { !$0.isEmpty })
             VoiceMemory.shared.logBest(print, speaker: speaker, heard: heard)
