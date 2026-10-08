@@ -2,7 +2,9 @@
 """Keeps Mindtalk/Resources/Localizable.xcstrings in step with the code.
 
 1. Pulls in every string the last Debug build extracted (xcstringstool sync).
-2. Gives each string an explicit Swedish value (= the key). Swedish is the source
+2. Gives each string an explicit Swedish value (= the key; for "context|text" keys,
+   the text after the bar — the same Swedish word used two ways, like "mark|Beslut"
+   for one marked decision next to the summary's "Beslut" heading). Swedish is the source
    language, but English is the fallback for all other Macs — without a real sv
    table, a Swedish Mac would fall back to English.
 3. Lists strings that still need an English translation.
@@ -20,7 +22,8 @@ cat = json.load(open(CATALOG))
 untranslated = []
 for key, entry in cat["strings"].items():
     locs = entry.setdefault("localizations", {})
-    locs["sv"] = {"stringUnit": {"state": "translated", "value": key}}
+    sv = key.split("|", 1)[1] if "|" in key else key
+    locs["sv"] = {"stringUnit": {"state": "translated", "value": sv}}
     if "en" not in locs and any(c.isalpha() for c in key):
         untranslated.append(key)
 json.dump(cat, open(CATALOG, "w"), ensure_ascii=False, indent=2, sort_keys=True)

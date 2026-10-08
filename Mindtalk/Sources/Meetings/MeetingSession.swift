@@ -181,8 +181,13 @@ final class MeetingSession: ObservableObject {
         if CommandLine.arguments.contains("--introduce") { beginIntroduction() }
         do {
             let source = try AudioChunks(url: file)
+            // `--introduce-at 20`: "Presentationsrunda" pressed that many seconds in.
+            let at = CommandLine.arguments.firstIndex(of: "--introduce-at").flatMap {
+                $0 + 1 < CommandLine.arguments.count ? Double(CommandLine.arguments[$0 + 1]) : nil
+            }
             while let chunk = try source.next(seconds: 0.1) {
                 intake?.append(chunk)
+                if let at, elapsed >= at, !introducing, !introductionHeld { print("Presentationsrunda vid \(Int(elapsed)) s"); introduce() }
                 try? await Task.sleep(for: .milliseconds(Int(100 / speed)))
             }
         } catch { print("Fel: \(error.localizedDescription)") }
@@ -222,7 +227,8 @@ final class MeetingSession: ObservableObject {
             record = new
             startedAt = Date().addingTimeInterval(-40)
             phase = .recording
-            introducing = true
+            // `--demo-opening`: the meeting just begun, "Innan ni börjar" offered.
+            introducing = !CommandLine.arguments.contains("--demo-opening")
             // `--demo-comparing`: still comparing voiceprints — the listening sphere.
             if !CommandLine.arguments.contains("--demo-comparing") { introChecked = [0, 1, 2] }
             LiveMeter.shared.demo([0.2, 0.5, 0.35, 0.7, 0.45, 0.6, 0.3, 0.55])
@@ -347,12 +353,46 @@ final class MeetingSession: ObservableObject {
         MeetingStore.shared.save(new)
         Self.log.info("meeting started (\(self.language.rawValue, privacy: .public))")
         loop = Task { await self.run() }
+        introductionHeld = false
+        consentDismissed = false
         if introducing { beginIntroduction() }
     }
+
+    /// The round was held (or put away) in this meeting: it isn't offered again.
+    @Published private(set) var introductionHeld = false
+    /// The reminder to tell the others was seen and put away — not shown again.
+    @Published var consentDismissed = false
+
+    /// The round, offered at the start of a meeting ("Innan ni börjar"): in its first
+    /// two minutes, while some voice is still without a name.
+    var offersIntroduction: Bool {
+        guard isRecording, !introducing, !introductionHeld, elapsed < 120, let record else { return false }
+        var speech: [Int: Double] = [:]
+        for w in record.words + pending { if let s = w.speaker, s >= 0 { speech[s, default: 0] += w.end - w.start } }
+        let voices = speech.filter { $0.value >= 1.5 }.keys
+        return voices.isEmpty || voices.contains { (record.names[String($0)] ?? "").isEmpty }
+    }
+
+    /// "Innan ni börjar" is up: the reminder to tell the others, or the round, or both.
+    var showsOpening: Bool {
+        isRecording && ((record?.informed == nil && !consentDismissed) || offersIntroduction)
+    }
+
+    /// "Presentationsrunda" in a meeting already recording.
+    func introduce() {
+        guard isRecording, !introducing else { return }
+        beginIntroduction()
+    }
+
+    /// Put away without holding it.
+    func skipIntroduction() { introductionHeld = true }
 
     // MARK: Who's here
 
     private func beginIntroduction() {
+        // The voices are heard from the start of the meeting: keep that audio as long
+        // as the round goes on (it is otherwise kept for the first minutes only).
+        intake?.keepOpening(seconds: 300)
         introducing = true
         introChecked = []
         introFigures = [:]
@@ -397,7 +437,11 @@ final class MeetingSession: ObservableObject {
 
     /// "Alla är här": on with the meeting.
     func endIntroduction() {
+        guard introducing else { return }
         introducing = false
+        introductionHeld = true
+        // The round showed the reminder to tell the others: not again after it.
+        if record?.informed == nil { consentDismissed = true }
         introductionTask?.cancel()
         introductionTask = nil
     }
@@ -1205,7 +1249,7 @@ final class AudioIntake: @unchecked Sendable {
         buffer += chunk
         total += chunk.count
         forVoices += chunk
-        if opening.count < Self.openingLength { opening += chunk.prefix(Self.openingLength - opening.count) }
+        if opening.count < openingLimit { opening += chunk.prefix(openingLimit - opening.count) }
         lock.unlock()
         queue.async { [self] in
             guard !closed, let pcm = AVAudioPCMBuffer(pcmFormat: file.processingFormat,
@@ -1227,11 +1271,21 @@ final class AudioIntake: @unchecked Sendable {
         }
     }
 
-    /// The first minute and a half, kept whole: who's in the room is heard there
-    /// (the introduction), long after the rolling buffer has moved on.
+    /// The first minutes, kept whole: who's in the room is heard there (the
+    /// introduction), long after the rolling buffer has moved on.
     private var opening: [Float] = []
-    static let openingLength = 90 * 16_000
+    private var openingLimit = 3 * 60 * 16_000
+    static let longestOpening = 10 * 60 * 16_000
     func openingSamples() -> [Float] { lock.withLock { opening } }
+
+    /// A round begins: keep the opening going this much longer (if it still runs
+    /// unbroken from the start), at most ten minutes in all.
+    func keepOpening(seconds: Int) {
+        lock.withLock {
+            guard opening.count == total else { return }
+            openingLimit = min(max(openingLimit, total + seconds * 16_000), Self.longestOpening)
+        }
+    }
 
     func drop(before sample: Int) {
         lock.withLock {

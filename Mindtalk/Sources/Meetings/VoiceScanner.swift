@@ -89,7 +89,8 @@ struct VoiceScanner: View {
                           searching: focus.map(recognising) ?? false)
             .overlay(alignment: .topLeading) {
                 Text("Vem är här?").font(.system(size: 32, weight: .regular, design: .serif))
-                    .foregroundStyle(.white.opacity(0.9)).padding(.leading, 40).padding(.top, 34)
+                    .foregroundStyle(.white.opacity(0.9))
+                    .accessibilityAddTraits(.isHeader).padding(.leading, 40).padding(.top, 34)
             }
             .overlay(alignment: .topTrailing) {
                 VStack(alignment: .trailing, spacing: 14) {
@@ -114,7 +115,11 @@ struct VoiceScanner: View {
         .environment(\.colorScheme, .dark)
         .animation(.spring(duration: 0.55, bounce: 0.2), value: voices)
         .onAppear(perform: enter)
-        .onChange(of: voices.count) { old, new in if new > old { chime("Pop") } }
+        .onChange(of: voices.count) { old, new in
+            guard new > old else { return }
+            chime("Pop")
+            AccessibilityNotification.Announcement(String(localized: "En ny röst")).post()
+        }
         .onChange(of: session.record?.recognized ?? [:]) { _, recognized in welcome(recognized) }
     }
 
@@ -274,7 +279,8 @@ struct VoiceScanner: View {
         }
         .buttonStyle(.glassProminent)
         .controlSize(.large)
-        .keyboardShortcut(.defaultAction)
+        // Return saves the name being typed; it ends the round only when no name is asked for.
+        .keyboardShortcut(unnamed == nil ? .defaultAction : nil)
     }
 
     // MARK: Actions
@@ -313,6 +319,9 @@ struct VoiceScanner: View {
             guard let s = Int(key), !greeted.contains(s) else { continue }
             greeted.insert(s)
             chime("Glass")
+            if let name = session.record?.names[key], !name.isEmpty {
+                AccessibilityNotification.Announcement(String(localized: "Känd röst: \(name)")).post()
+            }
         }
     }
 

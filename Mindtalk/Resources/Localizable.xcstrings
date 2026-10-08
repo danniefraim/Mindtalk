@@ -775,6 +775,22 @@
         }
       }
     },
+    "Alla säger sitt namn, och Mindtalk sätter namnen på rösterna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everyone says their name, and Mindtalk puts the names on the voices"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alla säger sitt namn, och Mindtalk sätter namnen på rösterna"
+          }
+        }
+      }
+    },
     "Alla är här – fortsätt": {
       "localizations": {
         "en": {
@@ -1711,6 +1727,7 @@
       }
     },
     "Börja med en runda där alla säger sitt namn – Mindtalk hittar rösterna": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2359,6 +2376,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "En liten lyssnare (%@) laddas ned när du lägger till ett eget ord, så att namn stavas rätt redan från början."
+          }
+        }
+      }
+    },
+    "En ny röst": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A new voice"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En ny röst"
           }
         }
       }
@@ -3229,6 +3262,22 @@
         }
       }
     },
+    "Göm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Göm"
+          }
+        }
+      }
+    },
     "Göm Mindtalk": {
       "extractionState": "stale",
       "localizations": {
@@ -3246,7 +3295,24 @@
         }
       }
     },
+    "Göm – mötet fortsätter som vanligt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide – the meeting goes on as usual"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Göm – mötet fortsätter som vanligt"
+          }
+        }
+      }
+    },
     "Göm – utan att notera att de andra vet": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4148,6 +4214,22 @@
         }
       }
     },
+    "Innan ni börjar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Before you begin"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Innan ni börjar"
+          }
+        }
+      }
+    },
     "Inspelningen är redan igång – inget går förlorat.": {
       "localizations": {
         "en": {
@@ -4907,6 +4989,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Känd röst"
+          }
+        }
+      }
+    },
+    "Känd röst: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Known voice: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Känd röst: %@"
           }
         }
       }
@@ -5757,6 +5855,38 @@
         }
       }
     },
+    "Låt alla säga sitt namn – Mindtalk känner igen dem som varit med förut.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let everyone say their name – Mindtalk recognises those who've been here before."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Låt alla säga sitt namn – Mindtalk känner igen dem som varit med förut."
+          }
+        }
+      }
+    },
+    "Låt alla säga sitt namn – då står namnen i texten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let everyone say their name – then the names are in the text."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Låt alla säga sitt namn – då står namnen i texten."
+          }
+        }
+      }
+    },
     "Låt vara": {
       "localizations": {
         "en": {
@@ -5920,23 +6050,24 @@
         }
       }
     },
-    "Markering: beslut": {
+    "Med Alternativ-tangenten börjar mötet med en presentationsrunda": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Decision"
+            "value": "With the Option key, the meeting begins with a round of introductions"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Markering: beslut"
+            "value": "Med Alternativ-tangenten börjar mötet med en presentationsrunda"
           }
         }
       }
     },
     "Med presentation": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6973,6 +7104,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Prata. Vi skriver."
+          }
+        }
+      }
+    },
+    "Presentationsrunda": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Introductions"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Presentationsrunda"
+          }
+        }
+      }
+    },
+    "Presentationsrunda (⌘↩)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Introductions (⌘↩)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Presentationsrunda (⌘↩)"
           }
         }
       }
@@ -8594,6 +8757,23 @@
         }
       }
     },
+    "Starta med presentationsrunda": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start with introductions"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starta med presentationsrunda"
+          }
+        }
+      }
+    },
     "Starta möte": {
       "localizations": {
         "en": {
@@ -8611,6 +8791,7 @@
       }
     },
     "Starta möte (⇧⌘R)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8622,6 +8803,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Starta möte (⇧⌘R)"
+          }
+        }
+      }
+    },
+    "Starta möte (⇧⌘R) – med ⌥ börjar det med en presentationsrunda": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start meeting (⇧⌘R) – with ⌥ it begins with a round of introductions"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starta möte (⇧⌘R) – med ⌥ börjar det med en presentationsrunda"
           }
         }
       }
@@ -9603,7 +9800,24 @@
         }
       }
     },
+    "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer nära Macen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text is written as you talk, and voices are kept apart – best with up to five people close to the Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer nära Macen."
+          }
+        }
+      }
+    },
     "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer nära Macen. Berätta för de andra att du spelar in.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11159,6 +11373,22 @@
         }
       }
     },
+    "mark|Beslut": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decision"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beslut"
+          }
+        }
+      }
+    },
     "mot att skriva själv": {
       "extractionState": "stale",
       "localizations": {
@@ -11552,6 +11782,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna mötet där det sades"
+          }
+        }
+      }
+    },
+    "Öppnar rundan i Mindtalks fönster": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens the round in Mindtalk's window"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppnar rundan i Mindtalks fönster"
           }
         }
       }

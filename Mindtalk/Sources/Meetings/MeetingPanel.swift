@@ -40,6 +40,9 @@ final class MeetingPanel: ObservableObject {
     /// A meeting was recorded since the last "done" — its end is told even if the
     /// panel was closed meanwhile (by then it's no longer recording, only finishing).
     private var meetingRan = false
+    /// The round was opened in the window from the panel: the meeting goes back after it.
+    private var returnToPanel = false
+    private var watchingRound: AnyCancellable?
 
     private init() {}
 
@@ -52,6 +55,27 @@ final class MeetingPanel: ObservableObject {
         watching = MeetingSession.shared.$phase
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.phaseChanged() }
+        watchingRound = MeetingSession.shared.$introducing
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] on in self?.roundChanged(on) }
+    }
+
+    /// "Presentationsrunda" from the panel: the round needs the room's screen.
+    func roundInWindow() {
+        let session = MeetingSession.shared
+        guard session.isRecording else { return }
+        returnToPanel = true
+        session.introduce()
+        expand()
+    }
+
+    private func roundChanged(_ on: Bool) {
+        guard !on, returnToPanel else { return }
+        returnToPanel = false
+        // Back where the meeting was, and the keyboard to the app you were in.
+        collapse(closingWindow: true)
+        NSApp.deactivate()
     }
 
     private func phaseChanged() {
@@ -64,7 +88,12 @@ final class MeetingPanel: ObservableObject {
             done = nil
             meetingRan = true
             home = AppDelegate.mainWindowIsKey ? .window : .panel
-            if home == .panel {
+            if home == .panel, session.introducing {
+                // Started with the round from elsewhere (⌥ in the menu): the round in the
+                // window, the meeting in the panel after it.
+                returnToPanel = true
+                expand()
+            } else if home == .panel {
                 if AppDelegate.mainWindowVisible { AppDelegate.hideMainWindow() }   // behind your work anyway
                 show()
             }
@@ -120,6 +149,7 @@ final class MeetingPanel: ObservableObject {
     /// Back from the window to the panel — "Visa som panel" in the window, or closing it.
     func collapse(closingWindow: Bool = true) {
         guard MeetingSession.shared.isBusy else { return }
+        if MeetingSession.shared.introducing { returnToPanel = false; MeetingSession.shared.endIntroduction() }
         UserDefaults.standard.set(true, forKey: Self.tipSeenKey)
         home = .panel
         if closingWindow, AppDelegate.mainWindowVisible { AppDelegate.hideMainWindow() }
@@ -128,6 +158,8 @@ final class MeetingPanel: ObservableObject {
 
     /// The large window was closed while a meeting runs: the panel takes over.
     func mainWindowClosed() {
+        // The round lives in the window: closing it ends the round, the meeting goes on.
+        if MeetingSession.shared.introducing { returnToPanel = false; MeetingSession.shared.endIntroduction() }
         guard MeetingSession.shared.isBusy, home == .window else { return }
         UserDefaults.standard.set(true, forKey: Self.tipSeenKey)
         home = .panel
@@ -281,8 +313,6 @@ private struct LivePanel: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    ConsentCard(session: session, compact: true)
-                        .padding(.bottom, 14)
                     if turns.isEmpty { empty }
                     ForEach(Array(turns.enumerated()), id: \.element.id) { i, turn in
                         let newSpeaker = i == 0 || turns[i - 1].speaker != turn.speaker
@@ -363,7 +393,10 @@ private struct LivePanel: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .transition(.opacity)
             }
-            if session.isRecording { LiveNotesBox(session: session, compact: true) }
+            if session.isRecording {
+                OpeningCard(session: session, compact: true) { MeetingPanel.shared.roundInWindow() }
+                LiveNotesBox(session: session, compact: true)
+            }
             switch session.phase {
             case .finishing(let what):
                 HStack(spacing: 12) {

@@ -246,7 +246,7 @@ private struct StartCard: View {
     private var detail: String {
         switch voices.state {
         case .ready:
-            return String(localized: "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer nära Macen. Berätta för de andra att du spelar in.")
+            return String(localized: "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer nära Macen.")
         case .downloading:
             return String(localized: "Laddar ned Nemotron 3 från NVIDIA, som håller isär rösterna…")
         case .missing, .failed:
@@ -276,28 +276,19 @@ private struct StartCard: View {
                 }
                 .buttonStyle(.soft)
             } else {
-                VStack(alignment: .trailing, spacing: 8) {
-                    Button {
-                        session.start()
-                    } label: {
-                        HStack(spacing: 8) {
-                            Circle().fill(DS.Colors.recording).frame(width: 8, height: 8)
-                            Text("Starta möte")
-                        }
+                // One start. The round ("Vem är här?") is offered as the meeting opens;
+                // ⌥-click goes straight into it.
+                Button {
+                    session.start(introducing: NSEvent.modifierFlags.contains(.option))
+                } label: {
+                    HStack(spacing: 8) {
+                        Circle().fill(DS.Colors.recording).frame(width: 8, height: 8)
+                        Text("Starta möte")
                     }
-                    .buttonStyle(.ink)
-                    .help("Starta möte (⇧⌘R)")
-                    // "Vem är här?" first: everyone says their name, the scanner finds the voices.
-                    Button {
-                        session.start(introducing: true)
-                    } label: {
-                        Label("Med presentation", systemImage: "person.wave.2")
-                            .font(.system(size: 12.5, weight: .semibold))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(DS.Colors.muted)
-                    .help("Börja med en runda där alla säger sitt namn – Mindtalk hittar rösterna")
                 }
+                .buttonStyle(.ink)
+                .help("Starta möte (⇧⌘R) – med ⌥ börjar det med en presentationsrunda")
+                .accessibilityHint("Med Alternativ-tangenten börjar mötet med en presentationsrunda")
                 .disabled(dictation.phase != .idle)
             }
         case .downloading(let p):
@@ -967,11 +958,6 @@ private struct TranscriptView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    if let session {
-                        ConsentCard(session: session)
-                            .frame(maxWidth: 580, alignment: .leading)
-                            .padding(.bottom, 18)
-                    }
                     if turns.isEmpty { empty }
                     ForEach(Array(turns.enumerated()), id: \.element.id) { i, turn in
                         let newSpeaker = i == 0 || turns[i - 1].speaker != turn.speaker
@@ -999,7 +985,8 @@ private struct TranscriptView: View {
                 .pageColumn(width)
                 .padding(.top, 8)
             }
-            .contentMargins(.bottom, session?.isRecording == true ? 270 : 120, for: .scrollContent)
+            .contentMargins(.bottom, session.map { $0.isRecording ? ($0.showsOpening ? 470 : 270) : 120 } ?? 120,
+                            for: .scrollContent)
             .scrollContentBackground(.hidden)
             .onScrollGeometryChange(for: Bool.self) { geo in
                 geo.contentOffset.y + geo.containerSize.height >= geo.contentSize.height - 80
@@ -1712,7 +1699,12 @@ private struct LiveBar: View {
             }
             // Your notes and the marks, where your eyes are while it records — as in the panel.
             if session.isRecording, !session.introducing {
-                LiveNotesBox(session: session)
+                // "Innan ni börjar" sits with your notes: where your eyes are, and it
+                // doesn't scroll away as the text grows.
+                VStack(spacing: 10) {
+                    OpeningCard(session: session)
+                    LiveNotesBox(session: session)
+                }
                     .padding(12)
                     .frame(maxWidth: 560)
                     .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(DS.Colors.paper))

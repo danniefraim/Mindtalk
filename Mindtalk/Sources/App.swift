@@ -629,6 +629,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         return .terminateLater
     }
 
+    @objc func startMeetingWithRound() {
+        guard MeetingSession.shared.phase == .idle else { return }
+        Self.startMeeting(introducing: true)
+    }
+
     @objc func toggleMeeting() {
         let meeting = MeetingSession.shared
         if meeting.isRecording {
@@ -747,8 +752,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             item("Klistra in", #selector(NSText.paste(_:)), "v"),
             item("Markera allt", #selector(NSText.selectAll(_:)), "a"),
         ]))
+        // Hold ⌥ in the menu: the meeting begins with the round ("Vem är här?").
+        let withRound = item("Starta med presentationsrunda", #selector(AppDelegate.startMeetingWithRound), "r",
+                             [.command, .shift, .option])
+        withRound.isAlternate = true
         main.addItem(submenu("Möte", [
             item("Starta möte", #selector(AppDelegate.toggleMeeting), "r", [.command, .shift]),
+            withRound,
         ]))
         main.addItem(submenu("Visa", [
             item("Diktering", #selector(AppDelegate.menuDictation), "1"),
@@ -986,6 +996,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 extension AppDelegate: NSMenuItemValidation {
     /// "Starta möte" becomes "Avsluta mötet" while one is recorded.
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item.action == #selector(startMeetingWithRound) {
+            let meeting = MeetingSession.shared
+            item.isHidden = meeting.isRecording
+            return meeting.phase == .idle && Dictation.shared.phase == .idle
+        }
         guard item.action == #selector(toggleMeeting) else { return true }
         let meeting = MeetingSession.shared
         item.title = meeting.isRecording ? String(localized: "Avsluta mötet") : String(localized: "Starta möte")

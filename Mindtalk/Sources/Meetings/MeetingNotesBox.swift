@@ -14,8 +14,9 @@ import SwiftUI
 extension MeetingRecord.Mark.Kind {
     var title: String {
         switch self {
-        // Its own key: one marked decision ("Decision"), not the summary's "Beslut" heading ("Decisions").
-        case .decision: return String(localized: "Markering: beslut", defaultValue: "Beslut")
+        // Its own key: one marked decision ("Decision"), not the summary's "Beslut" heading
+        // ("Decisions"). The Swedish is the text after the bar (scripts/strings.py).
+        case .decision: return String(localized: "mark|Beslut")
         case .task: return String(localized: "Att göra")
         case .important: return String(localized: "Viktigt")
         }
@@ -59,46 +60,101 @@ enum MeetingConsent {
     }
 }
 
-/// "Berätta att mötet spelas in" — until you have, or put it away.
-struct ConsentCard: View {
+/// "Innan ni börjar": what a meeting opens with — telling the others it's recorded,
+/// and the round where everyone says their name. Both are offered, neither is in
+/// the way: the recording runs from the first word whatever you choose.
+struct OpeningCard: View {
     @ObservedObject var session: MeetingSession
+    @ObservedObject private var memory = VoiceMemory.shared
     var compact = false
-    @State private var dismissed = false
+    /// The panel opens the round in the large window (it needs the room's screen).
+    var startRound: (() -> Void)? = nil
+
+    private var consent: Bool { session.isRecording && session.record?.informed == nil && !session.consentDismissed }
 
     var body: some View {
-        if session.isRecording, session.record?.informed == nil, !dismissed {
-            VStack(alignment: .leading, spacing: compact ? 8 : 10) {
-                HStack(alignment: .firstTextBaseline) {
-                    Label("Berätta att mötet spelas in", systemImage: "person.2.wave.2")
-                        .font(.system(size: compact ? 12.5 : 13, weight: .semibold))
-                    Spacer(minLength: 8)
-                    Button { withAnimation(.easeOut(duration: 0.25)) { dismissed = true } } label: {
-                        Image(systemName: "xmark").font(.system(size: 9.5, weight: .bold)).foregroundStyle(DS.Colors.muted)
-                            .frame(width: 20, height: 20).contentShape(Rectangle())
+        // Re-checked as words come in and seconds pass.
+        TimelineView(.periodic(from: .now, by: 2)) { _ in
+            let round = session.offersIntroduction
+            if consent || round {
+                VStack(alignment: .leading, spacing: compact ? 10 : 12) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Innan ni börjar").font(.system(size: compact ? 12.5 : 13, weight: .semibold))
+                            .accessibilityAddTraits(.isHeader)
+                        Spacer(minLength: 8)
+                        Button {
+                            withAnimation(.easeOut(duration: 0.25)) { session.consentDismissed = true; session.skipIntroduction() }
+                        } label: {
+                            Image(systemName: "xmark").font(.system(size: 9.5, weight: .bold)).foregroundStyle(DS.Colors.muted)
+                                .frame(width: 20, height: 20).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Göm – mötet fortsätter som vanligt")
+                        .accessibilityLabel("Göm")
                     }
-                    .buttonStyle(.plain)
-                    .help("Göm – utan att notera att de andra vet")
+                    if consent { consentRow }
+                    if consent, round { Divider().opacity(0.6) }
+                    if round { roundRow }
                 }
-                Text("”\(MeetingConsent.text)”")
-                    .font(.system(size: compact ? 12.5 : 13.5, design: .serif))
-                    .italic()
-                    .foregroundStyle(.primary.opacity(0.85))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
-                Button {
-                    withAnimation(.easeOut(duration: 0.25)) { session.informed() }
-                } label: {
-                    Label("Jag har berättat", systemImage: "checkmark")
-                        .font(.system(size: 12.5, weight: .semibold))
-                }
-                .buttonStyle(.soft)
-                .help("Noteras i mötet, så att det syns i efterhand att de andra visste")
+                .padding(compact ? 12 : 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.card))
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .padding(compact ? 12 : 14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.card))
-            .transition(.opacity.combined(with: .move(edge: .top)))
         }
+    }
+
+    private var consentRow: some View {
+        VStack(alignment: .leading, spacing: compact ? 6 : 8) {
+            Label("Berätta att mötet spelas in", systemImage: "person.2.wave.2")
+                .font(.system(size: compact ? 12 : 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
+            Text("”\(MeetingConsent.text)”")
+                .font(.system(size: compact ? 12.5 : 13.5, design: .serif))
+                .italic()
+                .foregroundStyle(.primary.opacity(0.85))
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+            Button {
+                withAnimation(.easeOut(duration: 0.25)) { session.informed() }
+            } label: {
+                Label("Jag har berättat", systemImage: "checkmark").font(.system(size: 12.5, weight: .semibold))
+            }
+            .buttonStyle(.soft)
+            .help("Noteras i mötet, så att det syns i efterhand att de andra visste")
+        }
+    }
+
+    private var roundRow: some View {
+        let knows = memory.enabled && memory.people.contains { !$0.prints.isEmpty }
+        return HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Label("Vem är här?", systemImage: "person.wave.2")
+                    .font(.system(size: compact ? 12 : 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
+                Text(knows ? "Låt alla säga sitt namn – Mindtalk känner igen dem som varit med förut."
+                           : "Låt alla säga sitt namn – då står namnen i texten.")
+                    .font(.system(size: compact ? 12.5 : 13))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Button {
+                if let startRound { startRound() } else { withAnimation(.spring(duration: 0.5, bounce: 0.15)) { session.introduce() } }
+            } label: {
+                Text("Presentationsrunda").font(.system(size: 12.5, weight: .semibold))
+            }
+            .buttonStyle(.soft)
+            .fixedSize()
+            .modifier(RoundShortcut(enabled: !compact))
+            .help(compact ? "Öppnar rundan i Mindtalks fönster" : "Presentationsrunda (⌘↩)")
+            .accessibilityHint("Alla säger sitt namn, och Mindtalk sätter namnen på rösterna")
+        }
+    }
+}
+
+/// ⌘↩ starts the round from the window (not from the panel, where you may be typing elsewhere).
+private struct RoundShortcut: ViewModifier {
+    let enabled: Bool
+    func body(content: Content) -> some View {
+        if enabled { content.keyboardShortcut(.return, modifiers: .command) } else { content }
     }
 }
 
