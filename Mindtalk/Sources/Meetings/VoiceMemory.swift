@@ -34,6 +34,9 @@ final class VoiceMemory: ObservableObject {
         /// The speaker model the prints were made with — prints from different models
         /// can't be compared (nil: the old CAM++ model).
         var model: String?
+        /// The meeting each print came from (its folder name), so naming a voice again
+        /// in the same meeting replaces that meeting's print rather than adding another.
+        var sources: [String]?
     }
 
     enum State: Equatable { case missing, downloading(Double), ready, failed(String) }
@@ -67,6 +70,7 @@ final class VoiceMemory: ObservableObject {
         var changed = false
         for i in people.indices where people[i].model != Self.modelID && !people[i].prints.isEmpty {
             people[i].prints = []
+            people[i].sources = nil
             changed = true
         }
         if changed { save() }
@@ -138,6 +142,7 @@ final class VoiceMemory: ObservableObject {
     func relearn() async {
         let missing = Set(people.filter { $0.prints.isEmpty }.map { Self.key($0.name) })
         guard isOn, state == .ready, !missing.isEmpty else { return }
+        await MeetingStore.shared.ready()
         for record in MeetingStore.shared.meetings.sorted(by: { $0.date < $1.date }) where record.hasAudio {
             let given = record.names.filter {
                 record.recognized[$0.key] == nil && Self.isRealName($0.value) && missing.contains(Self.key($0.value))
@@ -153,6 +158,7 @@ final class VoiceMemory: ObservableObject {
     func learnFromPastMeetings() async {
         guard enabled, people.isEmpty, !UserDefaults.standard.bool(forKey: "voiceMemoryLearnedPast") else { return }
         UserDefaults.standard.set(true, forKey: "voiceMemoryLearnedPast")
+        await MeetingStore.shared.ready()
         for record in MeetingStore.shared.meetings.sorted(by: { $0.date < $1.date }) where record.hasAudio {
             let given = record.names.filter { record.recognized[$0.key] == nil && Self.isRealName($0.value) }
             guard !given.isEmpty else { continue }
@@ -167,7 +173,16 @@ final class VoiceMemory: ObservableObject {
 
     private static func loadPeople() -> [Person] {
         guard let data = try? Data(contentsOf: peopleURL) else { return [] }
-        return (try? JSONDecoder().decode([Person].self, from: data)) ?? []
+        do {
+            return try JSONDecoder().decode([Person].self, from: data)
+        } catch {
+            // Unreadable: kept aside, never overwritten by the next save.
+            let aside = peopleURL.deletingLastPathComponent()
+                .appendingPathComponent("People-unreadable-\(Int(Date().timeIntervalSince1970)).json")
+            try? FileManager.default.moveItem(at: peopleURL, to: aside)
+            log.error("People.json could not be read; kept as \(aside.lastPathComponent, privacy: .public)")
+            return []
+        }
     }
 
     private func save() {
@@ -189,6 +204,7 @@ final class VoiceMemory: ObservableObject {
         testing = true
         people = []
         if (try? await VoicePrints.shared.load()) != nil { state = .ready }
+        await MeetingStore.shared.ready()
         for record in MeetingStore.shared.meetings where titles.contains(where: { record.title.contains($0) }) {
             await learn(words: record.words, audio: MeetingStore.audioURL(for: record.id), names: record.names)
         }
@@ -275,23 +291,37 @@ final class VoiceMemory: ObservableObject {
     /// probably mixed up in that meeting, and it would only teach the wrong voice.
     func learn(words: [MeetingWord], audio url: URL, names: [String: String]) async {
         guard isOn, state == .ready else { return }
+        let source = url.deletingLastPathComponent().lastPathComponent
         for (key, name) in names where Self.isRealName(name) {
             guard let speaker = Int(key),
                   let print = await VoicePrints.shared.print(of: speaker, in: words, audio: url) else { continue }
             if let i = people.firstIndex(where: { Self.key($0.name) == Self.key(name) }) {
+                var sources = people[i].sources ?? []
+                if sources.count != people[i].prints.count { sources = Array(repeating: "", count: people[i].prints.count) }
+                // Named again in the same meeting: that meeting's print, made anew.
+                if let same = sources.firstIndex(of: source) {
+                    people[i].prints[same] = print
+                    people[i].sources = sources
+                    people[i].model = Self.modelID
+                    people[i].updated = Date()
+                    continue
+                }
                 // Below this it's hardly their voice (the same person scored 0.61 and up
                 // between meetings, others 0.33 on average): left out.
                 if people[i].prints.count >= 2, Self.similarity(print, people[i]) < Self.notThem { continue }
                 people[i].prints.append(print)
+                sources.append(source)
                 people[i].model = Self.modelID
-                if people[i].prints.count > 5 { people[i].prints.removeFirst() }
+                if people[i].prints.count > 5 { people[i].prints.removeFirst(); sources.removeFirst() }
+                people[i].sources = sources
                 people[i].name = name
                 people[i].updated = Date()
                 if people[i].figure == nil { people[i].figure = figureForNew(print) }
                 reserved[Self.key(name)] = nil
             } else {
                 let figure = reserved.removeValue(forKey: Self.key(name)) ?? figureForNew(print)
-                people.append(Person(name: name.trimmingCharacters(in: .whitespaces), prints: [print], figure: figure, model: Self.modelID))
+                people.append(Person(name: name.trimmingCharacters(in: .whitespaces), prints: [print], figure: figure,
+                                     model: Self.modelID, sources: [source]))
             }
         }
         save()

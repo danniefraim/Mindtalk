@@ -118,8 +118,12 @@ final class BetterNotes: ObservableObject {
         state = .downloading(0)
         downloadStarted = Date()
         downloadBase = nil
+        generation += 1
+        let mine = generation, before = unwinding
         task = Task {
-            defer { task = nil }
+            // A cancelled download finishes unwinding first: two never write the same files.
+            await before?.value
+            defer { if generation == mine { task = nil } }
             do {
                 try await Self.install { p in
                     Task { @MainActor in
@@ -129,19 +133,25 @@ final class BetterNotes: ObservableObject {
                         }
                     }
                 }
-                state = .ready
+                if generation == mine { state = .ready }
                 Self.log.info("installed")
             } catch is CancellationError {
-                state = .missing
+                if generation == mine { state = .missing }
             } catch {
                 Self.log.error("download: \(error.localizedDescription, privacy: .public)")
-                state = .failed(error.localizedDescription)
+                if generation == mine { state = .failed(error.localizedDescription) }
             }
         }
     }
 
+    /// Which download is the current one — an older, cancelled one may still be unwinding.
+    private var generation = 0
+    private var unwinding: Task<Void, Never>?
+
     func cancel() {
+        generation += 1
         task?.cancel()
+        unwinding = task
         task = nil
         state = .missing
     }

@@ -112,11 +112,13 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         words = try c.decodeIfPresent([MeetingWord].self, forKey: .words) ?? []
         names = try c.decodeIfPresent([String: String].self, forKey: .names) ?? [:]
         refined = try c.decodeIfPresent(Bool.self, forKey: .refined) ?? false
-        summary = try c.decodeIfPresent(MeetingSummary.self, forKey: .summary)
-        answers = try c.decodeIfPresent([MeetingAnswer].self, forKey: .answers) ?? []
+        // What Mindtalk wrote (it can be written again) never hides the meeting if it
+        // can't be read; what you wrote or said is read strictly, so it is never lost.
+        summary = (try? c.decodeIfPresent(MeetingSummary.self, forKey: .summary)) ?? nil
+        answers = (try? c.decodeIfPresent([MeetingAnswer].self, forKey: .answers)) ?? []
         userTitled = try c.decodeIfPresent(Bool.self, forKey: .userTitled) ?? false
         finished = try c.decodeIfPresent(Bool.self, forKey: .finished) ?? true
-        heal = try c.decodeIfPresent(Heal.self, forKey: .heal)
+        heal = (try? c.decodeIfPresent(Heal.self, forKey: .heal)) ?? nil
         moves = try c.decodeIfPresent([Move].self, forKey: .moves) ?? []
         notes = try c.decodeIfPresent([Note].self, forKey: .notes) ?? []
         marks = try c.decodeIfPresent([Mark].self, forKey: .marks) ?? []
@@ -354,7 +356,7 @@ final class MeetingStore: ObservableObject {
 
     @Published private(set) var meetings: [MeetingRecord] = []
 
-    static var root: URL {
+    nonisolated static var root: URL {
         SpeechModel.rootDirectory.deletingLastPathComponent().appendingPathComponent("Meetings")
     }
 
@@ -362,18 +364,56 @@ final class MeetingStore: ObservableObject {
     static func audioURL(for id: UUID) -> URL { folder(for: id).appendingPathComponent("audio.caf") }
     private static func recordURL(for id: UUID) -> URL { folder(for: id).appendingPathComponent("meeting.json") }
 
-    private init() { reload() }
+    /// The meetings are read from disk once, off the main thread (a long history is
+    /// many megabytes of text); until then the list is empty, and a meeting saved
+    /// meanwhile stays as saved.
+    private(set) var loaded = false
+    private var retentionWaiting = false
 
-    func reload() {
-        let fm = FileManager.default
-        let folders = (try? fm.contentsOfDirectory(at: Self.root, includingPropertiesForKeys: nil)) ?? []
-        meetings = folders.compactMap { folder in
-            guard let data = try? Data(contentsOf: folder.appendingPathComponent("meeting.json")) else { return nil }
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            return try? decoder.decode(MeetingRecord.self, from: data)
+    private init() {
+        Task.detached(priority: .userInitiated) {
+            let read = Self.readAll()
+            await MainActor.run { MeetingStore.shared.finishLoading(read) }
         }
-        .sorted { $0.date > $1.date }
+    }
+
+    #if DEBUG
+    /// Self-tests read the meetings at once, before anything else.
+    func loadNow() { if !loaded { finishLoading(Self.readAll()) } }
+    #endif
+
+    /// Waits until the meetings are read (instant once they are).
+    func ready() async {
+        while !loaded { try? await Task.sleep(for: .milliseconds(30)) }
+    }
+
+    private func finishLoading(_ read: [MeetingRecord]) {
+        let saved = Set(meetings.map(\.id))
+        meetings = (meetings + read.filter { !saved.contains($0.id) }).sorted { $0.date > $1.date }
+        loaded = true
+        if retentionWaiting { retentionWaiting = false; applyRetention() }
+    }
+
+    nonisolated private static func readAll() -> [MeetingRecord] {
+        let fm = FileManager.default
+        let folders = (try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        var seen = Set<UUID>()
+        return folders.compactMap { folder -> MeetingRecord? in
+            let url = folder.appendingPathComponent("meeting.json")
+            guard let data = try? Data(contentsOf: url) else { return nil }
+            do {
+                let record = try decoder.decode(MeetingRecord.self, from: data)
+                // A copied folder (Finder, a restore) can carry the same meeting twice.
+                guard seen.insert(record.id).inserted else { return nil }
+                return record
+            } catch {
+                // Left untouched on disk — never overwritten — and said in the log.
+                NSLog("Mindtalk: could not read \(url.path): \(error.localizedDescription)")
+                return nil
+            }
+        }
     }
 
     /// Creates the meeting's folder, private to you.
@@ -481,12 +521,17 @@ final class MeetingStore: ObservableObject {
 
     /// Keeps recordings no longer than you chose. At launch and after each meeting.
     func applyRetention() {
+        guard loaded else { retentionWaiting = true; return }
         for id in recordingsPast(days: MeetingAudio.keepDays) { removeAudio(of: id) }
     }
 
     /// Removes the meeting — text and recording — from the Mac.
     func delete(_ id: UUID) {
-        try? FileManager.default.removeItem(at: Self.folder(for: id))
+        // To the Trash, like a removed recording — there for a while if it was a mistake.
+        let folder = Self.folder(for: id)
+        if (try? FileManager.default.trashItem(at: folder, resultingItemURL: nil)) == nil {
+            try? FileManager.default.removeItem(at: folder)
+        }
         meetings.removeAll { $0.id == id }
     }
 }

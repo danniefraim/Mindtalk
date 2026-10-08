@@ -120,6 +120,46 @@ final class MeetingSession: ObservableObject {
     /// Self-test: an audio file played in as if it were the microphone.
     private var simulation: (start: Date, speed: Double)?
 
+    /// Self-test (`--relisten "titel"`): a copy of a named meeting listened to again, as
+    /// "Gör klart" does — are the names (and merges) where they were? The copy is
+    /// removed after, nothing is learned.
+    func relistenTest(title: String) async {
+        MeetingStore.shared.loadNow()
+        guard let original = MeetingStore.shared.meetings.first(where: { $0.title.contains(title) && $0.hasAudio }) else {
+            return print("Inget möte med ljud som heter \(title).")
+        }
+        var copy = original
+        copy.id = UUID()
+        copy.title = "Självtest – " + original.title
+        do {
+            try MeetingStore.prepareFolder(for: copy.id)
+            try FileManager.default.copyItem(at: MeetingStore.audioURL(for: original.id), to: MeetingStore.audioURL(for: copy.id))
+        } catch { return print("Fel: \(error.localizedDescription)") }
+        MeetingStore.shared.save(copy)
+        simulation = (Date(), 1)              // nothing learned, no notes written
+        finishInterrupted(copy.id)
+        try? await Task.sleep(for: .milliseconds(300))
+        while phase != .idle { try? await Task.sleep(for: .milliseconds(200)) }
+        guard let after = MeetingStore.shared.meetings.first(where: { $0.id == copy.id }) else { return print("Kopian försvann.") }
+        // Per second of speech: the name before and after.
+        func nameAt(_ record: MeetingRecord, _ t: Double) -> String? {
+            guard let w = record.words.first(where: { $0.start <= t && t < $0.end + 0.2 }), let s = w.speaker, s >= 0 else { return nil }
+            return record.name(of: s)
+        }
+        var same = 0, total = 0
+        var t = 0.0
+        while t < original.duration {
+            if let a = nameAt(original, t), let b = nameAt(after, t) { total += 1; if a == b { same += 1 } }
+            t += 0.5
+        }
+        print("Före: \(original.cast.order.map { original.name(of: $0) }.joined(separator: ", "))")
+        print("Efter: \(after.cast.order.map { after.name(of: $0) }.joined(separator: ", "))")
+        print(String(format: "Samma namn på samma ställe: %.0f %% av talet (%d av %d halvsekunder)",
+                     total == 0 ? 0 : Double(same) / Double(total) * 100, same, total))
+        print("Sammanfattningen kvar: \(after.summary != nil ? "ja" : (original.summary == nil ? "fanns ingen" : "NEJ"))")
+        try? FileManager.default.removeItem(at: MeetingStore.folder(for: copy.id))
+    }
+
     func simulate(file: URL, language: SpeechModel, speed: Double) async {
         if !VoiceModels.isInstalled {
             print("Hämtar röstmodellen…")
@@ -767,7 +807,7 @@ final class MeetingSession: ObservableObject {
         pending = []
         record.duration = Double(intake?.count ?? 0) / Double(Self.rate)
         // A slip of the finger: nothing said, a few seconds long — not worth keeping.
-        if record.words.isEmpty, record.duration < 10 {
+        if record.words.isEmpty, record.duration < 10, record.notes.isEmpty, record.marks.isEmpty {
             MeetingStore.shared.delete(record.id)
             self.record = nil
             return done()
@@ -833,6 +873,12 @@ final class MeetingSession: ObservableObject {
                 Vocabulary.shared.noteHeard(heard.fixed)
                 #endif
             }
+            // Listened to again ("Gör klart", "Lyssna igenom igen"): the new pass numbers
+            // the voices its own way — each takes the number of the voice it overlaps
+            // most in the text you have, so names and merges stay where you put them.
+            if match.isEmpty, let old = record?.words, old.contains(where: { ($0.speaker ?? -1) >= 0 }) {
+                Self.carryOver(from: old, to: &words)
+            }
             // Voices you've named in earlier meetings, named here too (when switched on).
             MeetingRecord.apply(record?.moves ?? [], to: &words)
             let found = await VoiceMemory.shared.recognise(words: words, audio: url, names: record?.names ?? [:])
@@ -842,7 +888,13 @@ final class MeetingSession: ObservableObject {
                 updated.names[String(speaker)] = match.name
                 updated.recognized[String(speaker)] = match.score
             }
-            if !updated.words.isEmpty { updated.heal = Self.heal(from: updated.words, to: words) }
+            // What the final pass changed — worked out off the main thread (a long meeting
+            // that differs a lot takes a while), and not at all past a size where it
+            // would take too long to be worth it.
+            if !updated.words.isEmpty, max(updated.words.count, words.count) <= 40_000 {
+                let live = updated.words, final = words
+                updated.heal = await Task.detached(priority: .utility) { Self.heal(from: live, to: final) }.value
+            }
             updated.words = words
             updated.refined = true
             record = updated
@@ -859,6 +911,32 @@ final class MeetingSession: ObservableObject {
             // The live transcript stays.
             Self.log.error("refine: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// The voices of a new pass, numbered as in the text before it: each new voice
+    /// takes the number of the old voice it shares the most time with (two may take
+    /// the same — voices you merged); a voice new to the meeting gets a free number.
+    nonisolated static func carryOver(from old: [MeetingWord], to new: inout [MeetingWord]) {
+        var overlap: [Int: [Int: Double]] = [:]
+        var j = 0
+        for w in new {
+            guard let s = w.speaker, s >= 0 else { continue }
+            while j < old.count, old[j].end <= w.start { j += 1 }
+            var k = j
+            while k < old.count, old[k].start < w.end {
+                if let o = old[k].speaker, o >= 0 {
+                    let shared = min(w.end, old[k].end) - max(w.start, old[k].start)
+                    if shared > 0 { overlap[s, default: [:]][o, default: 0] += shared }
+                }
+                k += 1
+            }
+        }
+        var next = (old.compactMap(\.speaker).max() ?? -1) + 1
+        var map: [Int: Int] = [:]
+        for s in Set(new.compactMap(\.speaker).filter { $0 >= 0 }).sorted() {
+            if let best = overlap[s]?.max(by: { $0.value < $1.value })?.key { map[s] = best } else { map[s] = next; next += 1 }
+        }
+        for i in new.indices { if let s = new[i].speaker, let m = map[s] { new[i].speaker = m } }
     }
 
     /// What the final pass changed: words written differently, and turns given to
@@ -927,12 +1005,20 @@ final class MeetingSession: ObservableObject {
         warning = nil
         LiveMeter.shared.reset()
         phase = .idle
-        Updates.shared.meetingEnded()
         #if DEBUG
-        if simulation != nil { simulation = nil; return }
+        if simulation != nil { simulation = nil; Updates.shared.meetingEnded(); return }
         #endif
         Dictation.shared.meetingEnded()
-        if let finished { MeetingNotes.shared.summarize(finished) }
+        // Notes are written once; listening again keeps the ones you have (and your
+        // ticked tasks) — "Sammanfatta igen" is there for a new summary.
+        if let finished, MeetingStore.shared.meetings.first(where: { $0.id == finished })?.summary == nil {
+            MeetingNotes.shared.summarize(finished)
+        }
+        // A postponed update restarts Mindtalk: only once the notes are written.
+        Task { @MainActor in
+            for _ in 0..<600 where !MeetingNotes.shared.writing.isEmpty { try? await Task.sleep(for: .seconds(1)) }
+            Updates.shared.meetingEnded()
+        }
         MeetingStore.shared.applyRetention()
     }
 

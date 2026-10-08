@@ -326,7 +326,8 @@ final class MeetingLibrary: ObservableObject {
         guard !meetings.isEmpty else { return }
         asking = true
         failed = nil
-        let local = BetterNotes.shared.isActive
+        // Not the large model during a meeting: it would crowd the live transcription.
+        let local = BetterNotes.shared.isActive && !MeetingSession.shared.isRecording
         let context = LibraryContext(question: question, meetings: meetings,
                                      budget: local ? 12_000 : Lines.appleBudget)
         let history = answers.suffix(2).map { "Q: \($0.question)\nA: \($0.answer)" }.joined(separator: "\n")
@@ -335,7 +336,7 @@ final class MeetingLibrary: ObservableObject {
             do {
                 let t0 = Date()
                 let reply = try await MeetingNotes.answerAcross(question, context: context, history: history, local: local)
-                let titles = Dictionary(uniqueKeysWithValues: meetings.map { ($0.id, $0.title) })
+                let titles = Dictionary(meetings.map { ($0.id, $0.title) }, uniquingKeysWith: { a, _ in a })
                 var seen = Set<String>()
                 let sources: [LibraryAnswer.Source] = reply.lines.compactMap { n in
                     guard let s = context.sources[n], let title = titles[s.meeting] else { return nil }

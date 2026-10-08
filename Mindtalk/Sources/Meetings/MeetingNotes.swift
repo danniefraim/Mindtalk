@@ -138,7 +138,7 @@ final class MeetingNotes: ObservableObject {
         let lines = Lines(record)
         // The last questions, so "och vem?" knows what it follows.
         let history = record.answers.suffix(2).map { "Q: \($0.question)\nA: \($0.answer)" }.joined(separator: "\n")
-        let local = BetterNotes.shared.isActive
+        let local = BetterNotes.shared.isActive && !MeetingSession.shared.isRecording   // not during a meeting
         Task {
             defer { answering.remove(id) }
             do {
@@ -158,6 +158,7 @@ final class MeetingNotes: ObservableObject {
     static func selfTest(question: String) async {
         let args = CommandLine.arguments
         let wanted = args.firstIndex(of: "--title").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
+        MeetingStore.shared.loadNow()
         guard let found = MeetingStore.shared.meetings.first(where: { wanted == nil || $0.title.contains(wanted!) })
         else { return print("Inga möten.") }
         // `--own-notes "rad|rad"` and `--marks "decision@30,task@55"`: as if written and

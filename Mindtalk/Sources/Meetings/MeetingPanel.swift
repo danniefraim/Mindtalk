@@ -37,6 +37,9 @@ final class MeetingPanel: ObservableObject {
     private var home: Home = .panel
     private var wasRecording = false
     private var wasBusy = false
+    /// A meeting was recorded since the last "done" — its end is told even if the
+    /// panel was closed meanwhile (by then it's no longer recording, only finishing).
+    private var meetingRan = false
 
     private init() {}
 
@@ -59,12 +62,14 @@ final class MeetingPanel: ObservableObject {
             // A meeting starts — where you started it. ("Gör klart" on an interrupted
             // meeting is busy without recording and stays in the window.)
             done = nil
+            meetingRan = true
             home = AppDelegate.mainWindowIsKey ? .window : .panel
             if home == .panel {
                 if AppDelegate.mainWindowVisible { AppDelegate.hideMainWindow() }   // behind your work anyway
                 show()
             }
-        } else if !busy, wasBusy, wasRecording || isVisible {
+        } else if !busy, wasBusy, meetingRan || wasRecording || isVisible {
+            meetingRan = false
             finished(session.finished)
         }
     }

@@ -116,6 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
         // `Mindtalk --search "ord"`: what the meeting search finds, printed.
         if let i = args.firstIndex(of: "--search"), i + 1 < args.count {
+            MeetingStore.shared.loadNow()
             // `--times 12`: the meetings a dozen times over (in memory only) — a big library.
             let times = args.firstIndex(of: "--times").flatMap { $0 + 1 < args.count ? Int(args[$0 + 1]) : nil } ?? 1
             let all = (0..<times).flatMap { _ in MeetingStore.shared.meetings.map { var r = $0; r.id = UUID(); return r } }
@@ -138,6 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // `Mindtalk --ask-all "fråga"`: a question across all meetings, as the Möten page asks it.
         if let i = args.firstIndex(of: "--ask-all"), i + 1 < args.count {
             Task { @MainActor in
+                MeetingStore.shared.loadNow()
                 let question = args[i + 1]
                 let local = BetterNotes.shared.isActive
                 let meetings = MeetingStore.shared.meetings.filter { !$0.words.isEmpty }
@@ -180,6 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if let i = args.firstIndex(of: "--render-search"), i + 3 < args.count {
             Task { @MainActor in
                 NSApplication.shared.appearance = NSAppearance(named: args.contains("--dark") ? .darkAqua : .aqua)
+                MeetingStore.shared.loadNow()
                 let library = MeetingLibrary.shared
                 library.ask(args[i + 3])
                 await library.waitUntilAnswered()
@@ -206,6 +209,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // every meeting, and how alike they are — to set the threshold.
         if args.contains("--voice-test") {
             Task { @MainActor in
+                MeetingStore.shared.loadNow()
                 let memory = VoiceMemory.shared
                 memory.prepare()
                 for _ in 0..<100 where memory.state == .missing { try? await Task.sleep(for: .milliseconds(100)) }
@@ -363,6 +367,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if let i = args.firstIndex(of: "--notes"), i + 1 < args.count {
             Task {
                 await MeetingNotes.selfTest(question: args[i + 1])
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
+        if let i = args.firstIndex(of: "--relisten"), i + 1 < args.count {
+            Task { @MainActor in
+                await MeetingSession.shared.relistenTest(title: args[i + 1])
                 exit(0)
             }
             RunLoop.main.run()
