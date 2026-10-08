@@ -5920,6 +5920,22 @@
         }
       }
     },
+    "Markering: beslut": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decision"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markering: beslut"
+          }
+        }
+      }
+    },
     "Med presentation": {
       "localizations": {
         "en": {

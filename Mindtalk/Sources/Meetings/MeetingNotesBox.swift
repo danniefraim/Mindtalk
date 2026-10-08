@@ -14,7 +14,8 @@ import SwiftUI
 extension MeetingRecord.Mark.Kind {
     var title: String {
         switch self {
-        case .decision: return String(localized: "Beslut")
+        // Its own key: one marked decision ("Decision"), not the summary's "Beslut" heading ("Decisions").
+        case .decision: return String(localized: "Markering: beslut", defaultValue: "Beslut")
         case .task: return String(localized: "Att göra")
         case .important: return String(localized: "Viktigt")
         }
