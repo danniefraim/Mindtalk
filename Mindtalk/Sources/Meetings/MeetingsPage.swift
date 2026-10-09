@@ -126,7 +126,7 @@ private struct MeetingList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             PageHeader(title: "Möten",
-                       subtitle: "Spela in ett möte i rummet. Mindtalk skriver ned det som sägs och håller isär vem som pratar – allt stannar på din Mac.")
+                       subtitle: "Spela in ett möte i rummet. Mindtalk skriver ned det som sägs och håller isär vem som pratar.")
                 .staggered(0)
             StartCard(session: session, voices: voices, dictation: dictation).staggered(1)
             if store.meetings.isEmpty {
@@ -228,7 +228,7 @@ private struct StartCard: View {
                     .foregroundStyle(DS.Colors.muted)
                     .fixedSize(horizontal: false, vertical: true)
                 if let note {
-                    Label(note, systemImage: "lock.fill")
+                    Label(note, systemImage: "cpu")
                         .font(.system(size: 12))
                         .foregroundStyle(DS.Colors.muted)
                 }
@@ -257,12 +257,12 @@ private struct StartCard: View {
     private var note: String? {
         guard voices.state == .ready else { return nil }
         if !MeetingNotes.isAvailable {
-            return String(localized: "På din Mac · utan Apple Intelligence blir det text men ingen sammanfattning")
+            return String(localized: "Utan Apple Intelligence blir det text men ingen sammanfattning")
         }
         if BetterNotes.shared.isActive {
-            return String(localized: "På din Mac · \(dictation.engine.modelName) och Gemma 4")
+            return String(localized: "\(dictation.engine.modelName) och Gemma 4")
         }
-        return String(localized: "På din Mac · \(dictation.engine.modelName) och Apple Intelligence")
+        return String(localized: "\(dictation.engine.modelName) och Apple Intelligence")
     }
 
     @ViewBuilder private var control: some View {
@@ -1754,8 +1754,8 @@ private struct WritingPlaceholder: View {
         VStack(alignment: .leading, spacing: 30) {
             HStack(spacing: 8) {
                 SettlingLine(color: DS.Colors.ink).scaleEffect(0.8)
-                Text(BetterNotes.shared.isActive ? String(localized: "Gemma 4 skriver sammanfattningen på din Mac…")
-                                                 : String(localized: "Skriver sammanfattningen på din Mac…"))
+                Text(BetterNotes.shared.isActive ? String(localized: "Gemma 4 skriver sammanfattningen…")
+                                                 : String(localized: "Skriver sammanfattningen…"))
             }
             .font(.system(size: 13, weight: .medium))
             .foregroundStyle(DS.Colors.muted)

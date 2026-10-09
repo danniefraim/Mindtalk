@@ -39,7 +39,7 @@ struct BetterNotesCard: View {
         case .unsupported:
             return String(localized: "Gemma 4 från Google skriver djupare sammanfattningar och svar, men kräver minst \(BetterNotes.minimumMemoryGB) GB minne. Den här Macen har \(BetterNotes.memoryGB) GB, så Apple Intelligence skriver anteckningarna.")
         case .missing, .failed:
-            var text = String(localized: "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Allt på din Mac. Laddas ned en gång (\(BetterNotes.sizeText)) och fungerar sedan offline.")
+            var text = String(localized: "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Laddas ned en gång (\(BetterNotes.sizeText)) och fungerar sedan offline.")
             if !BetterNotes.hasRoom {
                 text += " " + String(localized: "Det behövs \(BetterNotes.sizeText) ledigt på disken och lite till – du har \(BetterNotes.freeBytes / 1_000_000_000) GB.")
             }
@@ -49,7 +49,7 @@ struct BetterNotesCard: View {
             return String(localized: "Laddar ned Gemma 4 från Google. Du kan fortsätta använda Mindtalk under tiden.")
         case .ready:
             return notes.enabled
-                ? String(localized: "Gemma 4 skriver mötenas sammanfattningar och svarar på frågor, på din Mac.")
+                ? String(localized: "Gemma 4 skriver mötenas sammanfattningar och svarar på frågor.")
                 : String(localized: "Avstängt: Apple Intelligence skriver anteckningarna.")
         }
     }

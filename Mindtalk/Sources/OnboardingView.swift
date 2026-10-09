@@ -169,7 +169,7 @@ private struct LanguageStep: View {
                     .staggered(i + 1)
                 }
             }
-            Text("Båda bygger på NVIDIA Parakeet och körs på din Macs Neural Engine. Du byter språk med ett klick i menyraden.")
+            Text("Båda bygger på NVIDIA Parakeet. Du byter språk med ett klick i menyraden.")
                 .font(.system(size: 12))
                 .foregroundStyle(DS.Colors.muted)
                 .multilineTextAlignment(.center)

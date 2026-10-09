@@ -146,7 +146,7 @@ private struct DictationPage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 26) {
             PageHeader(title: "Diktering",
-                       subtitle: "Prata istället för att skriva – i vilken app som helst. Allt tolkas på din Mac.")
+                       subtitle: "Prata istället för att skriva – i vilken app som helst.")
                 .staggered(0)
 
             if dictation.needsSetup { setupCard.staggered(1) }
@@ -258,7 +258,7 @@ private func modelDetail(_ model: Dictation.ModelState, _ engine: SpeechModel) -
     case .downloading: return String(localized: "Laddar ned \(engine.modelName) – bara den här gången.")
     case .loading: return String(localized: "Startar – första gången kan det ta upp till en minut.")
     case .failed(let message): return message
-    case .ready: return String(localized: "Ljudet raderas direkt efteråt. Ingen AI skriver om dina ord.")
+    case .ready: return String(localized: "Redo att diktera.")
     }
 }
 
@@ -270,7 +270,6 @@ private struct ModelControl: View {
         case .ready:
             VStack(alignment: .trailing, spacing: 3) {
                 Text(dictation.engine.modelName).font(.system(size: 14, weight: .semibold))
-                Label("På din Mac", systemImage: "lock.fill").font(.caption).foregroundStyle(DS.Colors.muted)
             }
         case .missing, .failed:
             Button(LocalizedStringKey(dictation.model == .missing ? "Ladda ned" : "Försök igen")) { dictation.downloadModel() }
@@ -600,7 +599,7 @@ private struct RecentPage: View {
                 }
                 .card()
                 .staggered(1)
-                Text("Sparas bara på din Mac, de senaste 50. ⌃⌥V klistrar in den senaste igen.")
+                Text("De senaste 50 sparas. ⌃⌥V klistrar in den senaste igen.")
                     .font(.system(size: 13))
                     .foregroundStyle(DS.Colors.muted)
             }
@@ -809,7 +808,7 @@ private struct TextCleanupCard: View {
     private var polishDetail: String {
         switch status {
         case .available:
-            return String(localized: "Rättar skiljetecken, upprepningar och självrättelser som ”nej, jag menar…”. Körs med Apple Intelligence på din Mac – inget skickas iväg.")
+            return String(localized: "Rättar skiljetecken, upprepningar och självrättelser som ”nej, jag menar…”. Körs med Apple Intelligence.")
         case .notEnabled:
             return String(localized: "Kräver Apple Intelligence, som är avstängt på den här Macen.")
         case .notReady:

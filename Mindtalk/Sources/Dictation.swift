@@ -182,7 +182,7 @@ final class Dictation: ObservableObject {
                 return String(localized: "Behövs för att känna av tangenten och skriva in texten. Står Mindtalk redan i listan i Systeminställningar: slå av och på den.")
             case .microphone: return String(localized: "Behövs för att höra vad du säger.")
             case .modelMissing, .modelDownloading, .modelFailed:
-                return String(localized: "Taligenkänningen körs på din Mac och behöver modellen en gång.")
+                return String(localized: "Taligenkänningen behöver modellen – den laddas ned en gång.")
             }
         }
     }

@@ -183,6 +183,38 @@
         }
       }
     },
+    "%@ och Apple Intelligence": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ and Apple Intelligence"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ och Apple Intelligence"
+          }
+        }
+      }
+    },
+    "%@ och Gemma 4": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ and Gemma 4"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ och Gemma 4"
+          }
+        }
+      }
+    },
     "%@ ord den här veckan": {
       "extractionState": "stale",
       "localizations": {
@@ -1832,6 +1864,7 @@
       }
     },
     "Båda bygger på NVIDIA Parakeet och körs på din Macs Neural Engine. Du byter språk med ett klick i menyraden.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1843,6 +1876,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Båda bygger på NVIDIA Parakeet och körs på din Macs Neural Engine. Du byter språk med ett klick i menyraden."
+          }
+        }
+      }
+    },
+    "Båda bygger på NVIDIA Parakeet. Du byter språk med ett klick i menyraden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Both are built on NVIDIA Parakeet. Switch language with one click in the menu bar."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Båda bygger på NVIDIA Parakeet. Du byter språk med ett klick i menyraden."
           }
         }
       }
@@ -1924,6 +1973,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Core ML (%@)"
+          }
+        }
+      }
+    },
+    "De senaste 50 sparas. ⌃⌥V klistrar in den senaste igen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The latest 50 are kept. ⌃⌥V pastes the latest again."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De senaste 50 sparas. ⌃⌥V klistrar in den senaste igen."
           }
         }
       }
@@ -3270,6 +3335,7 @@
       }
     },
     "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Allt på din Mac. Laddas ned en gång (%@) och fungerar sedan offline.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3281,6 +3347,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Allt på din Mac. Laddas ned en gång (%@) och fungerar sedan offline."
+          }
+        }
+      }
+    },
+    "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Laddas ned en gång (%@) och fungerar sedan offline.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 from Google writes the summaries and answers questions – more accurate than Apple Intelligence and without topic restrictions. Downloaded once (%@), then works offline."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Laddas ned en gång (%@) och fungerar sedan offline."
           }
         }
       }
@@ -3303,6 +3385,7 @@
       }
     },
     "Gemma 4 skriver mötenas sammanfattningar och svarar på frågor, på din Mac.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3318,7 +3401,24 @@
         }
       }
     },
+    "Gemma 4 skriver mötenas sammanfattningar och svarar på frågor.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 writes the meeting summaries and answers questions."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 skriver mötenas sammanfattningar och svarar på frågor."
+          }
+        }
+      }
+    },
     "Gemma 4 skriver sammanfattningen på din Mac…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3330,6 +3430,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gemma 4 skriver sammanfattningen på din Mac…"
+          }
+        }
+      }
+    },
+    "Gemma 4 skriver sammanfattningen…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 is writing the summary…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 skriver sammanfattningen…"
           }
         }
       }
@@ -5735,6 +5851,7 @@
       }
     },
     "Ljudet raderas direkt efteråt. Ingen AI skriver om dina ord.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5751,6 +5868,7 @@
       }
     },
     "Ljudet stannar på din Mac.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7282,7 +7400,24 @@
         }
       }
     },
+    "När något du dikterar liknar ett ord i listan lyssnar Mindtalk en gång till efter just det ordet, så att namn stavas rätt redan från början.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When something you dictate resembles a word on the list, Mindtalk listens once more for that word, so names are spelled right from the start."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "När något du dikterar liknar ett ord i listan lyssnar Mindtalk en gång till efter just det ordet, så att namn stavas rätt redan från början."
+          }
+        }
+      }
+    },
     "När något du dikterar liknar ett ord i listan lyssnar Mindtalk en gång till efter just det ordet, så att namn stavas rätt redan från början. Allt sker på din Mac.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7824,6 +7959,7 @@
       }
     },
     "På din Mac": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7840,6 +7976,7 @@
       }
     },
     "På din Mac · %@ och Apple Intelligence": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7856,6 +7993,7 @@
       }
     },
     "På din Mac · %@ och Gemma 4": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7872,6 +8010,7 @@
       }
     },
     "På din Mac · utan Apple Intelligence blir det text men ingen sammanfattning": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8036,6 +8175,22 @@
         }
       }
     },
+    "Redo att diktera.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready to dictate."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redo att diktera."
+          }
+        }
+      }
+    },
     "Redo · håll": {
       "extractionState": "stale",
       "localizations": {
@@ -8150,6 +8305,7 @@
       }
     },
     "Rättar skiljetecken, upprepningar och självrättelser som ”nej, jag menar…”. Körs med Apple Intelligence på din Mac – inget skickas iväg.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8161,6 +8317,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rättar skiljetecken, upprepningar och självrättelser som ”nej, jag menar…”. Körs med Apple Intelligence på din Mac – inget skickas iväg."
+          }
+        }
+      }
+    },
+    "Rättar skiljetecken, upprepningar och självrättelser som ”nej, jag menar…”. Körs med Apple Intelligence.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixes punctuation, repeated words and self-corrections like “no, I mean…”. Runs with Apple Intelligence."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rättar skiljetecken, upprepningar och självrättelser som ”nej, jag menar…”. Körs med Apple Intelligence."
           }
         }
       }
@@ -8704,6 +8876,7 @@
       }
     },
     "Skriver sammanfattningen på din Mac…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9098,6 +9271,7 @@
       }
     },
     "Sparas bara på din Mac, de senaste 50. ⌃⌥V klistrar in den senaste igen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10285,7 +10459,24 @@
         }
       }
     },
+    "Taligenkänningen behöver modellen – den laddas ned en gång.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speech recognition needs the model – it's downloaded once."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taligenkänningen behöver modellen – den laddas ned en gång."
+          }
+        }
+      }
+    },
     "Taligenkänningen körs på din Mac och behöver modellen en gång.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11105,6 +11296,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Uppspelningshastighet"
+          }
+        }
+      }
+    },
+    "Utan Apple Intelligence blir det text men ingen sammanfattning": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Without Apple Intelligence you get the text but no summary"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utan Apple Intelligence blir det text men ingen sammanfattning"
           }
         }
       }

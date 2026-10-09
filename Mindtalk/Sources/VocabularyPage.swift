@@ -385,7 +385,7 @@ private struct ListenerRow: View {
     private var detail: String {
         switch status.state {
         case .ready:
-            return String(localized: "När något du dikterar liknar ett ord i listan lyssnar Mindtalk en gång till efter just det ordet, så att namn stavas rätt redan från början. Allt sker på din Mac.")
+            return String(localized: "När något du dikterar liknar ett ord i listan lyssnar Mindtalk en gång till efter just det ordet, så att namn stavas rätt redan från början.")
         case .downloading:
             return String(localized: "Laddar ned lyssnaren (\(VocabularyBoost.sizeText)) – en gång, sedan fungerar den offline.")
         case .missing:

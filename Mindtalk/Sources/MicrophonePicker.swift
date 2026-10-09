@@ -72,9 +72,6 @@ struct MicrophonePicker: View {
             .scrollContentBackground(.hidden)
 
             HStack {
-                Label("Ljudet stannar på din Mac.", systemImage: "lock.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(DS.Colors.muted)
                 Spacer()
                 Button("Klar", action: close)
                     .buttonStyle(.ink)
