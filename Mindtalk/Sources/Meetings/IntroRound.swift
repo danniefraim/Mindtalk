@@ -49,10 +49,12 @@ final class IntroRound: ObservableObject {
     /// The ring: how much of the speech needed has been heard (0…1).
     @Published private(set) var progress: Double = 0
     @Published private(set) var captures: [Capture] = [] {
-        didSet { if captures.count > oldValue.count { thankedAt = Date() } }
+        didSet { if captures.count > oldValue.count { thankedAt = Date(); quietTurns = 0 } }
     }
     /// When the last person was added: "Tack, Anna!" stays up a moment into the next turn.
     @Published private(set) var thankedAt: Date?
+    /// Turns in a row where only people already here spoke: the meeting has begun.
+    private var quietTurns = 0
     /// The figure the cloud falls into, once there is a voice.
     @Published private(set) var figure: VoiceFigure?
     /// Nothing heard for a while in this turn.
@@ -140,8 +142,21 @@ final class IntroRound: ObservableObject {
         typed = false
         autoSaveAt = nil
         closingAt = nil
+        wantsToEnd = false
         lastSpeech = Date()
         set(.ready)
+    }
+
+    /// Everyone's here: the scanner fades the round out — and should it not be on
+    /// screen (another page), the round ends anyway a moment later.
+    private func requestEnd() {
+        guard !wantsToEnd else { return }
+        wantsToEnd = true
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1.5))
+            guard let self, self.wantsToEnd, let session = self.session, session.introducing else { return }
+            session.endIntroduction()
+        }
     }
 
     private func set(_ new: Phase) {
@@ -209,7 +224,11 @@ final class IntroRound: ObservableObject {
         // Not before the speech model is ready: names are found in its words. The audio
         // waits (it's kept), and is listened to once it is.
         guard session.phase != .starting else { return }
+        // The round's audio is kept as long as it goes on (up to ten minutes; past that,
+        // the meeting has long begun: on with it).
+        session.keepRoundAudio()
         let fresh = session.roundAudio(from: cursor)
+        if fresh.isEmpty, session.openingCountForRound >= AudioIntake.longestOpening { requestEnd(); return }
         let since = Date().timeIntervalSince(phaseSince)
         analyse(fresh)
         cursor += fresh.count
@@ -225,6 +244,14 @@ final class IntroRound: ObservableObject {
             if speechStart == nil, !captures.isEmpty, Date().timeIntervalSince(lastSpeech) > 10 {
                 closingAt = Date().addingTimeInterval(4)
                 set(.closing)
+                return
+            }
+            // Someone already here, talking on (by the live voices, when there's no print
+            // of them to compare): them again.
+            if voiced >= 2, let v = voice(of: turnWords()),
+               let here = captures.first(where: { $0.print == nil && voice(from: $0.from, to: $0.to) == v }) {
+                Self.log.notice("round: turn \(self.turn) is a voice already in the room (live voices)")
+                set(.same(here.name))
                 return
             }
             // The name, the moment it's said ("Mattias", "jag heter Anna"): thanked, on to
@@ -267,11 +294,23 @@ final class IntroRound: ObservableObject {
                 propose(name, saveIn: 1.2)
             }
             if let at = autoSaveAt, Date() >= at { save() }
+            // No name in twenty seconds: on without one ("Talare 2" — named later in the text).
+            if !typed, draft.isEmpty, since >= 20 { skipName() }
         case .same:
-            if since >= 2.2 { beginTurn() }
+            guard since >= 2.2 else { break }
+            // Twice in a row only people already here: the meeting has begun — close.
+            quietTurns += 1
+            if quietTurns >= 2, !captures.isEmpty {
+                closingAt = Date().addingTimeInterval(4)
+                set(.closing)
+            } else {
+                beginTurn()
+            }
         case .closing:
-            if inSpeech { beginTurn(); return }
-            if let at = closingAt, Date() >= at, !wantsToEnd { wantsToEnd = true }
+            // Talk during the countdown: perhaps someone new — unless the meeting is
+            // already under way (only people already here have been talking).
+            if inSpeech, quietTurns < 2 { beginTurn(); return }
+            if let at = closingAt, Date() >= at { requestEnd() }
         }
     }
 
@@ -342,11 +381,12 @@ final class IntroRound: ObservableObject {
     /// The turn heard out without a known voice: a new one — its name asked for.
     private func finishTurn() async {
         guard let session, case .listening = phase else { return }
+        let thisTurn = turn, thisStart = turnStart
         let start = speechStart ?? turnStart
         if turnPrint == nil || recognitionOn {
             turnPrint = await VoicePrints.shared.print(raw: session.roundAudio(from: start, to: cursor)) ?? turnPrint
         }
-        guard case .listening = phase else { return }
+        guard case .listening = phase, turn == thisTurn, turnStart == thisStart else { return }
         if let print = turnPrint, let previous = alreadyHere(print) {
             set(.same(previous.name))
             return
@@ -412,25 +452,51 @@ final class IntroRound: ObservableObject {
     }
 
     /// The words in runs, split where someone paused (0.8 s).
+    /// The words in runs, split where someone paused (0.8 s) — or where the live voices
+    /// hear someone else take over.
     private static func utterances(_ words: [MeetingWord]) -> [[MeetingWord]] {
         var runs: [[MeetingWord]] = []
         for w in words {
-            if let p = runs.last?.last, w.start - p.end <= 0.8 { runs[runs.count - 1].append(w) } else { runs.append([w]) }
+            let otherVoice = runs.last?.last.map { p in
+                (p.speaker ?? -1) >= 0 && (w.speaker ?? -1) >= 0 && p.speaker != w.speaker
+            } ?? false
+            if let p = runs.last?.last, w.start - p.end <= 0.8, !otherVoice { runs[runs.count - 1].append(w) } else { runs.append([w]) }
         }
         return runs
+    }
+
+    /// The live voice (speaker number) heard most in some words, if any.
+    private func voice(of words: [MeetingWord]) -> Int? {
+        var time: [Int: Double] = [:]
+        for w in words { if let s = w.speaker, s >= 0 { time[s, default: 0] += w.end - w.start } }
+        return time.max { $0.value < $1.value }?.key
+    }
+
+    private func voice(from: Double, to: Double) -> Int? {
+        guard let session else { return nil }
+        return voice(of: ((session.record?.words ?? []) + session.pending).filter { $0.end > from && $0.start < to })
     }
 
     /// A name said in this turn, with where it was said. Only once half a second of
     /// sound has followed it: the speech model can still be finishing the word.
     private func nameInTurn() -> (name: String, from: Double, to: Double)? {
         let heardTo = seconds(cursor)
+        let here = Set(captures.compactMap { voice(from: $0.from, to: $0.to) })
         for run in Self.utterances(turnWords()).reversed() {
             // (The speech model can stretch the last word over the quiet after it —
             // "här" 11.8–15.6 — so a pause the microphone hears counts too.)
             guard let first = run.first, let last = run.last, last.end <= heardTo - 0.5 || silence >= 0.5 else { continue }
+            // Someone already here mentioning a name ("… och det här är Erik") isn't
+            // that person introducing themselves.
+            if let v = voice(of: run), here.contains(v) { continue }
             let text = MeetingText.clean(run.map(\.text).joined(separator: " "))
             guard let name = Self.name(in: text, whole: true) else { continue }
-            return (name, first.start - 0.1, min(last.end, last.start + 1.2) + 0.1)
+            // Where the name was said (with the words leading up to it) — that's whose
+            // voice it goes to, not everything in the run.
+            let key = name.split(separator: " ").first.map { $0.lowercased() } ?? ""
+            let at = run.lastIndex { $0.text.lowercased().filter(\.isLetter).hasPrefix(key) } ?? (run.count - 1)
+            let from = max(first.start, run[at].start - 1.2)
+            return (name, from - 0.1, min(run[at].end, run[at].start + 1.2) + 0.1)
         }
         return nil
     }
@@ -452,10 +518,11 @@ final class IntroRound: ObservableObject {
         captures.append(Capture(name: name, known: false, score: nil, from: from, to: to, print: turnPrint,
                                 figure: fig, colour: colour))
         if remembered == nil { VoiceMemory.shared.reserve(fig, for: name) }
-        // Its voice, from what it said (when that was long enough): so someone talking
-        // on in the next turn is heard as them, not as a new person.
-        if turnPrint == nil, to - from >= 1.5, let session {
-            let audio = session.roundAudio(from: Int(from * Self.rate), to: Int(to * Self.rate))
+        // Its voice, from what it said this turn (when that was long enough): so someone
+        // talking on in the next turn is heard as them, not as a new person.
+        let spoke = min(from, speechStart.map(seconds) ?? from)
+        if turnPrint == nil, seconds(cursor) - spoke >= 1.5, let session {
+            let audio = session.roundAudio(from: Int(spoke * Self.rate), to: cursor)
             let id = captures.last!.id
             Task { [weak self] in
                 guard let print = await VoicePrints.shared.print(raw: audio),
@@ -496,24 +563,38 @@ final class IntroRound: ObservableObject {
     /// sound never becomes someone's name.
     static func name(in text: String, whole: Bool) -> String? {
         if let name = VoiceScanner.spokenName(in: text) { return name }
+        // A first name people have — Emma, Björn, Linda, though they're words too —
+        // or, for "… här", a capitalised word that isn't an ordinary word.
+        let firstName = { (t: String) in
+            t.count >= 2 && t.first?.isUppercase == true && !notNames.contains(t.lowercased()) && FirstNames.isName(t)
+        }
         let ns = text as NSString
         if let here = try? NSRegularExpression(pattern: #"(\p{Lu}[\p{L}\-]+)(?: [\p{Lu}][\p{L}\-]+)? här\b"#),
            let m = here.firstMatch(in: text, range: NSRange(location: 0, length: ns.length)) {
             let candidate = ns.substring(with: m.range(at: 1))
-            if !TextCleanup.isOrdinaryWord(candidate.lowercased(), in: text) { return candidate }
+            if firstName(candidate) || !notNames.contains(candidate.lowercased())
+                && !TextCleanup.isOrdinaryWord(candidate.lowercased(), in: text) { return candidate }
         }
         guard whole else { return nil }
         let tokens = text.split(whereSeparator: { !$0.isLetter && $0 != "-" }).map(String.init)
         guard (1...3).contains(tokens.count) else { return nil }
-        let capitalised = { (t: String) in
-            t.count >= 2 && t.first?.isUppercase == true && !VoiceScanner.greetings.contains(t.lowercased())
-                && !TextCleanup.isOrdinaryWord(t.lowercased(), in: text)
-        }
-        guard let i = tokens.firstIndex(where: { capitalised($0) && FirstNames.isName($0) }) else { return nil }
+        guard let i = tokens.firstIndex(where: firstName) else { return nil }
         // "Anna Svensson": the surname too, when said with it.
-        if i + 1 < tokens.count, capitalised(tokens[i + 1]) { return tokens[i] + " " + tokens[i + 1] }
+        if i + 1 < tokens.count, let next = tokens.dropFirst(i + 1).first, next.count >= 2, next.first?.isUppercase == true,
+           !notNames.contains(next.lowercased()), !TextCleanup.isOrdinaryWord(next.lowercased(), in: text) {
+            return tokens[i] + " " + next
+        }
         return tokens[i]
     }
+
+    /// Words that are first names too (all in the name list) but said on their own are
+    /// almost always just the word: "Man", "Vi", "Nu", "Sen", "Alla" …
+    static let notNames: Set<String> = VoiceScanner.greetings.union([
+        "man", "vi", "nu", "sen", "han", "hon", "alla", "inga", "jo", "du", "den", "det", "de", "en", "ett", "är", "och",
+        "bra", "så", "här", "där", "var", "vad", "när", "men", "om", "till", "för", "på", "av", "med", "kan", "ska",
+        "vill", "har", "hade", "bli", "blir", "mer", "bara", "också", "nog", "ju", "väl", "nästa", "kanske", "precis",
+        "exakt", "visst", "absolut", "the", "and", "you", "so", "yes", "no", "well", "right", "sure", "next", "fine",
+    ])
 
     /// Keeps the round's place in a countdown the scanner can show.
     var secondsLeft: Int? {

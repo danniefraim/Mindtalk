@@ -11,11 +11,14 @@ struct WarmGlow: View {
     let intensity: Double
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.controlActiveState) private var active
 
     var body: some View {
         ZStack {
             DS.Colors.paper
-            TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
+            // It moves slowly (a quarter of a radian a second): ten frames a second is
+            // plenty — and none while Mindtalk isn't the app you're in.
+            TimelineView(.animation(minimumInterval: 1 / 10, paused: reduceMotion || active == .inactive)) { context in
                 let t = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate * 0.25
                 MeshGradient(width: 3, height: 3, points: Self.points(t), colors: palette)
             }

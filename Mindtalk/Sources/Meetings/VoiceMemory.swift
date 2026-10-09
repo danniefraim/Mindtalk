@@ -237,18 +237,25 @@ final class VoiceMemory: ObservableObject {
         let old = old.trimmingCharacters(in: .whitespaces), new = new.trimmingCharacters(in: .whitespaces)
         guard Self.isRealName(old), Self.isRealName(new), Self.key(old) != Self.key(new) else { return }
         let alike = Self.spelledAlike(old, new)
-        if alike { Vocabulary.shared.add(word: new, heardAs: old) }
+        // The spelling into your Ordlista — a name, not a label ("Person 2"), and not
+        // over a word the list already has as its own.
+        if alike, !old.contains(where: \.isNumber),
+           !Vocabulary.shared.entries.contains(where: { Self.key($0.word) == Self.key(old) }) {
+            Vocabulary.shared.add(word: new, heardAs: old)
+        }
         if let figure = reserved.removeValue(forKey: Self.key(old)) { reserved[Self.key(new)] = figure }
-        guard let i = people.firstIndex(where: { Self.key($0.name) == Self.key(old) }) else { return }
-        let sources = people[i].sources ?? []
+        guard isOn, let i = people.firstIndex(where: { Self.key($0.name) == Self.key(old) }) else { return }
+        let sources = Self.sources(of: people[i])
         if alike || sources == [meeting] {
             if let j = people.firstIndex(where: { Self.key($0.name) == Self.key(new) }) {
-                // Already known under the new name: one person.
+                // Already known under the new name (spelled the other way): one person.
                 var into = people[j]
+                var intoSources = Self.sources(of: into)
                 into.prints += people[i].prints
-                into.sources = (into.sources ?? Array(repeating: "", count: into.prints.count - people[i].prints.count))
-                    + (people[i].sources ?? Array(repeating: "", count: people[i].prints.count))
-                while into.prints.count > 5 { into.prints.removeFirst(); into.sources?.removeFirst() }
+                intoSources += sources
+                while into.prints.count > 5 { into.prints.removeFirst(); intoSources.removeFirst() }
+                into.sources = intoSources
+                into.model = Self.modelID
                 into.updated = Date()
                 people[j] = into
                 people.remove(at: i)
@@ -265,21 +272,30 @@ final class VoiceMemory: ObservableObject {
         Self.log.notice("voice renamed in a meeting (same name spelled differently: \(alike))")
     }
 
-    /// "Mattias" and "Mathias", "Eric" and "Erik": the same start, a letter or two apart —
-    /// but not one name grown from the other ("Johan", "Johanna").
+    /// One name spelled two ways: "Mattias" and "Mathias", "Eric" and "Erik", "Sara" and
+    /// "Sarah" — the same once the usual variations (th/t, c/k, ph/f, z/s, w/v, double
+    /// letters, a final h) are evened out. Two names a letter apart are two names: Anna
+    /// and Anne, Lisa and Lina, Johan and Jonas.
     nonisolated static func spelledAlike(_ a: String, _ b: String) -> Bool {
-        let a = Array(a.lowercased()), b = Array(b.lowercased())
-        guard let first = a.first, first == b.first, abs(a.count - b.count) <= 1,
-              !a.starts(with: b), !b.starts(with: a) else { return false }
-        var row = Array(0...b.count)
-        for i in 1...a.count {
-            var next = [i] + Array(repeating: 0, count: b.count)
-            for j in 1...b.count {
-                next[j] = min(row[j] + 1, next[j - 1] + 1, row[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1))
-            }
-            row = next
+        let x = soundKey(a), y = soundKey(b)
+        return !x.isEmpty && x == y && a.lowercased() != b.lowercased()
+    }
+
+    nonisolated private static func soundKey(_ name: String) -> String {
+        var s = name.lowercased().folding(options: .diacriticInsensitive, locale: nil)
+        for (from, to) in [("th", "t"), ("ph", "f"), ("ck", "k"), ("c", "k"), ("z", "s"), ("w", "v"), ("q", "k")] {
+            s = s.replacingOccurrences(of: from, with: to)
         }
-        return row[b.count] <= 2
+        if s.count > 2, s.hasSuffix("h") { s.removeLast() }
+        var out = ""
+        for ch in s where ch.isLetter && ch != out.last { out.append(ch) }
+        return out
+    }
+
+    /// A person's sources, one per print (older saves may lack them).
+    private static func sources(of person: Person) -> [String] {
+        let s = person.sources ?? []
+        return s.count == person.prints.count ? s : Array(repeating: "", count: person.prints.count)
     }
 
     /// The default "Talare 2" isn't a name; anything you typed is.
@@ -303,7 +319,8 @@ final class VoiceMemory: ObservableObject {
 
     /// Who the unnamed voices of a meeting are, among the people you've named. Each
     /// person at most once, the clearest matches first. Returns speaker → (name, score).
-    func recognise(words: [MeetingWord], audio url: URL, names: [String: String]) async -> [Int: (name: String, score: Float)] {
+    func recognise(words: [MeetingWord], audio url: URL, names: [String: String],
+                   rejected: [String: [String]] = [:]) async -> [Int: (name: String, score: Float)] {
         guard isOn, state == .ready, !people.isEmpty else { return [:] }
         let unnamed = Set(words.compactMap(\.speaker).filter { $0 >= 0 && !(names[String($0)].map(Self.isRealName) ?? false) })
         guard !unnamed.isEmpty else { return [:] }
@@ -312,7 +329,10 @@ final class VoiceMemory: ObservableObject {
         var scores: [(speaker: Int, person: Person, score: Float, lead: Float)] = []
         for speaker in unnamed {
             guard let print = await VoicePrints.shared.print(of: speaker, in: words, audio: url) else { continue }
-            let ranked = candidates.map { ($0, Self.similarity(print, $0)) }.sorted { $0.1 > $1.1 }
+            // Not someone you said this voice isn't.
+            let wrong = Set((rejected[String(speaker)] ?? []).map(Self.key))
+            let ranked = candidates.filter { !wrong.contains(Self.key($0.name)) }
+                .map { ($0, Self.similarity(print, $0)) }.sorted { $0.1 > $1.1 }
             guard let best = ranked.first else { continue }
             let lead = best.1 - (ranked.dropFirst().first?.1 ?? -1)
             Self.log.info("voice \(speaker): best \(best.0.name, privacy: .private) \(best.1, format: .fixed(precision: 2)), lead \(lead, format: .fixed(precision: 2))")

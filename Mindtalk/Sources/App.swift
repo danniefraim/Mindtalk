@@ -182,6 +182,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     if MeetingText.turns(settled, pending: pending, paragraphs: true)
                         != MeetingText.turnsAllAnew(settled, pending: pending) { bad += 1 }
                 }
+                // A paragraph that begins on a word with no voice of its own (it takes the
+                // speaker before it), right where the kept part is cut.
+                for unknown in [MeetingWord.unknown, nil] as [Int?] {
+                    var w: [MeetingWord] = (0..<700).map { n in
+                        let t = Double(n) * 0.4 + (n >= 150 ? 3 : 0)
+                        return MeetingWord(text: n % 12 == 11 ? "ord." : "ord", start: t, end: t + 0.3, speaker: 1)
+                    }
+                    w[150].speaker = unknown
+                    runs += 1
+                    if MeetingText.turns(w, paragraphs: true) != MeetingText.turnsAllAnew(w, pending: []) { bad += 1; print("FEL: tur delad vid okänd talare") }
+                }
                 print("Turer: \(words.count) ord, \(runs) jämförelser, \(bad) olika (\(Int(Date().timeIntervalSince(t0) * 1000)) ms)")
                 // A two-hour meeting: one update, kept vs all anew.
                 var long = words
@@ -215,10 +226,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                                   ("Okej, det blir bra.", true), ("Erik här.", true), ("Jag heter Lisa.", false),
                                   ("Det här var Johan. Hej", false), ("Det här var Johan Hej hej", false), ("Hej, det är Karin.", false), ("Johan", true),
                                   ("Per", true), ("Bra", true), ("Tack", true), ("Stockholm", true), ("Johanna Berg här", true),
-                                  ("This is John.", false), ("Sara", true), ("Nästa", true), ("Hallå", true), ("Nigg", true), ("Käll", true), ("Mathias", true), ("Nellie här", true), ("Liam", true)] {
+                                  ("This is John.", false), ("Sara", true), ("Nästa", true), ("Hallå", true), ("Nigg", true), ("Käll", true), ("Mathias", true), ("Nellie här", true), ("Liam", true), ("Emma", true), ("Björn", true), ("Linda", true), ("Det är Volvo.", false), ("Jag heter Zylvana.", false), ("Man", true), ("Nu", true), ("My name’s Tom.", false)] {
                 print("\(text) → \(IntroRound.name(in: text, whole: whole) ?? "–")")
             }
-            for (a, b) in [("Mattias", "Mathias"), ("Eric", "Erik"), ("Anna", "Erik"), ("Johan", "Johanna"), ("Sara", "Sarah"), ("Per", "Pelle")] {
+            for (a, b) in [("Mattias", "Mathias"), ("Eric", "Erik"), ("Anna", "Erik"), ("Johan", "Johanna"), ("Sara", "Sarah"), ("Per", "Pelle"), ("Anna", "Anne"), ("Lisa", "Lina"), ("Johan", "Jonas"), ("Max", "Mia"), ("Emil", "Elin"), ("Karin", "Karl"), ("Philip", "Filip"), ("Zandra", "Sandra")] {
                 print("\(a) ~ \(b): \(VoiceMemory.spelledAlike(a, b))")
             }
             exit(0)

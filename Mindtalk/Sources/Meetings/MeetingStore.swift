@@ -60,8 +60,25 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     /// Speakers Mindtalk named itself, from a voice you named before (VoiceMemory),
     /// with how sure it was. Cleared when you name them yourself.
     var recognized: [String: Float] = [:]
+    /// Names Mindtalk gave a voice that you took away or replaced ("Fel person?"):
+    /// never given to that voice again in this meeting, live or when listened again.
+    var rejected: [String: [String]] = [:]
 
     var hasAudio: Bool { audioRemoved == nil }
+
+    /// You name a speaker (or take the name away). A name Mindtalk had guessed and you
+    /// changed is remembered as wrong for that voice. Returns the name it had, and
+    /// whether that was Mindtalk's guess rather than a name someone gave.
+    @discardableResult
+    mutating func setName(_ name: String, for speaker: Int) -> (old: String?, guessed: Bool) {
+        let key = String(speaker)
+        let old = names[key].flatMap { $0.isEmpty ? nil : $0 }
+        let guessed = recognized[key] != nil
+        if let old, guessed, old != name, !(rejected[key] ?? []).contains(old) { rejected[key, default: []].append(old) }
+        names[key] = name
+        recognized[key] = nil
+        return (old, guessed)
+    }
     var notesText: String { notes.map(\.text).joined(separator: "\n") }
 
     struct Note: Codable, Equatable {
@@ -125,6 +142,7 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         informed = try c.decodeIfPresent(Date.self, forKey: .informed)
         audioRemoved = try c.decodeIfPresent(Date.self, forKey: .audioRemoved)
         recognized = try c.decodeIfPresent([String: Float].self, forKey: .recognized) ?? [:]
+        rejected = try c.decodeIfPresent([String: [String]].self, forKey: .rejected) ?? [:]
     }
 
     /// Speakers in the order they first spoke.
@@ -247,8 +265,13 @@ extension MeetingRecord {
         for i in record.words.indices where record.words[i].speaker == speaker { record.words[i].speaker = other }
         if (record.names[String(other)] ?? "").isEmpty, let name = record.names[String(speaker)] {
             record.names[String(other)] = name
+            // Mindtalk's guess stays a guess (it isn't learned as a name you gave).
+            record.recognized[String(other)] = record.recognized[String(speaker)]
         }
+        record.rejected[String(other), default: []] += record.rejected[String(speaker)] ?? []
         record.names[String(speaker)] = nil
+        record.recognized[String(speaker)] = nil
+        record.rejected[String(speaker)] = nil
         for i in record.moves.indices where record.moves[i].speaker == speaker { record.moves[i].speaker = other }
     }
 }
@@ -264,12 +287,27 @@ struct MeetingTurn: Identifiable, Equatable {
     /// Someone else's "Mm" or "Ja" while this was said — shown in its place in the text
     /// rather than as a turn of its own that would split this one in two.
     var asides: [Aside] = []
+    /// Words inside this turn's span that someone else said (an "Mm", an "eh") — left
+    /// where they are when the turn is moved to another speaker.
+    var foreign: [Range<Int>] = []
 
     struct Aside: Equatable {
         let speaker: Int
         let text: String
         /// Where in `text` it was said (characters).
         let at: Int
+    }
+
+    /// The turn's own words up to `end` (where the next turn starts), in runs.
+    func own(until end: Int) -> [Range<Int>] {
+        var runs: [Range<Int>] = []
+        var from = id
+        for f in foreign.sorted(by: { $0.lowerBound < $1.lowerBound }) where f.lowerBound >= from && f.lowerBound < end {
+            if f.lowerBound > from { runs.append(from..<f.lowerBound) }
+            from = max(from, f.upperBound)
+        }
+        if from < end { runs.append(from..<end) }
+        return runs
     }
 }
 
@@ -293,7 +331,8 @@ enum MeetingText {
         var head = prefix?.turns ?? []
         guard let open = head.popLast() else { return folded(raw(ArraySlice(words), pending: pending, paragraphs: true)) }
         // The last kept turn may go on: grouped again from its first word.
-        return folded(head + raw(words[open.id...], pending: pending, paragraphs: true))
+        // (Its first word may have no voice of its own: it had the speaker before it.)
+        return folded(head + raw(words[open.id...], pending: pending, paragraphs: true, seed: open.speaker))
     }
 
     #if DEBUG
@@ -312,7 +351,7 @@ enum MeetingText {
 
     /// Groups words into turns (ids are indices in the whole meeting).
     @MainActor private static func raw(_ words: ArraySlice<MeetingWord>, pending: [MeetingWord],
-                                       paragraphs: Bool) -> [MeetingTurn] {
+                                       paragraphs: Bool, seed: Int? = nil) -> [MeetingTurn] {
         var turns: [MeetingTurn] = []
         var current: (id: Int, speaker: Int?, start: Double, words: [String], pending: [String])?
         var previous: MeetingWord?
@@ -326,6 +365,7 @@ enum MeetingText {
         for (n, (word, isPending)) in all.enumerated() {
             let i = words.startIndex + n
             var speaker = word.speaker
+            if n == 0, speaker == nil || speaker == MeetingWord.unknown, let seed { speaker = seed }
             // Words still being written that no voice has claimed yet, after a pause:
             // someone may have taken over — a row of their own until it's known.
             let unclaimed = isPending && speaker == nil && previous.map { word.start - $0.end >= 1.0 } ?? false
@@ -365,18 +405,29 @@ enum MeetingText {
     @MainActor static func folded(_ turns: [MeetingTurn]) -> [MeetingTurn] {
         var out: [MeetingTurn] = []
         var rejoin = false
-        for turn in turns {
-            if turn.text.isEmpty && turn.pending.isEmpty { rejoin = true; continue }
+        for (k, turn) in turns.enumerated() {
+            let next = k + 1 < turns.count ? turns[k + 1] : nil
+            let span = turn.id..<(next?.id ?? turn.id + 1)
+            if turn.text.isEmpty && turn.pending.isEmpty {
+                if let last = out.last, last.speaker != turn.speaker { out[out.count - 1].foreign.append(span) }
+                rejoin = true
+                continue
+            }
+            // Someone else's "Mm" while one person talks — they go on after it. (A short
+            // answer that ends a turn, "Nej." to a question, stays a turn of its own.)
             if let speaker = turn.speaker, speaker >= 0, turn.pending.isEmpty, isBackchannel(turn.text),
-               let last = out.last, let other = last.speaker, other >= 0, other != speaker {
+               let last = out.last, let other = last.speaker, other >= 0, other != speaker, next?.speaker == other {
                 out[out.count - 1].asides.append(.init(speaker: speaker, text: turn.text, at: last.text.count))
+                out[out.count - 1].foreign.append(span)
                 rejoin = true
                 continue
             }
             if rejoin, let last = out.last, last.speaker == turn.speaker, last.pending.isEmpty {
-                out[out.count - 1].text += last.text.isEmpty ? turn.text : " " + turn.text
+                let shift = last.text.isEmpty || turn.text.isEmpty ? last.text.count : last.text.count + 1
+                if !turn.text.isEmpty { out[out.count - 1].text += last.text.isEmpty ? turn.text : " " + turn.text }
                 out[out.count - 1].pending = turn.pending
-                out[out.count - 1].asides += turn.asides
+                out[out.count - 1].asides += turn.asides.map { .init(speaker: $0.speaker, text: $0.text, at: $0.at + shift) }
+                out[out.count - 1].foreign += turn.foreign
             } else {
                 out.append(turn)
             }
@@ -589,11 +640,10 @@ final class MeetingStore: ObservableObject {
     func name(speaker: Int, in id: UUID, as name: String) {
         guard var record = meetings.first(where: { $0.id == id }) else { return }
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let old = record.names[String(speaker)] {
-            VoiceMemory.shared.corrected(from: old, to: name, meeting: id.uuidString)
-        }
-        record.names[String(speaker)] = name
-        record.recognized[String(speaker)] = nil
+        // A name someone gave, corrected: the voice remembered under it follows. A
+        // guess of Mindtalk's replaced: it was someone else — that voice stays as it is.
+        let (old, guessed) = record.setName(name, for: speaker)
+        if let old, !guessed { VoiceMemory.shared.corrected(from: old, to: name, meeting: id.uuidString) }
         save(record)
         // Remembered for the next meeting (when you've switched that on).
         guard !name.isEmpty, record.hasAudio else { return }
@@ -647,6 +697,7 @@ final class MeetingStore: ObservableObject {
 
     /// Removes the meeting — text and recording — from the Mac.
     func delete(_ id: UUID) {
+        Self.writer.sync {}          // a save on its way would bring the folder back
         // To the Trash, like a removed recording — there for a while if it was a mistake.
         let folder = Self.folder(for: id)
         if (try? FileManager.default.trashItem(at: folder, resultingItemURL: nil)) == nil {

@@ -6,10 +6,10 @@ import SwiftUI
 // The page: start a meeting, and the meetings you've had. A meeting opens in the
 // same place — live while it's recorded, then as it was saved.
 //
-// It follows the rest of the app: serif titles, grey cards on paper, ink for
-// what you do. Speakers are told apart by a small monogram in quiet colours —
-// names are always written in ink. While recording, the bar at the bottom is the
-// same black pill as the dictation indicator.
+// It follows the rest of the app: serif titles on paper, ink for what you do. The
+// text reads as a document: each speaker a thin line in their own quiet colour,
+// their name above in it. While recording, one dark island at the bottom holds the
+// time, your note, the marks and stop — dark like the dictation indicator.
 
 struct MeetingsPage: View {
     @ObservedObject var session: MeetingSession
@@ -402,7 +402,8 @@ private struct MeetingRow: View {
 // MARK: - Speakers
 
 /// A speaker's mark: their initial — or number, until named — on a quiet colour.
-/// Colour is only ever this fill: names are written in ink.
+/// The same colour marks them everywhere: the line beside their words, their name,
+/// the timeline.
 struct SpeakerMark: View {
     let speaker: Int?
     let cast: Cast
@@ -418,6 +419,20 @@ struct SpeakerMark: View {
     static func color(of speaker: Int?, in cast: Cast) -> Color {
         guard let speaker, speaker >= 0 else { return DS.Colors.faint }
         return fill(cast.number(of: speaker) - 1)
+    }
+
+    /// Their colour for a name written in it: a shade deeper on light paper, so it
+    /// reads as well as the text (4.5:1).
+    static func ink(of speaker: Int?, in cast: Cast) -> Color {
+        guard let speaker, speaker >= 0 else { return DS.Colors.muted }
+        let p = pigments[(cast.number(of: speaker) - 1) % pigments.count]
+        return Color(nsColor: NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let hex = dark ? p.dark : p.light
+            let k: CGFloat = dark ? 1 : 0.72
+            return NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255 * k, green: CGFloat((hex >> 8) & 0xFF) / 255 * k,
+                           blue: CGFloat(hex & 0xFF) / 255 * k, alpha: 1)
+        })
     }
 
     static func fill(_ position: Int) -> Color {
@@ -513,7 +528,7 @@ struct SpeakerChip: View {
             case .name:
                 Text(cast.name(of: speaker))
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(SpeakerMark.color(of: speaker, in: cast))
+                    .foregroundStyle(SpeakerMark.ink(of: speaker, in: cast))
                     .lineLimit(1)
                     .contentShape(Rectangle())
             }
@@ -654,6 +669,7 @@ struct MeetingView: View {
         Group {
             if let session {
                 IntroductionGate(session: session) { meeting } bar: { LiveBar(session: session) }
+                    .id(epoch.value)   // the bar too: built anew when the window comes back (see WindowEpoch)
             } else {
                 ZStack(alignment: .bottom) {
                     meeting
@@ -999,7 +1015,10 @@ private struct TranscriptView: View {
                                 focused: focusTurn == turn.id,
                                 play: live || !record.hasAudio ? nil : { player.play(record.id, from: turn.start) },
                                 move: turn.id < end && turn.pending.isEmpty
-                                    ? { speaker in withAnimation(.snappy) { edit.move(turn.id..<end, to: speaker) } } : nil,
+                                    ? { speaker in
+                                        // Their own words — someone else's "Mm" inside stays theirs.
+                                        withAnimation(.snappy) { for run in turn.own(until: end) { edit.move(run, to: speaker) } }
+                                    } : nil,
                                 marks: record.marks.filter { $0.at >= (i == 0 ? -.infinity : turn.start) && $0.at < next },
                                 removeMark: { id in withAnimation(.snappy) { edit.removeMark(id) } },
                                 recognized: turn.speaker.map { record.recognized[String($0)] != nil } ?? false,
@@ -1022,6 +1041,11 @@ private struct TranscriptView: View {
             } action: { _, bottom in
                 atBottom = bottom
                 if bottom { following = true }
+            }
+            // A mouse wheel or the keys move the view without a scroll phase: moved up
+            // while the text stayed the same — that's you, reading back.
+            .onScrollGeometryChange(for: [CGFloat].self) { [$0.contentOffset.y, $0.contentSize.height] } action: { old, new in
+                if new[1] == old[1], new[0] < old[0] - 4, !atBottom { following = false }
             }
             // Only your own scrolling stops the following: where it ends decides.
             .onScrollPhaseChange { _, phase in
@@ -1223,7 +1247,7 @@ private struct TurnRow: View {
                 Text(speaker.map { cast.name(of: $0) }
                      ?? (live ? String(localized: "Känner igen rösten…") : String(localized: "Okänd talare")))
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(speaker == nil ? DS.Colors.muted : tint)
+                    .foregroundStyle(SpeakerMark.ink(of: speaker, in: cast))
             }
             if let play {
                 Button(action: play) {
@@ -1244,7 +1268,7 @@ private struct TurnRow: View {
                     .foregroundStyle(DS.Colors.faint)
             }
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 
     private var line: some View {
@@ -1761,7 +1785,8 @@ private struct WritingPlaceholder: View {
 
 // MARK: - Bars
 
-/// While recording: the black pill, as when you dictate — time, sound, stop. Above
+/// While recording: the island (time, note, marks, stop); otherwise the dark pill, as
+/// when you dictate — time, sound, stop. Above
 /// it, a word when something needs attention.
 private struct LiveBar: View {
     @ObservedObject var session: MeetingSession

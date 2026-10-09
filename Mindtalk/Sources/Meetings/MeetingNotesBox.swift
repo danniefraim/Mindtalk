@@ -143,19 +143,17 @@ struct OpeningCard: View {
             }
             .buttonStyle(.soft)
             .fixedSize()
-            .modifier(RoundShortcut(enabled: !compact))
-            .help(compact ? "Öppnar rundan i Mindtalks fönster" : "Presentationsrunda (⌘↩)")
+            .help(compact ? "Öppnar rundan i Mindtalks fönster" : "Låt alla säga sitt namn")
             .accessibilityHint("Alla säger sitt namn, och Mindtalk sätter namnen på rösterna")
         }
     }
 }
 
-/// ⌘↩ starts the round from the window (not from the panel, where you may be typing elsewhere).
-private struct RoundShortcut: ViewModifier {
-    let enabled: Bool
-    func body(content: Content) -> some View {
-        if enabled { content.keyboardShortcut(.return, modifiers: .command) } else { content }
-    }
+/// What you're typing as notes in a meeting — one text, whether typed in the window
+/// or the panel: each island shows it, and neither can overwrite what the other took.
+@MainActor final class NoteDraft: ObservableObject {
+    static let shared = NoteDraft()
+    @Published var text = ""
 }
 
 /// While a meeting records, in the window: one island at the foot of the text — the
@@ -167,7 +165,7 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
     var compact = false
     @ViewBuilder var leading: Leading
     @ViewBuilder var trailing: Trailing
-    @State private var text = ""
+    @ObservedObject private var draft = NoteDraft.shared
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -202,8 +200,7 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
         .overlay(RoundedRectangle(cornerRadius: compact ? 20 : 23, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
         .shadow(color: .black.opacity(compact ? 0.18 : 0.28), radius: 10, y: 4)
         .environment(\.colorScheme, .dark)
-        .onAppear { text = session.record?.notesText ?? "" }
-        .onChange(of: text) { _, new in session.setNotes(new) }
+        .onChange(of: draft.text) { _, new in if focused { session.setNotes(new) } }
     }
 
     private var marks: some View {
@@ -214,7 +211,7 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
 
     private var field: some View {
             ZStack(alignment: .topLeading) {
-                if text.isEmpty {
+                if draft.text.isEmpty {
                     Text("Anteckning – en rad per sak")
                         .font(.system(size: 13.5))
                         .foregroundStyle(.white.opacity(0.4))
@@ -222,7 +219,8 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
                         .padding(.leading, 5)
                         .allowsHitTesting(false)
                 }
-                TextEditor(text: $text)
+                TextEditor(text: $draft.text)
+                    .accessibilityLabel("Anteckning")
                     .font(.system(size: 13.5))
                     .foregroundStyle(.white)
                     .scrollContentBackground(.hidden)

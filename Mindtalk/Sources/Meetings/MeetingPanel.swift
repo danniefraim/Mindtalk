@@ -185,7 +185,7 @@ final class MeetingPanel: ObservableObject {
         panel.isMovableByWindowBackground = true
         panel.isReleasedWhenClosed = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.minSize = NSSize(width: 320, height: 360)
+        panel.minSize = NSSize(width: 320, height: 480)     // the header, a card and the island fit
         panel.maxSize = NSSize(width: 560, height: 1400)
         // Buttons answer the first click although the panel never becomes active.
         let host = ClickThroughHostingView(
@@ -208,11 +208,16 @@ final class MeetingPanel: ObservableObject {
         let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main ?? NSScreen.screens.first
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         if panel.setFrameUsingName("MindtalkMeetingPanel"),
-           let home = NSScreen.screens.first(where: { $0.visibleFrame.intersects(panel.frame.insetBy(dx: 40, dy: 40)) }) {
-            // Where you put it — but whole on that screen, never taller than it.
+           let home = NSScreen.screens.max(by: { a, b in
+               let x = a.visibleFrame.intersection(panel.frame), y = b.visibleFrame.intersection(panel.frame)
+               return x.width * x.height < y.width * y.height
+           }), home.visibleFrame.intersects(panel.frame.insetBy(dx: 40, dy: 40)) {
+            // Where you put it — but whole on the screen it's mostly on.
             let room = home.visibleFrame
             var frame = panel.frame
+            frame.size.width = min(frame.width, room.width)
             frame.size.height = min(frame.height, room.height)
+            frame.origin.x = min(max(frame.minX, room.minX), room.maxX - frame.width)
             frame.origin.y = min(max(frame.minY, room.minY), room.maxY - frame.height)
             if frame != panel.frame { panel.setFrame(frame, display: false) }
             return
@@ -357,6 +362,10 @@ private struct LivePanel: View {
                 atBottom = bottom
                 if bottom { following = true }
             }
+            // A mouse wheel or the keys: moved up with the text unchanged — reading back.
+            .onScrollGeometryChange(for: [CGFloat].self) { [$0.contentOffset.y, $0.contentSize.height] } action: { old, new in
+                if new[1] == old[1], new[0] < old[0] - 4, !atBottom { following = false }
+            }
             // Only your own scrolling stops the following: where it ends decides.
             .onScrollPhaseChange { _, phase in
                 switch phase {
@@ -428,13 +437,13 @@ private struct LivePanel: View {
             switch session.phase {
             case .finishing(let what):
                 HStack(spacing: 12) {
-                    SettlingLine(color: DS.Colors.onInk)
-                    Text(what).font(.system(size: 13, weight: .medium)).foregroundStyle(DS.Colors.onInk)
+                    SettlingLine(color: .white)
+                    Text(what).font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
                         .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.horizontal, 18)
                 .frame(maxWidth: .infinity, minHeight: 44)
-                .background(Capsule().fill(DS.Colors.ink))
+                .background(Capsule().fill(Color(white: 0.07)))
                 .accessibilityElement(children: .combine)
             default:
                 if session.stopping {
@@ -443,11 +452,11 @@ private struct LivePanel: View {
                         .foregroundStyle(DS.Colors.muted)
                         .frame(maxWidth: .infinity)
                         .transition(.opacity)
-                    StopCountdown(session: session)
+                    StopCountdown(session: session, onDark: true)
                         .padding(.leading, 18)
                         .padding(.trailing, 7)
                         .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(Capsule().fill(DS.Colors.ink))
+                        .background(Capsule().fill(Color(white: 0.07)))
                         .transition(.opacity)
                 } else if session.isRecording {
                     // As in the window: one island — your note, the marks, stop. (The
@@ -477,6 +486,10 @@ private struct LivePanel: View {
         .padding(.bottom, 16)
         .overlay(alignment: .top) { Rectangle().fill(DS.Colors.divider).frame(height: 0.5) }
         .animation(.easeOut(duration: 0.2), value: session.warning)
+        // Read out when a warning appears, as in the window.
+        .onChange(of: session.warning) { _, w in
+            if let w, session.isRecording { AccessibilityNotification.Announcement(w).post() }
+        }
         .animation(.spring(duration: 0.3, bounce: 0.1), value: session.stopping)
     }
 }
@@ -573,7 +586,7 @@ private struct PanelTurn: View {
                     } else {
                         Text(speaker.map { cast.name(of: $0) } ?? String(localized: "Känner igen rösten…"))
                             .font(.system(size: 12.5, weight: .semibold))
-                            .foregroundStyle(speaker == nil ? DS.Colors.muted : SpeakerMark.color(of: speaker, in: cast))
+                            .foregroundStyle(SpeakerMark.ink(of: speaker, in: cast))
                     }
                     Text(MeetingView.duration(turn.start))
                         .font(.system(size: 11, weight: .medium)).monospacedDigit()

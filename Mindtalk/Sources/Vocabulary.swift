@@ -105,6 +105,12 @@ final class Vocabulary: ObservableObject {
         let variants = heardAs.split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { Self.isValidWord($0) && Self.key($0) != Self.key(word) }
+        // The word itself is no longer a mishearing of another entry ("Mathias" heard as
+        // "Mattias", then the other way round, would swap the two in every text).
+        for i in entries.indices where Self.key(entries[i].word) != Self.key(word)
+            && entries[i].heardAs.contains(where: { Self.key($0) == Self.key(word) }) {
+            entries[i].heardAs.removeAll { Self.key($0) == Self.key(word) }
+        }
         if let i = entries.firstIndex(where: { Self.key($0.word) == Self.key(word) }) {
             entries[i].word = word
             for v in variants where !entries[i].heardAs.contains(where: { Self.key($0) == Self.key(v) }) {

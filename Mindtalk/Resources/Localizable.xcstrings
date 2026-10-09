@@ -1013,6 +1013,22 @@
         }
       }
     },
+    "Anteckning": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anteckning"
+          }
+        }
+      }
+    },
     "Anteckning – en rad per sak": {
       "localizations": {
         "en": {
@@ -6108,6 +6124,22 @@
         }
       }
     },
+    "Låt alla säga sitt namn": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let everyone say their name"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Låt alla säga sitt namn"
+          }
+        }
+      }
+    },
     "Låt alla säga sitt namn – Mindtalk känner igen dem som varit med förut.": {
       "localizations": {
         "en": {
@@ -7625,6 +7657,7 @@
       }
     },
     "Presentationsrunda (⌘↩)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

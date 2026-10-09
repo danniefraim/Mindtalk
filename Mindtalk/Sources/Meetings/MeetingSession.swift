@@ -366,6 +366,7 @@ final class MeetingSession: ObservableObject {
     func start(introducing: Bool = false) {
         guard phase == .idle else { return }
         lastError = nil
+        NoteDraft.shared.text = ""
         let dictation = Dictation.shared
         guard dictation.phase == .idle else { return }
         language = dictation.engine
@@ -543,8 +544,12 @@ final class MeetingSession: ObservableObject {
             checked[speaker] = heard
             defer { introChecked.insert(speaker) }
             let taken = Set((self.record?.names.values ?? [:].values).filter { !$0.isEmpty })
+                .union(self.record?.rejected[String(speaker)] ?? [])
             VoiceMemory.shared.logBest(print, speaker: speaker, heard: heard)
+            // From under four seconds of speech, a little surer than at the end of the
+            // meeting: short prints sit closer together.
             guard let match = VoiceMemory.shared.match(print, excluding: taken),
+                  heard >= 4 || match.score >= 0.65,
                   var latest = self.record, (latest.names[String(speaker)] ?? "").isEmpty else {
                 // A new voice: its figure, once, unlike the others in the room.
                 if introFigures[speaker] == nil {
@@ -646,12 +651,11 @@ final class MeetingSession: ObservableObject {
     func name(speaker: Int, as name: String) {
         // A new voice named in the round keeps the figure it was shown with.
         if introducing, let figure = introFigures[speaker] { VoiceMemory.shared.reserve(figure, for: name) }
-        if let record, let old = record.names[String(speaker)] {
-            VoiceMemory.shared.corrected(from: old, to: name, meeting: record.id.uuidString)
-        }
-        record?.names[String(speaker)] = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        record?.recognized[String(speaker)] = nil
-        if let record { MeetingStore.shared.save(record) }
+        guard var latest = record else { return }
+        let (old, guessed) = latest.setName(name.trimmingCharacters(in: .whitespacesAndNewlines), for: speaker)
+        if let old, !guessed { VoiceMemory.shared.corrected(from: old, to: name, meeting: latest.id.uuidString) }
+        record = latest
+        MeetingStore.shared.save(latest)
     }
 
     /// Two voices that are one person — from now on too.
@@ -739,7 +743,8 @@ final class MeetingSession: ObservableObject {
     func saveBeforeQuit() {
         guard var record, isBusy else { return }
         record.words += pending
-        record.duration = Double(intake?.count ?? 0) / Double(Self.rate)
+        // (Listening again to a finished meeting there's no intake: its length stands.)
+        if let intake { record.duration = Double(intake.count) / Double(Self.rate) }
         intake?.close()
         MeetingStore.shared.save(record)
     }
@@ -915,13 +920,8 @@ final class MeetingSession: ObservableObject {
 
     /// Keeps whoever is speaking in the words still being written until the voices
     /// say otherwise, and only publishes a change.
+    /// The words still being written (resolveSpeakers gives them their speakers next).
     private func setPending(_ words: [MeetingWord]) {
-        var words = words
-        // A word read again keeps its speaker; a new one waits for the voices (it is
-        // not handed the speaker of whoever happened to talk before it).
-        for j in words.indices where words[j].speaker == nil {
-            words[j].speaker = pending.first { abs($0.start - words[j].start) < 0.2 }?.speaker
-        }
         if words != pending { pending = words }
     }
 
@@ -1053,8 +1053,6 @@ final class MeetingSession: ObservableObject {
         if let rest = try? await tracker?.finish() { scores += rest }
         if let rest = try? await steady?.finish() { steadyScores += rest }
         resolveSpeakers(final: true)
-        if let activity { ProcessInfo.processInfo.endActivity(activity) }
-        activity = nil
         guard var record else { return done() }
         record.words += pending
         pending = []
@@ -1134,10 +1132,13 @@ final class MeetingSession: ObservableObject {
             }
             // Voices you've named in earlier meetings, named here too (when switched on).
             MeetingRecord.apply(record?.moves ?? [], to: &words)
-            let found = await VoiceMemory.shared.recognise(words: words, audio: url, names: record?.names ?? [:])
+            let found = await VoiceMemory.shared.recognise(words: words, audio: url, names: record?.names ?? [:],
+                                                           rejected: record?.rejected ?? [:])
             guard var updated = record else { return }       // names may have changed meanwhile
             MeetingRecord.apply(updated.moves, to: &words)
-            for (speaker, match) in found where (updated.names[String(speaker)] ?? "").isEmpty {
+            for (speaker, match) in found where (updated.names[String(speaker)] ?? "").isEmpty
+                && !updated.names.values.contains(match.name)
+                && !(updated.rejected[String(speaker)] ?? []).contains(match.name) {
                 updated.names[String(speaker)] = match.name
                 updated.recognized[String(speaker)] = match.score
             }
@@ -1147,6 +1148,18 @@ final class MeetingSession: ObservableObject {
             if !updated.words.isEmpty, max(updated.words.count, words.count) <= 40_000 {
                 let live = updated.words, final = words
                 updated.heal = await Task.detached(priority: .utility) { Self.heal(from: live, to: final) }.value
+            }
+            // Named, merged or marked meanwhile (the window works during the final pass):
+            // kept — only what this pass made is put in.
+            if var latest = record {
+                for (key, name) in updated.names where (latest.names[key] ?? "").isEmpty && updated.recognized[key] != nil
+                    && !latest.names.values.contains(name) && !(latest.rejected[key] ?? []).contains(name) {
+                    latest.names[key] = name
+                    latest.recognized[key] = updated.recognized[key]
+                }
+                latest.heal = updated.heal
+                updated = latest
+                MeetingRecord.apply(updated.moves, to: &words)     // moves made meanwhile too
             }
             updated.words = words
             updated.refined = true
@@ -1222,6 +1235,8 @@ final class MeetingSession: ObservableObject {
     /// is on disk, so the final pass can still run, and the notes after it.
     func finishInterrupted(_ id: UUID) {
         guard phase == .idle, var saved = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
+        activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated],
+                                                         reason: "Mindtalk lyssnar igenom ett möte")
         let url = MeetingStore.audioURL(for: id)
         if let file = try? AVAudioFile(forReading: url) {
             saved.duration = Double(file.length) / file.processingFormat.sampleRate
@@ -1243,6 +1258,9 @@ final class MeetingSession: ObservableObject {
     }
 
     private func done() {
+        // Awake until here — the final pass too, which can take minutes.
+        if let activity { ProcessInfo.processInfo.endActivity(activity) }
+        activity = nil
         if var record {
             record.finished = true
             MeetingStore.shared.save(record)

@@ -22,7 +22,7 @@ struct MeetingRibbon: View {
     @State private var hover: CGFloat?
 
     private var duration: Double {
-        let heard = max(record.duration, segments.last?.end ?? 0, record.words.last?.end ?? 0, 1)
+        let heard = max(record.duration, segments.last?.end ?? 0, record.words.last?.end ?? 0, now ?? 0, 1)
         guard live else { return heard }
         // Recording: a horizon that steps out now and then (2, 5, 10 … minutes) — the
         // strip fills towards it, rather than everything squeezing left at every word.

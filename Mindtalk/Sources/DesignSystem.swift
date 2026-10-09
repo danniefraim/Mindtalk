@@ -39,7 +39,7 @@ enum DS {
         /// secondary grey, so it keeps at least 6:1 contrast on paper and cards.
         static let muted = dynamic(light: 0x5C5C5C, dark: 0xA9A9A9)
         /// Deliberately quiet text (days still to come, version number).
-        static let faint = dynamic(light: 0x8C8C8C, dark: 0x707070)
+        static let faint = dynamic(light: 0x767676, dark: 0x707070)     // 4.5:1 on paper
         /// Soft buttons and key chips: raised off the card, with an edge.
         static let control = dynamic(light: 0xFFFFFF, dark: 0x383838)
         /// Primary buttons and switches.

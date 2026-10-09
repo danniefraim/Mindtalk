@@ -336,9 +336,21 @@ struct VoiceScanner: View {
     /// and not an ordinary word that happens to start a sentence.
     static func spokenName(in text: String) -> String? {
         // The lead-in in any case ("Jag heter", "jag heter"), the name with its capital.
-        let pattern = #"(?i:jag heter|jag är|mitt namn är|det här är|det här var|det är|här är|i'm|i am|my name is|this is)[ ,]+(\p{Lu}[\p{L}\-]+(?: \p{Lu}[\p{L}\-]+)?)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern),
-              let m = regex.firstMatch(in: text, range: NSRange(location: 0, length: (text as NSString).length)) else { return nil }
+        // "Jag heter …" takes any name; "det är …" only a first name people have —
+        // "det är Volvo" is no introduction.
+        let said = #"[ ,]+(\p{Lu}[\p{L}\-]+(?: \p{Lu}[\p{L}\-]+)?)"#
+        let strong = #"(?i:jag heter|jag är|mitt namn är|i'm|i’m|i am|my name is|my name's|my name’s)"# + said
+        let weak = #"(?i:det här är|det här var|det är|här är|this is)"# + said
+        let range = NSRange(location: 0, length: (text as NSString).length)
+        var found: NSTextCheckingResult?
+        if let regex = try? NSRegularExpression(pattern: strong), let m = regex.firstMatch(in: text, range: range) {
+            found = m
+        } else if let regex = try? NSRegularExpression(pattern: weak), let m = regex.firstMatch(in: text, range: range),
+                  let first = (text as NSString).substring(with: m.range(at: 1)).split(separator: " ").first,
+                  FirstNames.isName(String(first)) {
+            found = m
+        }
+        guard let m = found else { return nil }
         var name = (text as NSString).substring(with: m.range(at: 1))
         guard name.first?.isUppercase == true,
               !["Jag", "Det", "Du", "Vi", "Ni", "Bra", "Okej", "Nu", "Här", "The", "It"].contains(name) else { return nil }
