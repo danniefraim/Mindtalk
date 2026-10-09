@@ -76,8 +76,46 @@ final class VoiceModels: ObservableObject {
     }
 
     /// Loads a profile from disk (never downloads — check `isInstalled` first).
+    /// Loaded once and kept: a meeting started right after another (or while its notes
+    /// are being written) doesn't wait for them again — the first load after an update
+    /// can take a minute while macOS prepares them for this Mac.
     nonisolated static func load(_ config: Nemotron3Config) async throws -> Nemotron3Models {
-        try await Nemotron3Models.loadFromHuggingFace(config: config, cacheDirectory: directory)
+        try await ModelCache.shared.models(for: config).models
+    }
+
+    /// At launch, quietly: so the first meeting starts at once, also after an update.
+    static func warmUp() {
+        guard isInstalled else { return }
+        let configs = [live, final]
+        Task.detached(priority: .utility) {
+            for config in configs { _ = try? await load(config) }
+        }
+    }
+}
+
+/// The voice models, loaded once per kind and shared; two meetings asking at once
+/// wait for the same load rather than doing it twice.
+private actor ModelCache {
+    static let shared = ModelCache()
+    private var loaded: [String: Loaded] = [:]
+    private var loading: [String: Task<Loaded, Error>] = [:]
+
+    /// The models are only read once loaded (each meeting's diarizer keeps its own
+    /// state), so they can be handed out to every meeting.
+    struct Loaded: @unchecked Sendable { let models: Nemotron3Models }
+
+    func models(for config: Nemotron3Config) async throws -> Loaded {
+        let key = "\(config)"
+        if let models = loaded[key] { return models }
+        if let task = loading[key] { return try await task.value }
+        let task = Task {
+            Loaded(models: try await Nemotron3Models.loadFromHuggingFace(config: config, cacheDirectory: VoiceModels.directory))
+        }
+        loading[key] = task
+        defer { loading[key] = nil }
+        let models = try await task.value
+        loaded[key] = models
+        return models
     }
 }
 

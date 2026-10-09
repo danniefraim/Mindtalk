@@ -525,6 +525,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         MediaControl.shared.restoreAfterCrash()
         SpeechModel.removeLeftoverDownloads()
         Updates.shared.start()
+        // The voice models, ready before the first meeting (after an update macOS can
+        // take a minute to prepare them — better now, quietly, than when you press start).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) { VoiceModels.warmUp() }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         // Left or right click: the panel — one menu, nothing hidden.
         statusItem.button?.target = self

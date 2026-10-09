@@ -142,6 +142,11 @@ final class MeetingSession: ObservableObject {
         Task { @MainActor in
             guard let source = try? AudioChunks(url: url) else { return print("Fel: kan inte läsa \(url.path)") }
             var lastReport = 0
+            // `--fake-wait`: the recording begins once the models are ready (a test of
+            // the live text that isn't eaten by a long first load).
+            if CommandLine.arguments.contains("--fake-wait") {
+                while phase == .starting || phase == .idle { try? await Task.sleep(for: .milliseconds(200)) }
+            }
             // Paced by the clock, not by the sleeps: macOS stretches a background app's
             // timers, and a mic doesn't wait.
             let began = Date()
@@ -367,6 +372,7 @@ final class MeetingSession: ObservableObject {
         guard phase == .idle else { return }
         lastError = nil
         NoteDraft.shared.text = ""
+        steps = 0
         let dictation = Dictation.shared
         guard dictation.phase == .idle else { return }
         language = dictation.engine
@@ -895,6 +901,18 @@ final class MeetingSession: ObservableObject {
                     if gap >= widest { widest = gap; cut = i }
                 }
                 if cut == nil { cut = heard.lastIndex { $0.end <= windowEnd - 2.5 } }
+            }
+        }
+        // The window is as long as it gets and nothing in it can settle — the speech
+        // model heard words only at its very end. What came before them had no words:
+        // settled up to them, so the window moves on instead of reading the same
+        // fourteen seconds again and again (the text would stop for good).
+        if cut == nil, !final, window.count >= longest {
+            if let first = heard.first, first.start - 0.3 > settled + 0.5 {
+                settle(upTo: first.start - 0.3)
+                Self.log.notice("live: moved past \(fresh, format: .fixed(precision: 1)) s with words only at the end")
+            } else {
+                cut = heard.lastIndex { $0.end <= windowEnd - 0.5 } ?? (heard.count - 1)
             }
         }
         #if DEBUG
