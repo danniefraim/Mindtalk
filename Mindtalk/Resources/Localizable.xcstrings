@@ -2917,6 +2917,38 @@
         }
       }
     },
+    "Dra hit en inspelning": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop a recording here"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dra hit en inspelning"
+          }
+        }
+      }
+    },
+    "Dra hit en inspelning, eller välj en fil": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop a recording here, or choose a file"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dra hit en inspelning, eller välj en fil"
+          }
+        }
+      }
+    },
     "Dra hit ett möte från Alla, eller starta ett möte medan mappen är vald – då hamnar det här.": {
       "extractionState": "stale",
       "localizations": {
@@ -2935,6 +2967,7 @@
       }
     },
     "Dra in en inspelning här": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2951,6 +2984,7 @@
       }
     },
     "Dra in en inspelning här, eller välj en fil": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7067,6 +7101,7 @@
       }
     },
     "Ljud eller video – du får texten med vem som sa vad, anteckningar och kan fråga om innehållet.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7083,6 +7118,7 @@
       }
     },
     "Ljud eller video – eller välj en fil": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7110,6 +7146,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ljud eller video – texten, rösterna och anteckningarna hamnar i %@."
+          }
+        }
+      }
+    },
+    "Ljud eller video, till exempel mp3, m4a eller mp4": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio or video, such as mp3, m4a or mp4"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ljud eller video, till exempel mp3, m4a eller mp4"
+          }
+        }
+      }
+    },
+    "Ljud eller video. Du ser vem som sa vad, får anteckningar och kan ställa frågor om innehållet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio or video. You see who said what, get notes, and can ask about the content."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ljud eller video. Du ser vem som sa vad, får anteckningar och kan ställa frågor om innehållet."
           }
         }
       }

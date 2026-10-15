@@ -149,7 +149,7 @@ private struct MeetingList: View {
         // list scrolls — a meeting far down can still be dragged onto a folder.
         LazyVStack(alignment: .leading, spacing: 20, pinnedViews: [.sectionHeaders]) {
             PageHeader(title: "Möten",
-                       subtitle: "Spela in ett möte i rummet, eller ta in en inspelning du redan har. Du får texten med vem som sa vad, och anteckningar.")
+                       subtitle: "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får anteckningar.")
                 .staggered(0)
             StartCard(session: session, voices: voices, dictation: dictation).staggered(1)
             ImportCards { id in open(id, nil) }
@@ -399,7 +399,7 @@ struct StartCard: View {
             }
             if ready { footer }
         }
-        .raised(cornerRadius: 20, selected: importer.dropping)
+        .raised(cornerRadius: 20)
         .animation(.spring(duration: 0.3, bounce: 0.15), value: importer.dropping)
         // Whether it's on screen: a file dragged over the page then lights this card's
         // zone, rather than covering the page.

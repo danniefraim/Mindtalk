@@ -77,7 +77,7 @@ struct DropSign: View {
         if missing { return String(localized: "Ladda ned talmodellen och Nemotron 3 först – på sidan Möten.") }
         if later { return String(localized: "Ljud eller video – den skrivs ned när mötet är slut.") }
         if let folder { return String(localized: "Ljud eller video – texten, rösterna och anteckningarna hamnar i \(folder).") }
-        return String(localized: "Ljud eller video – du får texten med vem som sa vad, anteckningar och kan fråga om innehållet.")
+        return String(localized: "Ljud eller video. Du ser vem som sa vad, får anteckningar och kan ställa frågor om innehållet.")
     }
 }
 
@@ -434,14 +434,14 @@ struct ImportZone: View {
         .onChange(of: targeted) { _, now in importer.zoneTargeted = now }
         .animation(.spring(duration: 0.3, bounce: 0.15), value: dropping)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Dra in en inspelning här, eller välj en fil")
+        .accessibilityLabel("Dra hit en inspelning, eller välj en fil")
     }
 
     @ViewBuilder private func content(_ dropping: Bool) -> some View {
         if compact {
             HStack(spacing: 12) {
                 glyph
-                Text(dropping ? "Släpp så skrivs den ned" : "Dra in en inspelning här")
+                Text(dropping ? "Släpp så skrivs den ned" : "Dra hit en inspelning")
                     .font(.system(size: 14, weight: .semibold))
                 Spacer(minLength: 8)
                 if !dropping { chooseButton }
@@ -453,8 +453,8 @@ struct ImportZone: View {
                     Text("Släpp så skrivs den ned").font(.system(size: 20, design: .serif))
                 } else {
                     VStack(spacing: 3) {
-                        Text("Dra in en inspelning här").font(.system(size: 15, weight: .semibold))
-                        Text("Ljud eller video – eller välj en fil").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                        Text("Dra hit en inspelning").font(.system(size: 15, weight: .semibold))
+                        Text("Ljud eller video, till exempel mp3, m4a eller mp4").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                     }
                     chooseButton.padding(.top, 4)
                 }
