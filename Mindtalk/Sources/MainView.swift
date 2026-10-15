@@ -158,17 +158,13 @@ private struct DictationPage: View {
         VStack(alignment: .leading, spacing: 26) {
             HomeGreeting().staggered(0)
 
-            if dictation.needsSetup { setupCard.staggered(1) }
-
-            HomeTiles(dictation: dictation, page: $page).staggered(1)
-
-            HomeTasks(page: $page).staggered(2)
-
-            VStack(alignment: .leading, spacing: 10) {
-                SectionTitle("Din diktering")
-                StatsCard(stats: .shared)
+            if dictation.needsSetup {
+                setupCard.staggered(1)
+            } else {
+                HomeActions(dictation: dictation, page: $page).staggered(1)
             }
-            .staggered(2)
+
+            HomeFeed(page: $page).staggered(2)
 
             if !dictation.needsSetup { tryIt.staggered(3) }
         }
@@ -609,6 +605,11 @@ private struct RecentPage: View {
                 if !dictation.recent.isEmpty {
                     Button("Rensa…") { confirmClear = true }.buttonStyle(.soft)
                 }
+            }
+            // What talking instead of typing has given you — here, with what you said.
+            if Stats.shared.totalWords > 0 {
+                StatsCard(stats: .shared).staggered(1)
+                SectionTitle("Det du dikterat").staggered(1)
             }
             if dictation.recent.isEmpty {
                 VStack(spacing: 10) {

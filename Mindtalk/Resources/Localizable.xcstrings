@@ -242,7 +242,24 @@
         }
       }
     },
+    "%@ ord dikterade i dag": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ words dictated today"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ord dikterade i dag"
+          }
+        }
+      }
+    },
     "%@ ord i dag": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -650,6 +667,38 @@
         }
       }
     },
+    "%lld att göra": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld to do"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld att göra"
+          }
+        }
+      }
+    },
+    "%lld att göra från dina möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld to do from your meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld att göra från dina möten"
+          }
+        }
+      }
+    },
     "%lld av %lld MB": {
       "localizations": {
         "en": {
@@ -827,6 +876,7 @@
       }
     },
     "%lld nya": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -892,6 +942,54 @@
         }
       }
     },
+    "%lld till den här veckan": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld more this week"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld till den här veckan"
+          }
+        }
+      }
+    },
+    "%lld · från %lld möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld · from %2$lld meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld · från %lld möten"
+          }
+        }
+      }
+    },
+    "%lld · från 1 möte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld · from 1 meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld · från 1 möte"
+          }
+        }
+      }
+    },
     "+%lld": {
       "localizations": {
         "en": {
@@ -904,6 +1002,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "+%lld"
+          }
+        }
+      }
+    },
+    "1 att göra": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 to do"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 att göra"
+          }
+        }
+      }
+    },
+    "1 att göra från dina möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 to do from your meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 att göra från dina möten"
           }
         }
       }
@@ -973,6 +1103,7 @@
       }
     },
     "1 ny": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -988,7 +1119,24 @@
         }
       }
     },
+    "1 ord dikterat i dag": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 word dictated today"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 ord dikterat i dag"
+          }
+        }
+      }
+    },
     "1 ord i dag": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1000,6 +1148,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "1 ord i dag"
+          }
+        }
+      }
+    },
+    "1 till den här veckan": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 more this week"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 till den här veckan"
+          }
+        }
+      }
+    },
+    "1 · från 1 möte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 · from 1 meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 · från 1 möte"
           }
         }
       }
@@ -1582,6 +1762,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Att göra"
+          }
+        }
+      }
+    },
+    "Att göra, %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To do, %lld"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Att göra, %lld"
           }
         }
       }
@@ -2679,6 +2875,7 @@
       }
     },
     "Det du kommer på mitt i något annat – sagt på en sekund, sparat här.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2828,6 +3025,7 @@
       }
     },
     "Diktera": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5663,6 +5861,7 @@
       }
     },
     "I vilken app som helst – texten skrivs där markören står.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6667,6 +6866,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kom igång"
+          }
+        }
+      }
+    },
+    "Kom igång med möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get Started with Meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kom igång med möten"
           }
         }
       }
@@ -9149,6 +9364,22 @@
         }
       }
     },
+    "Möten du spelar in eller drar in hamnar här.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meetings you record or drag in show up here."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Möten du spelar in eller drar in hamnar här."
+          }
+        }
+      }
+    },
     "Mötena i den tas inte bort – de finns kvar under Alla.": {
       "extractionState": "stale",
       "localizations": {
@@ -9897,6 +10128,7 @@
       }
     },
     "Och %lld till – i mötenas sammanfattningar.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11272,6 +11504,7 @@
       }
     },
     "Senast": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12160,6 +12393,7 @@
       }
     },
     "Spela in ett möte i rummet, eller dra in en inspelning – du ser vem som sa vad och får en sammanfattning.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13717,6 +13951,22 @@
         }
       }
     },
+    "Tankar du säger också – det du kommer på mitt i något annat.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "So do thoughts you say – what comes to mind in the middle of something else."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tankar du säger också – det du kommer på mitt i något annat."
+          }
+        }
+      }
+    },
     "Tanken togs bort": {
       "localizations": {
         "en": {
@@ -15029,6 +15279,22 @@
         }
       }
     },
+    "Visa där det sades": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show where it was said"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa där det sades"
+          }
+        }
+      }
+    },
     "Visa filen i Finder": {
       "localizations": {
         "en": {
@@ -15253,6 +15519,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa som panel"
+          }
+        }
+      }
+    },
+    "Visa uppgifterna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the tasks"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa uppgifterna"
+          }
+        }
+      }
+    },
+    "Visa uppgifterna på sidan Möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the tasks on the Meetings page"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa uppgifterna på sidan Möten"
           }
         }
       }
@@ -16137,6 +16435,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "v%@"
+          }
+        }
+      }
+    },
+    "var som helst och prata – texten skrivs där markören står.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "anywhere and talk – the text goes where the cursor is."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "var som helst och prata – texten skrivs där markören står."
           }
         }
       }
