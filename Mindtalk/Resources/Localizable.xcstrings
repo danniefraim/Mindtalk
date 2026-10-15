@@ -668,6 +668,7 @@
       }
     },
     "%lld att göra": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -684,6 +685,7 @@
       }
     },
     "%lld att göra från dina möten": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -959,6 +961,7 @@
       }
     },
     "%lld · från %lld möten": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -975,6 +978,7 @@
       }
     },
     "%lld · från 1 möte": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1007,6 +1011,7 @@
       }
     },
     "1 att göra": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1023,6 +1028,7 @@
       }
     },
     "1 att göra från dina möten": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1169,6 +1175,7 @@
       }
     },
     "1 · från 1 möte": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1767,6 +1774,7 @@
       }
     },
     "Att göra, %lld": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15280,6 +15288,7 @@
       }
     },
     "Visa där det sades": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15524,6 +15533,7 @@
       }
     },
     "Visa uppgifterna": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15540,6 +15550,7 @@
       }
     },
     "Visa uppgifterna på sidan Möten": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

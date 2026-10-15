@@ -5,8 +5,8 @@ import SwiftUI
 // One job: start something, and see what just happened. The greeting with today's
 // words; one line on dictating (a key you hold, not a button); a button for a
 // meeting and one for a thought; then one list of the last days — meetings,
-// imported recordings and thoughts together, newest first. A meeting's tasks live
-// in the meeting (and gathered on Möten); here at most one quiet line about them.
+// imported recordings and thoughts together, newest first. A meeting's tasks live in
+// its summary — Mindtalk isn't a to-do app.
 
 /// "God eftermiddag" — and today's date, with the words dictated so far.
 struct HomeGreeting: View {
@@ -146,8 +146,6 @@ struct HomeFeed: View {
         // A glance, not the archive: the latest seven — the rest a click away.
         let items = Array(all.prefix(7))
         let more = all.count - items.count
-        let tasks = store.meetings.filter { $0.date > Date().addingTimeInterval(-31 * 86_400) }
-            .reduce(0) { $0 + ($1.summary?.tasks.filter { $0.done != true }.count ?? 0) }
         VStack(alignment: .leading, spacing: 18) {
             if items.isEmpty {
                 empty
@@ -179,24 +177,6 @@ struct HomeFeed: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.top, -8)
-            }
-            if tasks > 0 {
-                Button {
-                    MeetingTasksBar.openOnArrival = true
-                    MeetingsPage.lastOpen = nil
-                    page = .meetings
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checklist").foregroundStyle(DS.Colors.markTask)
-                        Text(tasks == 1 ? String(localized: "1 att göra från dina möten")
-                                        : String(localized: "\(tasks) att göra från dina möten"))
-                            .font(.system(size: 13.5, weight: .medium))
-                        Image(systemName: "arrow.right").font(.system(size: 11, weight: .semibold)).foregroundStyle(DS.Colors.muted)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help("Visa uppgifterna på sidan Möten")
             }
         }
     }
@@ -248,13 +228,6 @@ struct HomeFeed: View {
                             .font(.system(size: 12)).foregroundStyle(DS.Colors.muted).frame(width: 20)
                         Text(m.title).font(.system(size: 14, weight: .medium)).lineLimit(1)
                         Spacer(minLength: 12)
-                        let open = m.summary?.tasks.filter { $0.done != true }.count ?? 0
-                        if open > 0 {
-                            Text(open == 1 ? String(localized: "1 att göra") : String(localized: "\(open) att göra"))
-                                .font(.system(size: 11.5, weight: .semibold)).foregroundStyle(DS.Colors.markTask)
-                                .padding(.horizontal, 8).frame(height: 20)
-                                .background(Capsule().fill(DS.Colors.markTask.opacity(0.12)))
-                        }
                         Text(m.date.formatted(date: .omitted, time: .shortened) + " · " + MeetingView.duration(m.duration))
                             .font(.system(size: 12)).foregroundStyle(DS.Colors.faint).monospacedDigit()
                     case .thought(let t):

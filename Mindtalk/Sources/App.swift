@@ -457,12 +457,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     var a = Thought(text: "Ring tillbaka Eva om offerten och kolla budgeten för Q2."); a.date = Date()
                     Thoughts.shared.preview([a])
                 }
-                MeetingTasksBar.openOnArrival = args.contains("--tasks-open")
                 let view = VStack(alignment: .leading, spacing: 28) {
                     HomeGreeting()
                     HomeActions(dictation: .shared, page: .constant(.dictation))
                     HomeFeed(page: .constant(.dictation))
-                    if args.contains("--tasks-open") { MeetingTasksBar(meetings: MeetingStore.shared.meetings) { _, _ in } }
                 }
                 .padding(28).frame(width: 820).background(DS.Colors.paper)
                 .environment(\.colorScheme, dark ? .dark : .light)

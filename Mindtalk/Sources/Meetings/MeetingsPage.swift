@@ -154,11 +154,6 @@ private struct MeetingList: View {
                 .staggered(0)
             StartCard(session: session, voices: voices, dictation: dictation).staggered(1)
             ImportCards { id in open(id, nil) }
-            // The tasks your meetings left you, folded into one line.
-            if !searching {
-                MeetingTasksBar(meetings: shown.filter { $0.id != session.record?.id }) { id, at in open(id, at) }
-                    .staggered(1)
-            }
             if store.meetings.isEmpty {
                 EmptyArchive().staggered(2)
             } else {
