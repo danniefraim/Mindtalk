@@ -132,6 +132,10 @@ actor VocabularyBoost {
             i += 1
         }
         guard !stretches.isEmpty, let file = try? AVAudioFile(forReading: url) else { return (words, []) }
+        // A meeting's final pass can wait for the listener to load (a dictation never
+        // does) — but never for a download: not on disk, the text stays as written.
+        if models == nil, Self.isInstalled { _ = try? await load() }
+        guard models != nil else { return (words, []) }
         let rate = file.processingFormat.sampleRate
         var out = words
         var fixed: [String] = []

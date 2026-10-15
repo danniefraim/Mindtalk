@@ -233,6 +233,7 @@ final class MeetingSession: ObservableObject {
     }
 
     func simulate(file: URL, language: SpeechModel, speed: Double) async {
+        setvbuf(stdout, nil, _IOLBF, 0)        // each line out at once, also into a file
         if !VoiceModels.isInstalled {
             print("Hämtar röstmodellen…")
             VoiceModels.shared.download()
@@ -284,7 +285,8 @@ final class MeetingSession: ObservableObject {
                 print("\n=== Efter genomgången (\(saved.speakers.count) talare) ===\n" + MeetingText.plain(saved))
                 if let heal = saved.heal { print("\n" + MeetingView.healText(heal) + " – ändrade ord: " + heal.changed.map { saved.words[$0].text }.joined(separator: ", ")) }
             }
-            MeetingStore.shared.delete(id)
+            // `--keep`: left in Möten, to look at afterwards.
+            if !CommandLine.arguments.contains("--keep") { MeetingStore.shared.delete(id) } else { print("Sparat: \(id.uuidString)") }
         }
     }
 
