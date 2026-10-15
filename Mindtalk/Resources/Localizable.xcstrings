@@ -1217,6 +1217,22 @@
         }
       }
     },
+    "Anteckningar och text": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notes and Text"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anteckningar och text"
+          }
+        }
+      }
+    },
     "Anteckningarna skrivs med Apple Intelligence igen. Du kan ladda ned Gemma 4 när du vill.": {
       "localizations": {
         "en": {
@@ -1790,6 +1806,22 @@
         }
       }
     },
+    "Bara anteckningarna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notes Only"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bara anteckningarna"
+          }
+        }
+      }
+    },
     "Bara första gången – upp till en minut.": {
       "localizations": {
         "en": {
@@ -1818,6 +1850,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bara håll in"
+          }
+        }
+      }
+    },
+    "Bara texten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text Only"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bara texten"
           }
         }
       }
@@ -3016,6 +3064,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ett ögonblick …"
+          }
+        }
+      }
+    },
+    "Exportera": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportera"
           }
         }
       }
@@ -6387,6 +6451,22 @@
         }
       }
     },
+    "Ljudet (.m4a)…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio (.m4a)…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ljudet (.m4a)…"
+          }
+        }
+      }
+    },
     "Ljudet flyttas till papperskorgen. Texten, dina anteckningar och sammanfattningen finns kvar, men det går inte längre att lyssna på mötet.": {
       "localizations": {
         "en": {
@@ -7118,6 +7198,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mappens namn"
+          }
+        }
+      }
+    },
+    "Markdown (.md)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markdown (.md)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markdown (.md)"
           }
         }
       }
@@ -8018,6 +8114,22 @@
         }
       }
     },
+    "Mötet kunde inte exporteras": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting couldn't be exported"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet kunde inte exporteras"
+          }
+        }
+      }
+    },
     "Mötet var för kort för att sparas.": {
       "localizations": {
         "en": {
@@ -8602,6 +8714,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ordlista"
+          }
+        }
+      }
+    },
+    "PDF": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PDF"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PDF"
           }
         }
       }
@@ -10345,7 +10473,24 @@
         }
       }
     },
+    "Spara mötet som PDF, Word, Markdown eller text – eller ljudet och undertexter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save the meeting as PDF, Word, Markdown or text – or its audio and subtitles"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spara mötet som PDF, Word, Markdown eller text – eller ljudet och undertexter"
+          }
+        }
+      }
+    },
     "Spara som…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11892,7 +12037,6 @@
       }
     },
     "Text": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11904,6 +12048,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Text"
+          }
+        }
+      }
+    },
+    "Text (.txt)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text (.txt)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text (.txt)"
           }
         }
       }
@@ -12598,6 +12758,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Två snabba behörigheter"
+          }
+        }
+      }
+    },
+    "Undertexter (.srt)…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subtitles (.srt)…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undertexter (.srt)…"
           }
         }
       }
@@ -13533,6 +13709,22 @@
         }
       }
     },
+    "Word (.docx)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Word (.docx)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Word (.docx)"
+          }
+        }
+      }
+    },
     "Zooma": {
       "extractionState": "stale",
       "localizations": {
@@ -13546,6 +13738,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zooma"
+          }
+        }
+      }
+    },
+    "anteckningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "notes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "anteckningar"
           }
         }
       }
@@ -13940,6 +14148,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "t.ex. mind talk, min tal"
+          }
+        }
+      }
+    },
+    "text": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "text"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "text"
           }
         }
       }

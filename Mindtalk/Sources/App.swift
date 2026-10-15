@@ -285,6 +285,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --test-export dir [--title "del av titel"]`: a meeting in every format, to a folder.
+        if let i = args.firstIndex(of: "--test-export"), i + 1 < args.count {
+            Task { @MainActor in
+                MeetingStore.shared.loadNow()
+                let wanted = args.firstIndex(of: "--title").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
+                guard let record = MeetingStore.shared.meetings.first(where: {
+                    $0.summary != nil && !$0.words.isEmpty && (wanted == nil || $0.title.contains(wanted!)) }) else {
+                    print("Inget möte med anteckningar."); exit(1)
+                }
+                let dir = URL(fileURLWithPath: args[i + 1])
+                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                for content in MeetingExport.Content.allCases {
+                    for format in MeetingExport.Format.allCases {
+                        let url = dir.appendingPathComponent("\(content)-\(format.ext).\(format.ext)")
+                        do { try MeetingExport.write(record, content, as: format, to: url); print("OK \(url.lastPathComponent)") }
+                        catch { print("FEL \(url.lastPathComponent): \(error)") }
+                    }
+                }
+                try? MeetingExport.srt(record).write(to: dir.appendingPathComponent("text.srt"), atomically: true, encoding: .utf8)
+                if record.hasAudio, let session = AVAssetExportSession(asset: AVURLAsset(url: MeetingStore.audioURL(for: record.id)),
+                                                                        presetName: AVAssetExportPresetAppleM4A) {
+                    do { try await session.export(to: dir.appendingPathComponent("audio.m4a"), as: .m4a); print("OK audio.m4a") }
+                    catch { print("FEL audio.m4a: \(error)") }
+                }
+                print("Möte: \(record.title)")
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --test-folders`: the folder suggestion on made-up meetings (nothing saved).
         if args.contains("--test-folders") {
             Task { @MainActor in

@@ -1024,6 +1024,7 @@ struct MeetingView: View {
                 .disabled(recorder.phase != .idle)
                 .help("Spela in mer i samma möte – texten fortsätter där den slutade, och anteckningarna skrivs om för hela mötet")
             }
+            if !live { ExportMenu(record: record) }
             Button(action: copy) {
                 Image(systemName: copied ? "checkmark" : "doc.on.doc")
                     .contentTransition(.symbolEffect(.replace))
@@ -1039,11 +1040,6 @@ struct MeetingView: View {
             .accessibilityLabel(copyHelp)
             if !live {
                 Menu {
-                    Button("Kopiera sammanfattningen") { put(MeetingNotes.markdown(record)) }
-                        .disabled(record.summary == nil)
-                    Button("Kopiera texten") { put(MeetingText.plain(record)) }
-                    Button("Spara som…") { export() }
-                    Divider()
                     Menu("Sammanfatta igen") {
                         ForEach(SummaryLanguage.allCases) { choice in
                             Button(choice.menuTitle) {
@@ -1098,16 +1094,6 @@ struct MeetingView: View {
     }
 
     /// The notes and the text as a Markdown file.
-    private func export() {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = record.title.replacingOccurrences(of: "/", with: "-") + ".md"
-        panel.allowedContentTypes = [.init(filenameExtension: "md") ?? .plainText]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        var text = MeetingNotes.markdown(record)
-        if record.summary != nil { text += "\n---\n\n" + MeetingText.plain(record) + "\n" }
-        try? text.write(to: url, atomically: true, encoding: .utf8)
-    }
-
     // MARK: Bottom
 
     @ViewBuilder private var bottomBar: some View {
