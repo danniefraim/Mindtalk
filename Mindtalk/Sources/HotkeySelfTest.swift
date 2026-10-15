@@ -24,7 +24,8 @@ enum HotkeySelfTest {
             try await reset()
             try await fnCombination()
             try await meetingChord()
-            print("Hotkey self-test passed (model, modifier combinations, shortcuts, capture, reset, fn and meeting shortcut).")
+            try await thoughtChord()
+            print("Hotkey self-test passed (model, modifier combinations, shortcuts, capture, reset, fn, meeting and thought shortcuts).")
             return 0
         } catch {
             print("Hotkey self-test failed: \(error.localizedDescription)")
@@ -392,6 +393,43 @@ enum HotkeySelfTest {
         await drainCallbacks()
         try require(held.calls == ["press", "chord", "meeting"], "Right ⌥ in the meeting shortcut: \(held.calls)")
         print("Passed meeting shortcut in every app, exact match, picking and off")
+    }
+
+    /// ⌃⌥T held: a thought — pressed once, let go once, every press and repeat of T
+    /// kept from the app until it's let go (even after ⌃⌥ are).
+    private static func thoughtChord() async throws {
+        let t = UInt16(kVK_ANSI_T)
+        let chord: CGEventFlags = [.maskControl, .maskAlternate]
+        let probe = Probe(hotkey: .default)
+        probe.listener.thoughtChord = .thoughtDefault
+        probe.listener.onThoughtPress = { [weak probe] in probe?.calls.append("thought") }
+        probe.listener.onThoughtRelease = { [weak probe] in probe?.calls.append("kept") }
+
+        try require(!(try probe.send(.keyDown, t, chord)), "The thought shortcut reached the app")
+        try require(!(try probe.send(.keyDown, t, chord, repeatKey: true)), "A held thought shortcut reached the app")
+        try require(!(try probe.send(.keyDown, t, [], repeatKey: true)), "T repeating after ⌃⌥ were let go reached the app")
+        try require(!(try probe.send(.keyUp, t, [])), "The thought shortcut's release reached the app")
+        await drainCallbacks()
+        try require(probe.calls == ["thought", "kept"], "The thought shortcut: \(probe.calls)")
+
+        probe.calls = []
+        try require(try probe.send(.keyDown, t, []), "T on its own was taken")
+        try require(try probe.send(.keyUp, t, []), "T's release on its own was taken")
+        try require(try probe.send(.keyDown, t, [.maskCommand]), "⌘T was taken")
+        probe.listener.thoughtChord = nil
+        try require(try probe.send(.keyDown, t, chord), "The thought shortcut was taken while turned off")
+        await drainCallbacks()
+        try require(probe.calls.isEmpty, "Other keys began a thought: \(probe.calls)")
+
+        // The dictation key (right ⌥) held as part of it: no dictation, a thought.
+        let held = Probe(hotkey: .default)
+        held.listener.thoughtChord = .thoughtDefault
+        held.listener.onThoughtPress = { [weak held] in held?.calls.append("thought") }
+        _ = try held.send(.flagsChanged, UInt16(kVK_RightOption), flags(0x40, [.maskAlternate]))
+        _ = try held.send(.keyDown, t, flags(0x40, chord))
+        await drainCallbacks()
+        try require(held.calls == ["press", "chord", "thought"], "Right ⌥ in the thought shortcut: \(held.calls)")
+        print("Passed thought shortcut: held, repeats, release after the modifiers, off")
     }
 
     private static func combination(_ mask: UInt64) throws -> Hotkey {

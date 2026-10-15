@@ -1635,6 +1635,22 @@
         }
       }
     },
+    "Av. Tankar kan fortfarande sägas från sidan Tankar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off. You can still say a thought from the Thoughts page."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Av. Tankar kan fortfarande sägas från sidan Tankar."
+          }
+        }
+      }
+    },
     "Avbryt": {
       "localizations": {
         "en": {
@@ -2324,6 +2340,22 @@
         }
       }
     },
+    "Börja lyssna – tryck på ✓ i bubblan när du är klar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start listening – press ✓ in the bubble when you're done"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Börja lyssna – tryck på ✓ i bubblan när du är klar"
+          }
+        }
+      }
+    },
     "Börja med att säga hej – en i taget.": {
       "localizations": {
         "en": {
@@ -2385,6 +2417,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Core ML (%@)"
+          }
+        }
+      }
+    },
+    "De klara tankarna tas bort från din Mac och går inte att få tillbaka.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The done thoughts are removed from your Mac and can't be brought back."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De klara tankarna tas bort från din Mac och går inte att få tillbaka."
           }
         }
       }
@@ -2562,6 +2610,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Det du dikterar hamnar här."
+          }
+        }
+      }
+    },
+    "Det du kommer på mitt i något annat. Håll in genvägen och säg det – det hamnar här, inte i appen du står i.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What comes to mind in the middle of something else. Hold the shortcut and say it – it lands here, not in the app you're in."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det du kommer på mitt i något annat. Håll in genvägen och säg det – det hamnar här, inte i appen du står i."
           }
         }
       }
@@ -3155,6 +3220,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Eh, öh och um försvinner ur texten."
+          }
+        }
+      }
+    },
+    "Eller skriv en tanke och tryck på retur": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Or type a thought and press Return"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eller skriv en tanke och tryck på retur"
           }
         }
       }
@@ -3985,6 +4066,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fäll ihop"
+          }
+        }
+      }
+    },
+    "Fånga en tanke": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Catch a thought"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fånga en tanke"
           }
         }
       }
@@ -4899,6 +4996,22 @@
         }
       }
     },
+    "Håll in %@ var du än är, eller tryck snabbt för att prata längre.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold %@ wherever you are, or tap it to talk longer."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in %@ var du än är, eller tryck snabbt för att prata längre."
+          }
+        }
+      }
+    },
     "Håll in alla valda modifierartangenter samtidigt. Kortkommandon fungerar som vanligt.": {
       "localizations": {
         "en": {
@@ -5010,6 +5123,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in och prata"
+          }
+        }
+      }
+    },
+    "Håll in och säg det du kommer på – det hamnar i Tankar. Ett snabbt tryck lyssnar tills du trycker igen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold it and say what comes to mind – it goes into Thoughts. A quick tap listens until you tap again."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in och säg det du kommer på – det hamnar i Tankar. Ett snabbt tryck lyssnar tills du trycker igen."
           }
         }
       }
@@ -5515,6 +5644,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inga ord än. Lägg till namn och begrepp du ofta säger."
+          }
+        }
+      }
+    },
+    "Inga tankar innehåller det.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No thoughts contain that."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inga tankar innehåller det."
+          }
+        }
+      }
+    },
+    "Inga tankar än": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No thoughts yet"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inga tankar än"
           }
         }
       }
@@ -6100,6 +6261,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klar – text, talare och sammanfattning"
+          }
+        }
+      }
+    },
+    "Klara": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klara"
           }
         }
       }
@@ -8111,6 +8288,22 @@
         }
       }
     },
+    "Markera som ny": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark as New"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markera som ny"
+          }
+        }
+      }
+    },
     "Markerar det som sägs just nu. ⌥⌘%lld": {
       "localizations": {
         "en": {
@@ -9955,6 +10148,38 @@
         }
       }
     },
+    "Prova: håll in %@ och säg ”Ring Eva om offerten”.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try it: hold %@ and say “Call Eva about the quote”."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prova: håll in %@ och säg ”Ring Eva om offerten”."
+          }
+        }
+      }
+    },
+    "Prova: tryck på Säg en tanke och säg ”Ring Eva om offerten”.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try it: press Say a Thought and say “Call Eva about the quote”."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prova: tryck på Säg en tanke och säg ”Ring Eva om offerten”."
+          }
+        }
+      }
+    },
     "Putsa med AI": {
       "extractionState": "stale",
       "localizations": {
@@ -11464,6 +11689,39 @@
         }
       }
     },
+    "Spara tanken": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save the thought"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spara tanken"
+          }
+        }
+      }
+    },
+    "Sparad i Tankar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved in Thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sparad i Tankar"
+          }
+        }
+      }
+    },
     "Sparad tid": {
       "extractionState": "stale",
       "localizations": {
@@ -12278,6 +12536,22 @@
         }
       }
     },
+    "Säg en tanke": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Say a Thought"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Säg en tanke"
+          }
+        }
+      }
+    },
     "Säg hej och ditt namn – en i taget.": {
       "extractionState": "stale",
       "localizations": {
@@ -12543,6 +12817,22 @@
         }
       }
     },
+    "Sök i tankarna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sök i tankarna"
+          }
+        }
+      }
+    },
     "Sök nu": {
       "localizations": {
         "en": {
@@ -12655,6 +12945,22 @@
         }
       }
     },
+    "Ta bort alla klara tankar?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete all done thoughts?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort alla klara tankar?"
+          }
+        }
+      }
+    },
     "Ta bort frågan": {
       "localizations": {
         "en": {
@@ -12699,6 +13005,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ta bort inspelningen…"
+          }
+        }
+      }
+    },
+    "Ta bort klara…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Done…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort klara…"
           }
         }
       }
@@ -13054,6 +13376,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tangent eller modifierare…"
+          }
+        }
+      }
+    },
+    "Tankar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tankar"
+          }
+        }
+      }
+    },
+    "Tanken togs bort": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thought deleted"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tanken togs bort"
           }
         }
       }
@@ -13712,6 +14066,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tryck på en tangent…"
+          }
+        }
+      }
+    },
+    "Tryck på knappen och säg det du kommer på. Genvägen ställer du in under Inställningar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press the button and say what comes to mind. Set the shortcut in Settings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck på knappen och säg det du kommer på. Genvägen ställer du in under Inställningar."
           }
         }
       }

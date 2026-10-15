@@ -86,6 +86,14 @@ private struct HUDView: View {
                     }
                     .transition(.scale(scale: 0.4).combined(with: .opacity))
                 }
+                // A thought: said so, so you know it won't be typed where you are.
+                if dictation.forThought {
+                    Image(systemName: "lightbulb.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color(red: 1, green: 0.84, blue: 0.4))
+                        .padding(.leading, dictation.handsFree ? 0 : 2)
+                        .transition(.opacity)
+                }
                 Waveform(levels: Array(dictation.levels.suffix(14)), gap: 2.5, color: .white)
                     .frame(width: 52, height: 16)
                 if dictation.showsLanguage {
@@ -94,7 +102,7 @@ private struct HUDView: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.6)))
                 }
                 if dictation.handsFree {
-                    RoundButton(help: "Skriv in", filled: true) { dictation.finishFromHUD() } label: {
+                    RoundButton(help: dictation.forThought ? "Spara tanken" : "Skriv in", filled: true) { dictation.finishFromHUD() } label: {
                         CursorGlyph().frame(width: 8, height: 13)
                     }
                     .transition(.scale(scale: 0.4).combined(with: .opacity))
@@ -112,6 +120,11 @@ private struct HUDView: View {
             case .copied:
                 Image(systemName: "doc.on.clipboard").foregroundStyle(.white.opacity(0.85))
                 Text("Kopierad – klistra in med ⌘V")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white)
+            case .saved:
+                Image(systemName: "lightbulb.fill").foregroundStyle(Color(red: 1, green: 0.84, blue: 0.4))
+                Text("Sparad i Tankar")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white)
             case .idle:

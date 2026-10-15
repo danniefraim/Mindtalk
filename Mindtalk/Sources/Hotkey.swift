@@ -202,6 +202,10 @@ struct KeyChord: Codable, Equatable {
     static let meetingDefault = KeyChord(keyCode: UInt16(kVK_ANSI_M),
                                          modifiers: CGEventFlags([.maskControl, .maskAlternate, .maskCommand]).rawValue)
 
+    /// ⌃⌥T — T for tanke. (⌃⌥ + space is macOS's switch of input source.)
+    static let thoughtDefault = KeyChord(keyCode: UInt16(kVK_ANSI_T),
+                                         modifiers: CGEventFlags([.maskControl, .maskAlternate]).rawValue)
+
     init(keyCode: UInt16, modifiers: UInt64) {
         self.keyCode = keyCode
         self.modifiers = modifiers & Self.relevant
@@ -248,6 +252,11 @@ final class KeyListener {
     /// The meeting shortcut, in every app (nil: off). Swallowed.
     var meetingChord: KeyChord? = Settings.meetingShortcut
     var onMeetingChord: (() -> Void)?
+    /// Say a thought: pressed and let go (held while you talk).
+    var thoughtChord: KeyChord? = Settings.thoughtShortcut
+    var onThoughtPress: (() -> Void)?
+    var onThoughtRelease: (() -> Void)?
+    private var thoughtHeld = false
     /// A new meeting shortcut is being picked: the keys go to the picker.
     var pickingChord = false
     /// Regular keys are captured on press; modifier combinations on final release.
@@ -333,6 +342,29 @@ final class KeyListener {
             if Int(keyCode) != kVK_Escape { capture(Hotkey(keyCode: keyCode, modifierMask: 0)) }
             else { capture(hotkey) }                                          // Esc = keep the old one
             return nil
+        }
+
+        // A thought: held while you talk. The key's own presses (and repeats) are ours
+        // until it's let go — whether or not the modifiers still are.
+        if let chord = thoughtChord, !pickingChord {
+            if type == .keyDown, !thoughtHeld, chord.matches(keyCode, event.flags) {
+                if !isRepeat {
+                    thoughtHeld = true
+                    if hotkey.modifierKeys.count > 1, event.flags.rawValue & hotkey.modifierMask != 0 {
+                        modifierShortcutUsed = true
+                    }
+                    if isDown { later { $0.onChord?() } }          // not a dictation too
+                    later { $0.onThoughtPress?() }
+                }
+                return nil
+            }
+            if thoughtHeld, keyCode == chord.keyCode, type == .keyDown || type == .keyUp {
+                if type == .keyUp {
+                    thoughtHeld = false
+                    later { $0.onThoughtRelease?() }
+                }
+                return nil
+            }
         }
 
         // The meeting shortcut. A dictation key held as part of it is a chord, not a dictation.
@@ -439,6 +471,11 @@ final class KeyListener {
         let hid = CGEventSource.flagsState(.hidSystemState)
         if hid.rawValue & hotkey.modifierMask == 0 { modifierShortcutUsed = false }
         if !hid.contains(.maskSecondaryFn) { fnDown = false }
+        // The thought key let go while the tap was off.
+        if thoughtHeld, let chord = thoughtChord, !CGEventSource.keyState(.hidSystemState, key: CGKeyCode(chord.keyCode)) {
+            thoughtHeld = false
+            later { $0.onThoughtRelease?() }
+        }
     }
 
     private static let diagnostics = OSLog(subsystem: "ai.mindact.mindtalk", category: "Keys")
@@ -446,6 +483,7 @@ final class KeyListener {
     /// Forget a half-finished press (e.g. after changing the key).
     func reset() {
         isDown = false
+        thoughtHeld = false
         modifierShortcutUsed = false
         fnDown = false
         capturedModifierMask = 0

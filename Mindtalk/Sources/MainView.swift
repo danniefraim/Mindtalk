@@ -12,7 +12,7 @@ import Carbon.HIToolbox
 //   • Inställningar — shortcuts, text, app, sound, appearance, languages, about
 
 enum Page: String, CaseIterable, Identifiable {
-    case dictation, meetings, recent, vocabulary, settings
+    case dictation, meetings, thoughts, recent, vocabulary, settings
 
     var id: String { rawValue }
 
@@ -20,6 +20,7 @@ enum Page: String, CaseIterable, Identifiable {
         switch self {
         case .dictation: return String(localized: "Diktering")
         case .meetings: return String(localized: "Möten")
+        case .thoughts: return String(localized: "Tankar")
         case .recent: return String(localized: "Senaste")
         case .vocabulary: return String(localized: "Ordlista")
         case .settings: return String(localized: "Inställningar")
@@ -30,6 +31,7 @@ enum Page: String, CaseIterable, Identifiable {
         switch self {
         case .dictation: return "waveform"
         case .meetings: return "person.2.wave.2"
+        case .thoughts: return "lightbulb"
         case .recent: return "clock"
         case .vocabulary: return "character.book.closed"
         case .settings: return "slider.horizontal.3"
@@ -59,6 +61,7 @@ struct MainView: View {
                     switch page {
                     case .dictation: DictationPage(dictation: dictation, page: $page)
                     case .meetings: MeetingsPage(session: .shared, store: .shared, voices: .shared, dictation: dictation)
+                    case .thoughts: ThoughtsPage(dictation: dictation)
                     case .recent: RecentPage(dictation: dictation)
                     case .vocabulary: VocabularyPage(vocabulary: .shared)
                     case .settings: SettingsPage(dictation: dictation, prefs: prefs)
@@ -308,6 +311,8 @@ struct SettingsPage: View {
     @State private var showMicPicker = false
     @State private var appLanguage = AppLanguage.chosen
     @State private var meetingShortcut = Settings.meetingShortcut
+    @State private var thoughtShortcut = Settings.thoughtShortcut
+    @State private var pickingThoughtKey = false
     @State private var pickingMeetingKey = false
 
     /// Set before opening Settings to land on "Om Mindtalk".
@@ -341,8 +346,20 @@ struct SettingsPage: View {
                         : meetingShortcut == nil
                             ? String(localized: "Av. Inne i Mindtalk fungerar ⇧⌘R.")
                             : String(localized: "Fungerar i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.")) {
-                    MeetingShortcutField(chord: $meetingShortcut, picking: $pickingMeetingKey)
+                    MeetingShortcutField(chord: $meetingShortcut, picking: $pickingMeetingKey, taken: [thoughtShortcut])
                         .disabled(!dictation.accessibilityGranted)
+                }
+                CardDivider()
+                CardRow(title: "Säg en tanke", detail: pickingThoughtKey
+                        ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
+                        : thoughtShortcut == nil
+                            ? String(localized: "Av. Tankar kan fortfarande sägas från sidan Tankar.")
+                            : String(localized: "Håll in och säg det du kommer på – det hamnar i Tankar. Ett snabbt tryck lyssnar tills du trycker igen.")) {
+                    MeetingShortcutField(chord: $thoughtShortcut, picking: $pickingThoughtKey, taken: [meetingShortcut]) { new in
+                        Settings.thoughtShortcut = new
+                        KeyListener.shared.thoughtChord = new
+                    }
+                    .disabled(!dictation.accessibilityGranted)
                 }
             }
             .card()
@@ -494,10 +511,16 @@ private struct ShortcutField: View {
     }
 }
 
-/// The meeting shortcut: click, then press it — a key with ⌘, ⌃ or ⌥.
+/// A shortcut heard in every app (the meeting, a thought): click, then press it — a
+/// key with ⌘, ⌃ or ⌥. `taken`: the others, so two never share keys.
 private struct MeetingShortcutField: View {
     @Binding var chord: KeyChord?
     @Binding var picking: Bool
+    var taken: [KeyChord?] = []
+    var apply: (KeyChord?) -> Void = { new in
+        Settings.meetingShortcut = new
+        KeyListener.shared.meetingChord = new
+    }
     @State private var monitor: Any?
 
     var body: some View {
@@ -546,7 +569,7 @@ private struct MeetingShortcutField: View {
             let new = KeyChord(keyCode: event.keyCode, modifiers: UInt64(event.modifierFlags.rawValue))
             // ⌃⌥V is "klistra in senaste igen"; a key on its own would stop typing it.
             let pasteLast = KeyChord(keyCode: UInt16(kVK_ANSI_V), modifiers: CGEventFlags([.maskControl, .maskAlternate]).rawValue)
-            guard new.isValid, new != pasteLast else { NSSound.beep(); return nil }
+            guard new.isValid, new != pasteLast, !taken.contains(new) else { NSSound.beep(); return nil }
             set(new)
             stop()
             return nil
@@ -562,8 +585,7 @@ private struct MeetingShortcutField: View {
 
     private func set(_ new: KeyChord?) {
         chord = new
-        Settings.meetingShortcut = new
-        KeyListener.shared.meetingChord = new
+        apply(new)
     }
 }
 

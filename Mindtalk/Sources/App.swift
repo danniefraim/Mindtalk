@@ -420,6 +420,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --render-thoughts out.png [--dark]`: the Tankar page with made-up thoughts.
+        if let i = args.firstIndex(of: "--render-thoughts"), i + 1 < args.count {
+            Task { @MainActor in
+                let dark = args.contains("--dark")
+                NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                func t(_ text: String, _ hoursAgo: Double, done: Bool = false) -> Thought {
+                    var x = Thought(text: text); x.date = Date().addingTimeInterval(-hoursAgo * 3600); x.done = done; return x
+                }
+                Thoughts.shared.preview([
+                    t("Ring tillbaka Eva om offerten och kolla budgeten för Q2.", 0.2),
+                    t("Idé: visa vem som pratar mest i ett möte.", 3),
+                    t("Boka lokal till kickoffen i november.", 26),
+                    t("Fråga Kim om styrelsens datum.", 30, done: true),
+                ])
+                let view = ThoughtsPage(dictation: .shared, scrolls: false).frame(width: 760).background(DS.Colors.paper)
+                    .environment(\.colorScheme, dark ? .dark : .light)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --render-import out.png [--dark]`: the import cards and the drop sign.
         if let i = args.firstIndex(of: "--render-import"), i + 1 < args.count {
             Task { @MainActor in
@@ -1044,6 +1071,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         case .transcribing: symbol = "ellipsis.circle"
         case .failed: symbol = "exclamationmark.circle"
         case .copied: symbol = "doc.on.clipboard"
+        case .saved: symbol = "lightbulb"
         case .idle:
             if case .downloading = dictation.model { symbol = "arrow.down.circle" }
             else { statusItem.button?.image = Mark.menuBarImage; return }
@@ -1137,8 +1165,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         main.addItem(submenu("Visa", [
             item("Diktering", #selector(AppDelegate.menuDictation), "1"),
             item("Möten", #selector(AppDelegate.menuMeetings), "2"),
-            item("Senaste", #selector(AppDelegate.menuRecent), "3"),
-            item("Ordlista", #selector(AppDelegate.menuVocabulary), "4"),
+            item("Tankar", #selector(AppDelegate.menuThoughts), "3"),
+            item("Senaste", #selector(AppDelegate.menuRecent), "4"),
+            item("Ordlista", #selector(AppDelegate.menuVocabulary), "5"),
         ]))
         let window = submenu("Fönster", [
             item("Minimera", #selector(NSWindow.performMiniaturize(_:)), "m"),
@@ -1176,6 +1205,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     @objc func menuDictation() { Self.showWindow(page: .dictation) }
     @objc func menuMeetings() { Self.showWindow(page: .meetings) }
     @objc func menuRecent() { Self.showWindow(page: .recent) }
+    @objc func menuThoughts() { Self.showWindow(page: .thoughts) }
     @objc func menuVocabulary() { Self.showWindow(page: .vocabulary) }
 
     // MARK: Relaunch

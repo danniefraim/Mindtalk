@@ -24,6 +24,8 @@ final class Dictation: ObservableObject {
         case failed(String)
         /// Nowhere to type it: it's in the clipboard instead.
         case copied
+        /// A thought, kept in Tankar.
+        case saved
     }
 
     enum ModelState: Equatable {
@@ -42,6 +44,8 @@ final class Dictation: ObservableObject {
     @Published private(set) var handsFree = false {
         didSet { if handsFree && !oldValue { Self.log.info("locked (hands-free)") } }
     }
+    /// This recording is a thought (Tankar): kept there, not typed where you are.
+    @Published private(set) var forThought = false
     @Published private(set) var level: Float = 0
     /// The last second or two of mic levels, oldest first — the HUD's waveform.
     @Published private(set) var levels = [Float](repeating: 0, count: Dictation.levelCount)
@@ -266,6 +270,8 @@ final class Dictation: ObservableObject {
             MainActor.assumeIsolated { KeyListener.shared.resync() }
         }
         keys.onSpaceWhileHeld = { [weak self] in self?.spaceWhileHeld() ?? false }
+        keys.onThoughtPress = { [weak self] in self?.thoughtPressed() }
+        keys.onThoughtRelease = { [weak self] in self?.thoughtReleased() }
         keys.onPasteLast = { [weak self] in self?.pasteLast() }
         keys.onEscape = { [weak self] in
             guard let self else { return false }
@@ -492,7 +498,7 @@ final class Dictation: ObservableObject {
             doubleTapTimer?.cancel()
             awaitingSecondTap = false
             secondTapDown = true
-        case .idle, .failed, .copied:
+        case .idle, .failed, .copied, .saved:
             begin()
         default:
             break
@@ -536,6 +542,51 @@ final class Dictation: ObservableObject {
             lock()
         }
         return handsFree
+    }
+
+    // MARK: Thoughts
+
+    /// The thought shortcut down: listening begins — or, already listening hands-free
+    /// for a thought, it ends and is kept.
+    private func thoughtPressed() {
+        switch phase {
+        case .recording where forThought && handsFree:
+            ignoreNextRelease = true
+            finish()
+        case .idle, .failed, .copied, .saved:
+            forThought = true
+            keyIsDown = true
+            begin()
+            if phase != .recording, pendingProblem == nil { forThought = false }
+        default:
+            break           // a dictation is going on: it's left alone
+        }
+    }
+
+    /// Let go: held, the thought is kept; a quick tap keeps listening until the next
+    /// tap (or ✓ in the bubble).
+    private func thoughtReleased() {
+        keyIsDown = false
+        if let problem = pendingProblem {
+            pendingProblem = nil
+            forThought = false
+            return problem()
+        }
+        if ignoreNextRelease { ignoreNextRelease = false; return }
+        guard phase == .recording, forThought, !handsFree, let pressedAt else { return }
+        if Date().timeIntervalSince(pressedAt) < tapThreshold { lock() } else { finish() }
+    }
+
+    /// "Säg en tanke" (the Tankar page, the menu bar): listening hands-free until ✓.
+    func startThought() {
+        switch phase {
+        case .idle, .failed, .copied, .saved:
+            forThought = true
+            begin()
+            if phase == .recording { lock() } else { forThought = false }
+        default:
+            NSSound.beep()
+        }
     }
 
     // MARK: The HUD's buttons
@@ -684,6 +735,7 @@ final class Dictation: ObservableObject {
         hud.show()
         let language = recordingEngine ?? engine
         let heard = peakLevel
+        let thought = forThought
         // Where you are when you stop talking is where the text goes — or nowhere,
         // if you switch app while it's being written.
         let target = NSWorkspace.shared.frontmostApplication?.processIdentifier
@@ -705,6 +757,13 @@ final class Dictation: ObservableObject {
                 }
                 guard !text.isEmpty else {
                     return heard < 0.03 ? fail(String(localized: "Hörde inget – kontrollera mikrofonen.")) : reset()
+                }
+                // A thought: kept in Tankar — nothing typed anywhere.
+                if thought {
+                    if !selfTest { Stats.shared.record(text: text, seconds: Double(samples.count) / 16_000) }
+                    Thoughts.shared.add(text)
+                    Cue.done()
+                    return saved()
                 }
                 if !selfTest && !secret {
                     Stats.shared.record(text: text, seconds: Double(samples.count) / 16_000)
@@ -749,6 +808,7 @@ final class Dictation: ObservableObject {
             if engine.isInstalled { loadModel() } else { refreshModels() }
         }
         handsFree = false
+        forThought = false
         startCuePlayed = false
         awaitingSecondTap = false
         secondTapDown = false
@@ -765,6 +825,16 @@ final class Dictation: ObservableObject {
         hud.show()
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
             guard let self, case .failed = self.phase else { return }
+            self.reset()
+        }
+    }
+
+    /// A thought kept: the bubble says where it went, for a moment.
+    private func saved() {
+        phase = .saved
+        hud.show()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            guard let self, self.phase == .saved else { return }
             self.reset()
         }
     }

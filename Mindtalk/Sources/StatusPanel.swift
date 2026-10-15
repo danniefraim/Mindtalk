@@ -184,6 +184,13 @@ struct StatusPanelView: View {
                     AppDelegate.startMeeting()
                 }
             }
+            // A thought, from wherever you are — kept in Tankar.
+            if !meeting.isRecording, dictation.engine.isInstalled {
+                PanelRow(title: "Säg en tanke", shortcut: Settings.thoughtShortcut.map { $0.chip.replacingOccurrences(of: " ", with: "") }) {
+                    (NSApp.delegate as? AppDelegate)?.closeStatusPanel(immediately: true)
+                    Dictation.shared.startThought()
+                }
+            }
             PanelRow(title: "Öppna Mindtalk") { go(.dictation) }
             PanelRow(title: "Inställningar…", shortcut: "⌘,") { go(.settings) }
             // With a new version waiting, the row at the top already offers it.

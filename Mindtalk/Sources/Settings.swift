@@ -26,6 +26,21 @@ enum Settings {
         }
     }
 
+    /// Say a thought (Tankar): held, it listens until you let go; tapped, until you
+    /// tap again. ⌃⌥T by default — T for tanke.
+    static var thoughtShortcut: KeyChord? {
+        get {
+            if defaults.bool(forKey: "thoughtShortcutOff") { return nil }
+            guard let data = defaults.data(forKey: "thoughtShortcut"),
+                  let chord = try? JSONDecoder().decode(KeyChord.self, from: data), chord.isValid else { return .thoughtDefault }
+            return chord
+        }
+        set {
+            defaults.set(newValue == nil, forKey: "thoughtShortcutOff")
+            if let newValue { defaults.set(try? JSONEncoder().encode(newValue), forKey: "thoughtShortcut") }
+        }
+    }
+
     /// The language you dictate in. Swedish by default on a Swedish Mac.
     static var engine: SpeechModel {
         get {

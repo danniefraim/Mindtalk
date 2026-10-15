@@ -10,6 +10,7 @@ struct FloatingTabBar: View {
     @Binding var page: Page
     @ObservedObject var dictation: Dictation
     @ObservedObject private var meeting = MeetingSession.shared
+    @ObservedObject private var thoughts = Thoughts.shared
     @State private var hovering = false
     @Namespace private var selection
 
@@ -71,6 +72,12 @@ struct FloatingTabBar: View {
                         .fixedSize()
                         .transition(.opacity.combined(with: .move(edge: .leading)))
                     Spacer(minLength: 8)
+                    if p == .thoughts, thoughts.openCount > 0 {
+                        Text("\(thoughts.openCount)")
+                            .font(.system(size: 12)).monospacedDigit()
+                            .foregroundStyle(DS.Colors.muted)
+                            .transition(.opacity)
+                    }
                     if p == .recent, dictation.recent.count > 0 {
                         Text("\(dictation.recent.count)")
                             .font(.system(size: 12)).monospacedDigit()
