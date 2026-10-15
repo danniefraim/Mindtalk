@@ -150,7 +150,7 @@ private struct MeetingList: View {
         // list scrolls — a meeting far down can still be dragged onto a folder.
         LazyVStack(alignment: .leading, spacing: 20, pinnedViews: [.sectionHeaders]) {
             PageHeader(title: "Möten",
-                       subtitle: "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får anteckningar.")
+                       subtitle: "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får en sammanfattning.")
                 .staggered(0)
             StartCard(session: session, voices: voices, dictation: dictation).staggered(1)
             ImportCards { id in open(id, nil) }
@@ -690,7 +690,7 @@ struct MeetingRow: View {
 
     /// The first sentence of the notes — what the meeting was about.
     private var lede: String? {
-        if writing { return String(localized: "Skriver anteckningarna…") }
+        if writing { return String(localized: "Skriver sammanfattningen…") }
         guard let overview = record.summary?.overview, !overview.isEmpty else { return nil }
         var first = overview
         overview.enumerateSubstrings(in: overview.startIndex..., options: .bySentences) { s, _, _, stop in
@@ -1197,7 +1197,7 @@ struct MeetingView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(recorder.phase != .idle)
-                .help("Spela in mer i samma möte – texten fortsätter där den slutade, och anteckningarna skrivs om för hela mötet")
+                .help("Spela in mer i samma möte – texten fortsätter där den slutade, och sammanfattningen skrivs om för hela mötet")
             }
             if !live { ExportMenu(record: record) }
             Button(action: copy) {

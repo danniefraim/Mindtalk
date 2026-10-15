@@ -19,8 +19,8 @@ enum MeetingExport {
 
         var title: LocalizedStringResource {
             switch self {
-            case .all: return "Anteckningar och text"
-            case .notes: return "Bara anteckningarna"
+            case .all: return "Sammanfattning och text"
+            case .notes: return "Bara sammanfattningen"
             case .text: return "Bara texten"
             }
         }
@@ -29,7 +29,7 @@ enum MeetingExport {
         var suffix: String {
             switch self {
             case .all: return ""
-            case .notes: return " – " + String(localized: "anteckningar")
+            case .notes: return " – " + String(localized: "sammanfattning")
             case .text: return " – " + String(localized: "text")
             }
         }

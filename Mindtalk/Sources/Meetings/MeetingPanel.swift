@@ -539,7 +539,7 @@ private struct DonePanel: View {
                                 .contentShape(Capsule())
                         }
                         .buttonStyle(.plain)
-                        .help("Spela in mer i samma möte – texten och anteckningarna fortsätter")
+                        .help("Spela in mer i samma möte – texten fortsätter och sammanfattningen skrivs om")
                     }
                 case .nothingHeard:
                     Image(systemName: "waveform.slash").font(.system(size: 28)).foregroundStyle(DS.Colors.faint)

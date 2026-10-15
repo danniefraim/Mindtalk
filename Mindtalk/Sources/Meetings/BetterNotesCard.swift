@@ -30,14 +30,14 @@ struct BetterNotesCard: View {
             Button("Ta bort", role: .destructive) { notes.remove() }
             Button("Avbryt", role: .cancel) {}
         } message: {
-            Text("Anteckningarna skrivs med Apple Intelligence igen. Du kan ladda ned Gemma 4 när du vill.")
+            Text("Sammanfattningarna skrivs med Apple Intelligence igen. Du kan ladda ned Gemma 4 när du vill.")
         }
     }
 
     private var detail: String {
         switch notes.state {
         case .unsupported:
-            return String(localized: "Gemma 4 från Google skriver djupare sammanfattningar och svar, men kräver minst \(BetterNotes.minimumMemoryGB) GB minne. Den här Macen har \(BetterNotes.memoryGB) GB, så Apple Intelligence skriver anteckningarna.")
+            return String(localized: "Gemma 4 från Google skriver djupare sammanfattningar och svar, men kräver minst \(BetterNotes.minimumMemoryGB) GB minne. Den här Macen har \(BetterNotes.memoryGB) GB, så Apple Intelligence skriver sammanfattningarna.")
         case .missing, .failed:
             var text = String(localized: "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Laddas ned en gång (\(BetterNotes.sizeText)) och fungerar sedan offline.")
             if !BetterNotes.hasRoom {
@@ -50,7 +50,7 @@ struct BetterNotesCard: View {
         case .ready:
             return notes.enabled
                 ? String(localized: "Gemma 4 skriver mötenas sammanfattningar och svarar på frågor.")
-                : String(localized: "Avstängt: Apple Intelligence skriver anteckningarna.")
+                : String(localized: "Av. Apple Intelligence skriver sammanfattningarna.")
         }
     }
 

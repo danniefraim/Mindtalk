@@ -916,7 +916,7 @@ private struct AboutCard: View {
                 links([("Modell", Self.parakeetCTC), ("Licens", Self.ccBy)])
             }
             CardDivider()
-            row(title: "Gemma 4", detail: "Skriver anteckningar och svar, om du väljer den. Av Google. Apache 2.0.") {
+            row(title: "Gemma 4", detail: "Skriver sammanfattningar och svar, om du väljer den. Av Google. Apache 2.0.") {
                 links([("Modell", Self.gemma), ("Licens", Self.apache)])
             }
             CardDivider()

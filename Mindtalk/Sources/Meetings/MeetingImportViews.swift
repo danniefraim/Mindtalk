@@ -77,7 +77,7 @@ struct DropSign: View {
         if missing { return String(localized: "Ladda ned talmodellen och Nemotron 3 först – på sidan Möten.") }
         if later { return String(localized: "Ljud eller video – filen skrivs ned när mötet är slut.") }
         if let folder { return String(localized: "Ljud eller video – mötet hamnar i \(folder).") }
-        return String(localized: "Ljud eller video. Du ser vem som sa vad, får anteckningar och kan ställa frågor om innehållet.")
+        return String(localized: "Ljud eller video. Du ser vem som sa vad, får en sammanfattning och kan ställa frågor om innehållet.")
     }
 }
 
@@ -200,9 +200,9 @@ struct ImportCard: View {
 
     private var doneText: String {
         guard let id = job.meeting else { return String(localized: "Klar") }
-        if notes.writing.contains(id) { return String(localized: "Klar – anteckningarna skrivs…") }
-        return MeetingNotes.isAvailable ? String(localized: "Klar – texten, rösterna och anteckningarna")
-                                        : String(localized: "Klar – texten och rösterna")
+        if notes.writing.contains(id) { return String(localized: "Klar – sammanfattningen skrivs…") }
+        return MeetingNotes.isAvailable ? String(localized: "Klar – text, talare och sammanfattning")
+                                        : String(localized: "Klar – text och talare")
     }
 
     /// While it waits: the language it'll be heard in.

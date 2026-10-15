@@ -1292,6 +1292,7 @@
       }
     },
     "Anteckningar och text": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1303,22 +1304,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Anteckningar och text"
-          }
-        }
-      }
-    },
-    "Anteckningarna skrivs med Apple Intelligence igen. Du kan ladda ned Gemma 4 när du vill.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notes are written with Apple Intelligence again. You can download Gemma 4 whenever you like."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anteckningarna skrivs med Apple Intelligence igen. Du kan ladda ned Gemma 4 när du vill."
           }
         }
       }
@@ -1618,6 +1603,22 @@
         }
       }
     },
+    "Av. Apple Intelligence skriver sammanfattningarna.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off. Apple Intelligence writes the summaries."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Av. Apple Intelligence skriver sammanfattningarna."
+          }
+        }
+      }
+    },
     "Av. Inne i Mindtalk fungerar ⇧⌘R.": {
       "localizations": {
         "en": {
@@ -1913,22 +1914,6 @@
         }
       }
     },
-    "Avstängt: Apple Intelligence skriver anteckningarna.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Off: Apple Intelligence writes the notes."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Avstängt: Apple Intelligence skriver anteckningarna."
-          }
-        }
-      }
-    },
     "Backsteg": {
       "localizations": {
         "en": {
@@ -1946,6 +1931,7 @@
       }
     },
     "Bara anteckningarna": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1989,6 +1975,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bara håll in"
+          }
+        }
+      }
+    },
+    "Bara sammanfattningen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summary Only"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bara sammanfattningen"
           }
         }
       }
@@ -4183,18 +4185,18 @@
         }
       }
     },
-    "Gemma 4 från Google skriver djupare sammanfattningar och svar, men kräver minst %lld GB minne. Den här Macen har %lld GB, så Apple Intelligence skriver anteckningarna.": {
+    "Gemma 4 från Google skriver djupare sammanfattningar och svar, men kräver minst %lld GB minne. Den här Macen har %lld GB, så Apple Intelligence skriver sammanfattningarna.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gemma 4 from Google writes deeper summaries and answers, but needs at least %lld GB of memory. This Mac has %lld GB, so Apple Intelligence writes the notes."
+            "value": "Gemma 4 from Google writes deeper summaries and answers, but needs at least %lld GB of memory. This Mac has %lld GB, so Apple Intelligence writes the summaries."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gemma 4 från Google skriver djupare sammanfattningar och svar, men kräver minst %lld GB minne. Den här Macen har %lld GB, så Apple Intelligence skriver anteckningarna."
+            "value": "Gemma 4 från Google skriver djupare sammanfattningar och svar, men kräver minst %lld GB minne. Den här Macen har %lld GB, så Apple Intelligence skriver sammanfattningarna."
           }
         }
       }
@@ -6054,50 +6056,50 @@
         }
       }
     },
-    "Klar – anteckningarna skrivs…": {
+    "Klar – sammanfattningen skrivs…": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Done – writing the notes…"
+            "value": "Done – writing the summary…"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Klar – anteckningarna skrivs…"
+            "value": "Klar – sammanfattningen skrivs…"
           }
         }
       }
     },
-    "Klar – texten och rösterna": {
+    "Klar – text och talare": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Done – the text and the voices"
+            "value": "Done – text and speakers"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Klar – texten och rösterna"
+            "value": "Klar – text och talare"
           }
         }
       }
     },
-    "Klar – texten, rösterna och anteckningarna": {
+    "Klar – text, talare och sammanfattning": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Done – the text, the voices and the notes"
+            "value": "Done – text, speakers and summary"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Klar – texten, rösterna och anteckningarna"
+            "value": "Klar – text, talare och sammanfattning"
           }
         }
       }
@@ -7145,6 +7147,7 @@
       }
     },
     "Ljud eller video. Du ser vem som sa vad, får anteckningar och kan ställa frågor om innehållet.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7156,6 +7159,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ljud eller video. Du ser vem som sa vad, får anteckningar och kan ställa frågor om innehållet."
+          }
+        }
+      }
+    },
+    "Ljud eller video. Du ser vem som sa vad, får en sammanfattning och kan ställa frågor om innehållet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio or video. You see who said what, get a summary, and can ask about the content."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ljud eller video. Du ser vem som sa vad, får en sammanfattning och kan ställa frågor om innehållet."
           }
         }
       }
@@ -10624,6 +10643,22 @@
         }
       }
     },
+    "Sammanfattning och text": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summary and Text"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfattning och text"
+          }
+        }
+      }
+    },
     "Sammanfattningar kräver Apple Intelligence": {
       "localizations": {
         "en": {
@@ -10636,6 +10671,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sammanfattningar kräver Apple Intelligence"
+          }
+        }
+      }
+    },
+    "Sammanfattningarna skrivs med Apple Intelligence igen. Du kan ladda ned Gemma 4 när du vill.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summaries are written with Apple Intelligence again. You can download Gemma 4 whenever you like."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfattningarna skrivs med Apple Intelligence igen. Du kan ladda ned Gemma 4 när du vill."
           }
         }
       }
@@ -10916,22 +10967,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skriver anteckningar och svar, om du väljer den. Av Google. Apache 2.0."
-          }
-        }
-      }
-    },
-    "Skriver anteckningarna…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Writing the notes…"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Skriver anteckningarna…"
           }
         }
       }
@@ -11561,51 +11596,51 @@
         }
       }
     },
-    "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får anteckningar.": {
+    "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får en sammanfattning.": {
       "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Record a meeting in the room, or transcribe a recording you already have. You see who said what and get notes."
+            "value": "Record a meeting in the room, or transcribe a recording you already have. You see who said what and get a summary."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får anteckningar."
+            "value": "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får en sammanfattning."
           }
         }
       }
     },
-    "Spela in mer i samma möte – texten fortsätter där den slutade, och anteckningarna skrivs om för hela mötet": {
+    "Spela in mer i samma möte – texten fortsätter där den slutade, och sammanfattningen skrivs om för hela mötet": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Record more in the same meeting – the text goes on where it ended, and the notes are rewritten for the whole meeting"
+            "value": "Record more in the same meeting – the text goes on where it ended, and the summary is rewritten for the whole meeting"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Spela in mer i samma möte – texten fortsätter där den slutade, och anteckningarna skrivs om för hela mötet"
+            "value": "Spela in mer i samma möte – texten fortsätter där den slutade, och sammanfattningen skrivs om för hela mötet"
           }
         }
       }
     },
-    "Spela in mer i samma möte – texten och anteckningarna fortsätter": {
+    "Spela in mer i samma möte – texten fortsätter och sammanfattningen skrivs om": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Record more in the same meeting – the text and notes go on"
+            "value": "Record more in the same meeting – the text goes on and the summary is rewritten"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Spela in mer i samma möte – texten och anteckningarna fortsätter"
+            "value": "Spela in mer i samma möte – texten fortsätter och sammanfattningen skrivs om"
           }
         }
       }
@@ -14907,6 +14942,7 @@
       }
     },
     "anteckningar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15311,6 +15347,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "rättade %lld ord"
+          }
+        }
+      }
+    },
+    "sammanfattning": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "summary"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sammanfattning"
           }
         }
       }
