@@ -18,7 +18,7 @@ enum Page: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .dictation: return String(localized: "Diktering")
+        case .dictation: return String(localized: "Hem")
         case .meetings: return String(localized: "Möten")
         case .thoughts: return String(localized: "Tankar")
         case .recent: return String(localized: "Senaste")
@@ -29,7 +29,7 @@ enum Page: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
-        case .dictation: return "waveform"
+        case .dictation: return "house"
         case .meetings: return "person.2.wave.2"
         case .thoughts: return "lightbulb"
         case .recent: return "clock"
@@ -152,44 +152,53 @@ private struct DictationPage: View {
     @Binding var page: Page
     @State private var practice = ""
 
+    @State private var trying = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 26) {
-            PageHeader(title: "Diktering",
-                       subtitle: "Prata istället för att skriva – i vilken app som helst.")
-                .staggered(0)
+            HomeGreeting().staggered(0)
 
             if dictation.needsSetup { setupCard.staggered(1) }
 
-            StatsCard(stats: .shared)
-                .staggered(1)
+            HomeTiles(dictation: dictation, page: $page).staggered(1)
 
-            VStack(alignment: .leading, spacing: 0) {
-                howTo(icon: "hand.tap", title: "Håll in och prata",
-                      detail: "Släpp när du är klar – texten skrivs där markören står.") {
-                    HStack(spacing: 6) { Text("Håll").foregroundStyle(DS.Colors.muted); KeyChip(text: dictation.hotkey.chip) }
-                }
-                if dictation.mode != .hold {
-                    CardDivider()
-                    howTo(icon: "lock", title: "Handsfree",
-                          detail: dictation.mode == .toggle ? "Tryck en gång för att börja, en gång till för att klistra in."
-                                                            : "Dubbeltryck – eller mellanslag medan du håller in – för att låsa. Tryck igen när du är klar.") {
-                        HStack(spacing: 6) {
-                            Text(LocalizedStringKey(dictation.mode == .toggle ? "Tryck" : "Dubbeltryck")).foregroundStyle(DS.Colors.muted)
-                            KeyChip(text: dictation.hotkey.chip)
-                        }
-                    }
-                }
-                CardDivider()
-                howTo(icon: "escape", title: "Ångra dig", detail: "Avbryter utan att något skrivs.") {
-                    KeyChip(text: "esc")
-                }
+            HomeTasks(page: $page).staggered(2)
+
+            VStack(alignment: .leading, spacing: 10) {
+                SectionTitle("Din diktering")
+                StatsCard(stats: .shared)
             }
-            .card()
             .staggered(2)
 
-            if !dictation.needsSetup {
-                VStack(alignment: .leading, spacing: 10) {
-                    SectionTitle("Prova")
+            if !dictation.needsSetup { tryIt.staggered(3) }
+        }
+        .pageLayout()
+    }
+
+    /// "Prova dikteringen": folded away — it's for the first days.
+    private var tryIt: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                withAnimation(.spring(duration: 0.35, bounce: 0.1)) { trying.toggle() }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "chevron.right").font(.system(size: 10.5, weight: .bold))
+                        .rotationEffect(.degrees(trying ? 90 : 0))
+                    Text("Prova dikteringen").font(.system(size: 15, weight: .semibold))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
+            if trying {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(dictation.mode == .hold
+                         ? String(localized: "Håll in \(dictation.hotkey.inlineName) och prata, släpp när du är klar. Esc avbryter.")
+                         : dictation.mode == .toggle
+                            ? String(localized: "Tryck på \(dictation.hotkey.inlineName) för att börja och en gång till för att skriva in. Esc avbryter.")
+                            : String(localized: "Håll in \(dictation.hotkey.inlineName) och prata – eller dubbeltryck för att låsa och tryck igen när du är klar. Esc avbryter."))
+                        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                     ZStack(alignment: .topLeading) {
                         TextEditor(text: $practice)
                             .font(.system(size: 17))
@@ -200,8 +209,6 @@ private struct DictationPage: View {
                             .overlay(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
                                 .strokeBorder(practice.isEmpty ? AnyShapeStyle(DS.Colors.fieldStroke) : AnyShapeStyle(DS.Gradients.accent),
                                               lineWidth: practice.isEmpty ? 1 : 1.5))
-                            .shadow(color: DS.Colors.accent.opacity(practice.isEmpty ? 0 : 0.12), radius: 14, y: 6)
-                            .animation(.easeOut(duration: 0.3), value: practice.isEmpty)
                             .accessibilityLabel("Prova diktering här")
                         if practice.isEmpty {
                             Text("Klicka här, håll in \(dictation.hotkey.inlineName) och säg något.")
@@ -212,10 +219,9 @@ private struct DictationPage: View {
                         }
                     }
                 }
-                .staggered(3)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .pageLayout()
     }
 
     private func howTo<Trailing: View>(icon: String, title: String, detail: String,

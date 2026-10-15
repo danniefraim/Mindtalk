@@ -447,6 +447,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --render-home out.png [--dark]`: the Hem page with your meetings.
+        if let i = args.firstIndex(of: "--render-home"), i + 1 < args.count {
+            Task { @MainActor in
+                let dark = args.contains("--dark")
+                NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                MeetingStore.shared.loadNow()
+                if Thoughts.shared.all.isEmpty {
+                    var a = Thought(text: "Ring tillbaka Eva om offerten och kolla budgeten för Q2."); a.date = Date()
+                    Thoughts.shared.preview([a])
+                }
+                let view = VStack(alignment: .leading, spacing: 26) {
+                    HomeGreeting()
+                    HomeTiles(dictation: .shared, page: .constant(.dictation))
+                    HomeTasks(page: .constant(.dictation))
+                    VStack(alignment: .leading, spacing: 10) { SectionTitle("Din diktering"); StatsCard(stats: .shared) }
+                }
+                .padding(28).frame(width: 820).background(DS.Colors.paper)
+                .environment(\.colorScheme, dark ? .dark : .light)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --render-import out.png [--dark]`: the import cards and the drop sign.
         if let i = args.firstIndex(of: "--render-import"), i + 1 < args.count {
             Task { @MainActor in
@@ -1163,7 +1192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             item("Importera fil…", #selector(AppDelegate.menuImport), "o"),
         ]))
         main.addItem(submenu("Visa", [
-            item("Diktering", #selector(AppDelegate.menuDictation), "1"),
+            item("Hem", #selector(AppDelegate.menuDictation), "1"),
             item("Möten", #selector(AppDelegate.menuMeetings), "2"),
             item("Tankar", #selector(AppDelegate.menuThoughts), "3"),
             item("Senaste", #selector(AppDelegate.menuRecent), "4"),
