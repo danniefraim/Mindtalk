@@ -56,6 +56,8 @@ enum DS {
         /// The lighter end of the accent sheen.
         static let accentSoft = dynamic(light: 0x5A5A5A, dark: 0xFFFFFF)
         static let recording = Color.red
+        /// The dark room of the introduction round and the "Nytt möte" card, in both modes.
+        static let night = Color(red: 0.008, green: 0.008, blue: 0.012)
         /// Something needs attention (not an error you caused): readable on paper and cards.
         static let warning = dynamic(light: 0xA34A00, dark: 0xFF9F0A)
         static let good = Color(red: 0.20, green: 0.62, blue: 0.36)

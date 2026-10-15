@@ -149,6 +149,8 @@ struct Constellation: View {
     let level: Double
     /// Comparing voiceprints: the sphere turns a little faster.
     var searching = false
+    /// Off screen: no frames drawn.
+    var paused = false
     @State private var morph = Morph()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -156,7 +158,7 @@ struct Constellation: View {
 
     var body: some View {
         // Sixty frames a second is plenty for drifting light, also on a 120 Hz screen.
-        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: reduceMotion)) { context in
+        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: reduceMotion || paused)) { context in
             let now = context.date.timeIntervalSinceReferenceDate
             Canvas { ctx, size in draw(&ctx, size: size, now: now) }
         }

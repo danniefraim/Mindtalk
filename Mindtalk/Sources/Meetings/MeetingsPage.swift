@@ -392,6 +392,10 @@ struct StartCard: View {
     @ObservedObject private var importer = MeetingImport.shared
     /// Room for the two side by side.
     @State private var wide = true
+    /// The card is in view: the sphere only turns while someone can see it.
+    @State private var onScreen = true
+    /// Starta möte was just pressed: the sphere swells as the room takes over.
+    @State private var starting = false
 
     /// Both doors open: the voices and the speech model are here.
     private var ready: Bool { voices.state == .ready && dictation.engine.isInstalled }
@@ -404,14 +408,14 @@ struct StartCard: View {
                 Group {
                     if wide {
                         HStack(alignment: .center, spacing: 0) {
-                            recordPane.frame(maxWidth: .infinity, alignment: .leading)
+                            room.padding(.leading, 10).padding(.vertical, 10).frame(maxWidth: .infinity)
                             ImportZone(folder: folders.selected).padding(12).frame(maxWidth: .infinity)
                         }
-                        .frame(minHeight: 200)
+                        .frame(height: 250)
                     } else {
                         VStack(alignment: .leading, spacing: 0) {
-                            recordPane.frame(maxWidth: .infinity, alignment: .leading)
-                            ImportZone(folder: folders.selected, compact: true).padding(.horizontal, 12).padding(.bottom, 12)
+                            room.frame(height: 210).padding(.horizontal, 10).padding(.top, 10)
+                            ImportZone(folder: folders.selected, compact: true).padding(.horizontal, 12).padding(.vertical, 12)
                         }
                     }
                 }
@@ -441,32 +445,78 @@ struct StartCard: View {
         .animation(.spring(duration: 0.3, bounce: 0.15), value: importer.dropping)
         // Whether it's on screen: a file dragged over the page then lights this card's
         // zone, rather than covering the page.
-        .onScrollVisibilityChange(threshold: 0.4) { visible in importer.zoneVisible = visible }
-        .onDisappear { importer.zoneVisible = false }
+        .onScrollVisibilityChange(threshold: 0.4) { visible in importer.zoneVisible = visible; onScreen = visible }
+        .onDisappear { importer.zoneVisible = false; onScreen = false }
+        .onChange(of: session.phase) { _, now in if now == .idle { starting = false } }
     }
 
-    /// Record a meeting, now.
-    private var recordPane: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            RecordGlyph()
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Spela in ett möte").font(.system(size: 15, weight: .semibold))
-                Text("Texten skrivs medan ni pratar – bäst med upp till fem personer nära Macen.")
-                    .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+    /// Record a meeting, now: a dark room with the listening sphere — the same one
+    /// that falls into each voice's figure once the meeting is going — and the way in.
+    private var room: some View {
+        ZStack {
+            Constellation(figure: nil, color: .white, level: 0.3, paused: !onScreen || importer.dropping)
+                .scaleEffect(starting ? 2.4 : 1.5)
+                .offset(x: 130, y: 82)
+                .animation(.easeIn(duration: 0.7), value: starting)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Spela in ett möte").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white)
+                Text("Mindtalk hör vem som säger vad och skriver medan ni pratar – bäst med upp till fem personer nära Macen.")
+                    .font(.system(size: 12.5)).foregroundStyle(.white.opacity(0.7))
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 5)
+                    .frame(maxWidth: 215, alignment: .leading)
                 if let error = session.lastError {
                     Text(error).font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .fixedSize(horizontal: false, vertical: true).padding(.top, 6)
+                }
+                Spacer(minLength: 0)
+                HStack(spacing: 10) {
+                    roomControl
+                    if dictation.micGranted {
+                        Text(verbatim: "⇧⌘R").font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.6))
+                    }
                 }
             }
-            Spacer(minLength: 0)
-            HStack(spacing: 10) {
-                control
-                if dictation.micGranted { KeyCap(keys: "⇧⌘R") }
-            }
+            .padding(22)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .opacity(starting ? 0 : 1)
+            .animation(.easeOut(duration: 0.3), value: starting)
         }
-        .padding(22)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.night))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .opacity(importer.dropping ? 0.4 : 1)
+    }
+
+    /// The way in, white on the night.
+    @ViewBuilder private var roomControl: some View {
+        if !dictation.micGranted {
+            roomButton("Tillåt mikrofonen", dot: false, help: "Mindtalk behöver få använda mikrofonen") { dictation.fix(.microphone) }
+        } else {
+            // One start: the meeting begins with the round ("Vem är här?"), which
+            // can be skipped.
+            roomButton("Starta möte", dot: true, help: "Starta möte (⇧⌘R) – börjar med en presentationsrunda som går att hoppa över") {
+                starting = true
+                session.start(introducing: true, folder: MeetingFolders.shared.selected)
+            }
+            .accessibilityHint("Mötet börjar med en presentationsrunda som går att hoppa över")
+            .disabled(dictation.phase != .idle || starting)
+        }
+    }
+
+    private func roomButton(_ title: LocalizedStringKey, dot: Bool, help: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                if dot { Circle().fill(DS.Colors.recording).frame(width: 8, height: 8).accessibilityHidden(true) }
+                Text(title).font(.system(size: 13, weight: .semibold))
+            }
+            .padding(.horizontal, 14).padding(.vertical, 9)
+            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(.white))
+            .foregroundStyle(.black)
+            .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help(help)
     }
 
     /// What both ways use, and where a new one goes.

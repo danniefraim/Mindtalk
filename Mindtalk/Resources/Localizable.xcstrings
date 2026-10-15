@@ -9350,6 +9350,22 @@
         }
       }
     },
+    "Mindtalk behöver få använda mikrofonen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk needs to use the microphone"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk behöver få använda mikrofonen"
+          }
+        }
+      }
+    },
     "Mindtalk behöver få använda mikrofonen.": {
       "extractionState": "stale",
       "localizations": {
@@ -9461,6 +9477,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mindtalk gör om det du säger till text – i vilken app som helst."
+          }
+        }
+      }
+    },
+    "Mindtalk hör vem som säger vad och skriver medan ni pratar – bäst med upp till fem personer nära Macen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hears who says what and writes while you talk – best with up to five people near the Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hör vem som säger vad och skriver medan ni pratar – bäst med upp till fem personer nära Macen."
           }
         }
       }
@@ -14678,6 +14710,7 @@
       }
     },
     "Texten skrivs medan ni pratar – bäst med upp till fem personer nära Macen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

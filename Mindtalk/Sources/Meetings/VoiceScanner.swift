@@ -199,7 +199,7 @@ struct VoiceScanner: View {
             .accessibilityElement(children: .combine)
         }
 
-        static let night = Color(red: 0.008, green: 0.008, blue: 0.012)
+        static let night = DS.Colors.night
 
         /// The ones found so far.
         @ViewBuilder private var room: some View {
