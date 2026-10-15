@@ -932,9 +932,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         let meeting = MeetingSession.shared
         if VoiceModels.isInstalled { meeting.start(introducing: introducing) }
         if !meeting.isRecording { showWindow(page: .meetings); return }
-        // Started from the menu bar: the panel shows it, and the keyboard goes back to
-        // the app you were in rather than to Mindtalk with no window.
-        if !mainWindowVisible { NSApp.deactivate() }
+        // With the round: it opens in the window, in front — you're about to say your
+        // name. Without it, from the menu bar: the panel shows the meeting, and the
+        // keyboard goes back to the app you were in rather than to Mindtalk with no window.
+        if meeting.introducing {
+            showWindow(page: .meetings)
+        } else if !mainWindowVisible {
+            NSApp.deactivate()
+        }
     }
 
     static var mainWindowVisible: Bool { (NSApp.delegate as? AppDelegate)?.window?.isVisible == true }
