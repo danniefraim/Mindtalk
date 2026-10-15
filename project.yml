@@ -61,6 +61,13 @@ targets:
         # verified before it's even unpacked.
         SURequireSignedFeed: true
         SUVerifyUpdateBeforeExtraction: true
+        # Meetings dragged onto a folder: a type of Mindtalk's own, so text from
+        # elsewhere is never taken for a meeting.
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: ai.mindact.mindtalk.meeting
+            UTTypeDescription: Mindtalk meeting
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification: {}
         NSMicrophoneUsageDescription: "Mindtalk använder mikrofonen när du dikterar och när du spelar in möten. Allt tolkas på din Mac – inget ljud lämnar datorn."
     entitlements:
       path: Mindtalk/Mindtalk.entitlements

@@ -754,6 +754,9 @@ final class MeetingStore: ObservableObject {
         for id in recordingsPast(days: MeetingAudio.keepDays) { removeAudio(of: id) }
     }
 
+    /// Many meetings changed at once (moved to a folder), already written quietly.
+    func replaceAll(_ changed: [MeetingRecord]) { meetings = changed }
+
     /// Removes the meeting — text and recording — from the Mac.
     func delete(_ id: UUID) {
         Self.writer.sync {}          // a save on its way would bring the folder back

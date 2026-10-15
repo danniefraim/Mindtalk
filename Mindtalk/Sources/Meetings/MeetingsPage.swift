@@ -44,6 +44,7 @@ struct MeetingsPage: View {
                 }
             }
         }
+        .folderNaming()
         // A meeting that just ended stays on screen, now as saved.
         .onChange(of: session.finished) { _, id in if let id { open = id } }
         .onChange(of: open) { _, id in Self.lastOpen = id }
@@ -118,14 +119,20 @@ private struct MeetingList: View {
     let open: (UUID, Double?) -> Void
     @State private var confirmDelete: MeetingRecord?
     @State private var query = ""
+    /// Meetings ⌘- or ⇧-clicked: dragged and moved together.
+    @State private var selection: Set<UUID> = []
+    @State private var anchor: UUID?
     /// What the search found — a moment after you stop typing.
     @State private var matches: [MeetingMatch] = []
 
     private var searching: Bool { !query.trimmingCharacters(in: .whitespaces).isEmpty }
-    private var canAsk: Bool { MeetingNotes.isAvailable && store.meetings.contains { !$0.words.isEmpty } }
+    private var canAsk: Bool { MeetingNotes.isAvailable && shown.contains { !$0.words.isEmpty } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        let groups = self.groups
+        // Lazy, so the search field and the folders can stay pinned at the top as the
+        // list scrolls — a meeting far down can still be dragged onto a folder.
+        LazyVStack(alignment: .leading, spacing: 20, pinnedViews: [.sectionHeaders]) {
             PageHeader(title: "Möten",
                        subtitle: "Spela in ett möte i rummet. Mindtalk skriver ned det som sägs och håller isär vem som pratar.")
                 .staggered(0)
@@ -133,62 +140,49 @@ private struct MeetingList: View {
             if store.meetings.isEmpty {
                 EmptyArchive().staggered(2)
             } else {
-                LibrarySearchField(query: $query, folder: folders.folder(folders.selected)?.name).staggered(2)
-                FolderBar(folders: folders, store: store).staggered(2)
-                LibraryAnswers(library: library, open: open)
-            }
-            if searching {
-                SearchResults(matches: matches, query: query, open: open)
-            } else if !store.meetings.isEmpty, groups.isEmpty, let folder = folders.folder(folders.selected) {
-                // A folder with nothing in it yet: how meetings get there.
-                VStack(spacing: 8) {
-                    Image(systemName: "folder").font(.system(size: 26, weight: .light)).foregroundStyle(DS.Colors.faint)
-                    Text("Inga möten i \(folder.name) än").font(.system(size: 14, weight: .semibold))
-                    Text("Dra hit ett möte från Alla, eller starta ett möte medan mappen är vald – då hamnar det här.")
-                        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 360)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 36)
-                .transition(.opacity)
-            } else if !store.meetings.isEmpty {
-                ForEach(Array(groups.enumerated()), id: \.element.title) { n, group in
-                    VStack(alignment: .leading, spacing: 10) {
-                        SectionTitle(group.title)
-                        VStack(spacing: 0) {
-                            ForEach(Array(group.meetings.enumerated()), id: \.element.id) { i, record in
-                                if i > 0 { CardDivider() }
-                                MeetingRow(record: record, writing: notes.writing.contains(record.id),
-                                           folder: folders.selected == nil ? folders.folder(of: record)?.name : nil) {
-                                    open(record.id, nil)
+                Section {
+                    LibraryAnswers(library: library, open: open)
+                    if searching {
+                        SearchResults(matches: matches, query: query, folder: folders.folder(folders.selected)?.name,
+                                      showAll: { withAnimation(.snappy) { folders.selected = nil } }, open: open)
+                    } else if groups.isEmpty, let folder = folders.folder(folders.selected) {
+                        emptyFolder(folder)
+                    } else {
+                        ForEach(Array(groups.enumerated()), id: \.element.title) { n, group in
+                            VStack(alignment: .leading, spacing: 10) {
+                                SectionTitle(group.title)
+                                VStack(spacing: 0) {
+                                    ForEach(Array(group.meetings.enumerated()), id: \.element.id) { i, record in
+                                        if i > 0 { CardDivider() }
+                                        row(record, in: groups)
+                                    }
                                 }
-                                // Dragged onto a folder in the row above: into it.
-                                .draggable(record.id.uuidString) {
-                                    Label(record.title, systemImage: "doc.text")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .padding(.horizontal, 12)
-                                        .frame(height: 30)
-                                        .background(Capsule().fill(DS.Colors.paper))
-                                        .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
-                                }
-                                .contextMenu {
-                                    Button("Öppna") { open(record.id, nil) }
-                                    MoveToFolderMenu(record: record)
-                                    Divider()
-                                    Button("Ta bort…", role: .destructive) { confirmDelete = record }
-                                }
+                                .padding(4)
+                                .card()
                             }
+                            .staggered(2 + min(n, 3))
                         }
-                        .padding(4)
-                        .card()
                     }
-                    .staggered(2 + min(n, 3))
+                } header: {
+                    VStack(alignment: .leading, spacing: 10) {
+                        LibrarySearchField(query: $query, folder: folders.folder(folders.selected)?.name)
+                        FolderBar(folders: folders, store: store, live: session.record?.id)
+                        if !selection.isEmpty { selectionBar }
+                        if let problem = folders.problem {
+                            Label(problem, systemImage: "exclamationmark.triangle.fill")
+                                .font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // Pinned, it covers the list scrolling under it — to the window's edges.
+                    .background(DS.Colors.paper.padding(.horizontal, -DS.Layout.pageHorizontal))
+                    .staggered(2)
                 }
             }
         }
         .padding(.bottom, canAsk ? 90 : 0)
-        .task(id: query + "\(store.meetings.count)" + (folders.selected?.uuidString ?? "")) {
+        .task(id: query + "\(store.meetings.count) \(shown.count)" + (folders.selected?.uuidString ?? "")) {
             guard searching else { matches = []; return }
             try? await Task.sleep(for: .milliseconds(120))
             guard !Task.isCancelled else { return }
@@ -202,7 +196,16 @@ private struct MeetingList: View {
         }
         #endif
         .pageLayout()
-        .overlay(alignment: .bottom) { if canAsk { LibraryAskBar(library: library) } }
+        .overlay(alignment: .bottom) {
+            VStack(spacing: 10) {
+                MoveToast()
+                if canAsk { LibraryAskBar(library: library) }
+            }
+            .animation(.spring(duration: 0.35, bounce: 0.15), value: folders.lastMove)
+        }
+        .onChange(of: folders.selected) { _, _ in selection = [] }
+        .onChange(of: store.meetings.count) { _, _ in selection = selection.filter { id in store.meetings.contains { $0.id == id } } }
+        .animation(.snappy, value: selection)
         .animation(.easeOut(duration: 0.2), value: searching)
         .animation(.spring(duration: 0.35, bounce: 0.12), value: folders.selected)
         .confirmationDialog("Ta bort mötet?", isPresented: Binding(get: { confirmDelete != nil },
@@ -214,6 +217,89 @@ private struct MeetingList: View {
         } message: {
             Text("Inspelningen, texten och sammanfattningen tas bort från din Mac och går inte att få tillbaka.")
         }
+    }
+
+    /// One meeting in the list: click opens it; ⌘-click adds it to a selection, ⇧-click
+    /// a run of them — to drag, or move with "Flytta till", together.
+    private func row(_ record: MeetingRecord, in groups: [(title: String, meetings: [MeetingRecord])]) -> some View {
+        let ids = selection.contains(record.id) ? Array(selection) : [record.id]
+        return MeetingRow(record: record, writing: notes.writing.contains(record.id),
+                          folder: folders.selected == nil ? folders.folder(of: record)?.name : nil,
+                          selected: selection.contains(record.id)) {
+            let keys = NSEvent.modifierFlags
+            if keys.contains(.command) {
+                if selection.contains(record.id) { selection.remove(record.id) } else { selection.insert(record.id) }
+                anchor = record.id
+            } else if keys.contains(.shift) {
+                let order = groups.flatMap(\.meetings).map(\.id)
+                if let from = anchor.flatMap({ order.firstIndex(of: $0) }), let to = order.firstIndex(of: record.id) {
+                    selection.formUnion(order[min(from, to)...max(from, to)])
+                } else {
+                    selection.insert(record.id)
+                    anchor = record.id
+                }
+            } else {
+                selection = []
+                open(record.id, nil)
+            }
+        }
+        // Dragged onto a folder in the row above: into it (with the others selected).
+        .meetingDrag(record, selection: selection)
+        .meetingMoveActions(ids)
+        .contextMenu {
+            if ids.count == 1 { Button("Öppna") { open(record.id, nil) } }
+            MoveToFolderMenu(ids: ids, current: ids.count == 1 ? record.folder : nil,
+                             title: ids.count == 1 ? "Flytta till" : "Flytta \(ids.count) möten till")
+            if ids.count == 1 {
+                Divider()
+                Button("Ta bort…", role: .destructive) { confirmDelete = record }
+            }
+        }
+    }
+
+    /// Meetings selected: how many, where to, and done.
+    private var selectionBar: some View {
+        HStack(spacing: 10) {
+            Text(selection.count == 1 ? String(localized: "1 möte valt") : String(localized: "\(selection.count) möten valda"))
+                .font(.system(size: 12.5, weight: .semibold))
+            Menu {
+                MoveToFolderItems(ids: Array(selection))
+            } label: {
+                Label("Flytta till", systemImage: "folder")
+                    .font(.system(size: 12.5, weight: .semibold))
+            }
+            .menuStyle(.button)
+            .buttonStyle(.soft)
+            .fixedSize()
+            Spacer()
+            Button("Avmarkera") { withAnimation(.snappy) { selection = [] } }
+                .buttonStyle(.plain)
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(DS.Colors.muted)
+                .keyboardShortcut(.cancelAction)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .card()
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    /// A folder with nothing in it yet: how meetings get there.
+    private func emptyFolder(_ folder: MeetingFolder) -> some View {
+        VStack(spacing: 10) {
+            Image(systemName: "folder").font(.system(size: 26, weight: .light)).foregroundStyle(DS.Colors.faint)
+            Text("Inga möten i \(folder.name) än").font(.system(size: 14, weight: .semibold))
+            Text("Dra ett möte till mappen här ovanför, eller högerklicka på ett möte och välj Flytta till. Möten du startar här hamnar också i mappen.")
+                .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 380)
+            Button("Visa alla möten") { withAnimation(.snappy) { folders.selected = nil } }
+                .buttonStyle(.soft)
+                .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 36)
+        .transition(.opacity)
     }
 
     /// The meetings of the folder chosen — all of them under "Alla".
@@ -248,6 +334,7 @@ private struct StartCard: View {
     @ObservedObject var session: MeetingSession
     @ObservedObject var voices: VoiceModels
     @ObservedObject var dictation: Dictation
+    @ObservedObject private var folders = MeetingFolders.shared
 
     var body: some View {
         HStack(alignment: .center, spacing: 18) {
@@ -270,6 +357,12 @@ private struct StartCard: View {
                 }
                 if let error = session.lastError {
                     Text(error).font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
+                }
+                // A folder chosen in the list below: the meeting goes in it — said here.
+                if voices.state == .ready, let folder = folders.folder(folders.selected) {
+                    Label("Sparas i \(folder.name)", systemImage: "folder")
+                        .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                        .transition(.opacity)
                 }
             }
             Spacer(minLength: 16)
@@ -315,7 +408,7 @@ private struct StartCard: View {
                 // One start: the meeting begins with the round ("Vem är här?"), which
                 // can be skipped.
                 Button {
-                    session.start(introducing: true)
+                    session.start(introducing: true, folder: MeetingFolders.shared.selected)
                 } label: {
                     HStack(spacing: 8) {
                         Circle().fill(DS.Colors.recording).frame(width: 8, height: 8)
@@ -378,6 +471,8 @@ private struct MeetingRow: View {
     let writing: Bool
     /// Under "Alla": the folder it's in, beside its time.
     var folder: String? = nil
+    /// ⌘- or ⇧-clicked, to move with others.
+    var selected = false
     let open: () -> Void
     @State private var hovering = false
 
@@ -395,7 +490,8 @@ private struct MeetingRow: View {
                     if let lede {
                         Text(lede).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted).lineLimit(1)
                     }
-                    Text(meta).font(.system(size: 12)).foregroundStyle(DS.Colors.muted).monospacedDigit()
+                    (Text(meta) + (folder.map { Text("  \(Image(systemName: "folder")) \($0)") } ?? Text("")))
+                        .font(.system(size: 12)).foregroundStyle(DS.Colors.muted).monospacedDigit().lineLimit(1)
                 }
                 Spacer(minLength: 12)
                 if record.words.isEmpty {
@@ -412,7 +508,10 @@ private struct MeetingRow: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(DS.Colors.chip.opacity(hovering ? 0.6 : 0)))
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(DS.Colors.chip.opacity(selected ? 1 : hovering ? 0.6 : 0)))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(DS.Colors.ink.opacity(selected ? 0.35 : 0), lineWidth: 1))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -433,8 +532,7 @@ private struct MeetingRow: View {
     }
 
     private var meta: String {
-        ([MeetingRecord.when(record.date), MeetingView.duration(record.duration)] + (folder.map { [$0] } ?? []))
-            .joined(separator: " · ")
+        [MeetingRecord.when(record.date), MeetingView.duration(record.duration)].joined(separator: " · ")
     }
 }
 

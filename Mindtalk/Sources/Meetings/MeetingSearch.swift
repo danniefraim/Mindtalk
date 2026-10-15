@@ -305,8 +305,11 @@ struct LibraryAnswer: Identifiable, Equatable {
     let question: String
     let answer: String
     let sources: [Source]
-    /// How many meetings it read.
+    /// How many meetings it read…
     let read: Int
+    /// …in this folder (nil: all of them).
+    var folder: String? = nil
+    var folderID: UUID? = nil
 }
 
 /// Questions about all your meetings, and their answers — kept while Mindtalk runs.
@@ -324,15 +327,20 @@ final class MeetingLibrary: ObservableObject {
         guard MeetingNotes.isAvailable, !question.isEmpty, !asking else { return }
         // A folder chosen in the list: the question is about its meetings.
         let folder = MeetingFolders.shared.selected
+        let folderName = MeetingFolders.shared.folder(folder)?.name
         let meetings = MeetingStore.shared.meetings.filter { !$0.words.isEmpty && (folder == nil || $0.folder == folder) }
-        guard !meetings.isEmpty else { return }
+        guard !meetings.isEmpty else {
+            failed = folderName.map { String(localized: "Inga möten med text i \($0) än.") }
+            return
+        }
         asking = true
         failed = nil
         // Not the large model during a meeting: it would crowd the live transcription.
         let local = BetterNotes.shared.isActive && !MeetingSession.shared.isRecording
         let context = LibraryContext(question: question, meetings: meetings,
                                      budget: local ? 12_000 : Lines.appleBudget)
-        let history = answers.suffix(2).map { "Q: \($0.question)\nA: \($0.answer)" }.joined(separator: "\n")
+        // The questions before, in the same folder — not what was asked about others.
+        let history = answers.filter { $0.folderID == folder }.suffix(2).map { "Q: \($0.question)\nA: \($0.answer)" }.joined(separator: "\n")
         Task {
             defer { asking = false }
             do {
@@ -345,7 +353,8 @@ final class MeetingLibrary: ObservableObject {
                     let source = LibraryAnswer.Source(meeting: s.meeting, title: title, at: s.at)
                     return seen.insert(source.id).inserted ? source : nil
                 }
-                answers.append(LibraryAnswer(question: question, answer: reply.answer, sources: sources, read: context.meetings))
+                answers.append(LibraryAnswer(question: question, answer: reply.answer, sources: sources, read: context.meetings,
+                                             folder: folderName, folderID: folder))
                 Self.log.info("answered across \(context.meetings) meetings in \(Date().timeIntervalSince(t0), format: .fixed(precision: 1)) s")
             } catch {
                 Self.log.error("ask across: \(error.localizedDescription, privacy: .public)")

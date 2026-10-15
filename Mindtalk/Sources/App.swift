@@ -285,6 +285,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --test-folders`: the folder suggestion on made-up meetings (nothing saved).
+        if args.contains("--test-folders") {
+            Task { @MainActor in
+                let folders = MeetingFolders.shared
+                folders.preview(["Kund Nordljus", "Styrelsen", "Möte"])
+                let nordljus = folders.sorted.first { $0.name == "Kund Nordljus" }!.id
+                let styrelsen = folders.sorted.first { $0.name == "Styrelsen" }!.id
+                func meeting(_ title: String, _ names: [String], folder: UUID? = nil, userTitled: Bool = false,
+                             summaryTitle: String? = nil) -> MeetingRecord {
+                    var r = MeetingRecord(title: title, date: Date(), language: .swedish)
+                    r.names = Dictionary(uniqueKeysWithValues: names.enumerated().map { (String($0.offset), $0.element) })
+                    r.folder = folder
+                    r.userTitled = userTitled
+                    r.finished = true
+                    if let summaryTitle { r.summary = MeetingSummary(title: summaryTitle, overview: "") }
+                    return r
+                }
+                // You ("Jag") in every meeting; Eva and Olle at Nordljus; Kim in the board.
+                let library = [
+                    meeting("a", ["Jag", "Eva"], folder: nordljus), meeting("b", ["Jag", "Eva", "Olle"], folder: nordljus),
+                    meeting("c", ["Jag", "Olle"], folder: nordljus), meeting("d", ["Jag", "Kim"], folder: styrelsen),
+                    meeting("e", ["Jag", "Kim"], folder: styrelsen), meeting("f", ["Jag"]), meeting("g", ["Jag"]),
+                ]
+                let cases: [(String, MeetingRecord, String?)] = [
+                    ("bara du", meeting(MeetingRecord.defaultTitle(for: Date()), ["Jag"], summaryTitle: "Planering"), nil),
+                    ("Eva och du", meeting("x", ["Jag", "Eva"], summaryTitle: "Leveransplan"), "Kund Nordljus"),
+                    ("Kim", meeting("x", ["Kim", "Jag"], summaryTitle: "Budget"), "Styrelsen"),
+                    ("titel med mappnamn", meeting("Nordljus uppföljning", [], userTitled: true, summaryTitle: "Kund Nordljus – status"), "Kund Nordljus"),
+                    ("standardtitel 'Möte …'", meeting(MeetingRecord.defaultTitle(for: Date()), [], summaryTitle: nil), nil),
+                    ("Eva och Kim", meeting("x", ["Eva", "Kim"], summaryTitle: "Samordning"), nil),
+                ]
+                for (name, record, expected) in cases {
+                    let got = folders.suggestion(for: record, among: library + [record])?.name
+                    print("\(got == expected ? "OK " : "FEL") \(name): \(got ?? "–") (väntat \(expected ?? "–"))")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --render-folders out.png [--dark]`: the folder row, a meeting's folder
         // tag and the suggestion, with made-up folders (nothing saved).
         if let i = args.firstIndex(of: "--render-folders"), i + 1 < args.count {
@@ -298,17 +337,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 var tagged = record
                 tagged.folder = folders.sorted.first?.id
                 let view = VStack(alignment: .leading, spacing: 18) {
-                    FolderBar(folders: folders, store: MeetingStore.shared, scrolls: false)
+                    FolderBar(folders: folders, store: MeetingStore.shared)
                     HStack(spacing: 8) {
-                        Text("i dag 13:30 · 52 min").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                        Text(verbatim: "i dag 13:30 · 52 min").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                         FolderTag(record: record)
                         FolderTag(record: tagged)
                     }
                     HStack(spacing: 10) {
                         Image(systemName: "folder").foregroundStyle(DS.Colors.muted)
-                        Text("Lägga mötet i \(Text("Kund Nordljus").fontWeight(.semibold))?").font(.system(size: 13))
+                        Text("Lägg mötet i \(Text(verbatim: "Kund Nordljus").fontWeight(.semibold))?").font(.system(size: 13))
                         Spacer()
-                        Button("Lägg där") {}.buttonStyle(.soft)
+                        Button("Lägg i mappen") {}.buttonStyle(.soft)
                         Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(DS.Colors.muted)
                     }
                     .padding(.horizontal, 16).padding(.vertical, 10).card()
@@ -1044,6 +1083,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     /// permission is missing), the Meetings page says why.
     static func startMeeting(introducing: Bool = true) {
         let meeting = MeetingSession.shared
+        // From the Möten page (⇧⌘R in the window): into the folder chosen there. From
+        // the menu bar or the shortcut elsewhere, in none.
+        let folder = mainWindowIsKey ? MeetingFolders.shared.selected : nil
         // With the round: the window comes forward first — while your click still counts,
         // before the microphone takes its moment to start — so it lands in front of the
         // app you were in, not behind it. (Afterwards the meeting goes to the panel.)
@@ -1051,7 +1093,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             MeetingPanel.shared.startedElsewhere = true
             showWindow(page: .meetings)
         }
-        if VoiceModels.isInstalled { meeting.start(introducing: introducing) }
+        if VoiceModels.isInstalled { meeting.start(introducing: introducing, folder: folder) }
         if !meeting.isRecording {
             MeetingPanel.shared.startedElsewhere = false
             showWindow(page: .meetings)

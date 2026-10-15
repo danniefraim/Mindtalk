@@ -22,7 +22,7 @@ struct LibrarySearchField: View {
                 .font(.system(size: 14))
                 .focused($focused)
                 .onExitCommand { query = "" }
-                .accessibilityLabel("Sök i mötena")
+                .accessibilityLabel(folder.map { String(localized: "Sök i \($0)") } ?? String(localized: "Sök i mötena"))
             if !query.isEmpty {
                 Button { query = "" } label: {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 13)).foregroundStyle(DS.Colors.faint)
@@ -47,13 +47,24 @@ struct LibrarySearchField: View {
 struct SearchResults: View {
     let matches: [MeetingMatch]
     let query: String
+    /// Searched in a folder: said so, with the way to search them all.
+    var folder: String? = nil
+    var showAll: (() -> Void)? = nil
     let open: (UUID, Double?) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(matches.isEmpty ? String(localized: "Inget möte innehåller det.")
-                 : matches.count == 1 ? String(localized: "1 möte") : String(localized: "\(matches.count) möten"))
-                .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+            HStack(spacing: 10) {
+                Text(matches.isEmpty
+                     ? (folder.map { String(localized: "Inget möte i \($0) innehåller det.") } ?? String(localized: "Inget möte innehåller det."))
+                     : matches.count == 1 ? String(localized: "1 möte") : String(localized: "\(matches.count) möten"))
+                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                if folder != nil, let showAll {
+                    Button("Sök i alla möten", action: showAll)
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12.5, weight: .semibold))
+                }
+            }
             ForEach(matches) { match in
                 VStack(alignment: .leading, spacing: 0) {
                     Button { open(match.record.id, nil) } label: {
@@ -68,6 +79,13 @@ struct SearchResults: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    // Found: dragged onto a folder, or moved from here.
+                    .meetingDrag(match.record)
+                    .meetingMoveActions([match.record.id])
+                    .contextMenu {
+                        Button("Öppna") { open(match.record.id, nil) }
+                        MoveToFolderMenu(ids: [match.record.id], current: match.record.folder)
+                    }
                     ForEach(match.hits.filter { $0.kind != .title }) { hit in
                         CardDivider()
                         HitRow(hit: hit, text: highlighted(hit.text)) { open(match.record.id, hit.at) }
@@ -226,7 +244,9 @@ private struct AnswerRow: View {
                     }
                 }
             }
-            Text(answer.read == 1 ? String(localized: "Läste 1 möte") : String(localized: "Läste \(answer.read) möten"))
+            Text(answer.folder.map { name in
+                    answer.read == 1 ? String(localized: "Läste 1 möte i \(name)") : String(localized: "Läste \(answer.read) möten i \(name)")
+                 } ?? (answer.read == 1 ? String(localized: "Läste 1 möte") : String(localized: "Läste \(answer.read) möten")))
                 .font(.system(size: 11.5)).foregroundStyle(DS.Colors.faint)
         }
         .padding(16)

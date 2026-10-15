@@ -413,7 +413,9 @@ final class MeetingSession: ObservableObject {
 
     // MARK: Start and stop
 
-    func start(introducing: Bool = false) {
+    /// `folder`: started on the Möten page while a folder is chosen there — it goes
+    /// in it. (From the menu bar or the shortcut, in none: the page suggests one after.)
+    func start(introducing: Bool = false, folder: UUID? = nil) {
         guard phase == .idle else { return }
         lastError = nil
         NoteDraft.shared.text = ""
@@ -433,8 +435,7 @@ final class MeetingSession: ObservableObject {
         let date = Date()
         var new = MeetingRecord(title: MeetingRecord.defaultTitle(for: date), date: date, language: language)
         new.finished = false
-        // Started while a folder is chosen in the list: it goes there.
-        new.folder = MeetingFolders.shared.folder(MeetingFolders.shared.selected)?.id
+        new.folder = MeetingFolders.shared.folder(folder)?.id
         new.folderAsked = new.folder != nil
         do {
             try MeetingStore.prepareFolder(for: new.id)
@@ -1404,6 +1405,8 @@ final class MeetingSession: ObservableObject {
             restored.recognized = record.recognized
             restored.rejected = record.rejected
             restored.folder = record.folder
+            restored.folderAsked = record.folderAsked
+            restored.answers = record.answers
             self.record = restored
             continuing = false
             Self.log.info("continued: nothing recorded — the meeting is as it was")
