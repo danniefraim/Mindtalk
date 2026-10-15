@@ -550,7 +550,7 @@ struct StartCard: View {
         case .downloading:
             return String(localized: "Laddar ned Nemotron 3 från NVIDIA – den håller isär rösterna…")
         case .missing, .failed:
-            return String(localized: "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (\(VoiceModels.sizeText)). Laddas ned en gång och fungerar sedan offline.")
+            return String(localized: "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (\(VoiceModels.sizeText)). Laddas ned en gång och fungerar sedan utan internet.")
         }
     }
 

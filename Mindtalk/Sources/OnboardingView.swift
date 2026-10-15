@@ -354,7 +354,7 @@ private struct KeyStep: View {
                     .opacity(recording || dictation.phase == .transcribing ? 1 : 0.55)
                 Group {
                     if dictation.pickingKey {
-                        Text("Håll in en eller flera modifierartangenter tillsammans och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
+                        Text("Håll in en eller flera modifieringstangenter tillsammans och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
                             .foregroundStyle(DS.Colors.muted)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: 520)
@@ -388,7 +388,7 @@ private struct KeyStep: View {
             }
             .buttonStyle(.soft)
             .disabled(!dictation.accessibilityGranted)
-            .help(dictation.accessibilityGranted ? String(localized: "Klicka och håll in önskade modifierartangenter tillsammans. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
+            .help(dictation.accessibilityGranted ? String(localized: "Klicka och håll in tangenterna du vill använda. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
                                                   : String(localized: "Tillåt Hjälpmedel i förra steget för att välja genväg."))
             .staggered(3)
         }

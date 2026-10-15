@@ -8,7 +8,7 @@ struct BetterNotesCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            CardRow(title: "Bättre anteckningar", detail: detail) { control }
+            CardRow(title: "Bättre sammanfattningar", detail: detail) { control }
             if case .downloading(let p) = notes.state {
                 VStack(alignment: .leading, spacing: 6) {
                     ProgressView(value: p).tint(DS.Colors.ink)
@@ -39,7 +39,7 @@ struct BetterNotesCard: View {
         case .unsupported:
             return String(localized: "Gemma 4 från Google skriver djupare sammanfattningar och svar, men kräver minst \(BetterNotes.minimumMemoryGB) GB minne. Den här Macen har \(BetterNotes.memoryGB) GB, så Apple Intelligence skriver sammanfattningarna.")
         case .missing, .failed:
-            var text = String(localized: "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Laddas ned en gång (\(BetterNotes.sizeText)) och fungerar sedan offline.")
+            var text = String(localized: "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Laddas ned en gång (\(BetterNotes.sizeText)) och fungerar sedan utan internet.")
             if !BetterNotes.hasRoom {
                 text += " " + String(localized: "Det behövs drygt \(BetterNotes.sizeText) ledigt på disken – du har \(BetterNotes.freeBytes / 1_000_000_000) GB.")
             }
@@ -71,7 +71,7 @@ struct BetterNotesCard: View {
         case .downloading:
             Button("Avbryt") { notes.cancel() }.buttonStyle(.soft)
         case .ready:
-            InkToggle(label: "Bättre anteckningar", isOn: $notes.enabled)
+            InkToggle(label: "Bättre sammanfattningar", isOn: $notes.enabled)
         }
     }
 

@@ -899,7 +899,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // Picking a shortcut ends when you turn to another app — left waiting, it
         // would swallow a key there and take the next modifier as your shortcut.
         NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
-            .sink { [weak self] _ in self?.dictation.stopPickingKey() }
+            .sink { [weak self] _ in
+                self?.dictation.stopPickingKey()
+                NotificationCenter.default.post(name: .stopChordPicking, object: nil)
+            }
             .store(in: &cancellables)
         // A meeting lives in its own panel beside your work, and in the menu bar —
         // a red dot and the time — wherever you are. Put away, a notification says

@@ -596,7 +596,7 @@ struct VoiceMemoryCard: View {
         if case .failed(let why) = memory.state, memory.enabled {
             return String(localized: "Röstmodellen kunde inte startas: \(why)")
         }
-        return String(localized: "Ge en talare ett namn en gång, så känner Mindtalk igen rösten i kommande möten. Det som sparas är ett röstavtryck, inte ljud, och bara på din Mac. Fråga dem du spelar in om det är okej.")
+        return String(localized: "Ge en talare ett namn en gång, så känner Mindtalk igen rösten i kommande möten. Bara ett röstavtryck sparas, inget ljud, och det stannar på din Mac. Fråga dem du spelar in om det är okej.")
     }
 }
 

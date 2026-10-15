@@ -394,7 +394,7 @@ struct MeetingPrivacyCard: View {
     var body: some View {
         VStack(spacing: 0) {
             CardRow(title: "Sammanfattningens språk",
-                    detail: String(localized: "Sammanfattningen skrivs på samma språk som mötet, om du inte väljer ett annat språk här.")) {
+                    detail: String(localized: "Sammanfattningen skrivs på mötets språk om du inte väljer ett annat.")) {
                 MenuPicker(options: SummaryLanguage.allCases.map { ($0, $0.title) }, selection: $summaryLanguage)
                     .onChange(of: summaryLanguage) { _, new in SummaryLanguage.chosen = new }
             }

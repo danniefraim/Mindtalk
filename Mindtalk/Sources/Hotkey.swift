@@ -141,7 +141,7 @@ struct Hotkey: Codable, Equatable {
     /// Something worth knowing about this key.
     var note: String {
         if modifierKeys.count > 1 {
-            let instructions = String(localized: "Håll in alla valda modifierartangenter samtidigt. Kortkommandon fungerar som vanligt.")
+            let instructions = String(localized: "Håll in alla valda modifieringstangenter samtidigt. Kortkommandon fungerar som vanligt.")
             if containsModifier(UInt16(kVK_Function)) {
                 return instructions + " " + String(localized: "Ställ in ”Tryck på 🌐 för att” till ”Gör ingenting” under Tangentbord i Systeminställningar.")
             }
@@ -159,7 +159,7 @@ struct Hotkey: Codable, Equatable {
             return String(localized: "Kortkommandon och versaler fungerar som vanligt.")
         default: break
         }
-        return String(localized: "Skriver inget eget medan Mindtalk körs.")
+        return String(localized: "Tangenten skriver inget medan Mindtalk är igång.")
     }
 
     private static let functionKeys: [Int: Int] = [
@@ -221,11 +221,14 @@ struct KeyChord: Codable, Equatable {
         return Hotkey(keyCode: keyCode, modifierMask: 0).name.count == 1
     }
 
-    /// ⌘Q, ⌘Tab and ⌘Space would take quitting, app switching or Spotlight from the whole Mac.
+    /// ⌘Q, ⌘Tab and ⌘Space would take quitting, app switching or Spotlight from the whole
+    /// Mac; ⇧⌘R and ⌘, are Mindtalk's own (start a meeting, Settings) inside the app.
     var isReserved: Bool {
         let f = CGEventFlags(rawValue: modifiers)
         guard f.contains(.maskCommand), !f.contains(.maskControl), !f.contains(.maskAlternate) else { return false }
-        return [kVK_ANSI_Q, kVK_Tab, kVK_Space].contains(Int(keyCode))
+        if [kVK_ANSI_Q, kVK_Tab, kVK_Space].contains(Int(keyCode)) { return true }
+        if Int(keyCode) == kVK_ANSI_R, f.contains(.maskShift) { return true }
+        return Int(keyCode) == kVK_ANSI_Comma && !f.contains(.maskShift)
     }
 
     /// What ⌘ + this letter means in most apps — so a choice like ⌘T comes with a word of warning.
@@ -243,7 +246,7 @@ struct KeyChord: Codable, Equatable {
         if !f.contains(.maskShift), let meaning = Self.commonMeanings[Int(keyCode)] {
             return String(localized: "\(chip.replacingOccurrences(of: " ", with: "")) betyder \(String(localized: String.LocalizationValue(meaning))) i de flesta appar. Mindtalk tar över den överallt medan appen är igång – ⌃⌥ och en bokstav är ett säkrare val.")
         }
-        return String(localized: "Genvägar med bara ⌘ används ofta av andra appar. Mindtalk tar över den överallt medan appen är igång – ⌃⌥ och en bokstav är ett säkrare val.")
+        return String(localized: "En genväg med bara ⌘ krockar ofta med andra appars kortkommandon. Mindtalk tar över den överallt medan appen är igång – ⌃⌥ och en bokstav är ett säkrare val.")
     }
 
     func matches(_ keyCode: UInt16, _ flags: CGEventFlags) -> Bool {

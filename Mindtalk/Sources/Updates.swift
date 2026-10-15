@@ -29,6 +29,22 @@ final class Updates: NSObject, ObservableObject, SPUStandardUserDriverDelegate, 
         didSet { if controller.updater.automaticallyChecksForUpdates != automatic { controller.updater.automaticallyChecksForUpdates = automatic } }
     }
 
+    /// Debug builds never update themselves: the row in Settings is greyed out.
+    static var isAvailable: Bool {
+        #if DEBUG
+        return false
+        #else
+        return true
+        #endif
+    }
+
+    /// Sparkle may change its own setting (its first-run question): read it again.
+    func refresh() {
+        #if !DEBUG
+        if automatic != controller.updater.automaticallyChecksForUpdates { automatic = controller.updater.automaticallyChecksForUpdates }
+        #endif
+    }
+
     func start() {
         #if DEBUG
         return   // debug builds never update themselves

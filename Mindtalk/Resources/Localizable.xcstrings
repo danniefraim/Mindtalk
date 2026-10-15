@@ -372,6 +372,22 @@
         }
       }
     },
+    "%@ · går att byta när mötet är klart": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · can be changed when the meeting is over"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · går att byta när mötet är klart"
+          }
+        }
+      }
+    },
     "%@ · redan installerad": {
       "localizations": {
         "en": {
@@ -556,6 +572,7 @@
       }
     },
     "%@, %@. Laddas ned en gång och fungerar sedan offline.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -567,6 +584,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@, %@. Laddas ned en gång och fungerar sedan offline."
+          }
+        }
+      }
+    },
+    "%@, %@. Laddas ned en gång och fungerar sedan utan internet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@. Downloaded once, then works without internet."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, %@. Laddas ned en gång och fungerar sedan utan internet."
           }
         }
       }
@@ -2050,6 +2083,22 @@
         }
       }
     },
+    "Av. Du kan fortfarande säga en tanke på sidan Tankar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off. You can still say a thought on the Thoughts page."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Av. Du kan fortfarande säga en tanke på sidan Tankar."
+          }
+        }
+      }
+    },
     "Av. Inne i Mindtalk fungerar ⇧⌘R.": {
       "localizations": {
         "en": {
@@ -2067,6 +2116,7 @@
       }
     },
     "Av. Tankar kan fortfarande sägas från sidan Tankar.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2524,6 +2574,7 @@
       }
     },
     "Behövs för att känna av tangenten och skriva in texten. Står Mindtalk redan i listan i Systeminställningar: slå av och på den.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2535,6 +2586,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Behövs för att känna av tangenten och skriva in texten. Står Mindtalk redan i listan i Systeminställningar: slå av och på den."
+          }
+        }
+      }
+    },
+    "Behövs för att känna av tangenten och skriva in texten. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needed to notice the key and type the text. Is Mindtalk already listed under Privacy & Security → Accessibility? Turn it off and on."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Behövs för att känna av tangenten och skriva in texten. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på."
           }
         }
       }
@@ -2733,6 +2800,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bättre anteckningar"
+          }
+        }
+      }
+    },
+    "Bättre sammanfattningar": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Better summaries"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bättre sammanfattningar"
           }
         }
       }
@@ -3802,6 +3886,22 @@
         }
       }
     },
+    "En genväg med bara ⌘ krockar ofta med andra appars kortkommandon. Mindtalk tar över den överallt medan appen är igång – ⌃⌥ och en bokstav är ett säkrare val.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A shortcut with only ⌘ often clashes with other apps' shortcuts. Mindtalk takes it over everywhere while it's running – ⌃⌥ and a letter is a safer choice."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En genväg med bara ⌘ krockar ofta med andra appars kortkommandon. Mindtalk tar över den överallt medan appen är igång – ⌃⌥ och en bokstav är ett säkrare val."
+          }
+        }
+      }
+    },
     "En liten lyssnare (%@) laddas ned när du lägger till ett eget ord, så att namn stavas rätt redan från början.": {
       "localizations": {
         "en": {
@@ -4684,6 +4784,7 @@
       }
     },
     "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (%@). Laddas ned en gång och fungerar sedan offline.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4695,6 +4796,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (%@). Laddas ned en gång och fungerar sedan offline."
+          }
+        }
+      }
+    },
+    "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (%@). Laddas ned en gång och fungerar sedan utan internet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To tell who is speaking, Mindtalk needs Nemotron 3 from NVIDIA (%@). Downloaded once, then works without internet."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (%@). Laddas ned en gång och fungerar sedan utan internet."
           }
         }
       }
@@ -4796,7 +4913,24 @@
         }
       }
     },
+    "Ge en talare ett namn en gång, så känner Mindtalk igen rösten i kommande möten. Bara ett röstavtryck sparas, inget ljud, och det stannar på din Mac. Fråga dem du spelar in om det är okej.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name a speaker once and Mindtalk recognises the voice in later meetings. Only a voiceprint is kept, no audio, and it stays on your Mac. Ask the people you record if that's okay."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ge en talare ett namn en gång, så känner Mindtalk igen rösten i kommande möten. Bara ett röstavtryck sparas, inget ljud, och det stannar på din Mac. Fråga dem du spelar in om det är okej."
+          }
+        }
+      }
+    },
     "Ge en talare ett namn en gång, så känner Mindtalk igen rösten i kommande möten. Det som sparas är ett röstavtryck, inte ljud, och bara på din Mac. Fråga dem du spelar in om det är okej.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4862,6 +4996,7 @@
       }
     },
     "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Laddas ned en gång (%@) och fungerar sedan offline.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4873,6 +5008,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Laddas ned en gång (%@) och fungerar sedan offline."
+          }
+        }
+      }
+    },
+    "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Laddas ned en gång (%@) och fungerar sedan utan internet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 from Google writes the summaries and answers questions – more accurate than Apple Intelligence and without topic blocks. Downloaded once (%@), then works without internet."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Laddas ned en gång (%@) och fungerar sedan utan internet."
           }
         }
       }
@@ -4994,6 +5145,7 @@
       }
     },
     "Genvägar med bara ⌘ används ofta av andra appar. Mindtalk tar över den överallt medan appen är igång – ⌃⌥ och en bokstav är ett säkrare val.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5133,6 +5285,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "God morgon"
+          }
+        }
+      }
+    },
+    "Godkänn Mindtalk under Allmänt → Inloggningsobjekt i Systeminställningar.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Approve Mindtalk under General → Login Items in System Settings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Godkänn Mindtalk under Allmänt → Inloggningsobjekt i Systeminställningar."
           }
         }
       }
@@ -5734,6 +5903,7 @@
       }
     },
     "Håll in alla valda modifierartangenter samtidigt. Kortkommandon fungerar som vanligt.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5745,6 +5915,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in alla valda modifierartangenter samtidigt. Kortkommandon fungerar som vanligt."
+          }
+        }
+      }
+    },
+    "Håll in alla valda modifieringstangenter samtidigt. Kortkommandon fungerar som vanligt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold all the chosen modifier keys at once. Shortcuts work as usual."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in alla valda modifieringstangenter samtidigt. Kortkommandon fungerar som vanligt."
           }
         }
       }
@@ -5800,6 +5986,7 @@
       }
     },
     "Håll in en eller flera modifierartangenter tillsammans och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5811,6 +5998,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in en eller flera modifierartangenter tillsammans och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter."
+          }
+        }
+      }
+    },
+    "Håll in en eller flera modifieringstangenter tillsammans och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold one or more modifier keys together and release to save. You can also press a regular key. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in en eller flera modifieringstangenter tillsammans och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter."
           }
         }
       }
@@ -5866,6 +6069,7 @@
       }
     },
     "Håll in och säg det du kommer på – det hamnar i Tankar. Ett snabbt tryck lyssnar tills du trycker igen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5877,6 +6081,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in och säg det du kommer på – det hamnar i Tankar. Ett snabbt tryck lyssnar tills du trycker igen."
+          }
+        }
+      }
+    },
+    "Håll in och säg det du kommer på – det hamnar i Tankar. Tryck snabbt, så lyssnar Mindtalk tills du trycker igen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold and say what comes to mind – it lands in Thoughts. Press briefly, and Mindtalk listens until you press again."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in och säg det du kommer på – det hamnar i Tankar. Tryck snabbt, så lyssnar Mindtalk tills du trycker igen."
           }
         }
       }
@@ -7101,7 +7321,24 @@
         }
       }
     },
+    "Klicka och håll in tangenterna du vill använda. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click and hold the keys you want to use. Release to save. You can also press a regular key. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klicka och håll in tangenterna du vill använda. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter."
+          }
+        }
+      }
+    },
     "Klicka och håll in önskade modifierartangenter tillsammans. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7705,6 +7942,23 @@
         }
       }
     },
+    "Kör modellerna på Neural Engine. Av FluidInference. Apache 2.0.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runs the models on the Neural Engine. By FluidInference. Apache 2.0."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kör modellerna på Neural Engine. Av FluidInference. Apache 2.0."
+          }
+        }
+      }
+    },
     "Ladda ned": {
       "extractionState": "stale",
       "localizations": {
@@ -8226,6 +8480,7 @@
       }
     },
     "Ljudet på datorn lämnas som det är.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9399,6 +9654,57 @@
         }
       }
     },
+    "Mindtalk behöver startas om för att byta språk – det går när inspelningen är nedskriven.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk needs to restart to switch language – possible once the recording is written out."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk behöver startas om för att byta språk – det går när inspelningen är nedskriven."
+          }
+        }
+      }
+    },
+    "Mindtalk behöver startas om för att byta språk – det går när mötet är klart.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk needs to restart to switch language – possible once the meeting is over."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk behöver startas om för att byta språk – det går när mötet är klart."
+          }
+        }
+      }
+    },
+    "Mindtalk behöver startas om för att byta språk.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk needs to restart to switch language."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk behöver startas om för att byta språk."
+          }
+        }
+      }
+    },
     "Mindtalk behöver tillgång till mikrofonen.": {
       "localizations": {
         "en": {
@@ -9482,6 +9788,7 @@
       }
     },
     "Mindtalk hör vem som säger vad och skriver medan ni pratar – bäst med upp till fem personer nära Macen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9498,7 +9805,6 @@
       }
     },
     "Mindtalk hör vem som säger vad och skriver medan ni pratar – bäst med upp till fem personer.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9611,6 +9917,22 @@
         }
       }
     },
+    "Mindtalk rör inte ljudet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk leaves the sound alone."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk rör inte ljudet."
+          }
+        }
+      }
+    },
     "Mindtalk startar om för att byta språk.": {
       "extractionState": "stale",
       "localizations": {
@@ -9695,7 +10017,24 @@
         }
       }
     },
+    "Musik och video pausas medan du pratar och fortsätter sedan. Annat ljud tonas ner.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Music and video pause while you talk and resume afterwards. Other sound is turned down."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Musik och video pausas medan du pratar och fortsätter sedan. Annat ljud tonas ner."
+          }
+        }
+      }
+    },
     "Musik och video pausas medan du pratar och fortsätter sen. Annat ljud tonas ner.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11950,7 +12289,24 @@
         }
       }
     },
+    "Sammanfattningen skrivs på mötets språk om du inte väljer ett annat.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The summary is written in the meeting's language unless you choose another."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfattningen skrivs på mötets språk om du inte väljer ett annat."
+          }
+        }
+      }
+    },
     "Sammanfattningen skrivs på samma språk som mötet, om du inte väljer ett annat språk här.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12282,6 +12638,7 @@
       }
     },
     "Skriver inget eget medan Mindtalk körs.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12606,6 +12963,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Slå på Hjälpmedel för Mindtalk"
+          }
+        }
+      }
+    },
+    "Slå på Hjälpmedel för Mindtalk först.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn on Accessibility for Mindtalk first."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slå på Hjälpmedel för Mindtalk först."
           }
         }
       }
@@ -13493,6 +13867,7 @@
       }
     },
     "Stäng av mötesgenvägen": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13585,6 +13960,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Står Mindtalk redan i listan i Systeminställningar? Slå av och på den – macOS kräver det efter en uppdatering ibland."
+          }
+        }
+      }
+    },
+    "Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på – ibland kräver macOS det efter en uppdatering.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Is Mindtalk already under Privacy & Security → Accessibility? Turn it off and on – macOS sometimes needs that after an update."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på – ibland kräver macOS det efter en uppdatering."
           }
         }
       }
@@ -14513,6 +14905,22 @@
         }
       }
     },
+    "Tangenten skriver inget medan Mindtalk är igång.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The key types nothing while Mindtalk is running."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tangenten skriver inget medan Mindtalk är igång."
+          }
+        }
+      }
+    },
     "Tankar": {
       "localizations": {
         "en": {
@@ -14726,6 +15134,23 @@
         }
       }
     },
+    "Texten skrivs in som vanligt och ligger sedan kvar i urklipp. Står markören inte i ett textfält hamnar den bara där.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text is typed as usual and then stays on the clipboard. If the cursor isn't in a text field, it only goes there."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten skrivs in som vanligt och ligger sedan kvar i urklipp. Står markören inte i ett textfält hamnar den bara där."
+          }
+        }
+      }
+    },
     "Texten skrivs medan ni pratar – bäst med upp till fem personer nära Macen.": {
       "extractionState": "stale",
       "localizations": {
@@ -14744,6 +15169,7 @@
       }
     },
     "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer nära Macen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -14777,7 +15203,6 @@
       }
     },
     "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15254,7 +15679,6 @@
       }
     },
     "Tryck på en tangent…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

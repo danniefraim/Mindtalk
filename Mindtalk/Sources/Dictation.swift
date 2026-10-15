@@ -183,7 +183,7 @@ final class Dictation: ObservableObject {
         var why: String {
             switch self {
             case .accessibility:
-                return String(localized: "Behövs för att känna av tangenten och skriva in texten. Står Mindtalk redan i listan i Systeminställningar: slå av och på den.")
+                return String(localized: "Behövs för att känna av tangenten och skriva in texten. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på.")
             case .microphone: return String(localized: "Behövs för att höra vad du säger.")
             case .modelMissing, .modelDownloading, .modelFailed:
                 return String(localized: "Taligenkänningen behöver talmodellen – den laddas ned en gång.")
