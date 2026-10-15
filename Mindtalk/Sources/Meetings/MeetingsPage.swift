@@ -114,6 +114,7 @@ private struct MeetingList: View {
     @ObservedObject var dictation: Dictation
     @ObservedObject private var notes = MeetingNotes.shared
     @ObservedObject private var library = MeetingLibrary.shared
+    @ObservedObject private var folders = MeetingFolders.shared
     let open: (UUID, Double?) -> Void
     @State private var confirmDelete: MeetingRecord?
     @State private var query = ""
@@ -132,11 +133,25 @@ private struct MeetingList: View {
             if store.meetings.isEmpty {
                 EmptyArchive().staggered(2)
             } else {
-                LibrarySearchField(query: $query).staggered(2)
+                LibrarySearchField(query: $query, folder: folders.folder(folders.selected)?.name).staggered(2)
+                FolderBar(folders: folders, store: store).staggered(2)
                 LibraryAnswers(library: library, open: open)
             }
             if searching {
                 SearchResults(matches: matches, query: query, open: open)
+            } else if !store.meetings.isEmpty, groups.isEmpty, let folder = folders.folder(folders.selected) {
+                // A folder with nothing in it yet: how meetings get there.
+                VStack(spacing: 8) {
+                    Image(systemName: "folder").font(.system(size: 26, weight: .light)).foregroundStyle(DS.Colors.faint)
+                    Text("Inga möten i \(folder.name) än").font(.system(size: 14, weight: .semibold))
+                    Text("Dra hit ett möte från Alla, eller starta ett möte medan mappen är vald – då hamnar det här.")
+                        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 360)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 36)
+                .transition(.opacity)
             } else if !store.meetings.isEmpty {
                 ForEach(Array(groups.enumerated()), id: \.element.title) { n, group in
                     VStack(alignment: .leading, spacing: 10) {
@@ -144,11 +159,25 @@ private struct MeetingList: View {
                         VStack(spacing: 0) {
                             ForEach(Array(group.meetings.enumerated()), id: \.element.id) { i, record in
                                 if i > 0 { CardDivider() }
-                                MeetingRow(record: record, writing: notes.writing.contains(record.id)) { open(record.id, nil) }
-                                    .contextMenu {
-                                        Button("Öppna") { open(record.id, nil) }
-                                        Button("Ta bort…", role: .destructive) { confirmDelete = record }
-                                    }
+                                MeetingRow(record: record, writing: notes.writing.contains(record.id),
+                                           folder: folders.selected == nil ? folders.folder(of: record)?.name : nil) {
+                                    open(record.id, nil)
+                                }
+                                // Dragged onto a folder in the row above: into it.
+                                .draggable(record.id.uuidString) {
+                                    Label(record.title, systemImage: "doc.text")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .padding(.horizontal, 12)
+                                        .frame(height: 30)
+                                        .background(Capsule().fill(DS.Colors.paper))
+                                        .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
+                                }
+                                .contextMenu {
+                                    Button("Öppna") { open(record.id, nil) }
+                                    MoveToFolderMenu(record: record)
+                                    Divider()
+                                    Button("Ta bort…", role: .destructive) { confirmDelete = record }
+                                }
                             }
                         }
                         .padding(4)
@@ -159,11 +188,11 @@ private struct MeetingList: View {
             }
         }
         .padding(.bottom, canAsk ? 90 : 0)
-        .task(id: query + "\(store.meetings.count)") {
+        .task(id: query + "\(store.meetings.count)" + (folders.selected?.uuidString ?? "")) {
             guard searching else { matches = []; return }
             try? await Task.sleep(for: .milliseconds(120))
             guard !Task.isCancelled else { return }
-            matches = MeetingSearch.find(query, in: store.meetings.filter { $0.id != session.record?.id })
+            matches = MeetingSearch.find(query, in: shown.filter { $0.id != session.record?.id })
         }
         #if DEBUG
         .onAppear {   // screenshots: `--search-query "ord"`, `--ask-query "fråga"`
@@ -175,6 +204,7 @@ private struct MeetingList: View {
         .pageLayout()
         .overlay(alignment: .bottom) { if canAsk { LibraryAskBar(library: library) } }
         .animation(.easeOut(duration: 0.2), value: searching)
+        .animation(.spring(duration: 0.35, bounce: 0.12), value: folders.selected)
         .confirmationDialog("Ta bort mötet?", isPresented: Binding(get: { confirmDelete != nil },
                                                                    set: { if !$0 { confirmDelete = nil } })) {
             Button("Ta bort", role: .destructive) {
@@ -186,11 +216,17 @@ private struct MeetingList: View {
         }
     }
 
+    /// The meetings of the folder chosen — all of them under "Alla".
+    private var shown: [MeetingRecord] {
+        guard let folder = folders.selected else { return store.meetings }
+        return store.meetings.filter { $0.folder == folder }
+    }
+
     /// "I dag", "I går", "Tidigare i veckan", then by month.
     private var groups: [(title: String, meetings: [MeetingRecord])] {
         let calendar = Calendar.current
         var out: [(title: String, meetings: [MeetingRecord])] = []
-        for record in store.meetings where record.id != session.record?.id {
+        for record in shown where record.id != session.record?.id {
             let title: String
             if calendar.isDateInToday(record.date) { title = String(localized: "I dag") }
             else if calendar.isDateInYesterday(record.date) { title = String(localized: "I går") }
@@ -340,6 +376,8 @@ private struct EmptyArchive: View {
 private struct MeetingRow: View {
     let record: MeetingRecord
     let writing: Bool
+    /// Under "Alla": the folder it's in, beside its time.
+    var folder: String? = nil
     let open: () -> Void
     @State private var hovering = false
 
@@ -395,7 +433,8 @@ private struct MeetingRow: View {
     }
 
     private var meta: String {
-        [MeetingRecord.when(record.date), MeetingView.duration(record.duration)].joined(separator: " · ")
+        ([MeetingRecord.when(record.date), MeetingView.duration(record.duration)] + (folder.map { [$0] } ?? []))
+            .joined(separator: " · ")
     }
 }
 
@@ -625,6 +664,8 @@ struct MeetingView: View {
 
     @ObservedObject private var notes = MeetingNotes.shared
     @ObservedObject private var epoch = WindowEpoch.shared
+    /// For "Fortsätt mötet" on a saved meeting: whether it can, and why not.
+    @ObservedObject private var recorder = MeetingSession.shared
     @State private var title = ""
     @State private var confirmDelete = false
     @State private var confirmRemoveAudio = false
@@ -678,7 +719,11 @@ struct MeetingView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onDisappear { if MeetingPlayer.shared.meeting == record.id { MeetingPlayer.shared.stop() } }
+        .onDisappear {
+            if MeetingPlayer.shared.meeting == record.id { MeetingPlayer.shared.stop() }
+            // A "Fortsätt mötet" that couldn't is said here — not later on another page.
+            if !live, recorder.phase == .idle { recorder.lastError = nil }
+        }
         .onAppear {
             title = record.title
             if let at = MeetingsPage.focusAt, !live {
@@ -750,6 +795,7 @@ struct MeetingView: View {
                 FlowLayout(spacing: 8) {
                     Text(meta).font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
                         .padding(.trailing, 4)
+                    FolderTag(record: record)
                     ForEach(cast.order, id: \.self) { s in
                         SpeakerChip(speaker: s, cast: cast, recognized: record.recognized[String(s)] != nil,
                                     rename: { edit.name(s, $0) },
@@ -768,6 +814,15 @@ struct MeetingView: View {
             }
             healLine
             banner
+            if !live { FolderSuggestion(record: record) }
+            // "Fortsätt mötet" couldn't: why, here where you pressed it.
+            if !live, let error = recorder.lastError {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(DS.Colors.warning)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .transition(.opacity)
+            }
         }
         .padding(.top, DS.Layout.pageTop - 10)
         .padding(.bottom, 12)
@@ -856,8 +911,9 @@ struct MeetingView: View {
                 .buttonStyle(.plain)
                 .help("Mötet fortsätter i en liten panel bredvid det du gör")
             }
-            // Back in the room after a break: on with the same meeting.
-            if !live, record.finished, record.hasAudio {
+            // Back in the room after a break: on with the same meeting (from today — an
+            // older one has it in the ⋯ menu).
+            if !live, record.finished, record.hasAudio, Calendar.current.isDateInToday(record.date) {
                 Button { AppDelegate.continueMeeting(record.id) } label: {
                     Label("Fortsätt mötet", systemImage: "record.circle")
                         .font(.system(size: 12.5, weight: .semibold))
@@ -867,7 +923,7 @@ struct MeetingView: View {
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .disabled(MeetingSession.shared.phase != .idle)
+                .disabled(recorder.phase != .idle)
                 .help("Spela in mer i samma möte – texten fortsätter där den slutade, och anteckningarna skrivs om för hela mötet")
             }
             Button(action: copy) {
@@ -899,6 +955,8 @@ struct MeetingView: View {
                     }
                     .disabled(!MeetingNotes.isAvailable || notes.writing.contains(record.id))
                     if record.hasAudio {
+                        Button("Fortsätt mötet") { AppDelegate.continueMeeting(record.id) }
+                            .disabled(!record.finished || MeetingSession.shared.phase != .idle)
                         Button("Lyssna igenom mötet igen") { MeetingSession.shared.finishInterrupted(record.id) }
                             .disabled(MeetingSession.shared.phase != .idle)
                         Button("Visa inspelningen i Finder") {
@@ -1853,8 +1911,11 @@ private struct LiveBar: View {
 
     private var caption: (text: String, warning: Bool)? {
         if case .finishing = session.phase { return (String(localized: "Texten blir mer exakt när det är klart."), false) }
-        if session.stopping { return (String(localized: "Spelar in tills nedräkningen är klar."), false) }
-        if session.isPaused { return (String(localized: "Pausat – mikrofonen är av. Allt hittills finns kvar."), false) }
+        if session.stopping {
+            return (session.isPaused ? String(localized: "Mötet avslutas om några sekunder.")
+                                     : String(localized: "Spelar in tills nedräkningen är klar."), false)
+        }
+        if session.isPaused { return (String(localized: "Pausat – mikrofonen är av. Det som sagts finns kvar."), false) }
         if let w = session.warning { return (w, true) }
         if !panelTipSeen, session.isRecording {
             return (String(localized: "Stäng fönstret så fortsätter mötet i en liten panel."), false)

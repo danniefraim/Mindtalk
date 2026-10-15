@@ -84,8 +84,14 @@ final class MeetingSession: ObservableObject {
     /// …and those voices of the part before, as prints: a voice now that matches one
     /// is that person, name and all.
     private var earlier: [Int: [Float]] = [:]
-    /// This recording continues a finished meeting (`continueMeeting`).
+    /// This recording continues a finished meeting (`continueMeeting`)…
     private(set) var continuing = false
+    /// …which was this when it was continued: a continuation that recorded nothing
+    /// puts it back as it was.
+    private var before: MeetingRecord?
+    /// A continuation's recordings couldn't be joined: the meeting stays unfinished,
+    /// and "Gör klart" tries again.
+    private var keepUnfinished = false
 
     var isRecording: Bool { phase == .starting || phase == .recording }
     var isBusy: Bool { phase != .idle }
@@ -128,7 +134,8 @@ final class MeetingSession: ObservableObject {
             forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated {
                 let session = MeetingSession.shared
-                guard session.isRecording else { return }
+                // Paused, the mic is already off: the meeting waits through the sleep.
+                guard session.isRecording, !session.isPaused else { return }
                 session.lastError = String(localized: "Mötet avslutades när Macen gick i vila.")
                 session.stop()
             }
@@ -426,6 +433,9 @@ final class MeetingSession: ObservableObject {
         let date = Date()
         var new = MeetingRecord(title: MeetingRecord.defaultTitle(for: date), date: date, language: language)
         new.finished = false
+        // Started while a folder is chosen in the list: it goes there.
+        new.folder = MeetingFolders.shared.folder(MeetingFolders.shared.selected)?.id
+        new.folderAsked = new.folder != nil
         do {
             try MeetingStore.prepareFolder(for: new.id)
             let intake = try AudioIntake(file: MeetingStore.audioURL(for: new.id))
@@ -517,10 +527,22 @@ final class MeetingSession: ObservableObject {
     /// where it ended, the voices you know from its first part named as they speak.
     /// Ended, the whole meeting is listened through again and its notes rewritten.
     func continueMeeting(_ id: UUID) {
-        guard phase == .idle, Dictation.shared.phase == .idle, VoiceModels.isInstalled,
-              let saved = MeetingStore.shared.meetings.first(where: { $0.id == id }),
-              saved.finished, saved.hasAudio else { return }
+        guard phase == .idle, let saved = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
         lastError = nil
+        guard Dictation.shared.phase == .idle else {
+            lastError = String(localized: "Avsluta dikteringen först.")
+            return
+        }
+        guard VoiceModels.isInstalled else {
+            lastError = String(localized: "Ladda ned Nemotron 3 först – det görs på sidan Möten.")
+            return
+        }
+        guard saved.finished, saved.hasAudio else {
+            lastError = saved.hasAudio
+                ? String(localized: "Gör klart mötet först – sedan kan det fortsätta.")
+                : String(localized: "Inspelningen av mötet är borttagen – det går inte att fortsätta det.")
+            return
+        }
         language = saved.language
         guard language.isInstalled else {
             lastError = String(localized: "Ladda ned \(language.modelName) först, under Inställningar → Språk.")
@@ -531,29 +553,41 @@ final class MeetingSession: ObservableObject {
             return
         }
         let url = MeetingStore.audioURL(for: id)
+        // Left from a continuation that was cut off: in its place first — and if that
+        // can't be done, nothing is touched (it is someone's recording).
+        do { try MeetingStore.joinContinuation(for: id) } catch {
+            Self.log.error("continued: an earlier part could not be joined: \(error.localizedDescription, privacy: .public)")
+            lastError = String(localized: "Inspelningen av mötet kunde inte läsas – det går inte att fortsätta det.")
+            return
+        }
         guard let file = try? AVAudioFile(forReading: url), file.processingFormat.sampleRate == Double(Self.rate) else {
             lastError = String(localized: "Inspelningen av mötet kunde inte läsas – det går inte att fortsätta det.")
             return
         }
-        MeetingPlayer.shared.stop()
-        NoteDraft.shared.text = ""
-        steps = 0
         // Where the new part begins: after the first, and the second of quiet put between.
         let offset = Int(file.length) + MeetingStore.continuationGap
+        let more = MeetingStore.continuationURL(for: id)
         do {
-            // Left from a continuation that was cut off: in its place first.
-            try MeetingStore.joinContinuation(for: id)
-            let intake = try AudioIntake(file: MeetingStore.continuationURL(for: id), startingAt: offset)
+            let intake = try AudioIntake(file: more, startingAt: offset)
             self.intake = intake
             try openMicrophone(into: intake)
         } catch {
+            intake?.close()
             intake = nil
-            try? FileManager.default.removeItem(at: MeetingStore.continuationURL(for: id))
+            try? FileManager.default.removeItem(at: more)       // made just now, empty
             lastError = error.localizedDescription
             return
         }
+        MeetingPlayer.shared.stop()
+        // Your notes so far stay in the note field: what you type goes on from them.
+        NoteDraft.shared.text = saved.notesText
+        steps = 0
+        before = saved
         var record = saved
         record.finished = false
+        record.refined = false           // until the whole is listened through again
+        record.heal = nil
+        record.continuedAt = Double(offset) / Double(Self.rate)
         self.record = record
         continuing = true
         let seconds = Double(offset) / Double(Self.rate)
@@ -581,6 +615,9 @@ final class MeetingSession: ObservableObject {
         phase = .starting
         lastRestart = nil
         introductionHeld = true          // who's here is known; a new voice is named with a click
+        // The new part's opening kept for recognising voices — ten minutes, not three:
+        // someone from before may first speak a while in.
+        intake?.keepOpening(seconds: 600)
         if !recorder.usesBluetooth { Cue.start() }
         activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated],
                                                          reason: "Recording a meeting")
@@ -615,14 +652,25 @@ final class MeetingSession: ObservableObject {
             checked[speaker] = heard
             let scored = earlier.map { (speaker: $0.key, score: VoiceMemory.cosine(print, $0.value)) }
                 .sorted { $0.score > $1.score }
-            guard let best = scored.first else { continue }
+            guard let best = scored.first, let latest = self.record else { continue }
             let lead = best.score - (scored.dropFirst().first?.score ?? -1)
-            // From under four seconds of speech, a little surer: short prints sit closer.
-            guard best.score >= (heard >= 4 ? VoiceMemory.sameVoice : 0.65), lead >= VoiceMemory.margin,
-                  let latest = self.record, latest.words.contains(where: { $0.speaker == speaker })
-                    || pending.contains(where: { $0.speaker == speaker }) else { continue }
-            Self.log.notice("continued: voice \(speaker) is \(best.speaker) of the first part (\(best.score, format: .fixed(precision: 2)))")
-            merge(speaker, into: best.speaker)
+            // Surer when there's little to tell apart: one voice from before to compare
+            // with (the lead says nothing then), or someone from before said too little
+            // for a print of their own. From under four seconds, surer still.
+            let voicesBefore = Set(latest.words.compactMap(\.speaker).filter { $0 >= 0 && $0 < speakerBase })
+            let thin = earlier.count < 2 || voicesBefore.count > earlier.count
+            let bar: Float = heard < 4 ? 0.7 : thin ? 0.7 : VoiceMemory.sameVoice
+            guard best.score >= bar, lead >= VoiceMemory.margin,
+                  latest.words.contains(where: { $0.speaker == speaker }) || pending.contains(where: { $0.speaker == speaker })
+            else { continue }
+            // The voice from before, as it is now (you may have merged it since).
+            let target = aliases[best.speaker] ?? best.speaker
+            // A name you gave this voice wins over a guess — unless it's the same name.
+            let given = latest.names[String(speaker)] ?? ""
+            if !given.isEmpty, latest.recognized[String(speaker)] == nil,
+               given.lowercased() != (latest.names[String(target)] ?? "").lowercased() { continue }
+            Self.log.notice("continued: voice \(speaker) is \(target) of the first part (\(best.score, format: .fixed(precision: 2)))")
+            merge(speaker, into: target)
         }
     }
 
@@ -635,19 +683,32 @@ final class MeetingSession: ObservableObject {
         // ones after the pause.
         intake?.append([Float](repeating: 0, count: Self.rate))
         pausedAt = Date()
+        settledForPause = false
         LiveMeter.shared.reset()
         if warning == String(localized: "Jag hör nästan ingenting – är rätt mikrofon vald?") { warning = nil }
+        // Nothing to keep the Mac awake for until it goes on.
+        if let activity { ProcessInfo.processInfo.endActivity(activity) }
+        activity = nil
+        AccessibilityNotification.Announcement(String(localized: "Pausat – mikrofonen är av")).post()
         Self.log.notice("meeting paused at \(Int(self.elapsed)) s")
     }
+    /// The words before the pause are written out once, then the live loop rests.
+    private var settledForPause = false
 
     func resume() {
         guard isRecording, let pausedAt else { return }
         do {
             try startMicrophone()
         } catch {
-            lastError = error.localizedDescription
+            // Said where you're looking: on the meeting, not on the start card.
+            warning = String(localized: "Mikrofonen kunde inte startas igen – är den ansluten?")
+            Self.log.error("resume: \(error.localizedDescription, privacy: .public)")
             return
         }
+        if warning == String(localized: "Mikrofonen kunde inte startas igen – är den ansluten?") { warning = nil }
+        activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated],
+                                                         reason: "Recording a meeting")
+        AccessibilityNotification.Announcement(String(localized: "Mötet fortsätter")).post()
         // The pause doesn't count; the second of quiet does — it is in the recording.
         startedAt = startedAt?.addingTimeInterval(Date().timeIntervalSince(pausedAt) - 1)
         self.pausedAt = nil
@@ -661,7 +722,7 @@ final class MeetingSession: ObservableObject {
     /// The round, offered at the start of a meeting ("Innan ni börjar"): in its first
     /// two minutes, while some voice is still without a name.
     var offersIntroduction: Bool {
-        guard isRecording, !introducing, !introductionHeld, elapsed < 120, let record else { return false }
+        guard isRecording, !introducing, !introductionHeld, !isPaused, elapsed < 120, let record else { return false }
         var speech: [Int: Double] = [:]
         for w in record.words + pending { if let s = w.speaker, s >= 0 { speech[s, default: 0] += w.end - w.start } }
         let voices = speech.filter { $0.value >= 1.5 }.keys
@@ -676,7 +737,7 @@ final class MeetingSession: ObservableObject {
     /// "Presentationsrunda" in a meeting already recording.
     func introduce() {
         // Not in a continued meeting: the round reads its audio from the meeting's start.
-        guard isRecording, !introducing, !continuing else { return }
+        guard isRecording, !introducing, !continuing, !isPaused else { return }
         beginIntroduction()
     }
 
@@ -750,7 +811,10 @@ final class MeetingSession: ObservableObject {
                                                              origin: origin) else { continue }
             checked[speaker] = heard
             defer { introChecked.insert(speaker) }
-            let taken = Set((self.record?.names.values ?? [:].values).filter { !$0.isEmpty })
+            // Continued: a name from the first part isn't taken by someone else — a voice
+            // now that is that person is them (merged below), not the next best match.
+            let namesNow = (self.record?.names ?? [:]).filter { !continuing || (Int($0.key) ?? 0) >= speakerBase }
+            let taken = Set(namesNow.values.filter { !$0.isEmpty })
                 .union(self.record?.rejected[String(speaker)] ?? [])
             VoiceMemory.shared.logBest(print, speaker: speaker, heard: heard)
             // From under four seconds of speech, a little surer than at the end of the
@@ -762,6 +826,13 @@ final class MeetingSession: ObservableObject {
                 if introFigures[speaker] == nil {
                     introFigures[speaker] = VoiceMemory.shared.figureForNew(print, alsoAvoiding: Set(introFigures.values.map(\.rhythm)))
                 }
+                continue
+            }
+            if continuing, let before = latest.names.first(where: {
+                (Int($0.key) ?? -1) < speakerBase && $0.value.lowercased() == match.name.lowercased() })?.key,
+               let earlierSpeaker = Int(before) {
+                Self.log.notice("continued: voice \(speaker) is \(earlierSpeaker) of the first part, by the voice you named (\(match.score, format: .fixed(precision: 2)))")
+                merge(speaker, into: aliases[earlierSpeaker] ?? earlierSpeaker)
                 continue
             }
             latest.names[String(speaker)] = match.name
@@ -831,6 +902,11 @@ final class MeetingSession: ObservableObject {
         stopAt = nil
         phase = .finishing(String(localized: "Skriver klart…"))
         pausedAt = nil
+        // Ended while paused: awake again for the final pass.
+        if activity == nil {
+            activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated],
+                                                             reason: "Mindtalk lyssnar igenom ett möte")
+        }
         _ = recorder.stop()
         let loop = self.loop
         Task {
@@ -841,10 +917,28 @@ final class MeetingSession: ObservableObject {
 
     // MARK: Editing while it runs
 
+    /// An answer about this meeting, asked before it was continued.
+    func addAnswer(_ answer: MeetingAnswer) {
+        guard var record else { return }
+        record.answers.append(answer)
+        self.record = record
+        MeetingStore.shared.save(record)
+    }
+
+    /// Into a folder (or out of it) while it's being recorded.
+    func setFolder(_ folder: UUID?) {
+        guard var record, record.folder != folder else { return }
+        record.folder = folder
+        record.folderAsked = true
+        self.record = record
+        MeetingStore.shared.save(record)
+    }
+
     func rename(to title: String) {
         let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
         record?.title = title
+        record?.userTitled = true        // the notes written after don't give it another
         if let record { MeetingStore.shared.save(record) }
     }
 
@@ -870,6 +964,8 @@ final class MeetingSession: ObservableObject {
         MeetingRecord.merge(speaker, into: other, in: &record)
         for (from, to) in aliases where to == speaker { aliases[from] = other }
         aliases[speaker] = other
+        // A voice from before merged away: its print speaks for the one it became.
+        if let print = earlier.removeValue(forKey: speaker), earlier[other] == nil { earlier[other] = print }
         for j in pending.indices where pending[j].speaker == speaker { pending[j].speaker = other }
         self.record = record
         MeetingStore.shared.save(record)
@@ -962,6 +1058,17 @@ final class MeetingSession: ObservableObject {
         }
         if phase == .starting { phase = .recording }
         while !Task.isCancelled, phase == .recording {
+            // Paused: what was said before it is written out once (the second of quiet
+            // settles it); then nothing new comes until it goes on.
+            if isPaused {
+                if !settledForPause {
+                    settledForPause = true
+                    await step(final: true)
+                }
+                checkInput()
+                try? await Task.sleep(for: .milliseconds(400))
+                continue
+            }
             let t0 = Date()
             await step(final: false)
             steps += 1
@@ -1022,7 +1129,8 @@ final class MeetingSession: ObservableObject {
             }
         }
 
-        let from = max(0, Int((settled - Self.lead) * Double(Self.rate)))
+        // (Continued: the intake begins where the new part does.)
+        let from = max(intake.start, Int((settled - Self.lead) * Double(Self.rate)))
         var window = intake.samples(from: from, to: intake.count)
         let longest = 14 * Self.rate
         if window.count > longest { window = Array(window.prefix(longest)) }
@@ -1284,10 +1392,30 @@ final class MeetingSession: ObservableObject {
         #if DEBUG
         if simulation != nil { print("\n=== Live (\(record.speakers.count) talare) ===\n" + MeetingText.plain(record)) }
         #endif
+        // Continued by a slip of the finger — nothing said, nothing noted, a few
+        // seconds: the meeting goes back to how it was.
+        if continuing, let before, record.words.count == before.words.count, record.notes == before.notes,
+           record.marks == before.marks, record.duration - (record.continuedAt ?? 0) < 10 {
+            try? FileManager.default.removeItem(at: MeetingStore.continuationURL(for: record.id))
+            var restored = before
+            restored.title = record.title
+            restored.userTitled = record.userTitled
+            restored.names = record.names
+            restored.recognized = record.recognized
+            restored.rejected = record.rejected
+            restored.folder = record.folder
+            self.record = restored
+            continuing = false
+            Self.log.info("continued: nothing recorded — the meeting is as it was")
+            return done()
+        }
         // Continued: the new part after the first — one recording to listen through.
         // If that fails, the text written live stays (a pass over the first part
-        // alone would lose the rest).
-        if continuing, !(await Self.join(record.id)) { return done() }
+        // alone would lose the rest), and the meeting waits, unfinished, for "Gör klart".
+        if continuing, !(await Self.join(record.id)) {
+            keepUnfinished = true
+            return done()
+        }
         await refine()
         done()
     }
@@ -1360,8 +1488,10 @@ final class MeetingSession: ObservableObject {
             // Listened to again ("Gör klart", "Lyssna igenom igen"): the new pass numbers
             // the voices its own way — each takes the number of the voice it overlaps
             // most in the text you have, so names and merges stay where you put them.
+            // Continued: a voice heard in the first part takes its number from there —
+            // its name too — even when the new part has more of it.
             if match.isEmpty, let old = record?.words, old.contains(where: { ($0.speaker ?? -1) >= 0 }) {
-                Self.carryOver(from: old, to: &words)
+                Self.carryOver(from: old, to: &words, before: record?.continuedAt)
             }
             // Voices you've named in earlier meetings, named here too (when switched on).
             MeetingRecord.apply(record?.moves ?? [], to: &words)
@@ -1394,6 +1524,10 @@ final class MeetingSession: ObservableObject {
                 updated = latest
                 MeetingRecord.apply(updated.moves, to: &words)     // moves made meanwhile too
             }
+            // Continued: voices merged while this pass ran (in the text's numbering).
+            if continuing, !aliases.isEmpty {
+                for i in words.indices { if let s = words[i].speaker, let to = aliases[s] { words[i].speaker = to } }
+            }
             updated.words = words
             updated.refined = true
             record = updated
@@ -1415,8 +1549,9 @@ final class MeetingSession: ObservableObject {
     /// The voices of a new pass, numbered as in the text before it: each new voice
     /// takes the number of the old voice it shares the most time with (two may take
     /// the same — voices you merged); a voice new to the meeting gets a free number.
-    nonisolated static func carryOver(from old: [MeetingWord], to new: inout [MeetingWord]) {
+    nonisolated static func carryOver(from old: [MeetingWord], to new: inout [MeetingWord], before boundary: Double? = nil) {
         var overlap: [Int: [Int: Double]] = [:]
+        var earlier: [Int: [Int: Double]] = [:]
         var j = 0
         for w in new {
             guard let s = w.speaker, s >= 0 else { continue }
@@ -1425,7 +1560,10 @@ final class MeetingSession: ObservableObject {
             while k < old.count, old[k].start < w.end {
                 if let o = old[k].speaker, o >= 0 {
                     let shared = min(w.end, old[k].end) - max(w.start, old[k].start)
-                    if shared > 0 { overlap[s, default: [:]][o, default: 0] += shared }
+                    if shared > 0 {
+                        overlap[s, default: [:]][o, default: 0] += shared
+                        if let boundary, old[k].end <= boundary { earlier[s, default: [:]][o, default: 0] += shared }
+                    }
                 }
                 k += 1
             }
@@ -1433,7 +1571,14 @@ final class MeetingSession: ObservableObject {
         var next = (old.compactMap(\.speaker).max() ?? -1) + 1
         var map: [Int: Int] = [:]
         for s in Set(new.compactMap(\.speaker).filter { $0 >= 0 }).sorted() {
-            if let best = overlap[s]?.max(by: { $0.value < $1.value })?.key { map[s] = best } else { map[s] = next; next += 1 }
+            if let first = earlier[s], first.values.reduce(0, +) >= 2,
+               let best = first.max(by: { $0.value < $1.value })?.key {
+                map[s] = best
+            } else if let best = overlap[s]?.max(by: { $0.value < $1.value })?.key {
+                map[s] = best
+            } else {
+                map[s] = next; next += 1
+            }
         }
         for i in new.indices { if let s = new[i].speaker, let m = map[s] { new[i].speaker = m } }
     }
@@ -1471,8 +1616,10 @@ final class MeetingSession: ObservableObject {
         activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated],
                                                          reason: "Mindtalk lyssnar igenom ett möte")
         language = saved.language
-        // Cut off while continued: the new part is still a recording of its own.
-        continuing = FileManager.default.fileExists(atPath: MeetingStore.continuationURL(for: id).path)
+        // Cut off while continued (or while its recordings were being joined): the
+        // new part may still be a recording of its own — joined first.
+        continuing = saved.continuedAt != nil
+            || FileManager.default.fileExists(atPath: MeetingStore.continuationURL(for: id).path)
         speakerBase = 0
         earlier = [:]
         pausedAt = nil
@@ -1486,7 +1633,10 @@ final class MeetingSession: ObservableObject {
         finished = nil
         phase = .finishing(String(localized: "Lyssnar igenom hela mötet…"))
         Task {
-            if continuing, !(await Self.join(id)) { return done() }
+            if !(await Self.join(id)) {
+                keepUnfinished = true
+                return done()
+            }
             if let file = try? AVAudioFile(forReading: MeetingStore.audioURL(for: id)) {
                 record?.duration = Double(file.length) / file.processingFormat.sampleRate
             }
@@ -1499,12 +1649,16 @@ final class MeetingSession: ObservableObject {
         // Awake until here — the final pass too, which can take minutes.
         if let activity { ProcessInfo.processInfo.endActivity(activity) }
         activity = nil
+        let continued = continuing || record?.continuedAt != nil
         if var record {
-            record.finished = true
+            record.finished = !keepUnfinished
+            // Listened through as one: a continuation no longer.
+            if record.refined { record.continuedAt = nil }
             MeetingStore.shared.save(record)
             self.record = record
         }
-        let continued = continuing
+        keepUnfinished = false
+        before = nil
         continuing = false
         speakerBase = 0
         earlier = [:]
@@ -1529,13 +1683,19 @@ final class MeetingSession: ObservableObject {
         Dictation.shared.meetingEnded()
         // Notes are written once; listening again keeps the ones you have (and your
         // ticked tasks) — "Sammanfatta igen" is there for a new summary.
-        // Continued: written again for the whole meeting.
-        if let finished, continued || MeetingStore.shared.meetings.first(where: { $0.id == finished })?.summary == nil {
+        // Continued: written again for the whole meeting (as are notes that were being
+        // written when it went on).
+        if let finished, MeetingNotes.shared.takeAfterMeeting(finished) || continued
+            || MeetingStore.shared.meetings.first(where: { $0.id == finished })?.summary == nil {
             MeetingNotes.shared.summarize(finished)
         }
         // A postponed update restarts Mindtalk: only once the notes are written.
         Task { @MainActor in
-            for _ in 0..<600 where !MeetingNotes.shared.writing.isEmpty { try? await Task.sleep(for: .seconds(1)) }
+            // (Nor while a meeting runs again — continued, or a new one.)
+            for _ in 0..<600 where !MeetingNotes.shared.writing.isEmpty || MeetingSession.shared.isBusy {
+                try? await Task.sleep(for: .seconds(1))
+            }
+            guard !MeetingSession.shared.isBusy else { return }     // that meeting's end will do it
             Updates.shared.meetingEnded()
         }
         MeetingStore.shared.applyRetention()
@@ -1571,7 +1731,7 @@ final class MeetingSession: ObservableObject {
     /// dies again within half a minute: a headset carries on with the Mac's own mic;
     /// any other mic stays (it may be muted on purpose) and you're told.
     private func signalLost() {
-        guard isRecording else { return }
+        guard isRecording, !isPaused else { return }      // paused: the mic is off on purpose
         let device = recorder.inputDevice
         let bluetooth = recorder.usesBluetooth
         let again = lastRestart.map { Date().timeIntervalSince($0) < 30 } ?? false
@@ -1593,7 +1753,7 @@ final class MeetingSession: ObservableObject {
 
     /// The microphone went away (unplugged, AirPods gone): carry on with the system input.
     private func inputChanged() {
-        guard isRecording else { return }
+        guard isRecording, !isPaused else { return }
         // The recorder still counts itself as running on the lost device — let it
         // go first, or the restart is a no-op and the meeting records silence.
         _ = recorder.stop()

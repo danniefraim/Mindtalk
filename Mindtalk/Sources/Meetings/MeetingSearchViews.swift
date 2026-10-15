@@ -10,12 +10,14 @@ import SwiftUI
 /// "Sök i mötena" — ⌘F.
 struct LibrarySearchField: View {
     @Binding var query: String
+    /// A folder chosen: the search is in it.
+    var folder: String? = nil
     @FocusState private var focused: Bool
 
     var body: some View {
         HStack(spacing: 9) {
             Image(systemName: "magnifyingglass").font(.system(size: 13, weight: .semibold)).foregroundStyle(DS.Colors.muted)
-            TextField("Sök i mötena", text: $query)
+            TextField(folder.map { String(localized: "Sök i \($0)") } ?? String(localized: "Sök i mötena"), text: $query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
                 .focused($focused)
@@ -234,6 +236,7 @@ private struct AnswerRow: View {
 /// "Fråga något om dina möten…" — at the bottom of the Möten page.
 struct LibraryAskBar: View {
     @ObservedObject var library: MeetingLibrary
+    @ObservedObject private var folders = MeetingFolders.shared
     @State private var question = ""
     @FocusState private var focused: Bool
     private static let suggestions: [LocalizedStringResource] = ["Vad bestämdes den här veckan?", "Vad ska jag göra?",
@@ -260,7 +263,8 @@ struct LibraryAskBar: View {
                 .transition(.opacity)
             }
             HStack(spacing: 10) {
-                TextField("Fråga något om dina möten…", text: $question)
+                TextField(folders.folder(folders.selected).map { String(localized: "Fråga något om mötena i \($0.name)…") }
+                          ?? String(localized: "Fråga något om dina möten…"), text: $question)
                     .textFieldStyle(.plain)
                     .font(.system(size: 14))
                     .focused($focused)

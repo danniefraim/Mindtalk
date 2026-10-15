@@ -264,15 +264,59 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                         Spacer()
                     }
                 }
-                let view = VStack(alignment: .leading, spacing: 14) {
+                let view = VStack(alignment: .leading, spacing: 50) {
                     row(nil, false)
                     ForEach(kinds) { kind in row(kind, false) }
                     row(.task, true)
                 }
                 .padding(24)
+                .padding(.top, 30)
                 .frame(width: 420)
                 .background(Color(white: 0.07))
                 .environment(\.colorScheme, .dark)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
+        // `Mindtalk --render-folders out.png [--dark]`: the folder row, a meeting's folder
+        // tag and the suggestion, with made-up folders (nothing saved).
+        if let i = args.firstIndex(of: "--render-folders"), i + 1 < args.count {
+            Task { @MainActor in
+                NSApplication.shared.appearance = NSAppearance(named: args.contains("--dark") ? .darkAqua : .aqua)
+                let folders = MeetingFolders.shared
+                folders.preview(["Kund Nordljus", "Styrelsen", "Veckomöten"])
+                folders.selected = folders.sorted.first?.id
+                var record = MeetingRecord(title: "Nordljus – uppstart", date: Date(), language: .swedish)
+                record.folder = nil
+                var tagged = record
+                tagged.folder = folders.sorted.first?.id
+                let view = VStack(alignment: .leading, spacing: 18) {
+                    FolderBar(folders: folders, store: MeetingStore.shared, scrolls: false)
+                    HStack(spacing: 8) {
+                        Text("i dag 13:30 · 52 min").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                        FolderTag(record: record)
+                        FolderTag(record: tagged)
+                    }
+                    HStack(spacing: 10) {
+                        Image(systemName: "folder").foregroundStyle(DS.Colors.muted)
+                        Text("Lägga mötet i \(Text("Kund Nordljus").fontWeight(.semibold))?").font(.system(size: 13))
+                        Spacer()
+                        Button("Lägg där") {}.buttonStyle(.soft)
+                        Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(DS.Colors.muted)
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 10).card()
+                }
+                .padding(28)
+                .frame(width: 720)
+                .background(DS.Colors.paper)
+                .environment(\.colorScheme, args.contains("--dark") ? .dark : .light)
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2
                 if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
@@ -1023,7 +1067,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     static func continueMeeting(_ id: UUID) {
         let meeting = MeetingSession.shared
         meeting.continueMeeting(id)
-        if !meeting.isRecording { showWindow(page: .meetings) }
+        // It couldn't: the meeting's page says why.
+        if !meeting.isRecording {
+            MeetingsPage.lastOpen = id
+            showWindow(page: .meetings)
+        }
     }
 
     static var mainWindowVisible: Bool { (NSApp.delegate as? AppDelegate)?.window?.isVisible == true }

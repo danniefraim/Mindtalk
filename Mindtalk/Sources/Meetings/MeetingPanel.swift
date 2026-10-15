@@ -323,6 +323,7 @@ private struct LivePanel: View {
                 }
                 if session.isPaused {
                     Text("Pausat").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+                        .accessibilityHidden(true)      // the time already says it
                 } else {
                     PanelWave().frame(width: 84, height: 18).accessibilityHidden(true)
                 }
@@ -457,7 +458,7 @@ private struct LivePanel: View {
                 .accessibilityElement(children: .combine)
             default:
                 if session.stopping {
-                    Text("Spelar in tills nedräkningen är klar.")
+                    Text(session.isPaused ? "Mötet avslutas om några sekunder." : "Spelar in tills nedräkningen är klar.")
                         .font(.system(size: 12))
                         .foregroundStyle(DS.Colors.muted)
                         .frame(maxWidth: .infinity)
@@ -472,7 +473,7 @@ private struct LivePanel: View {
                     // As in the window: one island — your note, the marks, stop. (The
                     // time is at the top of the panel.)
                     if session.isPaused {
-                        Text("Pausat – mikrofonen är av. Allt hittills finns kvar.")
+                        Text("Pausat – mikrofonen är av. Det som sagts finns kvar.")
                             .font(.system(size: 12))
                             .foregroundStyle(DS.Colors.muted)
                             .frame(maxWidth: .infinity)

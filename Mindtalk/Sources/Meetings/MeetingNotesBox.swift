@@ -159,7 +159,7 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
     }
 
     private var marks: some View {
-        MarkIcons { kind in
+        MarkIcons(paused: session.isPaused) { kind in
             withAnimation(.spring(duration: 0.35, bounce: 0.35)) { _ = session.mark(kind) }
         }
     }
@@ -203,7 +203,7 @@ struct MeetingControls: View {
                 Button { withAnimation(.spring(duration: 0.3, bounce: 0.15)) { session.resume() } } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "play.fill").font(.system(size: 10, weight: .bold))
-                        Text("Fortsätt").font(.system(size: 12.5, weight: .semibold))
+                        Text(String(localized: "pause|Fortsätt")).font(.system(size: 12.5, weight: .semibold))
                     }
                     .foregroundStyle(.black)
                     .padding(.horizontal, 13)
@@ -212,19 +212,21 @@ struct MeetingControls: View {
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .help("Sätt på mikrofonen igen – mötet fortsätter där det var")
-                .accessibilityLabel("Fortsätt mötet")
+                .keyboardShortcut("p", modifiers: [.command, .option])
+                .help("Sätt på mikrofonen igen – mötet fortsätter där det pausades (⌥⌘P)")
+                .accessibilityLabel(String(localized: "pause|Fortsätt mötet"))
                 .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 round(symbol: "stop.fill", filled: false, help: "Avsluta mötet – du kan ångra i några sekunder",
                       label: "Avsluta mötet") { _ = session.requestStop() }
             } else {
-                round(symbol: "pause.fill", filled: false, help: "Pausa – mikrofonen stängs av, och mötet väntar",
+                round(symbol: "pause.fill", filled: false, help: "Pausa – mikrofonen stängs av och mötet väntar (⌥⌘P)",
                       label: "Pausa mötet") { session.pause() }
+                    .keyboardShortcut("p", modifiers: [.command, .option])
                 if labelledStop {
                     Button { withAnimation(.spring(duration: 0.3, bounce: 0.15)) { _ = session.requestStop() } } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "stop.fill").font(.system(size: 9.5, weight: .bold))
-                            Text("Avsluta").font(.system(size: 12.5, weight: .semibold))
+                            Text(String(localized: "meeting|Avsluta")).font(.system(size: 12.5, weight: .semibold))
                         }
                         .foregroundStyle(.black)
                         .padding(.horizontal, 12)
@@ -278,10 +280,11 @@ struct RecordingMark: View {
     }
 }
 
-/// The three marks as round buttons in their colours — ⌥⌘1, ⌥⌘2, ⌥⌘3. The one
-/// under the pointer opens into a pill with its name and key at once — no waiting
-/// for a tooltip, and it shows in the panel while another app is in front.
+/// The three marks as round buttons in their colours — ⌥⌘1, ⌥⌘2, ⌥⌘3. Under the
+/// pointer, a label floats above the one you're on — its name and key, at once, no
+/// waiting for a tooltip, and nothing beside it moves. Paused, there's nothing to mark.
 private struct MarkIcons: View {
+    var paused = false
     let mark: (MeetingRecord.Mark.Kind) -> Void
     @State private var flashed: MeetingRecord.Mark.Kind?
     @State private var hovered: MeetingRecord.Mark.Kind?
@@ -297,24 +300,30 @@ private struct MarkIcons: View {
                         if flashed == kind { withAnimation(.spring(duration: 0.4)) { flashed = nil } }
                     }
                 } label: {
-                    MarkPill(kind: kind, key: i + 1, open: hovered == kind || flashed == kind, done: flashed == kind)
+                    MarkPill(kind: kind, key: i + 1, open: !paused && (hovered == kind || flashed == kind),
+                             done: flashed == kind)
                 }
                 .buttonStyle(.plain)
+                .zIndex(hovered == kind || flashed == kind ? 1 : 0)
                 .onHover { inside in
-                    withAnimation(.spring(duration: 0.32, bounce: 0.18)) {
+                    withAnimation(.spring(duration: 0.28, bounce: 0.2)) {
                         hovered = inside ? kind : (hovered == kind ? nil : hovered)
                     }
                 }
                 .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: [.command, .option])
-                .help("\(kind.title) – markera det som sägs just nu (⌥⌘\(i + 1))")
                 .accessibilityLabel("Markera \(kind.title.lowercased())")
+                .accessibilityHint("Markerar det som sägs just nu. ⌥⌘\(i + 1)")
             }
         }
+        .disabled(paused)
+        .opacity(paused ? 0.4 : 1)
+        .animation(.easeOut(duration: 0.2), value: paused)
     }
 }
 
-/// One mark: a tinted disc with its symbol; open, a pill with the name and key —
-/// and for a moment after a click, "Markerat".
+/// One mark: a tinted disc with its symbol. Open (under the pointer), the disc lights
+/// up and a label floats above it with the name and key — or, for a moment after a
+/// click, "Markerat".
 struct MarkPill: View {
     let kind: MeetingRecord.Mark.Kind
     let key: Int
@@ -322,40 +331,49 @@ struct MarkPill: View {
     let done: Bool
 
     var body: some View {
-        HStack(spacing: 7) {
-            Image(systemName: done ? "checkmark" : kind.symbol)
-                .font(.system(size: 14, weight: .semibold))
-                // The symbol in its colour, its marks cut out in the island's dark (the
-                // star has none: one layer, all colour).
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(done || kind == .important ? kind.tint : Color(white: 0.07), kind.tint)
-                .contentTransition(.symbolEffect(.replace))
-                .frame(width: 17)
-            if open {
-                Text(done ? String(localized: "Markerat") : kind.title)
-                    .font(.system(size: 12.5, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.92))
-                    .fixedSize()
-                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))
-                if !done {
-                    Text("⌥⌘\(key)")
-                        .font(.system(size: 11, weight: .medium).monospacedDigit())
-                        .foregroundStyle(.white.opacity(0.42))
+        Image(systemName: done ? "checkmark" : kind.symbol)
+            .font(.system(size: 14, weight: .semibold))
+            // The symbol in its colour, its marks cut out in the island's dark (the
+            // star has none: one layer, all colour).
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(done || kind == .important ? kind.tint : Color(white: 0.07), kind.tint)
+            .contentTransition(.symbolEffect(.replace))
+            .frame(width: 32, height: 32)
+            .background(Circle().fill(kind.tint.opacity(done ? 0.28 : open ? 0.2 : 0.11)))
+            .overlay(Circle().strokeBorder(kind.tint.opacity(open ? 0.55 : 0.22), lineWidth: 0.6))
+            .contentShape(Circle())
+            .scaleEffect(done ? 1.08 : 1)
+            // The first one nearest the island's edge: its label grows to the right.
+            .overlay(alignment: key == 1 ? .bottomLeading : .bottom) {
+                if open {
+                    label
                         .fixedSize()
-                        .transition(.opacity)
+                        .offset(y: -40)
+                        .allowsHitTesting(false)
+                        .transition(.opacity.combined(with: .scale(scale: 0.85, anchor: key == 1 ? .bottomLeading : .bottom))
+                            .combined(with: .offset(y: 4)))
                 }
             }
+    }
+
+    private var label: some View {
+        HStack(spacing: 7) {
+            Circle().fill(kind.tint).frame(width: 6, height: 6)
+            Text(done ? String(localized: "Markerat") : kind.title)
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundStyle(.white)
+            if !done {
+                Text("⌥⌘\(key)")
+                    .font(.system(size: 11, weight: .medium).monospacedDigit())
+                    .foregroundStyle(.white.opacity(0.45))
+            }
         }
-        .padding(.horizontal, open ? 11 : 0)
-        .frame(minWidth: 32, minHeight: 32)
-        .background(
-            Capsule().fill(kind.tint.opacity(done ? 0.26 : open ? 0.18 : 0.11))
-        )
-        .overlay(
-            Capsule().strokeBorder(kind.tint.opacity(open ? 0.5 : 0.22), lineWidth: 0.6)
-        )
-        .contentShape(Capsule())
-        .scaleEffect(done ? 1.04 : 1)
+        .padding(.horizontal, 11)
+        .frame(height: 28)
+        .background(Capsule().fill(Color(white: 0.13)))
+        .overlay(Capsule().strokeBorder(kind.tint.opacity(0.45), lineWidth: 0.6))
+        .shadow(color: .black.opacity(0.35), radius: 8, y: 3)
+        .environment(\.colorScheme, .dark)
     }
 }
 
@@ -548,7 +566,7 @@ struct StopCountdown: View {
             }
             .buttonStyle(.plain)
             .keyboardShortcut(.cancelAction)
-            .help("Fortsätt mötet")
+            .help("Ångra – mötet avslutas inte")
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Mötet avslutas om några sekunder")

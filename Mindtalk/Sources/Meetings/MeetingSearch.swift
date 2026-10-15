@@ -322,7 +322,9 @@ final class MeetingLibrary: ObservableObject {
     func ask(_ question: String) {
         let question = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard MeetingNotes.isAvailable, !question.isEmpty, !asking else { return }
-        let meetings = MeetingStore.shared.meetings.filter { !$0.words.isEmpty }
+        // A folder chosen in the list: the question is about its meetings.
+        let folder = MeetingFolders.shared.selected
+        let meetings = MeetingStore.shared.meetings.filter { !$0.words.isEmpty && (folder == nil || $0.folder == folder) }
         guard !meetings.isEmpty else { return }
         asking = true
         failed = nil

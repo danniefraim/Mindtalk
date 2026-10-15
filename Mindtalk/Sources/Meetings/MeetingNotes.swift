@@ -103,24 +103,38 @@ final class MeetingNotes: ObservableObject {
 
     /// Writes (or rewrites) the notes for a saved meeting.
     func summarize(_ id: UUID, in choice: SummaryLanguage = .chosen) {
-        guard Self.isAvailable, !writing.contains(id),
-              let record = MeetingStore.shared.meetings.first(where: { $0.id == id }), !record.words.isEmpty else { return }
+        guard Self.isAvailable else { return }
+        // Asked again while they're being written: written again after, from the
+        // meeting as it is then.
+        if writing.contains(id) { again[id] = choice; return }
+        guard let record = MeetingStore.shared.meetings.first(where: { $0.id == id }), !record.words.isEmpty else { return }
         writing.insert(id)
         failed[id] = nil
         var lines = Lines(record)
         if let name = choice.name { lines.write(in: name) }
         let local = BetterNotes.shared.isActive
+        let written = (words: record.words.count, duration: record.duration)
         Task {
-            defer { writing.remove(id) }
+            defer {
+                writing.remove(id)
+                if let next = again.removeValue(forKey: id) { summarize(id, in: next) }
+            }
             // Not while a meeting is being recorded: the live words come first.
             while MeetingSession.shared.isRecording { try? await Task.sleep(for: .seconds(2)) }
             do {
                 let t0 = Date()
                 var summary = try await Self.write(lines, local: local)
-                // Continued meanwhile: these notes are of the first part only — new ones
-                // for the whole meeting are written when it ends.
-                if MeetingSession.shared.record?.id == id { return }
+                // The meeting went on meanwhile (continued, or listened through again):
+                // these notes are of what it was — written again once it's done.
+                if MeetingSession.shared.record?.id == id {
+                    afterMeeting.insert(id)
+                    return
+                }
                 guard var latest = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
+                if latest.duration > written.duration + 1 || latest.words.count != written.words, again[id] == nil {
+                    again[id] = choice
+                    return
+                }
                 // Written again (a continued meeting, "Sammanfatta igen"): the tasks you
                 // ticked off stay ticked where the same task is there again.
                 let ticked = Set((latest.summary?.tasks ?? []).filter { $0.done == true }.map { Self.taskKey($0.text) })
@@ -137,6 +151,13 @@ final class MeetingNotes: ObservableObject {
             }
         }
     }
+
+    /// Notes asked for again while they were being written.
+    private var again: [UUID: SummaryLanguage] = [:]
+    /// Notes put aside because the meeting was being recorded or listened to again —
+    /// written when it's done (MeetingSession.done).
+    private var afterMeeting: Set<UUID> = []
+    func takeAfterMeeting(_ id: UUID) -> Bool { afterMeeting.remove(id) != nil }
 
     private static func taskKey(_ text: String) -> String {
         text.lowercased().filter { $0.isLetter || $0.isNumber }
@@ -156,6 +177,11 @@ final class MeetingNotes: ObservableObject {
             defer { answering.remove(id) }
             do {
                 let answer = try await Self.answer(question, from: lines, history: history, local: local)
+                // Continued meanwhile: the answer goes with the meeting being recorded.
+                if MeetingSession.shared.record?.id == id {
+                    MeetingSession.shared.addAnswer(answer)
+                    return
+                }
                 guard var latest = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
                 latest.answers.append(answer)
                 MeetingStore.shared.save(latest)

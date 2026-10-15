@@ -363,6 +363,7 @@
       }
     },
     "%@ – markera det som sägs just nu (⌥⌘%lld)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -416,6 +417,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@, %@. Laddas ned en gång och fungerar sedan offline."
+          }
+        }
+      }
+    },
+    "%@, %lld möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, %lld meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, %lld möten"
           }
         }
       }
@@ -827,6 +844,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "?"
+          }
+        }
+      }
+    },
+    "Alla": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alla"
           }
         }
       }
@@ -1455,6 +1488,7 @@
       }
     },
     "Avsluta": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1483,6 +1517,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Avsluta Mindtalk"
+          }
+        }
+      }
+    },
+    "Avsluta dikteringen först.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish dictating first."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avsluta dikteringen först."
           }
         }
       }
@@ -1795,6 +1845,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Byt namn på mötet"
+          }
+        }
+      }
+    },
+    "Byt namn…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Byt namn…"
           }
         }
       }
@@ -2437,6 +2503,22 @@
         }
       }
     },
+    "Dra hit ett möte från Alla, eller starta ett möte medan mappen är vald – då hamnar det här.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag a meeting here from All, or start a meeting while this folder is chosen – it lands here."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dra hit ett möte från Alla, eller starta ett möte medan mappen är vald – då hamnar det här."
+          }
+        }
+      }
+    },
     "Du bytte app – texten skrevs inte in.": {
       "localizations": {
         "en": {
@@ -2848,6 +2930,38 @@
         }
       }
     },
+    "Flytta mötet till en annan mapp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move the meeting to another folder"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flytta mötet till en annan mapp"
+          }
+        }
+      }
+    },
+    "Flytta till": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flytta till"
+          }
+        }
+      }
+    },
     "Flytta till Program": {
       "localizations": {
         "en": {
@@ -3022,6 +3136,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fråga något om dina möten…"
+          }
+        }
+      }
+    },
+    "Fråga något om mötena i %@…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask something about the meetings in %@…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fråga något om mötena i %@…"
           }
         }
       }
@@ -3710,6 +3840,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gör klart"
+          }
+        }
+      }
+    },
+    "Gör klart mötet först – sedan kan det fortsätta.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish the meeting first – then it can continue."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gör klart mötet först – sedan kan det fortsätta."
           }
         }
       }
@@ -4424,6 +4570,22 @@
         }
       }
     },
+    "Inga möten i %@ än": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No meetings in %@ yet"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inga möten i %@ än"
+          }
+        }
+      }
+    },
     "Inga ord den här veckan än": {
       "localizations": {
         "en": {
@@ -4468,6 +4630,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ingen genväg"
+          }
+        }
+      }
+    },
+    "Ingen mapp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No folder"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ingen mapp"
           }
         }
       }
@@ -4630,6 +4808,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inspelningen av mötet kunde inte läsas – det går inte att fortsätta det."
+          }
+        }
+      }
+    },
+    "Inspelningen av mötet är borttagen – det går inte att fortsätta det.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting's recording was removed – it can't be continued."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspelningen av mötet är borttagen – det går inte att fortsätta det."
           }
         }
       }
@@ -5614,6 +5808,22 @@
         }
       }
     },
+    "Ladda ned Nemotron 3 först – det görs på sidan Möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download Nemotron 3 first – on the Meetings page."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda ned Nemotron 3 först – det görs på sidan Möten."
+          }
+        }
+      }
+    },
     "Ladda ned och fortsätt": {
       "localizations": {
         "en": {
@@ -6199,6 +6409,54 @@
         }
       }
     },
+    "Lägg där": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move there"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg där"
+          }
+        }
+      }
+    },
+    "Lägg i mapp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to folder"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg i mapp"
+          }
+        }
+      }
+    },
+    "Lägg mötet i en mapp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Put the meeting in a folder"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg mötet i en mapp"
+          }
+        }
+      }
+    },
     "Lägg till": {
       "localizations": {
         "en": {
@@ -6227,6 +6485,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lägg till något Mindtalk ofta hör i stället"
+          }
+        }
+      }
+    },
+    "Lägga mötet i %@?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Put this meeting in %@?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägga mötet i %@?"
           }
         }
       }
@@ -6411,6 +6685,22 @@
         }
       }
     },
+    "Mappens namn": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder name"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mappens namn"
+          }
+        }
+      }
+    },
     "Markera %@": {
       "localizations": {
         "en": {
@@ -6506,6 +6796,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Markera som klar"
+          }
+        }
+      }
+    },
+    "Markerar det som sägs just nu. ⌥⌘%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marks what's being said right now. ⌥⌘%lld"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markerar det som sägs just nu. ⌥⌘%lld"
           }
         }
       }
@@ -6684,6 +6990,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mikrofonen kopplades bort – inspelningen fortsätter med Macens mikrofon."
+          }
+        }
+      }
+    },
+    "Mikrofonen kunde inte startas igen – är den ansluten?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The microphone couldn't start again – is it connected?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofonen kunde inte startas igen – är den ansluten?"
           }
         }
       }
@@ -7098,6 +7420,22 @@
         }
       }
     },
+    "Mötena i den tas inte bort – de finns kvar under Alla.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Its meetings aren't deleted – they stay under All."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötena i den tas inte bort – de finns kvar under Alla."
+          }
+        }
+      }
+    },
     "Mötet avbröts innan det blev klart. Inspelningen finns kvar.": {
       "localizations": {
         "en": {
@@ -7146,6 +7484,22 @@
         }
       }
     },
+    "Mötet avslutas om några sekunder.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting ends in a few seconds."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet avslutas om några sekunder."
+          }
+        }
+      }
+    },
     "Mötet behöver tillsyn": {
       "localizations": {
         "en": {
@@ -7190,6 +7544,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mötet börjar med en presentationsrunda som går att hoppa över"
+          }
+        }
+      }
+    },
+    "Mötet fortsätter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting goes on"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet fortsätter"
           }
         }
       }
@@ -7418,6 +7788,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Noteras i mötet, så att det syns i efterhand att de andra visste"
+          }
+        }
+      }
+    },
+    "Ny mapp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New folder"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ny mapp"
           }
         }
       }
@@ -7787,7 +8173,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pause the meeting"
+            "value": "Pause meeting"
           }
         },
         "sv": {
@@ -7798,7 +8184,24 @@
         }
       }
     },
+    "Pausa – mikrofonen stängs av och mötet väntar (⌥⌘P)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause – the microphone turns off and the meeting waits (⌥⌘P)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausa – mikrofonen stängs av och mötet väntar (⌥⌘P)"
+          }
+        }
+      }
+    },
     "Pausa – mikrofonen stängs av, och mötet väntar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7830,7 +8233,24 @@
         }
       }
     },
+    "Pausat – mikrofonen är av": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused – the microphone is off"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausat – mikrofonen är av"
+          }
+        }
+      }
+    },
     "Pausat – mikrofonen är av. Allt hittills finns kvar.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7842,6 +8262,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pausat – mikrofonen är av. Allt hittills finns kvar."
+          }
+        }
+      }
+    },
+    "Pausat – mikrofonen är av. Det som sagts finns kvar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused – the microphone is off. What's been said is kept."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausat – mikrofonen är av. Det som sagts finns kvar."
           }
         }
       }
@@ -8892,6 +9328,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Senaste"
+          }
+        }
+      }
+    },
+    "Skapa en mapp att sortera mötena i": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create a folder to sort meetings into"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skapa en mapp att sortera mötena i"
           }
         }
       }
@@ -10288,7 +10740,24 @@
         }
       }
     },
+    "Sätt på mikrofonen igen – mötet fortsätter där det pausades (⌥⌘P)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn the microphone back on – the meeting resumes where it paused (⌥⌘P)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sätt på mikrofonen igen – mötet fortsätter där det pausades (⌥⌘P)"
+          }
+        }
+      }
+    },
     "Sätt på mikrofonen igen – mötet fortsätter där det var": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10384,6 +10853,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sök efter uppdateringar…"
+          }
+        }
+      }
+    },
+    "Sök i %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sök i %@"
           }
         }
       }
@@ -10560,6 +11045,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ta bort inspelningen…"
+          }
+        }
+      }
+    },
+    "Ta bort mappen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete folder"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort mappen"
+          }
+        }
+      }
+    },
+    "Ta bort mappen \"%@\"?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete the folder \"%@\"?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort mappen \"%@\"?"
+          }
+        }
+      }
+    },
+    "Ta bort mappen…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete folder…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort mappen…"
           }
         }
       }
@@ -12645,6 +13178,22 @@
         }
       }
     },
+    "meeting|Avsluta": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avsluta"
+          }
+        }
+      }
+    },
     "mot att skriva själv": {
       "extractionState": "stale",
       "localizations": {
@@ -12708,6 +13257,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "ord i dag"
+          }
+        }
+      }
+    },
+    "pause|Fortsätt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resume"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsätt"
+          }
+        }
+      }
+    },
+    "pause|Fortsätt mötet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resume meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsätt mötet"
           }
         }
       }
@@ -12922,6 +13503,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ångra dig"
+          }
+        }
+      }
+    },
+    "Ångra – mötet avslutas inte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo – the meeting doesn't end"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ångra – mötet avslutas inte"
           }
         }
       }

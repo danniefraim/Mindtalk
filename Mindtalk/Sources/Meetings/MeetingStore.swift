@@ -65,6 +65,15 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     /// Names Mindtalk gave a voice that you took away or replaced ("Fel person?"):
     /// never given to that voice again in this meeting, live or when listened again.
     var rejected: [String: [String]] = [:]
+    /// The folder it's in (MeetingFolder), or nil — then it's only under "Alla".
+    var folder: UUID?
+    /// A folder was suggested for it and you took it or put the suggestion away: not
+    /// suggested again.
+    var folderAsked = false
+    /// Continued after it ended: where the new part begins, in seconds. Kept until the
+    /// whole meeting has been listened through again — after a crash, "Gör klart"
+    /// knows it still has to.
+    var continuedAt: Double?
 
     var hasAudio: Bool { audioRemoved == nil }
 
@@ -145,6 +154,9 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         audioRemoved = try c.decodeIfPresent(Date.self, forKey: .audioRemoved)
         recognized = try c.decodeIfPresent([String: Float].self, forKey: .recognized) ?? [:]
         rejected = try c.decodeIfPresent([String: [String]].self, forKey: .rejected) ?? [:]
+        folder = try? c.decodeIfPresent(UUID.self, forKey: .folder)
+        folderAsked = (try? c.decodeIfPresent(Bool.self, forKey: .folderAsked)) ?? false
+        continuedAt = try? c.decodeIfPresent(Double.self, forKey: .continuedAt)
     }
 
     /// Speakers in the order they first spoke.
@@ -566,7 +578,6 @@ final class MeetingStore: ObservableObject {
         }
     }
 
-    /// Creates the meeting's folder, private to you.
     /// A finished meeting continued: the new part is recorded here, then put after
     /// the first (joinContinuation) — the meeting has one recording again.
     nonisolated static func continuationURL(for id: UUID) -> URL { folder(for: id).appendingPathComponent("audio-more.caf") }
@@ -612,6 +623,7 @@ final class MeetingStore: ObservableObject {
         _ = try fm.replaceItemAt(main, withItemAt: joined)
     }
 
+    /// Creates the meeting's folder, private to you.
     static func prepareFolder(for id: UUID) throws {
         let fm = FileManager.default
         try fm.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])

@@ -166,6 +166,9 @@ struct StatusPanelView: View {
                     if meeting.stopping {
                         PanelRow(title: String(localized: "Avslutas strax – ångra")) { meeting.cancelStop() }
                     } else {
+                        PanelRow(title: meeting.isPaused ? String(localized: "pause|Fortsätt mötet") : String(localized: "Pausa mötet")) {
+                            if meeting.isPaused { meeting.resume() } else { meeting.pause() }
+                        }
                         PanelRow(title: String(localized: "Avsluta mötet"), shortcut: Self.meetingKeys) {
                             meeting.requestStop()
                             close()
@@ -265,20 +268,18 @@ struct StatusPanelView: View {
 
     @ViewBuilder private var status: some View {
         HStack(spacing: 5) {
-            if meeting.isRecording, let warning = meeting.warning {
+            if meeting.isRecording, meeting.isPaused {
+                Image(systemName: "pause.fill").font(.system(size: 7, weight: .heavy))
+                Text("Mötet är pausat · \(MeetingView.duration(meeting.clock(at: Date())))").monospacedDigit()
+            } else if meeting.isRecording, let warning = meeting.warning {
                 // The recording needs a look: say what, also with the window closed.
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warning)
                 Text(warning).lineLimit(2).fixedSize(horizontal: false, vertical: true)
             } else if meeting.isRecording, let start = meeting.startedAt {
                 // A meeting has the mic: say so, with the time.
-                if meeting.isPaused {
-                    Image(systemName: "pause.fill").font(.system(size: 7, weight: .heavy))
-                    Text("Mötet är pausat · \(MeetingView.duration(meeting.clock(at: Date())))").monospacedDigit()
-                } else {
-                    Circle().fill(DS.Colors.recording).frame(width: 6, height: 6)
-                    TimelineView(.periodic(from: start, by: 1)) { context in
-                        Text("Möte spelas in · \(MeetingView.duration(meeting.clock(at: context.date)))").monospacedDigit()
-                    }
+                Circle().fill(DS.Colors.recording).frame(width: 6, height: 6)
+                TimelineView(.periodic(from: start, by: 1)) { context in
+                    Text("Möte spelas in · \(MeetingView.duration(meeting.clock(at: context.date)))").monospacedDigit()
                 }
             } else if case .finishing(let what) = meeting.phase {
                 Text(what)
