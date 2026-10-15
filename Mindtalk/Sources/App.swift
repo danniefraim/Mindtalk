@@ -404,6 +404,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 let dark = args.contains("--dark")
                 let f = { (n: String) in URL(fileURLWithPath: "/tmp/\(n)") }
                 let view = VStack(alignment: .leading, spacing: 10) {
+                    StartCard(session: .shared, voices: .shared, dictation: .shared)
                     ImportCard(job: .init(url: f("Intervju med Anna.m4a"), video: false, folder: nil, stage: .writing, progress: 0.34)) { _ in }
                     ImportCard(job: .init(url: f("Styrelsemöte oktober.mov"), video: true, folder: nil, stage: .waiting)) { _ in }
                     ImportCard(job: .init(url: f("Podd avsnitt 12.mp3"), video: false, folder: nil, stage: .done, progress: 1)) { _ in }

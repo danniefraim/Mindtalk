@@ -4519,7 +4519,24 @@
         }
       }
     },
+    "Gör text av en ljud- eller videofil – dra in den var som helst på sidan, eller välj den här": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcribe an audio or video file – drag it anywhere on the page, or choose it here"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gör text av en ljud- eller videofil – dra in den var som helst på sidan, eller välj den här"
+          }
+        }
+      }
+    },
     "Gör text av en ljud- eller videofil – eller dra in den på sidan": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4548,6 +4565,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Handsfree"
+          }
+        }
+      }
+    },
+    "Har du en inspelning? Dra in ljud eller video här – eller ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Have a recording? Drag audio or video here – or "
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Har du en inspelning? Dra in ljud eller video här – eller "
           }
         }
       }
@@ -5243,7 +5276,24 @@
         }
       }
     },
+    "Importera en ljud- eller videofil": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import an audio or video file"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importera en ljud- eller videofil"
+          }
+        }
+      }
+    },
     "Importera fil…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15102,6 +15152,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "variant"
+          }
+        }
+      }
+    },
+    "välj fil": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "choose a file"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "välj fil"
           }
         }
       }

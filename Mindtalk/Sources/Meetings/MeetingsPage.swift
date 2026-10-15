@@ -347,7 +347,7 @@ private struct MeetingList: View {
 }
 
 /// Start a meeting — or what's needed first, with the way to fix it.
-private struct StartCard: View {
+struct StartCard: View {
     @ObservedObject var session: MeetingSession
     @ObservedObject var voices: VoiceModels
     @ObservedObject var dictation: Dictation
@@ -355,6 +355,7 @@ private struct StartCard: View {
     @State private var importHover = false
 
     var body: some View {
+        VStack(spacing: 18) {
         HStack(alignment: .center, spacing: 18) {
             ZStack {
                 Circle().fill(DS.Colors.ink)
@@ -384,23 +385,36 @@ private struct StartCard: View {
                 }
             }
             Spacer(minLength: 16)
-            VStack(alignment: .trailing, spacing: 10) {
-                control
-                // A recording you already have: transcribed the same way.
-                if voices.state == .ready, dictation.engine.isInstalled {
-                    Button { MeetingImport.shared.choose(folder: folders.selected) } label: {
-                        HStack(spacing: 6) {
-                            Label("Importera fil…", systemImage: "square.and.arrow.down")
-                            Text(verbatim: "⌘O").foregroundStyle(DS.Colors.faint)
-                        }
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(importHover ? DS.Colors.ink : DS.Colors.muted)
-                        .fixedSize()
+            control
+        }
+            // A recording you already have: transcribed the same way. The dashes say
+            // it's a place to drop one; the whole line also opens a file.
+            if voices.state == .ready, dictation.engine.isInstalled {
+                Button { MeetingImport.shared.choose(folder: folders.selected) } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 12, weight: .semibold))
+                        (Text("Har du en inspelning? Dra in ljud eller video här – eller ")
+                         + Text("välj fil").fontWeight(.semibold).foregroundColor(importHover ? DS.Colors.ink : nil))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                        Spacer(minLength: 8)
+                        Text(verbatim: "⌘O").foregroundStyle(DS.Colors.faint)
                     }
-                    .buttonStyle(.plain)
-                    .onHover { importHover = $0 }
-                    .help("Gör text av en ljud- eller videofil – eller dra in den på sidan")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(importHover ? DS.Colors.ink : DS.Colors.muted)
+                    .padding(.horizontal, 14)
+                    .frame(height: 38)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(DS.Colors.chip.opacity(importHover ? 0.55 : 0.25)))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(DS.Colors.muted.opacity(importHover ? 0.6 : 0.35), style: StrokeStyle(lineWidth: 1, dash: [4, 4])))
+                    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
+                .buttonStyle(.plain)
+                .onHover { inside in withAnimation(.easeOut(duration: 0.15)) { importHover = inside } }
+                .help("Gör text av en ljud- eller videofil – dra in den var som helst på sidan, eller välj den här")
+                .accessibilityLabel("Importera en ljud- eller videofil")
             }
         }
         .padding(24)
