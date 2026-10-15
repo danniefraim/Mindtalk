@@ -2836,6 +2836,7 @@
       }
     },
     "Dina möten hamnar här.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2847,6 +2848,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dina möten hamnar här."
+          }
+        }
+      }
+    },
+    "Dina möten och inspelningar hamnar här.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your meetings and recordings end up here."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dina möten och inspelningar hamnar här."
           }
         }
       }
@@ -2913,6 +2930,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dra hit ett möte från Alla, eller starta ett möte medan mappen är vald – då hamnar det här."
+          }
+        }
+      }
+    },
+    "Dra in en inspelning här": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop a recording here"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dra in en inspelning här"
+          }
+        }
+      }
+    },
+    "Dra in en inspelning här, eller välj en fil": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop a recording here, or choose a file"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dra in en inspelning här, eller välj en fil"
           }
         }
       }
@@ -4520,6 +4569,7 @@
       }
     },
     "Gör text av en ljud- eller videofil – dra in den var som helst på sidan, eller välj den här": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4570,6 +4620,7 @@
       }
     },
     "Har du en inspelning? Dra in ljud eller video här – eller ": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5277,6 +5328,7 @@
       }
     },
     "Importera en ljud- eller videofil": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7026,6 +7078,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ljud eller video – du får texten med vem som sa vad, anteckningar och kan fråga om innehållet."
+          }
+        }
+      }
+    },
+    "Ljud eller video – eller välj en fil": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio or video – or choose a file"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ljud eller video – eller välj en fil"
           }
         }
       }
@@ -11415,6 +11483,22 @@
         }
       }
     },
+    "Spela in ett möte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record a meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spela in ett möte"
+          }
+        }
+      }
+    },
     "Spela in ett möte i rummet. Mindtalk skriver ut vad som sägs och känner igen vem som pratar – allt stannar på din Mac.": {
       "extractionState": "manual",
       "localizations": {
@@ -13009,6 +13093,22 @@
         }
       }
     },
+    "Texten skrivs medan ni pratar – bäst med upp till fem personer nära Macen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text is written as you talk – best with up to five people near the Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten skrivs medan ni pratar – bäst med upp till fem personer nära Macen."
+          }
+        }
+      }
+    },
     "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer nära Macen.": {
       "localizations": {
         "en": {
@@ -14419,6 +14519,22 @@
         }
       }
     },
+    "Välj en ljud- eller videofil (⌘O)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an audio or video file (⌘O)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj en ljud- eller videofil (⌘O)"
+          }
+        }
+      }
+    },
     "Välj en ljud- eller videofil att göra text av": {
       "localizations": {
         "en": {
@@ -14465,6 +14581,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Välj ett eller båda. Modellen laddas ned en gång och fungerar sedan helt offline."
+          }
+        }
+      }
+    },
+    "Välj fil…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose File…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj fil…"
           }
         }
       }
@@ -15157,6 +15289,7 @@
       }
     },
     "välj fil": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

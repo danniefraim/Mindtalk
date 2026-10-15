@@ -91,6 +91,31 @@ final class MeetingImport: ObservableObject {
     }
 
     @Published private(set) var jobs: [Job] = []
+    /// A file dragged over the page / over the start card's zone; and whether that
+    /// zone is on screen (then it lights up instead of the page being covered).
+    @Published var pageDragging = false
+    @Published var zoneTargeted = false
+    @Published var zoneVisible = false
+    var dropping: Bool { zoneTargeted || (pageDragging && zoneVisible) }
+
+    /// What was dropped: files from Finder, and copies handed over by apps
+    /// (Röstmemon, Bilder). Whether any of it could be taken.
+    func take(_ providers: [NSItemProvider], folder: UUID?) -> Bool {
+        var any = false
+        for provider in providers {
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                any = true
+                _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                    guard let url, url.isFileURL else { return }
+                    Task { @MainActor in MeetingImport.shared.add([url], folder: folder) }
+                }
+            } else if provider.hasItemConformingToTypeIdentifier(UTType.audiovisualContent.identifier) {
+                any = true
+                addCopy(of: provider, folder: folder)
+            }
+        }
+        return any
+    }
     /// Files that weren't sound or video — said for a few seconds, then gone.
     @Published private(set) var refused: String?
     private var running: Task<Void, Never>?

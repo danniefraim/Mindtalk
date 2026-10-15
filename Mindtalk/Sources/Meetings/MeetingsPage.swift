@@ -149,13 +149,12 @@ private struct MeetingList: View {
         // list scrolls — a meeting far down can still be dragged onto a folder.
         LazyVStack(alignment: .leading, spacing: 20, pinnedViews: [.sectionHeaders]) {
             PageHeader(title: "Möten",
-                       subtitle: "Spela in ett möte i rummet. Mindtalk skriver ned det som sägs och håller isär vem som pratar.")
+                       subtitle: "Spela in ett möte i rummet, eller ta in en inspelning du redan har. Du får texten med vem som sa vad, och anteckningar.")
                 .staggered(0)
             StartCard(session: session, voices: voices, dictation: dictation).staggered(1)
             ImportCards { id in open(id, nil) }
             if store.meetings.isEmpty {
                 EmptyArchive().staggered(2)
-                ImportHint().frame(maxWidth: .infinity).staggered(2)
             } else {
                 Section {
                     LibraryAnswers(library: library, open: open)
@@ -352,73 +351,108 @@ struct StartCard: View {
     @ObservedObject var voices: VoiceModels
     @ObservedObject var dictation: Dictation
     @ObservedObject private var folders = MeetingFolders.shared
-    @State private var importHover = false
+    @ObservedObject private var importer = MeetingImport.shared
+    /// Room for the two side by side.
+    @State private var wide = true
+
+    /// Both doors open: the voices and the speech model are here.
+    private var ready: Bool { voices.state == .ready && dictation.engine.isInstalled }
 
     var body: some View {
-        VStack(spacing: 18) {
-        HStack(alignment: .center, spacing: 18) {
-            ZStack {
-                Circle().fill(DS.Colors.ink)
-                Circle().fill(DS.Colors.recording).frame(width: 12, height: 12)
-            }
-            .frame(width: 48, height: 48)
-            .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Nytt möte").font(.system(size: 17, weight: .semibold))
-                Text(LocalizedStringKey(detail))
-                    .font(.system(size: 13))
-                    .foregroundStyle(DS.Colors.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let note {
-                    Label(note, systemImage: "cpu")
-                        .font(.system(size: 12))
-                        .foregroundStyle(DS.Colors.muted)
+        VStack(spacing: 0) {
+            if ready {
+                // Two ways in: record now | a recording you have. Side by side, stacked
+                // when the window is narrow.
+                Group {
+                    if wide {
+                        HStack(alignment: .center, spacing: 0) {
+                            recordPane.frame(maxWidth: .infinity, alignment: .leading)
+                            ImportZone(folder: folders.selected).padding(12).frame(maxWidth: .infinity)
+                        }
+                        .frame(minHeight: 200)
+                    } else {
+                        VStack(alignment: .leading, spacing: 0) {
+                            recordPane.frame(maxWidth: .infinity, alignment: .leading)
+                            ImportZone(folder: folders.selected, compact: true).padding(.horizontal, 12).padding(.bottom, 12)
+                        }
+                    }
                 }
+                .onGeometryChange(for: Bool.self) { $0.size.width >= 560 } action: { wide = $0 }
+            } else {
+                // Getting ready: one door — both ways need the same models.
+                HStack(alignment: .center, spacing: 18) {
+                    RecordGlyph()
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Nytt möte").font(.system(size: 17, weight: .semibold))
+                        Text(LocalizedStringKey(detail))
+                            .font(.system(size: 13))
+                            .foregroundStyle(DS.Colors.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let error = session.lastError {
+                            Text(error).font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
+                        }
+                    }
+                    Spacer(minLength: 16)
+                    control
+                }
+                .padding(24)
+            }
+            if ready { footer }
+        }
+        .raised(cornerRadius: 20, selected: importer.dropping)
+        .animation(.spring(duration: 0.3, bounce: 0.15), value: importer.dropping)
+        // Whether it's on screen: a file dragged over the page then lights this card's
+        // zone, rather than covering the page.
+        .onScrollVisibilityChange(threshold: 0.4) { visible in importer.zoneVisible = visible }
+        .onDisappear { importer.zoneVisible = false }
+    }
+
+    /// Record a meeting, now.
+    private var recordPane: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            RecordGlyph()
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Spela in ett möte").font(.system(size: 15, weight: .semibold))
+                Text("Texten skrivs medan ni pratar – bäst med upp till fem personer nära Macen.")
+                    .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let error = session.lastError {
                     Text(error).font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
-                }
-                // A folder chosen in the list below: the meeting goes in it — said here.
-                if voices.state == .ready, let folder = folders.folder(folders.selected) {
-                    Label("Sparas i \(folder.name)", systemImage: "folder")
-                        .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
-                        .transition(.opacity)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Spacer(minLength: 16)
-            control
-        }
-            // A recording you already have: transcribed the same way. The dashes say
-            // it's a place to drop one; the whole line also opens a file.
-            if voices.state == .ready, dictation.engine.isInstalled {
-                Button { MeetingImport.shared.choose(folder: folders.selected) } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "square.and.arrow.down")
-                            .font(.system(size: 12, weight: .semibold))
-                        (Text("Har du en inspelning? Dra in ljud eller video här – eller ")
-                         + Text("välj fil").fontWeight(.semibold).foregroundColor(importHover ? DS.Colors.ink : nil))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                        Spacer(minLength: 8)
-                        Text(verbatim: "⌘O").foregroundStyle(DS.Colors.faint)
-                    }
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(importHover ? DS.Colors.ink : DS.Colors.muted)
-                    .padding(.horizontal, 14)
-                    .frame(height: 38)
-                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(DS.Colors.chip.opacity(importHover ? 0.55 : 0.25)))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(DS.Colors.muted.opacity(importHover ? 0.6 : 0.35), style: StrokeStyle(lineWidth: 1, dash: [4, 4])))
-                    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .onHover { inside in withAnimation(.easeOut(duration: 0.15)) { importHover = inside } }
-                .help("Gör text av en ljud- eller videofil – dra in den var som helst på sidan, eller välj den här")
-                .accessibilityLabel("Importera en ljud- eller videofil")
+            Spacer(minLength: 0)
+            HStack(spacing: 10) {
+                control
+                if dictation.micGranted { KeyCap(keys: "⇧⌘R") }
             }
         }
-        .padding(24)
-        .raised(cornerRadius: 20)
+        .padding(22)
+        .opacity(importer.dropping ? 0.4 : 1)
+    }
+
+    /// What both ways use, and where a new one goes.
+    private var footer: some View {
+        HStack(spacing: 6) {
+            if let note {
+                Image(systemName: "cpu").font(.system(size: 11))
+                Text(note)
+            }
+            if let folder = folders.folder(folders.selected) {
+                if note != nil { Text(verbatim: "·") }
+                Image(systemName: "folder").font(.system(size: 11))
+                Text("Sparas i \(folder.name)")
+            }
+            Spacer(minLength: 0)
+        }
+        .font(.system(size: 11.5))
+        .foregroundStyle(DS.Colors.faint)
+        .lineLimit(1)
+        .padding(.horizontal, 22)
+        .padding(.vertical, 12)
+        .background(UnevenRoundedRectangle(bottomLeadingRadius: 20, bottomTrailingRadius: 20, style: .continuous)
+            .fill(DS.Colors.chip.opacity(0.25)))
+        .overlay(alignment: .top) { Rectangle().fill(DS.Colors.divider).frame(height: 0.5) }
     }
 
     private var detail: String {
@@ -499,7 +533,7 @@ private struct EmptyArchive: View {
             }
             .opacity(0.55)
             .accessibilityHidden(true)
-            Text("Dina möten hamnar här.")
+            Text("Dina möten och inspelningar hamnar här.")
                 .font(.system(size: 13))
                 .foregroundStyle(DS.Colors.muted)
         }

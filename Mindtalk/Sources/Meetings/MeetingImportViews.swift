@@ -12,11 +12,13 @@ private struct ImportDrop: ViewModifier {
     @State private var targeted = false
     @ObservedObject private var folders = MeetingFolders.shared
     @ObservedObject private var session = MeetingSession.shared
+    @ObservedObject private var importer = MeetingImport.shared
 
     func body(content: Content) -> some View {
         content
             .overlay {
-                if targeted {
+                // With the start card on screen, its zone lights up instead (StartCard).
+                if targeted && !importer.zoneVisible {
                     DropSign(folder: folders.folder(folders.selected)?.name, later: session.isBusy,
                              missing: !MeetingImport.shared.ready)
                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -24,24 +26,10 @@ private struct ImportDrop: ViewModifier {
                 }
             }
             .animation(.spring(duration: 0.3, bounce: 0.15), value: targeted)
-            // Files from Finder, and copies handed over by apps (Röstmemon, Bilder).
             .onDrop(of: [.fileURL, .audiovisualContent], isTargeted: $targeted) { providers in
-                let folder = folders.selected
-                var any = false
-                for provider in providers {
-                    if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-                        any = true
-                        _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                            guard let url, url.isFileURL else { return }
-                            Task { @MainActor in MeetingImport.shared.add([url], folder: folder) }
-                        }
-                    } else if provider.hasItemConformingToTypeIdentifier(UTType.audiovisualContent.identifier) {
-                        any = true
-                        MeetingImport.shared.addCopy(of: provider, folder: folder)
-                    }
-                }
-                return any
+                importer.take(providers, folder: folders.selected)
             }
+            .onChange(of: targeted) { _, now in importer.pageDragging = now }
     }
 }
 
@@ -383,6 +371,116 @@ struct SourceLink: View {
             let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
             let db = (try? b.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
             return da < db
+        }
+    }
+}
+
+
+// MARK: - The start card's two ways in
+
+/// Record: the ink disc with the red dot.
+struct RecordGlyph: View {
+    var body: some View {
+        ZStack {
+            Circle().fill(DS.Colors.ink)
+            Circle().fill(DS.Colors.recording).frame(width: 10, height: 10)
+        }
+        .frame(width: 44, height: 44)
+        .accessibilityHidden(true)
+    }
+}
+
+/// A key cap beside a button: "⇧⌘R".
+struct KeyCap: View {
+    let keys: String
+    var body: some View {
+        Text(verbatim: keys)
+            .font(.system(size: 11, weight: .medium).monospacedDigit())
+            .foregroundStyle(DS.Colors.faint)
+            .padding(.horizontal, 6)
+            .frame(height: 20)
+            .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(DS.Colors.chip.opacity(0.6)))
+            .accessibilityHidden(true)
+    }
+}
+
+/// The start card's right half: a dashed place to drop a recording — the whole of it
+/// also opens a file, and "Välj fil…" is there for those who'd rather choose.
+struct ImportZone: View {
+    let folder: UUID?
+    /// Stacked under the record half in a narrow window: one row.
+    var compact = false
+    @ObservedObject private var importer = MeetingImport.shared
+    @State private var hovering = false
+    @State private var targeted = false
+
+    var body: some View {
+        let dropping = importer.dropping
+        ZStack {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(DS.Colors.chip.opacity(dropping ? 0.55 : hovering ? 0.3 : 0.12))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(dropping ? DS.Colors.ink : DS.Colors.muted.opacity(hovering ? 0.7 : 0.45),
+                              style: dropping ? StrokeStyle(lineWidth: 1.5) : StrokeStyle(lineWidth: 1.2, dash: [6, 5]))
+            content(dropping)
+                .padding(compact ? 12 : 18)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .onTapGesture { importer.choose(folder: folder) }
+        .onHover { inside in withAnimation(.easeOut(duration: 0.15)) { hovering = inside } }
+        .onDrop(of: [.fileURL, .audiovisualContent], isTargeted: $targeted) { providers in
+            importer.take(providers, folder: folder)
+        }
+        .onChange(of: targeted) { _, now in importer.zoneTargeted = now }
+        .animation(.spring(duration: 0.3, bounce: 0.15), value: dropping)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Dra in en inspelning här, eller välj en fil")
+    }
+
+    @ViewBuilder private func content(_ dropping: Bool) -> some View {
+        if compact {
+            HStack(spacing: 12) {
+                glyph
+                Text(dropping ? "Släpp så skrivs den ned" : "Dra in en inspelning här")
+                    .font(.system(size: 14, weight: .semibold))
+                Spacer(minLength: 8)
+                if !dropping { chooseButton }
+            }
+        } else {
+            VStack(spacing: 10) {
+                glyph
+                if dropping {
+                    Text("Släpp så skrivs den ned").font(.system(size: 20, design: .serif))
+                } else {
+                    VStack(spacing: 3) {
+                        Text("Dra in en inspelning här").font(.system(size: 15, weight: .semibold))
+                        Text("Ljud eller video – eller välj en fil").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                    }
+                    chooseButton.padding(.top, 4)
+                }
+            }
+            .multilineTextAlignment(.center)
+        }
+    }
+
+    private var glyph: some View {
+        ZStack {
+            Circle().fill(DS.Colors.chip)
+            Image(systemName: "waveform.badge.plus")
+                .font(.system(size: 18, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(DS.Colors.ink)
+        }
+        .frame(width: 44, height: 44)
+        .accessibilityHidden(true)
+    }
+
+    private var chooseButton: some View {
+        HStack(spacing: 10) {
+            Button("Välj fil…") { importer.choose(folder: folder) }
+                .buttonStyle(.soft)
+                .help("Välj en ljud- eller videofil (⌘O)")
+            KeyCap(keys: "⌘O")
         }
     }
 }
