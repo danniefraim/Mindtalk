@@ -354,7 +354,7 @@ struct VoiceScanner: View {
         var name = (text as NSString).substring(with: m.range(at: 1))
         guard name.first?.isUppercase == true,
               !["Jag", "Det", "Du", "Vi", "Ni", "Bra", "Okej", "Nu", "Här", "The", "It"].contains(name) else { return nil }
-        // "Mattias Hej": the next person's greeting, not a surname.
+        // "Matilda Hej": the next person's greeting, not a surname.
         let parts = name.split(separator: " ").map(String.init)
         if parts.count == 2, greetings.contains(parts[1].lowercased()) {
             name = parts[0]

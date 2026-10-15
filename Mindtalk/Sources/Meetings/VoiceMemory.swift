@@ -228,7 +228,7 @@ final class VoiceMemory: ObservableObject {
         name.lowercased().trimmingCharacters(in: .whitespaces)
     }
 
-    /// A name corrected in a meeting ("Mattias" → "Mathias"). The voice remembered
+    /// A name corrected in a meeting ("Matilda" → "Mathilda"). The voice remembered
     /// under the old name follows: all of it when it's the same name spelled another
     /// way, or when it was only ever named in this meeting; otherwise just this
     /// meeting's print leaves it (learned again under the new name). A spelling fix
@@ -272,7 +272,7 @@ final class VoiceMemory: ObservableObject {
         Self.log.notice("voice renamed in a meeting (same name spelled differently: \(alike))")
     }
 
-    /// One name spelled two ways: "Mattias" and "Mathias", "Eric" and "Erik", "Sara" and
+    /// One name spelled two ways: "Matilda" and "Mathilda", "Eric" and "Erik", "Sara" and
     /// "Sarah" — the same once the usual variations (th/t, c/k, ph/f, z/s, w/v, double
     /// letters, a final h) are evened out. Two names a letter apart are two names: Anna
     /// and Anne, Lisa and Lina, Johan and Jonas.

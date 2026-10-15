@@ -226,10 +226,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                                   ("Okej, det blir bra.", true), ("Erik här.", true), ("Jag heter Lisa.", false),
                                   ("Det här var Johan. Hej", false), ("Det här var Johan Hej hej", false), ("Hej, det är Karin.", false), ("Johan", true),
                                   ("Per", true), ("Bra", true), ("Tack", true), ("Stockholm", true), ("Johanna Berg här", true),
-                                  ("This is John.", false), ("Sara", true), ("Nästa", true), ("Hallå", true), ("Nigg", true), ("Käll", true), ("Mathias", true), ("Nellie här", true), ("Liam", true), ("Emma", true), ("Björn", true), ("Linda", true), ("Det är Volvo.", false), ("Jag heter Zylvana.", false), ("Man", true), ("Nu", true), ("My name’s Tom.", false)] {
+                                  ("This is John.", false), ("Sara", true), ("Nästa", true), ("Hallå", true), ("Nigg", true), ("Käll", true), ("Matilda", true), ("Karin här", true), ("Liam", true), ("Emma", true), ("Björn", true), ("Linda", true), ("Det är Volvo.", false), ("Jag heter Zylvana.", false), ("Man", true), ("Nu", true), ("My name’s Tom.", false)] {
                 print("\(text) → \(IntroRound.name(in: text, whole: whole) ?? "–")")
             }
-            for (a, b) in [("Mattias", "Mathias"), ("Eric", "Erik"), ("Anna", "Erik"), ("Johan", "Johanna"), ("Sara", "Sarah"), ("Per", "Pelle"), ("Anna", "Anne"), ("Lisa", "Lina"), ("Johan", "Jonas"), ("Max", "Mia"), ("Emil", "Elin"), ("Karin", "Karl"), ("Philip", "Filip"), ("Zandra", "Sandra")] {
+            for (a, b) in [("Matilda", "Mathilda"), ("Eric", "Erik"), ("Anna", "Erik"), ("Johan", "Johanna"), ("Sara", "Sarah"), ("Per", "Pelle"), ("Anna", "Anne"), ("Lisa", "Lina"), ("Johan", "Jonas"), ("Max", "Mia"), ("Emil", "Elin"), ("Karin", "Karl"), ("Philip", "Filip"), ("Zandra", "Sandra")] {
                 print("\(a) ~ \(b): \(VoiceMemory.spelledAlike(a, b))")
             }
             exit(0)

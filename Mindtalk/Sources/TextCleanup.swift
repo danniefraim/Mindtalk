@@ -50,7 +50,7 @@ enum TextCleanup {
         pattern: #"(?<![\p{L}\p{N}])(\p{L}+)\.[ \t]+(\p{Lu}\p{L}*)"#)
 
     /// Names that are also words ("per", "jan") — kept capitalised after a false break.
-    private static let namesThatAreWords: Set<String> = ["per", "jan", "lisa", "mattias", "eva", "max", "maj", "mark",
+    private static let namesThatAreWords: Set<String> = ["per", "jan", "lisa", "eva", "max", "maj", "mark",
                                                           "rose", "will", "bill", "frank", "grace", "may", "april"]
 
     /// A word written in lowercase in the text's own language — checked only in that

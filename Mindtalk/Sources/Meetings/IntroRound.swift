@@ -254,7 +254,7 @@ final class IntroRound: ObservableObject {
                 set(.same(here.name))
                 return
             }
-            // The name, the moment it's said ("Mattias", "jag heter Anna"): thanked, on to
+            // The name, the moment it's said ("Matilda", "jag heter Anna"): thanked, on to
             // the next. The voice itself is learned from the whole meeting afterwards —
             // nobody has to talk on for it here.
             if let heard = nameInTurn(), settled(on: heard.name) {
@@ -438,7 +438,7 @@ final class IntroRound: ObservableObject {
         return captures.first { Self.sameName($0.name, known.name) }
     }
 
-    /// "Mattias" and "Mattias Karlsson" are the same person in a round.
+    /// "Matilda" and "Matilda Berg" are the same person in a round.
     static func sameName(_ a: String, _ b: String) -> Bool {
         let first = { (s: String) in s.split(separator: " ").first.map { $0.lowercased() } ?? "" }
         return first(a) == first(b)
