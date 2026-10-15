@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 
 // MARK: - Meetings
@@ -509,8 +510,8 @@ final class MeetingStore: ObservableObject {
         SpeechModel.rootDirectory.deletingLastPathComponent().appendingPathComponent("Meetings")
     }
 
-    static func folder(for id: UUID) -> URL { root.appendingPathComponent(id.uuidString) }
-    static func audioURL(for id: UUID) -> URL { folder(for: id).appendingPathComponent("audio.caf") }
+    nonisolated static func folder(for id: UUID) -> URL { root.appendingPathComponent(id.uuidString) }
+    nonisolated static func audioURL(for id: UUID) -> URL { folder(for: id).appendingPathComponent("audio.caf") }
     private static func recordURL(for id: UUID) -> URL { folder(for: id).appendingPathComponent("meeting.json") }
 
     /// The meetings are read from disk once, off the main thread (a long history is
@@ -566,6 +567,51 @@ final class MeetingStore: ObservableObject {
     }
 
     /// Creates the meeting's folder, private to you.
+    /// A finished meeting continued: the new part is recorded here, then put after
+    /// the first (joinContinuation) — the meeting has one recording again.
+    nonisolated static func continuationURL(for id: UUID) -> URL { folder(for: id).appendingPathComponent("audio-more.caf") }
+    nonisolated private static func joinedURL(for id: UUID) -> URL { folder(for: id).appendingPathComponent("audio-joined.caf") }
+    /// The quiet put between the parts, in samples (16 kHz): a second, so the words and
+    /// voices on either side don't run together.
+    nonisolated static let continuationGap = 16_000
+
+    /// The continued part after the first, with a second of quiet between. Safe to
+    /// call again after it was cut off: the joined file is written beside the two,
+    /// the new part removed only once it is complete, and only then does it take
+    /// the recording's place.
+    nonisolated static func joinContinuation(for id: UUID) throws {
+        let fm = FileManager.default
+        let main = audioURL(for: id), more = continuationURL(for: id), joined = joinedURL(for: id)
+        if !fm.fileExists(atPath: more.path) {
+            // Cut off after the join was written: it only has to take its place.
+            if fm.fileExists(atPath: joined.path) { _ = try fm.replaceItemAt(main, withItemAt: joined) }
+            return
+        }
+        try? fm.removeItem(at: joined)                 // half written before
+        let first = try AVAudioFile(forReading: main)
+        let out = try AVAudioFile(forWriting: joined, settings: first.fileFormat.settings,
+                                  commonFormat: .pcmFormatFloat32, interleaved: false)
+        func copy(_ file: AVAudioFile) throws {
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 1 << 16) else { return }
+            while file.framePosition < file.length {
+                try file.read(into: buffer)
+                if buffer.frameLength == 0 { break }
+                try out.write(from: buffer)
+            }
+        }
+        try copy(first)
+        if let gap = AVAudioPCMBuffer(pcmFormat: out.processingFormat, frameCapacity: AVAudioFrameCount(continuationGap)),
+           let channel = gap.floatChannelData?[0] {
+            gap.frameLength = AVAudioFrameCount(continuationGap)
+            channel.update(repeating: 0, count: continuationGap)
+            try out.write(from: gap)
+        }
+        try copy(AVAudioFile(forReading: more))
+        out.close()
+        try fm.removeItem(at: more)
+        _ = try fm.replaceItemAt(main, withItemAt: joined)
+    }
+
     static func prepareFolder(for id: UUID) throws {
         let fm = FileManager.default
         try fm.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])

@@ -275,7 +275,7 @@ struct MeetingPanelView: View {
             } else if panel.isVisible {
                 // Each meeting starts the panel afresh: the reminder, following the text.
                 LivePanel(session: session, expand: expand, close: close)
-                    .id(session.startedAt)
+                    .id(session.record?.id)
             } else {
                 Color.clear          // put away: nothing to lay out
             }
@@ -311,15 +311,21 @@ private struct LivePanel: View {
     private var header: some View {
         HStack(spacing: 10) {
             if session.isRecording {
-                RecordingDot()
+                RecordingMark(session: session, color: .primary)
                 if let start = session.startedAt {
                     TimelineView(.periodic(from: start, by: 1)) { context in
-                        Text(MeetingView.duration(context.date.timeIntervalSince(start)))
+                        let time = session.clock(at: context.date)
+                        Text(MeetingView.duration(time))
                             .font(.system(size: 15, weight: .semibold, design: .rounded)).monospacedDigit()
-                            .accessibilityLabel("Spelar in, \(MeetingView.spoken(context.date.timeIntervalSince(start)))")
+                            .foregroundStyle(session.isPaused ? DS.Colors.muted : Color.primary)
+                            .accessibilityLabel(session.isPaused ? "Pausat, \(MeetingView.spoken(time))" : "Spelar in, \(MeetingView.spoken(time))")
                     }
                 }
-                PanelWave().frame(width: 84, height: 18).accessibilityHidden(true)
+                if session.isPaused {
+                    Text("Pausat").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+                } else {
+                    PanelWave().frame(width: 84, height: 18).accessibilityHidden(true)
+                }
             } else {
                 Text(session.record?.title ?? "").font(.system(size: 13.5, weight: .semibold)).lineLimit(1)
             }
@@ -465,21 +471,15 @@ private struct LivePanel: View {
                 } else if session.isRecording {
                     // As in the window: one island — your note, the marks, stop. (The
                     // time is at the top of the panel.)
+                    if session.isPaused {
+                        Text("Pausat – mikrofonen är av. Allt hittills finns kvar.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(DS.Colors.muted)
+                            .frame(maxWidth: .infinity)
+                            .transition(.opacity)
+                    }
                     NoteIsland(session: session, compact: true) { EmptyView() } trailing: {
-                        Button { withAnimation(.spring(duration: 0.3, bounce: 0.15)) { _ = session.requestStop() } } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "stop.fill").font(.system(size: 9.5, weight: .bold))
-                                Text("Avsluta").font(.system(size: 12.5, weight: .semibold))
-                            }
-                            .foregroundStyle(.black)
-                            .padding(.horizontal, 12)
-                            .frame(height: 32)
-                            .background(Capsule().fill(.white))
-                            .contentShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                        .help("Avsluta mötet – du kan ångra i några sekunder")
-                        .accessibilityLabel("Avsluta mötet")
+                        MeetingControls(session: session, labelledStop: true)
                     }
                     .transition(.opacity)
                 }
@@ -531,6 +531,18 @@ private struct DonePanel: View {
                     }
                     .buttonStyle(.plain)
                     .padding(.top, 10)
+                    if case .meeting(let id, _) = done {
+                        Button { AppDelegate.continueMeeting(id) } label: {
+                            Label("Fortsätt mötet", systemImage: "record.circle")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(DS.Colors.ink)
+                                .padding(.horizontal, 16)
+                                .frame(minHeight: 34)
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Spela in mer i samma möte – texten och anteckningarna fortsätter")
+                    }
                 case .nothingHeard:
                     Image(systemName: "waveform.slash").font(.system(size: 28)).foregroundStyle(DS.Colors.faint)
                     Text("Inget hördes").font(.system(size: 16, weight: .semibold))

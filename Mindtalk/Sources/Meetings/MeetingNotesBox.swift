@@ -190,6 +190,94 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
     }
 }
 
+/// Pause and stop, at the end of the island. Recording: pause (quiet), then stop —
+/// the stop labelled where there's room for it. Paused: "Fortsätt" first.
+struct MeetingControls: View {
+    @ObservedObject var session: MeetingSession
+    /// The panel: stop as "Avsluta".
+    var labelledStop = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if session.isPaused {
+                Button { withAnimation(.spring(duration: 0.3, bounce: 0.15)) { session.resume() } } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "play.fill").font(.system(size: 10, weight: .bold))
+                        Text("Fortsätt").font(.system(size: 12.5, weight: .semibold))
+                    }
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 13)
+                    .frame(height: 32)
+                    .background(Capsule().fill(.white))
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .help("Sätt på mikrofonen igen – mötet fortsätter där det var")
+                .accessibilityLabel("Fortsätt mötet")
+                .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                round(symbol: "stop.fill", filled: false, help: "Avsluta mötet – du kan ångra i några sekunder",
+                      label: "Avsluta mötet") { _ = session.requestStop() }
+            } else {
+                round(symbol: "pause.fill", filled: false, help: "Pausa – mikrofonen stängs av, och mötet väntar",
+                      label: "Pausa mötet") { session.pause() }
+                if labelledStop {
+                    Button { withAnimation(.spring(duration: 0.3, bounce: 0.15)) { _ = session.requestStop() } } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "stop.fill").font(.system(size: 9.5, weight: .bold))
+                            Text("Avsluta").font(.system(size: 12.5, weight: .semibold))
+                        }
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 12)
+                        .frame(height: 32)
+                        .background(Capsule().fill(.white))
+                        .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Avsluta mötet – du kan ångra i några sekunder")
+                    .accessibilityLabel("Avsluta mötet")
+                } else {
+                    round(symbol: "stop.fill", filled: true, help: "Avsluta mötet – du kan ångra i några sekunder",
+                          label: "Avsluta mötet") { _ = session.requestStop() }
+                }
+            }
+        }
+        .animation(.spring(duration: 0.3, bounce: 0.15), value: session.isPaused)
+    }
+
+    private func round(symbol: String, filled: Bool, help: LocalizedStringKey, label: LocalizedStringKey,
+                       action: @escaping () -> Void) -> some View {
+        Button { withAnimation(.spring(duration: 0.3, bounce: 0.15)) { action() } } label: {
+            Image(systemName: symbol).font(.system(size: 11, weight: .bold))
+                .foregroundStyle(filled ? .black : .white)
+                .frame(width: 32, height: 32)
+                .background(Circle().fill(filled ? .white : .white.opacity(0.1)))
+                .overlay(Circle().strokeBorder(.white.opacity(filled ? 0 : 0.14), lineWidth: 0.5))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(label)
+    }
+}
+
+/// Recording: the red dot that breathes; paused, two quiet bars.
+struct RecordingMark: View {
+    @ObservedObject var session: MeetingSession
+    var color: Color = .white
+
+    var body: some View {
+        if session.isPaused {
+            Image(systemName: "pause.fill")
+                .font(.system(size: 9, weight: .heavy))
+                .foregroundStyle(color.opacity(0.7))
+                .frame(width: 9, height: 9)
+                .accessibilityHidden(true)
+        } else {
+            RecordingDot()
+        }
+    }
+}
+
 /// The three marks as round buttons in their colours — ⌥⌘1, ⌥⌘2, ⌥⌘3. The one
 /// under the pointer opens into a pill with its name and key at once — no waiting
 /// for a tooltip, and it shows in the panel while another app is in front.

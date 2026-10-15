@@ -116,8 +116,14 @@ final class MeetingNotes: ObservableObject {
             while MeetingSession.shared.isRecording { try? await Task.sleep(for: .seconds(2)) }
             do {
                 let t0 = Date()
-                let summary = try await Self.write(lines, local: local)
+                var summary = try await Self.write(lines, local: local)
                 guard var latest = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
+                // Written again (a continued meeting, "Sammanfatta igen"): the tasks you
+                // ticked off stay ticked where the same task is there again.
+                let ticked = Set((latest.summary?.tasks ?? []).filter { $0.done == true }.map { Self.taskKey($0.text) })
+                for i in summary.tasks.indices where ticked.contains(Self.taskKey(summary.tasks[i].text)) {
+                    summary.tasks[i].done = true
+                }
                 latest.summary = summary
                 if !latest.userTitled, let title = summary.title, !title.isEmpty { latest.title = title }
                 MeetingStore.shared.save(latest)
@@ -127,6 +133,10 @@ final class MeetingNotes: ObservableObject {
                 failed[id] = Self.explain(error)
             }
         }
+    }
+
+    private static func taskKey(_ text: String) -> String {
+        text.lowercased().filter { $0.isLetter || $0.isNumber }
     }
 
     func ask(_ question: String, about id: UUID) {

@@ -2901,7 +2901,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Keep the meeting going"
+            "value": "Continue meeting"
           }
         },
         "sv": {
@@ -4614,6 +4614,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Innan ni börjar"
+          }
+        }
+      }
+    },
+    "Inspelningen av mötet kunde inte läsas – det går inte att fortsätta det.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting's recording couldn't be read – it can't be continued."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspelningen av mötet kunde inte läsas – det går inte att fortsätta det."
           }
         }
       }
@@ -6495,7 +6511,6 @@
       }
     },
     "Markerat": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7227,6 +7242,22 @@
         }
       }
     },
+    "Mötet är pausat · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meeting paused · %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet är pausat · %@"
+          }
+        }
+      }
+    },
     "Mötets språk": {
       "localizations": {
         "en": {
@@ -7747,6 +7778,86 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pausa"
+          }
+        }
+      }
+    },
+    "Pausa mötet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause the meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausa mötet"
+          }
+        }
+      }
+    },
+    "Pausa – mikrofonen stängs av, och mötet väntar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause – the microphone turns off and the meeting waits"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausa – mikrofonen stängs av, och mötet väntar"
+          }
+        }
+      }
+    },
+    "Pausat": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausat"
+          }
+        }
+      }
+    },
+    "Pausat – mikrofonen är av. Allt hittills finns kvar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused – the microphone is off. Everything so far is kept."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausat – mikrofonen är av. Allt hittills finns kvar."
+          }
+        }
+      }
+    },
+    "Pausat, %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused, %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausat, %@"
           }
         }
       }
@@ -9444,6 +9555,38 @@
         }
       }
     },
+    "Spela in mer i samma möte – texten fortsätter där den slutade, och anteckningarna skrivs om för hela mötet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record more in the same meeting – the text goes on where it ended, and the notes are rewritten for the whole meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spela in mer i samma möte – texten fortsätter där den slutade, och anteckningarna skrivs om för hela mötet"
+          }
+        }
+      }
+    },
+    "Spela in mer i samma möte – texten och anteckningarna fortsätter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record more in the same meeting – the text and notes go on"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spela in mer i samma möte – texten och anteckningarna fortsätter"
+          }
+        }
+      }
+    },
     "Spela upp": {
       "localizations": {
         "en": {
@@ -10141,6 +10284,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sätt att diktera"
+          }
+        }
+      }
+    },
+    "Sätt på mikrofonen igen – mötet fortsätter där det var": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn the microphone back on – the meeting goes on where it was"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sätt på mikrofonen igen – mötet fortsätter där det var"
           }
         }
       }
@@ -13047,6 +13206,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "⌘%lld"
+          }
+        }
+      }
+    },
+    "⌥⌘%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌥⌘%lld"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌥⌘%lld"
           }
         }
       }

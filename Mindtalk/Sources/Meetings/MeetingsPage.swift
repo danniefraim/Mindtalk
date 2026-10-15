@@ -856,6 +856,20 @@ struct MeetingView: View {
                 .buttonStyle(.plain)
                 .help("Mötet fortsätter i en liten panel bredvid det du gör")
             }
+            // Back in the room after a break: on with the same meeting.
+            if !live, record.finished, record.hasAudio {
+                Button { AppDelegate.continueMeeting(record.id) } label: {
+                    Label("Fortsätt mötet", systemImage: "record.circle")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .padding(.horizontal, 12)
+                        .frame(height: 30)
+                        .background(Capsule().fill(DS.Colors.chip))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(MeetingSession.shared.phase != .idle)
+                .help("Spela in mer i samma möte – texten fortsätter där den slutade, och anteckningarna skrivs om för hela mötet")
+            }
             Button(action: copy) {
                 Image(systemName: copied ? "checkmark" : "doc.on.doc")
                     .contentTransition(.symbolEffect(.replace))
@@ -1820,7 +1834,7 @@ private struct LiveBar: View {
             }
             // Recording: one island — the time, your note, the marks, stop.
             if session.isRecording, !session.introducing, !session.stopping {
-                NoteIsland(session: session) { timer } trailing: { stopButton }
+                NoteIsland(session: session) { timer } trailing: { MeetingControls(session: session) }
                     .padding(.horizontal, 24)
                     .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .bottom)))
             } else {
@@ -1840,6 +1854,7 @@ private struct LiveBar: View {
     private var caption: (text: String, warning: Bool)? {
         if case .finishing = session.phase { return (String(localized: "Texten blir mer exakt när det är klart."), false) }
         if session.stopping { return (String(localized: "Spelar in tills nedräkningen är klar."), false) }
+        if session.isPaused { return (String(localized: "Pausat – mikrofonen är av. Allt hittills finns kvar."), false) }
         if let w = session.warning { return (w, true) }
         if !panelTipSeen, session.isRecording {
             return (String(localized: "Stäng fönstret så fortsätter mötet i en liten panel."), false)
@@ -1878,13 +1893,14 @@ private struct LiveBar: View {
     /// The red dot and how long it has been going.
     private var timer: some View {
         HStack(spacing: 10) {
-            RecordingDot()
+            RecordingMark(session: session)
             if let start = session.startedAt {
                 TimelineView(.periodic(from: start, by: 1)) { context in
-                    Text(MeetingView.duration(context.date.timeIntervalSince(start)))
+                    let time = session.clock(at: context.date)
+                    Text(MeetingView.duration(time))
                         .font(.system(size: 15, weight: .semibold, design: .rounded)).monospacedDigit()
-                        .foregroundStyle(.white)
-                        .accessibilityLabel("Spelar in, \(MeetingView.spoken(context.date.timeIntervalSince(start)))")
+                        .foregroundStyle(.white.opacity(session.isPaused ? 0.55 : 1))
+                        .accessibilityLabel(session.isPaused ? "Pausat, \(MeetingView.spoken(time))" : "Spelar in, \(MeetingView.spoken(time))")
                 }
             }
         }

@@ -1,3 +1,4 @@
+import AVFoundation
 import AppKit
 import Combine
 import UserNotifications
@@ -483,6 +484,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 Self.showWindow(page: .meetings)
                 MeetingSession.shared.start(introducing: args.contains("--round"))
                 print("[auto] möte startat, runda: \(MeetingSession.shared.introducing), fel: \(MeetingSession.shared.lastError ?? "inget")")
+                // `--continue-from s [--continue-limit s]`: once it's written, the meeting is
+                // continued with the file from there on — then what came of it, and quit.
+                if let from = MeetingSession.argSeconds("--continue-from") {
+                    Task { @MainActor in
+                        let session = MeetingSession.shared
+                        while session.finished == nil { try? await Task.sleep(for: .milliseconds(300)) }
+                        guard let id = session.finished,
+                              let first = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
+                        let boundary = first.duration
+                        let firstSpeakers = Set(first.words.compactMap(\.speaker))
+                        print("[test] del 1: \(Int(boundary)) s, \(first.words.count) ord, talare \(firstSpeakers.sorted())")
+                        session.fakeRange = (from, MeetingSession.argSeconds("--continue-limit"))
+                        session.continueMeeting(id)
+                        print("[test] fortsätter: \(session.isRecording), fel: \(session.lastError ?? "inget")")
+                        while session.finished == id || session.isBusy { try? await Task.sleep(for: .milliseconds(300)) }
+                        while session.finished != id { try? await Task.sleep(for: .milliseconds(300)) }
+                        guard let done = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
+                        let url = MeetingStore.audioURL(for: id)
+                        let file = try? AVAudioFile(forReading: url)
+                        let seconds = Double(file?.length ?? 0) / 16_000
+                        let more = FileManager.default.fileExists(atPath: MeetingStore.continuationURL(for: id).path)
+                        print("[test] klart: längd \(String(format: "%.1f", done.duration)) s, ljudfil \(String(format: "%.1f", seconds)) s, kvar att foga: \(more), genomlyssnat \(done.refined), klart \(done.finished)")
+                        let before = done.words.filter { $0.end <= boundary }, after = done.words.filter { $0.start >= boundary }
+                        print("[test] ord före gränsen \(before.count) (var \(first.words.count)), efter \(after.count)")
+                        print("[test] talare före \(Set(before.compactMap(\.speaker)).sorted()), efter \(Set(after.compactMap(\.speaker)).sorted())")
+                        let sorted = zip(done.words, done.words.dropFirst()).allSatisfy { $0.start <= $1.start + 0.01 }
+                        print("[test] tiderna i ordning: \(sorted), sista ordet slutar \(String(format: "%.1f", done.words.last?.end ?? 0)) s")
+                        let near = done.words.filter { abs($0.start - boundary) < 12 }
+                        print("[test] kring gränsen: " + near.map { "\($0.text)[\($0.speaker.map(String.init) ?? "-")]" }.joined(separator: " "))
+                        exit(0)
+                    }
+                }
                 // `--in-panel`: the meeting in its panel, as when started from the menu bar.
                 if args.contains("--in-panel") {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1) { MeetingPanel.shared.collapse() }
@@ -586,7 +619,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // Recordings kept no longer than you chose (Inställningar → Möten).
         DispatchQueue.main.asyncAfter(deadline: .now() + 30) { MeetingStore.shared.applyRetention() }
         UNUserNotificationCenter.current().delegate = self
-        MeetingSession.shared.$phase.combineLatest(MeetingSession.shared.$warning.removeDuplicates())
+        MeetingSession.shared.$phase.combineLatest(MeetingSession.shared.$warning.removeDuplicates(),
+                                                   MeetingSession.shared.$pausedAt.map { $0 != nil }.removeDuplicates())
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.updateIcon()
@@ -698,7 +732,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         button.imagePosition = .imageLeading
         if meeting.isRecording {
             // Something is wrong with the recording: say so here too — the window may be closed.
-            let dot = meeting.warning == nil
+            let dot = meeting.isPaused
+                ? NSImage(systemSymbolName: "pause.circle.fill", accessibilityDescription: String(localized: "Pausat"))?
+                    .withSymbolConfiguration(.init(paletteColors: [.white, .systemGray]))
+                : meeting.warning == nil
                 ? NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: String(localized: "Spelar in"))?
                     .withSymbolConfiguration(.init(paletteColors: [.white, .systemRed]))
                 : NSImage(systemSymbolName: "exclamationmark.triangle.fill",
@@ -707,8 +744,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             dot?.isTemplate = false
             button.image = dot
             let tick = { [weak self] in
-                guard let start = MeetingSession.shared.startedAt else { return }
-                self?.statusItem.button?.title = " " + MeetingView.duration(Date().timeIntervalSince(start))
+                guard MeetingSession.shared.startedAt != nil else { return }
+                self?.statusItem.button?.title = " " + MeetingView.duration(MeetingSession.shared.clock(at: Date()))
             }
             tick()
             if meetingClock == nil {
@@ -979,6 +1016,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // Without the round, from the menu bar: the panel shows the meeting, and the
         // keyboard goes back to the app you were in rather than to Mindtalk with no window.
         if !introducing, !mainWindowVisible { NSApp.deactivate() }
+    }
+
+    /// Goes on with a finished meeting — in the window when it's open, in the panel
+    /// otherwise, as a meeting started without the round.
+    static func continueMeeting(_ id: UUID) {
+        let meeting = MeetingSession.shared
+        meeting.continueMeeting(id)
+        if !meeting.isRecording { showWindow(page: .meetings) }
     }
 
     static var mainWindowVisible: Bool { (NSApp.delegate as? AppDelegate)?.window?.isVisible == true }

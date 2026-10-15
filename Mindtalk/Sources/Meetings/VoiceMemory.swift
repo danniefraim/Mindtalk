@@ -476,15 +476,16 @@ actor VoicePrints {
         return try? embedder.embed(audio: samples)
     }
 
-    /// The same, from samples in memory that start at the meeting's start (the
-    /// introduction, while the recording is still being written).
+    /// The same, from samples in memory that start at the meeting's start — or at
+    /// `origin` seconds into it (a continued meeting) — while it is still being written.
     /// `minimum`: seconds of their speech needed — less while a meeting runs, to name
     /// someone within seconds (strangers don't score higher on short prints).
-    func print(of speaker: Int, in words: [MeetingWord], samples: [Float], minimum: Double = 3.5) async -> [Float]? {
+    func print(of speaker: Int, in words: [MeetingWord], samples: [Float], minimum: Double = 3.5,
+               origin: Double = 0) async -> [Float]? {
         guard (try? load()) != nil, let embedder else { return nil }
         var audio: [Float] = []
         for s in Self.stretches(of: speaker, in: words) {
-            let a = max(0, Int(s.start * 16_000)), b = min(samples.count, Int(s.end * 16_000))
+            let a = max(0, Int((s.start - origin) * 16_000)), b = min(samples.count, Int((s.end - origin) * 16_000))
             if a < b { audio += samples[a..<b] }
         }
         guard audio.count >= Int(minimum * 16_000) else { return nil }

@@ -271,9 +271,14 @@ struct StatusPanelView: View {
                 Text(warning).lineLimit(2).fixedSize(horizontal: false, vertical: true)
             } else if meeting.isRecording, let start = meeting.startedAt {
                 // A meeting has the mic: say so, with the time.
-                Circle().fill(DS.Colors.recording).frame(width: 6, height: 6)
-                TimelineView(.periodic(from: start, by: 1)) { context in
-                    Text("Möte spelas in · \(MeetingView.duration(context.date.timeIntervalSince(start)))").monospacedDigit()
+                if meeting.isPaused {
+                    Image(systemName: "pause.fill").font(.system(size: 7, weight: .heavy))
+                    Text("Mötet är pausat · \(MeetingView.duration(meeting.clock(at: Date())))").monospacedDigit()
+                } else {
+                    Circle().fill(DS.Colors.recording).frame(width: 6, height: 6)
+                    TimelineView(.periodic(from: start, by: 1)) { context in
+                        Text("Möte spelas in · \(MeetingView.duration(meeting.clock(at: context.date)))").monospacedDigit()
+                    }
                 }
             } else if case .finishing(let what) = meeting.phase {
                 Text(what)
