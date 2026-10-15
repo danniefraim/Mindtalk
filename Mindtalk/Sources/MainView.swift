@@ -73,7 +73,7 @@ struct MainView: View {
                 .onAppear { MainView.currentPage = page }
                 .onChange(of: page) { _, now in MainView.currentPage = now }
             }
-            .padding(.leading, 72)          // clear of the folded tab bar
+            .padding(.leading, 236)         // clear of the tab bar (16 + 212 + a little air)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(DS.Colors.paper)
 
@@ -81,7 +81,7 @@ struct MainView: View {
                 .padding(.leading, 16)
         }
         .ignoresSafeArea()
-        .frame(minWidth: 820, minHeight: 580)
+        .frame(minWidth: 940, minHeight: 580)
         .onAppear { dictation.refreshPermissions() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             dictation.refreshPermissions()

@@ -2,24 +2,17 @@ import SwiftUI
 
 // MARK: - Floating tab bar
 //
-// Instead of a sidebar: a slim pill floating at the window's leading edge,
-// icons only. Point at it and the whole pill widens to show the labels —
-// then folds away again, leaving the page the full width of the window.
+// Instead of a sidebar: a pill floating at the window's leading edge with an icon
+// and a name for each page, so that Diktering, Möten and Tankar are found without
+// pointing. (It used to fold to icons; with six pages the names earn their room.)
 
 struct FloatingTabBar: View {
     @Binding var page: Page
     @ObservedObject var dictation: Dictation
     @ObservedObject private var meeting = MeetingSession.shared
     @ObservedObject private var thoughts = Thoughts.shared
-    @State private var hovering = false
     @Namespace private var selection
-
-    private var expanded: Bool {
-        #if DEBUG
-        if CommandLine.arguments.contains("--tabbar-expanded") { return true }   // screenshots
-        #endif
-        return hovering
-    }
+    private let expanded = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -36,7 +29,6 @@ struct FloatingTabBar: View {
         .background(RoundedRectangle(cornerRadius: 28, style: .continuous).fill(DS.Colors.card)
             .shadow(color: .black.opacity(0.12), radius: 16, y: 6))
         .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
-        .onHover { h in withAnimation(.spring(duration: 0.4, bounce: 0.12)) { hovering = h } }
     }
 
     private func tab(_ p: Page) -> some View {
