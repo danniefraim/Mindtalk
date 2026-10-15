@@ -338,6 +338,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --test-names`-like check for imported files' names.
+        if args.contains("--test-filenames") {
+            for (name, human) in [("Intervju med Anna", true), ("Styrelsemöte oktober", true), ("Riksdagsdebatt", false),
+                                  ("holyshitai", false), ("Z2kJBzgKtOa3u-bTcQ3CqQ", false), ("IMG_1234", false),
+                                  ("Tavus_-_Introducing_Griffin_the_first_model [2105703934073683968] 1080p", false),
+                                  ("2025-12-15 13-15-13", false), ("Ny inspelning 12", false), ("Kundmöte Nordljus - uppstart", true),
+                                  ("musecam-1765465253476", false), ("Podd avsnitt 12", true)] {
+                let got = MeetingImport.isHumanName(name)
+                print("\(got == human ? "OK " : "FEL") \(name) → \(got ? "behålls" : "anteckningarnas rubrik") · visas som \"\(MeetingImport.displayName(name))\"")
+            }
+            exit(0)
+        }
         // `Mindtalk --test-folders`: the folder suggestion on made-up meetings (nothing saved).
         if args.contains("--test-folders") {
             Task { @MainActor in

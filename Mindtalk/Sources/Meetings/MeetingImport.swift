@@ -22,7 +22,7 @@ final class MeetingImport: ObservableObject {
     struct Job: Identifiable, Equatable {
         let id = UUID()
         let url: URL
-        var name: String { url.deletingPathExtension().lastPathComponent }
+        var name: String { MeetingImport.displayName(url.deletingPathExtension().lastPathComponent) }
         let video: Bool
         /// The folder chosen when it was dropped.
         let folder: UUID?
@@ -265,11 +265,11 @@ final class MeetingImport: ObservableObject {
         }
         Self.log.info("import: \(job.video ? "video" : "audio", privacy: .public), \(job.url.pathExtension, privacy: .public), \(language.rawValue, privacy: .public)")
         let date = await Self.recordedDate(job.url)
-        var record = MeetingRecord(title: job.name, date: date, language: language)
+        var record = MeetingRecord(title: job.name, date: date, language: language)   // readable meanwhile
         record.folder = job.folder
         record.folderAsked = job.folder != nil
         // A name someone gave the file stays; "IMG_1234" gives way to the notes' title.
-        record.userTitled = Self.isHumanName(job.name)
+        record.userTitled = Self.isHumanName(job.url.deletingPathExtension().lastPathComponent)
         record.source = MeetingRecord.Source(file: job.url.lastPathComponent, video: job.video, importedAt: Date())
         let audio = MeetingStore.audioURL(for: record.id)
         do {
@@ -371,16 +371,40 @@ final class MeetingImport: ObservableObject {
         }
     }
 
-    /// A file name someone chose ("Intervju med Anna") rather than one a device gave
-    /// it ("IMG_1234", "Ny inspelning 12", "2025-12-15 13-15-13", "zoom_0").
-    static func isHumanName(_ name: String) -> Bool {
-        let n = name.trimmingCharacters(in: .whitespaces)
+    /// The file's name made readable: "Tavus_-_Introducing_Griffin [2105703934073683968] 1080p"
+    /// becomes "Tavus – Introducing Griffin".
+    nonisolated static func displayName(_ name: String) -> String {
+        var n = name.replacingOccurrences(of: "_", with: " ")
+        for pattern in [#"\[[^\]]*\d{5,}[^\]]*\]"#, #"\((\d{3,4}p|4k|hd)\)"#, #"\b(2160p|1440p|1080p|720p|480p|4k|uhd)\b"#, #"\.{3,}"#] {
+            n = n.replacingOccurrences(of: pattern, with: " ", options: [.regularExpression, .caseInsensitive])
+        }
+        n = n.replacingOccurrences(of: #" - "#, with: " – ")
+        n = n.replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
+        let trimmed = n.trimmingCharacters(in: CharacterSet(charactersIn: " -–"))
+        return trimmed.isEmpty ? name : trimmed
+    }
+
+    /// A file name someone chose ("Intervju med Anna") — a few real words — rather than
+    /// one a device or a download gave it ("IMG_1234", "2025-12-15 13-15-13",
+    /// "Z2kJBzgKtOa3u-bTcQ3CqQ", "Tavus_-_Introducing…[2105703934073683968] 1080p"):
+    /// those give way to the title the notes write.
+    nonisolated static func isHumanName(_ raw: String) -> Bool {
+        let n = raw.trimmingCharacters(in: .whitespaces)
+        // Made by a device or a downloader.
         let machine = [#"^(IMG|MOV|VID|DSC|PXL|GMT|REC|AUD|Audio|Video|zoom|Screen ?Recording|Skärminspelning)[ _-]?\d"#,
                        #"^(Ny inspelning|New Recording|Inspelning|Recording)( \d+)?$"#,
-                       #"^[\d\s_.:-]+$"#, #"^[0-9A-Fa-f-]{20,}$"#, #"^\d{4}-\d{2}-\d{2}"#]
-        let letters = n.filter(\.isLetter).count
-        guard letters >= 3 else { return false }
-        return !machine.contains { n.range(of: $0, options: [.regularExpression, .caseInsensitive]) != nil }
+                       #"^[\d\s_.:-]+$"#, #"^\d{4}-\d{2}-\d{2}"#,
+                       #"\[[^\]]*\d{5,}[^\]]*\]"#, #"\b(2160p|1440p|1080p|720p|480p)\b"#, "_"]
+        if machine.contains(where: { n.range(of: $0, options: [.regularExpression, .caseInsensitive]) != nil }) { return false }
+        let words = n.split(whereSeparator: { $0 == " " || $0 == "-" }).filter { $0.contains(where: \.isLetter) }
+        // Two to eight words, none of them an id ("bTcQ3CqQ", "a8f3e2…").
+        guard (2...8).contains(words.count) else { return false }
+        let id = words.contains { w in
+            w.count >= 8 && w.contains(where: \.isNumber) && w.contains(where: \.isLetter)
+                || (w.count >= 10 && w.contains(where: \.isUppercase) && w.dropFirst().contains(where: \.isUppercase)
+                    && w.contains(where: \.isLowercase) && !w.contains(where: \.isWhitespace))
+        }
+        return !id
     }
 
     enum ImportError: Error {
