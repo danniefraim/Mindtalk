@@ -868,6 +868,11 @@ private struct AboutCard: View {
     private static let fluidAudio = URL(string: "https://github.com/FluidInference/FluidAudio")!
     private static let apache = URL(string: "https://www.apache.org/licenses/LICENSE-2.0")!
     private static let redimnet = URL(string: "https://huggingface.co/lab260/redimnet2-plus")!
+    private static let nemotron = URL(string: "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml")!
+    private static let openMDW = URL(string: "https://openmdw.ai/license/")!
+    private static let parakeetCTC = URL(string: "https://huggingface.co/nvidia/parakeet-tdt_ctc-110m")!
+    private static let gemma = URL(string: "https://huggingface.co/google/gemma-4-26B-A4B-it")!
+    private static let scbNames = URL(string: "https://doi.org/10.5878/fc4h-rp11")!
     private static let sparkle = URL(string: "https://github.com/sparkle-project/Sparkle")!
 
     private var version: String {
@@ -895,6 +900,22 @@ private struct AboutCard: View {
             CardDivider()
             row(title: "ReDimNet2+", detail: "Känner igen röster. Av LAB260, byggd på ReDimNet2 av Palabra.ai. Ingår i appen. Apache 2.0.") {
                 links([("Modell", Self.redimnet), ("Licens", Self.apache)])
+            }
+            CardDivider()
+            row(title: "Nemotron 3", detail: "Håller isär vem som pratar i möten. Av NVIDIA, Core ML av FluidInference. OpenMDW 1.1.") {
+                links([("Modell", Self.nemotron), ("Licens", Self.openMDW)])
+            }
+            CardDivider()
+            row(title: "Parakeet TDT-CTC 110M", detail: "Lyssnar en gång till efter orden i Ordlistan. Av NVIDIA. CC BY 4.0.") {
+                links([("Modell", Self.parakeetCTC), ("Licens", Self.ccBy)])
+            }
+            CardDivider()
+            row(title: "Gemma 4", detail: "Skriver anteckningar och svar, om du väljer den. Av Google. Apache 2.0.") {
+                links([("Modell", Self.gemma), ("Licens", Self.apache)])
+            }
+            CardDivider()
+            row(title: "Förnamn", detail: "Namnen rundan känner igen. Statistiska centralbyrån (SCB), 2020. CC BY 4.0.") {
+                links([("Källa", Self.scbNames), ("Licens", Self.ccBy)])
             }
             CardDivider()
             row(title: "FluidAudio", detail: "Kör modellerna på Neural Engine. Av FluidInference, Apache 2.0.") {

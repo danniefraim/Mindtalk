@@ -550,7 +550,8 @@ struct VoiceMemoryCard: View {
             CardRow(title: "Känn igen röster", detail: detail) {
                 InkToggle(label: "Känn igen röster", isOn: $memory.enabled)
             }
-            if memory.enabled, !memory.people.isEmpty {
+            // Shown also when switched off: what's remembered can always be seen and forgotten.
+            if !memory.people.isEmpty {
                 CardDivider()
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Röster Mindtalk känner igen").font(.system(size: 13, weight: .semibold))

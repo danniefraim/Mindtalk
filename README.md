@@ -133,8 +133,10 @@ Both are fine-tuned from [NVIDIA Parakeet TDT 0.6B v3](https://huggingface.co/nv
 
 ## Privacy
 
-- **No network**, except downloading a speech model you asked for and checking for updates.
-- **Audio is never written to disk** — it's transcribed from memory and discarded.
+- **No network**, except downloading the models you use (speech; for meetings, telling voices apart; optionally Gemma for notes) and checking for updates. Nothing you say, no text and no voiceprint is ever sent anywhere.
+- **Dictation audio is never written to disk** — it's transcribed from memory and discarded.
+- **Meetings** are recorded to `~/Library/Application Support/Mindtalk/Meetings` (audio, text, your notes, the summary), readable only by your user account. You choose how long recordings are kept; the text stays until you delete the meeting.
+- **Recognising voices is off until you turn it on.** Then a voiceprint (not audio) of each person you name is kept on your Mac, so they're recognised in later meetings. You can forget one person or everyone at any time. Ask the people you record whether that's all right.
 - **Recent dictations** (the last 50) are stored in `~/Library/Application Support/Mindtalk`, readable only by your user account, and can be cleared at any time.
 - **Password fields:** text dictated into one is typed but never kept — not in Recent, not in the statistics.
 - **Statistics** count words and seconds per day — never the text itself.

@@ -30,6 +30,24 @@ Both are built on NVIDIA Parakeet TDT 0.6B v3 — by NVIDIA
 CC BY 4.0: https://creativecommons.org/licenses/by/4.0/legalcode
 
 
+WORD LIST AND MEETING MODELS
+========================================================================
+
+Also downloaded to your Mac, unmodified, when you first use them:
+
+Parakeet TDT-CTC 110M — by NVIDIA (the Ordlista listens once more with it)
+  https://huggingface.co/nvidia/parakeet-tdt_ctc-110m
+  Core ML version by FluidInference:
+  https://huggingface.co/FluidInference/parakeet-ctc-110m-coreml
+  Licence: Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+Nemotron 3 Speaker Diarization — by NVIDIA (who speaks when, in meetings)
+  Core ML version by FluidInference:
+  https://huggingface.co/FluidInference/nemotron-3-diarization-coreml
+  Licence: OpenMDW License v1.1
+  https://openmdw.ai/license/
+
+
 NOTES MODEL (OPTIONAL)
 ========================================================================
 

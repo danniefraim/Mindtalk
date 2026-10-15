@@ -61,7 +61,7 @@ targets:
         # verified before it's even unpacked.
         SURequireSignedFeed: true
         SUVerifyUpdateBeforeExtraction: true
-        NSMicrophoneUsageDescription: "Mindtalk använder mikrofonen när du dikterar. Allt tolkas lokalt på din Mac – inget ljud lämnar datorn."
+        NSMicrophoneUsageDescription: "Mindtalk använder mikrofonen när du dikterar och när du spelar in möten. Allt tolkas på din Mac – inget ljud lämnar datorn."
     entitlements:
       path: Mindtalk/Mindtalk.entitlements
       properties:
@@ -75,8 +75,8 @@ targets:
         ENABLE_HARDENED_RUNTIME: YES
         SWIFT_VERSION: "5.0"
         SWIFT_STRICT_CONCURRENCY: minimal
-        MARKETING_VERSION: 1.0.10
-        CURRENT_PROJECT_VERSION: 11
+        MARKETING_VERSION: "1.1"
+        CURRENT_PROJECT_VERSION: 12
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: Mindtalk/Info.plist
         ENABLE_USER_SCRIPT_SANDBOXING: NO

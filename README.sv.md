@@ -132,8 +132,10 @@ Båda bygger vidare på [NVIDIA Parakeet TDT 0.6B v3](https://huggingface.co/nvi
 
 ## Integritet
 
-- **Inget nätverk**, förutom nedladdningen av en talmodell du bett om och sökningen efter uppdateringar.
-- **Ljudet sparas aldrig** – det tolkas från minnet och kastas.
+- **Inget nätverk**, förutom nedladdningen av modellerna du använder (tal; för möten, att hålla isär röster; om du vill Gemma för anteckningar) och sökningen efter uppdateringar. Inget du säger, ingen text och inget röstavtryck skickas någonsin iväg.
+- **Ljudet från diktering sparas aldrig** – det tolkas från minnet och kastas.
+- **Möten** spelas in till `~/Library/Application Support/Mindtalk/Meetings` (ljud, text, dina anteckningar, sammanfattningen), läsbara bara för ditt användarkonto. Du väljer hur länge inspelningarna sparas; texten finns kvar tills du tar bort mötet.
+- **Att känna igen röster är avstängt tills du slår på det.** Då sparas ett röstavtryck (inte ljud) av varje person du namnger, på din Mac, så att de känns igen i kommande möten. Du kan glömma en person eller alla när som helst. Fråga dem du spelar in om det är okej.
 - **Senaste dikteringar** (de 50 senaste) sparas i `~/Library/Application Support/Mindtalk`, läsbara bara för ditt användarkonto, och kan rensas när som helst.
 - **Lösenordsfält:** text du dikterar i ett sådant skrivs in men sparas aldrig – varken i Senaste eller i statistiken.
 - **Statistiken** räknar ord och sekunder per dag – aldrig själva texten.

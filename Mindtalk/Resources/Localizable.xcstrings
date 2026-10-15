@@ -3272,6 +3272,23 @@
         }
       }
     },
+    "Förnamn": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First names"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Förnamn"
+          }
+        }
+      }
+    },
     "Försök igen": {
       "localizations": {
         "en": {
@@ -4093,6 +4110,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håller Mindtalk uppdaterad. Öppen källkod, MIT-licens."
+          }
+        }
+      }
+    },
+    "Håller isär vem som pratar i möten. Av NVIDIA, Core ML av FluidInference. OpenMDW 1.1.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tells apart who's speaking in meetings. By NVIDIA, Core ML by FluidInference. OpenMDW 1.1."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håller isär vem som pratar i möten. Av NVIDIA, Core ML av FluidInference. OpenMDW 1.1."
           }
         }
       }
@@ -5333,6 +5367,23 @@
         }
       }
     },
+    "Källa": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Källa"
+          }
+        }
+      }
+    },
     "Källa, %@": {
       "localizations": {
         "en": {
@@ -6029,6 +6080,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lyssnar efter röster"
+          }
+        }
+      }
+    },
+    "Lyssnar en gång till efter orden i Ordlistan. Av NVIDIA. CC BY 4.0.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listens once more for the words on your Vocabulary list. By NVIDIA. CC BY 4.0."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssnar en gång till efter orden i Ordlistan. Av NVIDIA. CC BY 4.0."
           }
         }
       }
@@ -7221,6 +7289,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Namn och ord som Mindtalk ska stava som du vill. Delade eller felskrivna varianter – som ”Mind Talk” – rättas automatiskt."
+          }
+        }
+      }
+    },
+    "Namnen rundan känner igen. Statistiska centralbyrån (SCB), 2020. CC BY 4.0.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The names the round of introductions knows. Statistics Sweden (SCB), 2020. CC BY 4.0."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namnen rundan känner igen. Statistiska centralbyrån (SCB), 2020. CC BY 4.0."
           }
         }
       }
@@ -8811,6 +8896,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skriv om"
+          }
+        }
+      }
+    },
+    "Skriver anteckningar och svar, om du väljer den. Av Google. Apache 2.0.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Writes notes and answers, if you choose it. By Google. Apache 2.0."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriver anteckningar och svar, om du väljer den. Av Google. Apache 2.0."
           }
         }
       }
