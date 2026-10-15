@@ -24,9 +24,9 @@ extension MeetingRecord.Mark.Kind {
 
     var symbol: String {
         switch self {
-        case .decision: return "checkmark.seal"
-        case .task: return "checklist"
-        case .important: return "star"
+        case .decision: return "checkmark.seal.fill"
+        case .task: return "list.bullet.clipboard.fill"
+        case .important: return "star.fill"
         }
     }
 
@@ -190,38 +190,84 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
     }
 }
 
-/// The three marks as round buttons in their colours — ⌥⌘1, ⌥⌘2, ⌥⌘3.
+/// The three marks as round buttons in their colours — ⌥⌘1, ⌥⌘2, ⌥⌘3. The one
+/// under the pointer opens into a pill with its name and key at once — no waiting
+/// for a tooltip, and it shows in the panel while another app is in front.
 private struct MarkIcons: View {
     let mark: (MeetingRecord.Mark.Kind) -> Void
     @State private var flashed: MeetingRecord.Mark.Kind?
+    @State private var hovered: MeetingRecord.Mark.Kind?
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 6) {
             ForEach(Array(MeetingRecord.Mark.Kind.allCases.enumerated()), id: \.element) { i, kind in
-                let on = flashed == kind
                 Button {
                     mark(kind)
                     AccessibilityNotification.Announcement(String(localized: "Markerat: \(kind.title)")).post()
-                    withAnimation(.easeOut(duration: 0.15)) { flashed = kind }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                        if flashed == kind { withAnimation(.easeOut(duration: 0.4)) { flashed = nil } }
+                    withAnimation(.spring(duration: 0.3, bounce: 0.3)) { flashed = kind }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                        if flashed == kind { withAnimation(.spring(duration: 0.4)) { flashed = nil } }
                     }
                 } label: {
-                    Image(systemName: on ? "checkmark" : kind.symbol)
-                        .font(.system(size: 13.5, weight: .semibold))
-                        .foregroundStyle(kind.tint)
-                        .contentTransition(.symbolEffect(.replace))
-                        .frame(width: 32, height: 32)
-                        .background(Circle().fill(on ? kind.tint.opacity(0.22) : .white.opacity(0.06)))
-                        .scaleEffect(on ? 1.08 : 1)
-                        .contentShape(Circle())
+                    MarkPill(kind: kind, key: i + 1, open: hovered == kind || flashed == kind, done: flashed == kind)
                 }
                 .buttonStyle(.plain)
+                .onHover { inside in
+                    withAnimation(.spring(duration: 0.32, bounce: 0.18)) {
+                        hovered = inside ? kind : (hovered == kind ? nil : hovered)
+                    }
+                }
                 .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: [.command, .option])
                 .help("\(kind.title) – markera det som sägs just nu (⌥⌘\(i + 1))")
                 .accessibilityLabel("Markera \(kind.title.lowercased())")
             }
         }
+    }
+}
+
+/// One mark: a tinted disc with its symbol; open, a pill with the name and key —
+/// and for a moment after a click, "Markerat".
+struct MarkPill: View {
+    let kind: MeetingRecord.Mark.Kind
+    let key: Int
+    let open: Bool
+    let done: Bool
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: done ? "checkmark" : kind.symbol)
+                .font(.system(size: 14, weight: .semibold))
+                // The symbol in its colour, its marks cut out in the island's dark (the
+                // star has none: one layer, all colour).
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(done || kind == .important ? kind.tint : Color(white: 0.07), kind.tint)
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 17)
+            if open {
+                Text(done ? String(localized: "Markerat") : kind.title)
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .fixedSize()
+                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))
+                if !done {
+                    Text("⌥⌘\(key)")
+                        .font(.system(size: 11, weight: .medium).monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.42))
+                        .fixedSize()
+                        .transition(.opacity)
+                }
+            }
+        }
+        .padding(.horizontal, open ? 11 : 0)
+        .frame(minWidth: 32, minHeight: 32)
+        .background(
+            Capsule().fill(kind.tint.opacity(done ? 0.26 : open ? 0.18 : 0.11))
+        )
+        .overlay(
+            Capsule().strokeBorder(kind.tint.opacity(open ? 0.5 : 0.22), lineWidth: 0.6)
+        )
+        .contentShape(Capsule())
+        .scaleEffect(done ? 1.04 : 1)
     }
 }
 

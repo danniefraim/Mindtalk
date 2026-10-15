@@ -250,6 +250,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --render-marks out.png`: the mark buttons closed, under the pointer
+        // and just clicked, drawn to an image.
+        if let i = args.firstIndex(of: "--render-marks"), i + 1 < args.count {
+            Task { @MainActor in
+                let kinds = MeetingRecord.Mark.Kind.allCases
+                let row = { (open: MeetingRecord.Mark.Kind?, done: Bool) in
+                    HStack(spacing: 6) {
+                        ForEach(Array(kinds.enumerated()), id: \.element) { n, kind in
+                            MarkPill(kind: kind, key: n + 1, open: open == kind, done: done && open == kind)
+                        }
+                        Spacer()
+                    }
+                }
+                let view = VStack(alignment: .leading, spacing: 14) {
+                    row(nil, false)
+                    ForEach(kinds) { kind in row(kind, false) }
+                    row(.task, true)
+                }
+                .padding(24)
+                .frame(width: 420)
+                .background(Color(white: 0.07))
+                .environment(\.colorScheme, .dark)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --render-search out.png "sökord" "fråga"`: the search results and an
         // answer drawn to an image, without a window (the screen may be locked).
         if let i = args.firstIndex(of: "--render-search"), i + 3 < args.count {
