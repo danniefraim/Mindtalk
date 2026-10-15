@@ -117,6 +117,9 @@ final class MeetingNotes: ObservableObject {
             do {
                 let t0 = Date()
                 var summary = try await Self.write(lines, local: local)
+                // Continued meanwhile: these notes are of the first part only — new ones
+                // for the whole meeting are written when it ends.
+                if MeetingSession.shared.record?.id == id { return }
                 guard var latest = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
                 // Written again (a continued meeting, "Sammanfatta igen"): the tasks you
                 // ticked off stay ticked where the same task is there again.
