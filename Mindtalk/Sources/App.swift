@@ -420,6 +420,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --render-panel out.png [--dark]`: the menu bar panel, with your figures.
+        if let i = args.firstIndex(of: "--render-panel"), i + 1 < args.count {
+            Task { @MainActor in
+                let dark = args.contains("--dark")
+                NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                let view = StatusPanelView(dictation: .shared, stats: .shared, close: {}, flat: true)
+                    .padding(20).background(Color(white: dark ? 0.2 : 0.75))
+                    .environment(\.colorScheme, dark ? .dark : .light)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --render-thoughts out.png [--dark]`: the Tankar page with made-up thoughts.
         if let i = args.firstIndex(of: "--render-thoughts"), i + 1 < args.count {
             Task { @MainActor in

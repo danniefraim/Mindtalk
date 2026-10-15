@@ -3062,6 +3062,7 @@
       }
     },
     "Det du dikterar hamnar här.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12936,7 +12937,6 @@
       }
     },
     "Språk": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -16757,6 +16757,7 @@
       }
     },
     "nu": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -17185,7 +17186,6 @@
       }
     },
     "Öppna Mindtalk": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -17415,6 +17415,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "⌘%lld"
+          }
+        }
+      }
+    },
+    "⌘1 och ⌘2 byter språk": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘1 and ⌘2 switch language"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘1 och ⌘2 byter språk"
           }
         }
       }

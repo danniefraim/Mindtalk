@@ -131,6 +131,8 @@ struct StatusPanelView: View {
     @ObservedObject var updates: Updates = .shared
     @ObservedObject var meeting: MeetingSession = .shared
     let close: () -> Void
+    /// No glass (ImageRenderer can't draw it) — screenshots only.
+    var flat = false
     /// A language that isn't downloaded yet, waiting for a yes before 600+ MB.
     @State private var confirming: SpeechModel?
 
@@ -146,39 +148,37 @@ struct StatusPanelView: View {
             PanelSeparator()
             today
             PanelSeparator()
-            language
-            PanelSeparator()
-            recent
-            PanelSeparator()
             if let version = updates.available {
-                PanelRow(title: String(localized: "Ny version \(version) – installera…")) {
+                PanelRow(title: String(localized: "Ny version \(version) – installera…"), icon: "arrow.down.circle") {
                     close()
                     updates.checkNow()
                 }
                 PanelSeparator()
             }
+            // What you do most, right under the figures: the meeting going on, or the
+            // ways to start one, a thought, the window.
             if meeting.isBusy {
-                PanelRow(title: "Öppna mötet") {
+                PanelRow(title: "Öppna mötet", icon: "person.2.wave.2") {
                     close()
                     if AppDelegate.mainWindowVisible { AppDelegate.showWindow(page: .meetings) } else { MeetingPanel.shared.show() }
                 }
                 if meeting.isRecording {
                     if meeting.stopping {
-                        PanelRow(title: String(localized: "Avslutas strax – ångra")) { meeting.cancelStop() }
+                        PanelRow(title: String(localized: "Avslutas strax – ångra"), icon: "arrow.uturn.backward") { meeting.cancelStop() }
                     } else {
-                        PanelRow(title: meeting.isPaused ? String(localized: "pause|Fortsätt mötet") : String(localized: "Pausa mötet")) {
+                        PanelRow(title: meeting.isPaused ? String(localized: "pause|Fortsätt mötet") : String(localized: "Pausa mötet"),
+                                 icon: meeting.isPaused ? "play.fill" : "pause.fill") {
                             if meeting.isPaused { meeting.resume() } else { meeting.pause() }
                         }
-                        PanelRow(title: String(localized: "Avsluta mötet"), shortcut: Self.meetingKeys) {
+                        PanelRow(title: String(localized: "Avsluta mötet"), icon: "stop.fill", shortcut: Self.meetingKeys) {
                             meeting.requestStop()
                             close()
                             if !AppDelegate.mainWindowVisible { MeetingPanel.shared.show() }
                         }
                     }
                 }
-                PanelSeparator()
             } else if VoiceModels.isInstalled {
-                PanelRow(title: "Starta möte", shortcut: Self.meetingKeys) {
+                PanelRow(title: "Starta möte", dot: true, shortcut: Self.meetingKeys) {
                     // Gone at once (no fade): the window the meeting opens in comes in front.
                     (NSApp.delegate as? AppDelegate)?.closeStatusPanel(immediately: true)
                     AppDelegate.startMeeting()
@@ -186,32 +186,36 @@ struct StatusPanelView: View {
             }
             // A thought, from wherever you are — kept in Tankar.
             if !meeting.isRecording, dictation.engine.isInstalled {
-                PanelRow(title: "Säg en tanke", shortcut: Settings.thoughtShortcut.map { $0.chip.replacingOccurrences(of: " ", with: "") }) {
+                PanelRow(title: "Säg en tanke", icon: "lightbulb",
+                         shortcut: Settings.thoughtShortcut.map { $0.chip.replacingOccurrences(of: " ", with: "") }) {
                     (NSApp.delegate as? AppDelegate)?.closeStatusPanel(immediately: true)
                     Dictation.shared.startThought()
                 }
             }
-            PanelRow(title: "Öppna Mindtalk") { go(.dictation) }
-            PanelRow(title: "Inställningar…", shortcut: "⌘,") { go(.settings) }
-            // With a new version waiting, the row at the top already offers it.
-            if updates.available == nil {
-                PanelRow(title: "Sök efter uppdateringar…") {
-                    close()
-                    updates.checkNow()
-                }
-            }
+            PanelRow(title: "Öppna Mindtalk", icon: "house") { go(.dictation) }
             PanelSeparator()
+            language
+            PanelSeparator()
+            PanelRow(title: "Inställningar…", shortcut: "⌘,") { go(.settings) }
             PanelRow(title: "Avsluta Mindtalk", shortcut: "⌘Q") { NSApp.terminate(nil) }
         }
         .padding(.vertical, 8)
         .frame(width: PanelMetrics.width)
         // Nearly solid, so text keeps its contrast whatever is behind the panel.
-        .background(DS.Colors.paper.opacity(0.97))
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: PanelMetrics.corner, style: .continuous))
+        .background(DS.Colors.paper.opacity(flat ? 1 : 0.97))
+        .modifier(Glass(on: !flat))
         .clipShape(RoundedRectangle(cornerRadius: PanelMetrics.corner, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: PanelMetrics.corner, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 0.5))
         .fixedSize(horizontal: false, vertical: true)
         .background(shortcuts)
+    }
+
+    private struct Glass: ViewModifier {
+        let on: Bool
+        func body(content: Content) -> some View {
+            if on { content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: PanelMetrics.corner, style: .continuous)) }
+            else { content }
+        }
     }
 
     /// The meeting shortcut that works everywhere — or Mindtalk's own ⇧⌘R when it's off.
@@ -250,14 +254,23 @@ struct StatusPanelView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            TimelineView(.animation(paused: dictation.phase != .recording)) { context in
-                LogoTile(size: 36, t: context.date.timeIntervalSinceReferenceDate,
-                         animated: dictation.phase == .recording,
-                         levels: dictation.phase == .recording ? dictation.levels : nil)
+            // The tile and the name open the window — the top of the menu, not the bottom.
+            Button { go(.dictation) } label: {
+                TimelineView(.animation(paused: dictation.phase != .recording)) { context in
+                    LogoTile(size: 36, t: context.date.timeIntervalSinceReferenceDate,
+                             animated: dictation.phase == .recording,
+                             levels: dictation.phase == .recording ? dictation.levels : nil)
+                }
+                .shadow(color: .black.opacity(0.25), radius: 6, y: 2)
             }
-            .shadow(color: .black.opacity(0.25), radius: 6, y: 2)
+            .buttonStyle(.plain)
+            .help("Öppna Mindtalk")
             VStack(alignment: .leading, spacing: 5) {
-                Text("Mindtalk").font(.system(size: 15, weight: .semibold))
+                Button { go(.dictation) } label: {
+                    Text("Mindtalk").font(.system(size: 15, weight: .semibold)).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Öppna Mindtalk")
                 status
             }
             Spacer(minLength: 8)
@@ -397,10 +410,20 @@ struct StatusPanelView: View {
     // MARK: Language
 
     private var language: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            PanelSectionTitle("Språk")
-            ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
-                LanguageRow(model: m, index: i + 1, selected: dictation.engine == m,
+        let downloading = SpeechModel.allCases.first { dictation.downloads[$0] != nil }
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                Text("Språk").font(.system(size: 14))
+                Spacer(minLength: 8)
+                PillPicker(options: SpeechModel.allCases.map { (value: $0, title: $0.title) },
+                           selection: Binding(get: { dictation.engine }, set: { pick($0) }))
+                    .help("⌘1 och ⌘2 byter språk")
+            }
+            .padding(.horizontal, PanelMetrics.inset)
+            .frame(minHeight: 42)
+            // A language that isn't on the Mac yet: say how big, and let a click fetch it.
+            if let m = confirming ?? downloading {
+                LanguageRow(model: m, index: (SpeechModel.allCases.firstIndex(of: m) ?? 0) + 1, selected: dictation.engine == m,
                             installed: m.isInstalled, download: dictation.downloads[m],
                             confirming: confirming == m,
                             confirm: {
@@ -408,34 +431,10 @@ struct StatusPanelView: View {
                                 // Keeps the language you have until the new one is ready.
                                 dictation.downloadModel(m, thenUse: true)
                             }) { pick(m) }
+                    .transition(.opacity)
             }
         }
-    }
-
-    // MARK: Recent
-
-    private var recent: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            PanelSectionTitle("Senaste")
-            if dictation.recent.isEmpty {
-                Text("Det du dikterar hamnar här.")
-                    .font(.system(size: 14))
-                    .foregroundStyle(DS.Colors.muted)
-                    .padding(.horizontal, PanelMetrics.inset)
-                    .frame(height: 30)
-            } else {
-                TimelineView(.everyMinute) { _ in
-                    VStack(spacing: 0) {
-                        ForEach(dictation.recent.prefix(3)) { entry in
-                            RecentRow(entry: entry) { dictation.copy(entry) }
-                        }
-                    }
-                }
-                if dictation.recent.count > 3 {
-                    PanelRow(title: "Visa alla…") { go(.recent) }
-                }
-            }
-        }
+        .animation(.easeOut(duration: 0.18), value: confirming)
     }
 }
 
@@ -465,13 +464,27 @@ private struct HoverRow<Content: View>: View {
 
 private struct PanelRow: View {
     let title: String
+    var icon: String? = nil
+    /// The recording dot, for "Starta möte".
+    var dot = false
     var shortcut: String? = nil
     var muted = false
     let action: () -> Void
 
     var body: some View {
         HoverRow(action: action) { _ in
-            HStack {
+            HStack(spacing: 10) {
+                if dot || icon != nil {
+                    Group {
+                        if dot {
+                            Circle().fill(DS.Colors.recording).frame(width: 8, height: 8)
+                        } else if let icon {
+                            Image(systemName: icon).font(.system(size: 12, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+                        }
+                    }
+                    .frame(width: 18)
+                    .accessibilityHidden(true)
+                }
                 Text(LocalizedStringKey(title))
                     .foregroundStyle(muted ? AnyShapeStyle(DS.Colors.muted) : AnyShapeStyle(.primary))
                 Spacer(minLength: 12)
@@ -540,71 +553,6 @@ private struct LanguageRow: View {
         } else {
             Text("⌘\(index)")
         }
-    }
-}
-
-/// One dictation on one line; the time gives way to a copy glyph on hover.
-private struct RecentRow: View {
-    let entry: Dictation.Entry
-    let copy: () -> Void
-    @State private var copied = false
-
-    var body: some View {
-        HoverRow {
-            copy()
-            withAnimation(.easeOut(duration: 0.15)) { copied = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                withAnimation(.easeOut(duration: 0.2)) { copied = false }
-            }
-        } content: { hovering in
-            HStack(spacing: 10) {
-                Text(entry.text.replacingOccurrences(of: "\n", with: " "))
-                    .font(.system(size: 14))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Spacer(minLength: 8)
-                Group {
-                    if copied {
-                        Label("Kopierat", systemImage: "checkmark").labelStyle(.titleAndIcon)
-                            .foregroundStyle(.primary)
-                    } else if hovering {
-                        Image(systemName: "doc.on.doc").foregroundStyle(DS.Colors.muted)
-                    } else {
-                        Text(Self.ago(entry.date)).monospacedDigit().foregroundStyle(DS.Colors.faint)
-                    }
-                }
-                .font(.system(size: 12))
-            }
-        }
-        .help(String(localized: "Kopiera"))
-    }
-
-    /// "nu", "5 min", "9 tim", "2 d" — the compact form menus use.
-    static func ago(_ date: Date) -> String {
-        let seconds = Date().timeIntervalSince(date)
-        if seconds < 60 { return String(localized: "nu") }
-        let f = DateComponentsFormatter()
-        f.unitsStyle = .short          // "4 min", never "4 m" (metres)
-        f.maximumUnitCount = 1
-        f.allowedUnits = [.minute, .hour, .day, .weekOfMonth]
-        var calendar = Calendar.current
-        calendar.locale = AppLanguage.locale
-        f.calendar = calendar
-        return f.string(from: seconds) ?? ""
-    }
-}
-
-private struct PanelSectionTitle: View {
-    let title: String
-    init(_ title: String) { self.title = title }
-
-    var body: some View {
-        Text(LocalizedStringKey(title))
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(DS.Colors.muted)
-            .padding(.horizontal, PanelMetrics.inset)
-            .padding(.top, 6)
-            .padding(.bottom, 4)
     }
 }
 
