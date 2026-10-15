@@ -265,25 +265,6 @@ struct VoiceScanner: View {
 
     // MARK: Text and cards
 
-    @ViewBuilder var consent: some View {
-        if session.record?.informed == nil {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Berätta att mötet spelas in").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
-                Text("”\(MeetingConsent.text)”")
-                    .font(.system(size: 12.5, design: .serif)).italic().foregroundStyle(.white.opacity(0.85))
-                    .fixedSize(horizontal: false, vertical: true)
-                Button { withAnimation(.snappy) { session.informed() } } label: {
-                    Label("Jag har berättat", systemImage: "checkmark").font(.system(size: 12, weight: .semibold))
-                }
-                .buttonStyle(.glass)
-            }
-            .padding(14)
-            .frame(width: 260, alignment: .leading)
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing)))
-        }
-    }
-
     func continueButton(_ round: IntroRound) -> some View {
         Button(action: leave) {
             Text(round.captures.isEmpty ? "Hoppa över" : "Alla är här – fortsätt")

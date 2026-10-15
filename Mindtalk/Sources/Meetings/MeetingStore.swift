@@ -52,7 +52,8 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     var notes: [Note] = []
     /// Moments you marked while it ran: a decision, a task, something important.
     var marks: [Mark] = []
-    /// When you told the others the meeting is recorded (MeetingConsent).
+    /// When you told the others the meeting was recorded (older meetings: the reminder
+    /// is gone, but what was noted stays).
     var informed: Date?
     /// The recording went to the Trash (kept for a set time, or removed by you);
     /// the text and the notes stay.

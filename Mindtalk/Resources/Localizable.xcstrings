@@ -1308,6 +1308,7 @@
       }
     },
     "Att läsa upp när mötet börjar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1715,6 +1716,7 @@
       }
     },
     "Berätta att mötet spelas in": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4745,6 +4747,7 @@
       }
     },
     "Jag har berättat": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4793,6 +4796,7 @@
       }
     },
     "Jag spelar in mötet med Mindtalk för att få anteckningar. Allt stannar på min dator. Säg till om du hellre vill att jag inte gör det.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7286,6 +7290,7 @@
       }
     },
     "Noteras i mötet, så att det syns i efterhand att de andra visste": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11969,6 +11974,7 @@
       }
     },
     "Visas när ett möte börjar, tills du trycker ”Jag har berättat”. Det noteras i mötet.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12660,6 +12666,7 @@
       }
     },
     "Återställ": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

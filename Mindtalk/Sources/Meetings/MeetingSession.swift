@@ -451,14 +451,11 @@ final class MeetingSession: ObservableObject {
         if let fake = Self.fakeMic { feedFake(fake) }
         #endif
         introductionHeld = false
-        consentDismissed = false
         if introducing { beginIntroduction() }
     }
 
     /// The round was held (or put away) in this meeting: it isn't offered again.
     @Published private(set) var introductionHeld = false
-    /// The reminder to tell the others was seen and put away — not shown again.
-    @Published var consentDismissed = false
 
     /// The round, offered at the start of a meeting ("Innan ni börjar"): in its first
     /// two minutes, while some voice is still without a name.
@@ -470,9 +467,9 @@ final class MeetingSession: ObservableObject {
         return voices.isEmpty || voices.contains { (record.names[String($0)] ?? "").isEmpty }
     }
 
-    /// "Innan ni börjar" is up: the reminder to tell the others, or the round, or both.
+    /// "Innan ni börjar" is up: the round, offered when the meeting began without it.
     var showsOpening: Bool {
-        isRecording && ((record?.informed == nil && !consentDismissed) || offersIntroduction)
+        isRecording && offersIntroduction
     }
 
     /// "Presentationsrunda" in a meeting already recording.
@@ -592,8 +589,6 @@ final class MeetingSession: ObservableObject {
                 }
             }
         }
-        // The round showed the reminder to tell the others: not again after it.
-        if record?.informed == nil { consentDismissed = true }
     }
 
     /// Ending, from a button or the shortcut: a few seconds to undo, and the
@@ -732,14 +727,6 @@ final class MeetingSession: ObservableObject {
     func removeMark(_ id: UUID) {
         guard var record else { return }
         record.marks.removeAll { $0.id == id }
-        self.record = record
-        MeetingStore.shared.save(record)
-    }
-
-    /// You told the others it's recorded.
-    func informed() {
-        guard var record, record.informed == nil else { return }
-        record.informed = Date()
         self.record = record
         MeetingStore.shared.save(record)
     }

@@ -40,29 +40,8 @@ extension MeetingRecord.Mark.Kind {
     }
 }
 
-/// The sentence to read out at the start. Yours, if you wrote one in Settings.
-enum MeetingConsent {
-    private static let key = "meetingConsentText"
-
-    static var standard: String {
-        String(localized: "Jag spelar in mötet med Mindtalk för att få anteckningar. Allt stannar på min dator. Säg till om du hellre vill att jag inte gör det.")
-    }
-
-    static var text: String {
-        get {
-            let own = UserDefaults.standard.string(forKey: key)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return own.isEmpty ? standard : own
-        }
-        set {
-            let t = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            UserDefaults.standard.set(t == standard ? nil : t, forKey: key)
-        }
-    }
-}
-
-/// "Innan ni börjar": what a meeting opens with — telling the others it's recorded,
-/// and the round where everyone says their name. Both are offered, neither is in
-/// the way: the recording runs from the first word whatever you choose.
+/// "Innan ni börjar": the round where everyone says their name, offered when a
+/// meeting began without it — never in the way: the recording runs from the first word.
 struct OpeningCard: View {
     @ObservedObject var session: MeetingSession
     @ObservedObject private var memory = VoiceMemory.shared
@@ -70,20 +49,18 @@ struct OpeningCard: View {
     /// The panel opens the round in the large window (it needs the room's screen).
     var startRound: (() -> Void)? = nil
 
-    private var consent: Bool { session.isRecording && session.record?.informed == nil && !session.consentDismissed }
-
     var body: some View {
         // Re-checked as words come in and seconds pass.
         TimelineView(.periodic(from: .now, by: 2)) { _ in
             let round = session.offersIntroduction
-            if consent || round {
+            if round {
                 VStack(alignment: .leading, spacing: compact ? 10 : 12) {
                     HStack(alignment: .firstTextBaseline) {
                         Text("Innan ni börjar").font(.system(size: compact ? 12.5 : 13, weight: .semibold))
                             .accessibilityAddTraits(.isHeader)
                         Spacer(minLength: 8)
                         Button {
-                            withAnimation(.easeOut(duration: 0.25)) { session.consentDismissed = true; session.skipIntroduction() }
+                            withAnimation(.easeOut(duration: 0.25)) { session.skipIntroduction() }
                         } label: {
                             Image(systemName: "xmark").font(.system(size: 9.5, weight: .bold)).foregroundStyle(DS.Colors.muted)
                                 .frame(width: 20, height: 20).contentShape(Rectangle())
@@ -92,35 +69,13 @@ struct OpeningCard: View {
                         .help("Göm – mötet fortsätter som vanligt")
                         .accessibilityLabel("Göm")
                     }
-                    if consent { consentRow }
-                    if consent, round { Divider().opacity(0.6) }
-                    if round { roundRow }
+                    roundRow
                 }
                 .padding(compact ? 12 : 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.card))
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
-        }
-    }
-
-    private var consentRow: some View {
-        VStack(alignment: .leading, spacing: compact ? 6 : 8) {
-            Label("Berätta att mötet spelas in", systemImage: "person.2.wave.2")
-                .font(.system(size: compact ? 12 : 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
-            Text("”\(MeetingConsent.text)”")
-                .font(.system(size: compact ? 12.5 : 13.5, design: .serif))
-                .italic()
-                .foregroundStyle(.primary.opacity(0.85))
-                .fixedSize(horizontal: false, vertical: true)
-                .textSelection(.enabled)
-            Button {
-                withAnimation(.easeOut(duration: 0.25)) { session.informed() }
-            } label: {
-                Label("Jag har berättat", systemImage: "checkmark").font(.system(size: 12.5, weight: .semibold))
-            }
-            .buttonStyle(.soft)
-            .help("Noteras i mötet, så att det syns i efterhand att de andra visste")
         }
     }
 
@@ -336,12 +291,11 @@ struct SavedNotes: View {
     }
 }
 
-/// Settings → Möten: how long recordings stay, and what you read out at the start.
+/// Settings → Möten: the summary's language and how long recordings stay.
 struct MeetingPrivacyCard: View {
     @ObservedObject private var store = MeetingStore.shared
     @State private var days = MeetingAudio.keepDays
     @State private var asking: Int?
-    @State private var consent = MeetingConsent.text
 
     @State private var summaryLanguage = SummaryLanguage.chosen
 
@@ -358,31 +312,6 @@ struct MeetingPrivacyCard: View {
                 MenuPicker(options: MeetingAudio.choices.map { ($0, MeetingAudio.title($0)) },
                            selection: Binding(get: { days }, set: choose))
             }
-            CardDivider()
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Att läsa upp när mötet börjar").font(.system(size: 14, weight: .semibold))
-                    Spacer()
-                    if consent != MeetingConsent.standard {
-                        Button("Återställ") { consent = MeetingConsent.standard }
-                            .buttonStyle(.plain)
-                            .font(.system(size: 12.5, weight: .semibold))
-                    }
-                }
-                Text("Visas när ett möte börjar, tills du trycker ”Jag har berättat”. Det noteras i mötet.")
-                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                TextField("", text: $consent, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13.5))
-                    .lineLimit(2...5)
-                    .padding(10)
-                    .background(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous).fill(DS.Colors.field))
-                    .overlay(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
-                        .strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
-                    .onChange(of: consent) { _, new in MeetingConsent.text = new }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
         }
         .card()
         .confirmationDialog(confirmTitle, isPresented: Binding(get: { asking != nil }, set: { if !$0 { asking = nil } })) {
