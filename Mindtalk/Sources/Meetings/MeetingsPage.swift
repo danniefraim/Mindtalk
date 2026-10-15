@@ -131,6 +131,7 @@ private struct MeetingList: View {
     @ObservedObject private var notes = MeetingNotes.shared
     @ObservedObject private var library = MeetingLibrary.shared
     @ObservedObject private var folders = MeetingFolders.shared
+    @ObservedObject private var archiveOpen = ArchiveOpen.shared
     let open: (UUID, Double?) -> Void
     @State private var confirmDelete: MeetingRecord?
     @State private var query = ""
@@ -144,7 +145,7 @@ private struct MeetingList: View {
     private var canAsk: Bool { MeetingNotes.isAvailable && shown.contains { !$0.words.isEmpty } }
 
     var body: some View {
-        let groups = self.groups
+        let sections = ArchiveSection.sections(shown.filter { $0.id != session.record?.id })
         // Lazy, so the search field and the folders can stay pinned at the top as the
         // list scrolls — a meeting far down can still be dragged onto a folder.
         LazyVStack(alignment: .leading, spacing: 20, pinnedViews: [.sectionHeaders]) {
@@ -161,22 +162,13 @@ private struct MeetingList: View {
                     if searching {
                         SearchResults(matches: matches, query: query, folder: folders.folder(folders.selected)?.name,
                                       showAll: { withAnimation(.snappy) { folders.selected = nil } }, open: open)
-                    } else if groups.isEmpty, let folder = folders.folder(folders.selected) {
+                    } else if sections.isEmpty, let folder = folders.folder(folders.selected) {
                         emptyFolder(folder)
                     } else {
-                        ForEach(Array(groups.enumerated()), id: \.element.title) { n, group in
-                            VStack(alignment: .leading, spacing: 10) {
-                                SectionTitle(group.title)
-                                VStack(spacing: 0) {
-                                    ForEach(Array(group.meetings.enumerated()), id: \.element.id) { i, record in
-                                        if i > 0 { CardDivider() }
-                                        row(record, in: groups)
-                                    }
-                                }
-                                .padding(4)
-                                .card()
-                            }
-                            .staggered(2 + min(n, 3))
+                        let order = visibleOrder(sections)
+                        ForEach(Array(sections.enumerated()), id: \.element.id) { n, section in
+                            archive(section, order: order)
+                                .staggered(2 + min(n, 3))
                         }
                     }
                 } header: {
@@ -237,17 +229,16 @@ private struct MeetingList: View {
 
     /// One meeting in the list: click opens it; ⌘-click adds it to a selection, ⇧-click
     /// a run of them — to drag, or move with "Flytta till", together.
-    private func row(_ record: MeetingRecord, in groups: [(title: String, meetings: [MeetingRecord])]) -> some View {
+    private func row(_ record: MeetingRecord, order: [UUID], compact: Bool = false) -> some View {
         let ids = selection.contains(record.id) ? Array(selection) : [record.id]
         return MeetingRow(record: record, writing: notes.writing.contains(record.id),
                           folder: folders.selected == nil ? folders.folder(of: record)?.name : nil,
-                          selected: selection.contains(record.id)) {
+                          selected: selection.contains(record.id), compact: compact) {
             let keys = NSEvent.modifierFlags
             if keys.contains(.command) {
                 if selection.contains(record.id) { selection.remove(record.id) } else { selection.insert(record.id) }
                 anchor = record.id
             } else if keys.contains(.shift) {
-                let order = groups.flatMap(\.meetings).map(\.id)
                 if let from = anchor.flatMap({ order.firstIndex(of: $0) }), let to = order.firstIndex(of: record.id) {
                     selection.formUnion(order[min(from, to)...max(from, to)])
                 } else {
@@ -269,6 +260,72 @@ private struct MeetingList: View {
             if ids.count == 1 {
                 Divider()
                 Button("Ta bort…", role: .destructive) { confirmDelete = record }
+            }
+        }
+    }
+
+    /// A group of the list: the recent ones as cards of full rows; an older month or
+    /// year as a line that opens — its meetings then a line each.
+    @ViewBuilder private func archive(_ section: ArchiveSection, order: [UUID]) -> some View {
+        switch section.kind {
+        case .recent:
+            VStack(alignment: .leading, spacing: 10) {
+                SectionTitle(section.title)
+                rows(section.meetings, order: order, compact: false)
+            }
+        case .month:
+            VStack(alignment: .leading, spacing: 8) {
+                let open = archiveOpen.isOpen(section)
+                ArchiveHeader(section: section, open: open, people: open ? [] : section.people(among: store.meetings)) {
+                    withAnimation(.spring(duration: 0.35, bounce: 0.1)) { archiveOpen.toggle(section) }
+                }
+                if open { rows(section.meetings, order: order, compact: section.openByDefault == false) }
+            }
+        case .year:
+            VStack(alignment: .leading, spacing: 8) {
+                let open = archiveOpen.isOpen(section)
+                ArchiveHeader(section: section, open: open, people: open ? [] : section.people(among: store.meetings)) {
+                    withAnimation(.spring(duration: 0.35, bounce: 0.1)) { archiveOpen.toggle(section) }
+                }
+                if open {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(section.months) { month in
+                            let monthOpen = archiveOpen.isOpen(month)
+                            ArchiveHeader(section: month, open: monthOpen,
+                                          people: monthOpen ? [] : month.people(among: store.meetings), nested: true) {
+                                withAnimation(.spring(duration: 0.35, bounce: 0.1)) { archiveOpen.toggle(month) }
+                            }
+                            if monthOpen { rows(month.meetings, order: order, compact: true) }
+                        }
+                    }
+                    .padding(.leading, 18)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+        }
+    }
+
+    private func rows(_ meetings: [MeetingRecord], order: [UUID], compact: Bool) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(meetings.enumerated()), id: \.element.id) { i, record in
+                if i > 0 { CardDivider() }
+                row(record, order: order, compact: compact)
+            }
+        }
+        .padding(4)
+        .card()
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    /// The meetings in the order they're on screen — for ⇧-click to select a run.
+    private func visibleOrder(_ sections: [ArchiveSection]) -> [UUID] {
+        sections.flatMap { section -> [UUID] in
+            switch section.kind {
+            case .recent: return section.meetings.map(\.id)
+            case .month: return archiveOpen.isOpen(section) ? section.meetings.map(\.id) : []
+            case .year:
+                guard archiveOpen.isOpen(section) else { return [] }
+                return section.months.flatMap { archiveOpen.isOpen($0) ? $0.meetings.map(\.id) : [] }
             }
         }
     }
@@ -324,25 +381,6 @@ private struct MeetingList: View {
         return store.meetings.filter { $0.folder == folder }
     }
 
-    /// "I dag", "I går", "Tidigare i veckan", then by month.
-    private var groups: [(title: String, meetings: [MeetingRecord])] {
-        let calendar = Calendar.current
-        var out: [(title: String, meetings: [MeetingRecord])] = []
-        for record in shown where record.id != session.record?.id {
-            let title: String
-            if calendar.isDateInToday(record.date) { title = String(localized: "I dag") }
-            else if calendar.isDateInYesterday(record.date) { title = String(localized: "I går") }
-            else if let days = calendar.dateComponents([.day], from: record.date, to: Date()).day, days < 7 {
-                title = String(localized: "Tidigare i veckan")
-            } else {
-                let month = record.date.formatted(Date.FormatStyle().month(.wide).year().locale(AppLanguage.locale))
-                title = month.prefix(1).uppercased() + month.dropFirst()
-            }
-            if let i = out.firstIndex(where: { $0.title == title }) { out[i].meetings.append(record) }
-            else { out.append((title, [record])) }
-        }
-        return out
-    }
 }
 
 /// Start a meeting — or what's needed first, with the way to fix it.
@@ -549,19 +587,65 @@ private struct EmptyArchive: View {
     }
 }
 
-private struct MeetingRow: View {
+struct MeetingRow: View {
     let record: MeetingRecord
     let writing: Bool
     /// Under "Alla": the folder it's in, beside its time.
     var folder: String? = nil
     /// ⌘- or ⇧-clicked, to move with others.
     var selected = false
+    /// In an older month: a line, not three.
+    var compact = false
     let open: () -> Void
     @State private var hovering = false
 
     var body: some View {
         let cast = record.cast
         Button(action: open) {
+            if compact { line } else { full(cast) }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help(record.title)
+    }
+
+    /// An older meeting: its title, its day, how long — one line.
+    private var line: some View {
+        HStack(spacing: 10) {
+            if let source = record.source {
+                Image(systemName: source.video ? "film" : "waveform")
+                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+            }
+            Text(record.title).font(.system(size: 13.5, weight: .medium)).lineLimit(1)
+            if !record.finished {
+                Text("Inte klart").font(.system(size: 11, weight: .semibold)).foregroundStyle(DS.Colors.warning)
+            }
+            Spacer(minLength: 12)
+            if let folder {
+                Label(folder, systemImage: "folder").font(.system(size: 11.5)).foregroundStyle(DS.Colors.faint).lineLimit(1)
+            }
+            Text(record.date.formatted(Date.FormatStyle().day().month(.abbreviated).locale(AppLanguage.locale)))
+                .font(.system(size: 12)).foregroundStyle(DS.Colors.muted).monospacedDigit()
+                .frame(minWidth: 52, alignment: .trailing)
+            Text(MeetingView.duration(record.duration))
+                .font(.system(size: 12)).foregroundStyle(DS.Colors.faint).monospacedDigit()
+                .frame(minWidth: 40, alignment: .trailing)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(DS.Colors.faint)
+                .opacity(hovering ? 1 : 0.4)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(DS.Colors.chip.opacity(selected ? 1 : hovering ? 0.6 : 0)))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .strokeBorder(DS.Colors.ink.opacity(selected ? 0.35 : 0), lineWidth: 1))
+        .contentShape(Rectangle())
+    }
+
+    private func full(_ cast: Cast) -> some View {
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
@@ -602,10 +686,6 @@ private struct MeetingRow: View {
             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(DS.Colors.ink.opacity(selected ? 0.35 : 0), lineWidth: 1))
             .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .help(record.title)
     }
 
     /// The first sentence of the notes — what the meeting was about.
@@ -2374,3 +2454,70 @@ private struct RewriteBanner: View {
         .accessibilityElement(children: .combine)
     }
 }
+
+#if DEBUG
+/// Screenshots (`--render-archive`): folded months and years, an opened old month.
+struct ArchivePreview: View {
+    let records: [MeetingRecord]
+
+    var body: some View {
+        let sections = ArchiveSection.sections(records, now: ArchivePreview.now)
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(sections) { section in
+                switch section.kind {
+                case .recent:
+                    SectionTitle(section.title)
+                    VStack(spacing: 0) {
+                        ForEach(section.meetings) { MeetingRow(record: $0, writing: false) {} }
+                    }.padding(4).card()
+                case .month:
+                    ArchiveHeader(section: section, open: section.openByDefault,
+                                  people: section.openByDefault ? [] : section.people(among: records)) {}
+                    if section.openByDefault {
+                        VStack(spacing: 0) {
+                            ForEach(section.meetings) { MeetingRow(record: $0, writing: false) {} }
+                        }.padding(4).card()
+                    }
+                case .year:
+                    ArchiveHeader(section: section, open: true, people: []) {}
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(section.months.enumerated()), id: \.element.id) { i, month in
+                            ArchiveHeader(section: month, open: i == 0, people: i == 0 ? [] : month.people(among: records), nested: true) {}
+                            if i == 0 {
+                                VStack(spacing: 0) {
+                                    ForEach(Array(month.meetings.enumerated()), id: \.element.id) { j, r in
+                                        if j > 0 { CardDivider() }
+                                        MeetingRow(record: r, writing: false, compact: true) {}
+                                    }
+                                }.padding(4).card()
+                            }
+                        }
+                    }.padding(.leading, 18)
+                }
+            }
+        }
+    }
+
+    static let now = ISO8601DateFormatter().date(from: "2026-10-15T12:00:00Z")!
+
+    static func sample() -> [MeetingRecord] {
+        let f = ISO8601DateFormatter()
+        func m(_ date: String, _ title: String, _ names: [String], _ minutes: Double) -> MeetingRecord {
+            var r = MeetingRecord(title: title, date: f.date(from: date + "T09:30:00Z")!, language: .swedish)
+            r.names = Dictionary(uniqueKeysWithValues: names.enumerated().map { (String($0.offset), $0.element) })
+            r.duration = minutes * 60
+            return r
+        }
+        return [
+            m("2026-10-15", "Veckomöte", ["Jag", "Anna"], 34), m("2026-10-14", "Kund Nordljus – uppstart", ["Jag", "Eva"], 52),
+            m("2026-10-02", "Planering Q4", ["Jag", "Anna", "Erik"], 41),
+            m("2026-09-24", "Styrelsemöte", ["Jag", "Kim"], 88), m("2026-09-10", "Intervju", ["Jag", "Olle"], 25),
+            m("2026-08-28", "Budget", ["Jag", "Anna", "Erik"], 47), m("2026-08-12", "Avstämning", ["Jag", "Anna"], 18),
+            m("2026-08-05", "Kund Nordljus – status", ["Jag", "Eva"], 30),
+            m("2026-06-19", "Sommarplanering", ["Jag", "Erik"], 22),
+            m("2025-12-11", "Julmöte", ["Jag", "Anna", "Kim"], 64), m("2025-12-03", "Uppföljning", ["Jag", "Olle"], 21),
+            m("2025-11-20", "Offertgenomgång", ["Jag", "Eva"], 37), m("2025-03-04", "Kickoff", ["Jag", "Anna"], 55),
+        ]
+    }
+}
+#endif

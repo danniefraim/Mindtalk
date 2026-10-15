@@ -398,6 +398,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --render-archive out.png [--dark]`: the list's groups, with made-up meetings.
+        if let i = args.firstIndex(of: "--render-archive"), i + 1 < args.count {
+            Task { @MainActor in
+                let dark = args.contains("--dark")
+                NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                let records = ArchivePreview.sample()
+                for s in ArchiveSection.sections(records, now: ArchivePreview.now) {
+                    print("\(s.kind) \(s.id) \"\(s.title)\" \(s.count) öppen:\(s.openByDefault) \(s.kind == .year ? s.months.map { "\($0.title) \($0.count)" }.joined(separator: ", ") : "")")
+                }
+                let view = ArchivePreview(records: records).padding(28).frame(width: 720).background(DS.Colors.paper)
+                    .environment(\.colorScheme, dark ? .dark : .light)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --render-import out.png [--dark]`: the import cards and the drop sign.
         if let i = args.firstIndex(of: "--render-import"), i + 1 < args.count {
             Task { @MainActor in

@@ -463,6 +463,16 @@
         }
       }
     },
+    "%@, %@": {
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, %@"
+          }
+        }
+      }
+    },
     "%@, %@. Laddas ned en gång och fungerar sedan offline.": {
       "localizations": {
         "en": {
@@ -3957,6 +3967,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fungerar i alla appar. Inne i Mindtalk fungerar även ⇧⌘R."
+          }
+        }
+      }
+    },
+    "Fäll ihop": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fäll ihop"
           }
         }
       }
@@ -13309,6 +13335,22 @@
         }
       }
     },
+    "Tidigare i %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Earlier in %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidigare i %@"
+          }
+        }
+      }
+    },
     "Tidigare i veckan": {
       "localizations": {
         "en": {
@@ -14469,6 +14511,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa mindre"
+          }
+        }
+      }
+    },
+    "Visa mötena": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa mötena"
           }
         }
       }
