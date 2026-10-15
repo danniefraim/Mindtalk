@@ -457,10 +457,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     var a = Thought(text: "Ring tillbaka Eva om offerten och kolla budgeten för Q2."); a.date = Date()
                     Thoughts.shared.preview([a])
                 }
-                let view = VStack(alignment: .leading, spacing: 28) {
-                    HomeGreeting()
-                    HomeActions(dictation: .shared, page: .constant(.dictation))
-                    HomeFeed(page: .constant(.dictation))
+                let view = VStack(alignment: .leading, spacing: 30) {
+                    HomeHero(dictation: .shared, page: .constant(.dictation))
+                    HomeShelves(page: .constant(.dictation))
                 }
                 .padding(28).frame(width: 820).background(DS.Colors.paper)
                 .environment(\.colorScheme, dark ? .dark : .light)

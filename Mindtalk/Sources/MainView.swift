@@ -154,20 +154,19 @@ private struct DictationPage: View {
 
     @State private var trying = false
 
+    @State private var wide = true
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 26) {
-            HomeGreeting().staggered(0)
+        VStack(alignment: .leading, spacing: 30) {
+            HomeHero(dictation: dictation, page: $page, wide: wide).staggered(0)
 
-            if dictation.needsSetup {
-                setupCard.staggered(1)
-            } else {
-                HomeActions(dictation: dictation, page: $page).staggered(1)
-            }
+            if dictation.needsSetup { setupCard.staggered(1) }
 
-            HomeFeed(page: $page).staggered(2)
+            HomeShelves(page: $page, wide: wide).staggered(2)
 
             if !dictation.needsSetup { tryIt.staggered(3) }
         }
+        .onGeometryChange(for: Bool.self) { $0.size.width >= 690 } action: { wide = $0 }
         .pageLayout()
     }
 
