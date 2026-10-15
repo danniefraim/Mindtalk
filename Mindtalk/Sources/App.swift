@@ -285,6 +285,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --test-import file`: a file imported as the window would, then what came of it.
+        if let i = args.firstIndex(of: "--test-import"), i + 1 < args.count {
+            Task { @MainActor in
+                MeetingStore.shared.loadNow()
+                let importer = MeetingImport.shared
+                let t0 = Date()
+                importer.add([URL(fileURLWithPath: args[i + 1])], folder: nil)
+                var last = ""
+                while let job = importer.jobs.first, job.stage != .done, job.stage != .failed {
+                    let now = "\(job.stage.title) \(Int(job.progress * 100)) %"
+                    if now != last { print(String(format: "[%5.1f s] ", Date().timeIntervalSince(t0)) + now); last = now }
+                    try? await Task.sleep(for: .milliseconds(500))
+                }
+                guard let job = importer.jobs.first else { exit(1) }
+                print("Steg: \(job.stage.title) \(job.error ?? "") efter \(Int(Date().timeIntervalSince(t0))) s")
+                if let id = job.meeting, let r = MeetingStore.shared.meetings.first(where: { $0.id == id }) {
+                    print("Möte: \(r.title) · datum \(r.date) · \(Int(r.duration)) s · \(r.words.count) ord · talare \(Set(r.words.compactMap(\.speaker)).sorted()) · klart \(r.finished) · genomlyssnat \(r.refined) · källa \(r.source.map { "\($0.file), video \($0.video)" } ?? "–") · sammanfattning \(r.summary?.title ?? "–")")
+                    print(String(MeetingText.plain(r).prefix(400)))
+                    print("MAPP: \(MeetingStore.folder(for: id).path)")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --test-export dir [--title "del av titel"]`: a meeting in every format, to a folder.
         if let i = args.firstIndex(of: "--test-export"), i + 1 < args.count {
             Task { @MainActor in
@@ -348,6 +372,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 for (name, record, expected) in cases {
                     let got = folders.suggestion(for: record, among: library + [record])?.name
                     print("\(got == expected ? "OK " : "FEL") \(name): \(got ?? "–") (väntat \(expected ?? "–"))")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
+        // `Mindtalk --render-import out.png [--dark]`: the import cards and the drop sign.
+        if let i = args.firstIndex(of: "--render-import"), i + 1 < args.count {
+            Task { @MainActor in
+                let dark = args.contains("--dark")
+                let f = { (n: String) in URL(fileURLWithPath: "/tmp/\(n)") }
+                let view = VStack(alignment: .leading, spacing: 10) {
+                    ImportCard(job: .init(url: f("Intervju med Anna.m4a"), video: false, folder: nil, stage: .writing, progress: 0.34)) { _ in }
+                    ImportCard(job: .init(url: f("Styrelsemöte oktober.mov"), video: true, folder: nil, stage: .waiting)) { _ in }
+                    ImportCard(job: .init(url: f("Podd avsnitt 12.mp3"), video: false, folder: nil, stage: .done, progress: 1)) { _ in }
+                    ImportCard(job: .init(url: f("anteckningar.pdf"), video: false, folder: nil, stage: .failed)) { _ in }
+                    DropSign(folder: nil).frame(height: 360)
+                }
+                .padding(28)
+                .frame(width: 720)
+                .background(DS.Colors.paper)
+                .environment(\.colorScheme, dark ? .dark : .light)
+                NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
                 }
                 exit(0)
             }
@@ -1019,6 +1071,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         ]))
         main.addItem(submenu("Möte", [
             item("Starta möte", #selector(AppDelegate.toggleMeeting), "r", [.command, .shift]),
+            item("Importera fil…", #selector(AppDelegate.menuImport), "o"),
         ]))
         main.addItem(submenu("Visa", [
             item("Diktering", #selector(AppDelegate.menuDictation), "1"),
@@ -1039,6 +1092,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     // MARK: Menu actions
 
     @objc func menuAbout() { Self.showAbout() }
+    /// ⌘O: a sound or video file to transcribe — into the folder chosen on the Möten page.
+    @objc func menuImport() {
+        Self.showWindow(page: .meetings)
+        MeetingImport.shared.choose(folder: MeetingFolders.shared.selected)
+    }
+
+    /// "Öppna med › Mindtalk", or a file dropped on the app: transcribed as a meeting.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        let files = urls.filter { MeetingImport.canImport($0) }
+        guard !files.isEmpty else { return }
+        Self.showWindow(page: .meetings)
+        MeetingImport.shared.add(files, folder: nil)
+    }
     @objc func menuSettings() { Self.showWindow(page: .settings) }
     @objc func menuDictation() { Self.showWindow(page: .dictation) }
     @objc func menuMeetings() { Self.showWindow(page: .meetings) }

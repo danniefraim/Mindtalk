@@ -1593,6 +1593,22 @@
         }
       }
     },
+    "Avbryt importen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel import"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avbryt importen"
+          }
+        }
+      }
+    },
     "Avbryter utan att något skrivs.": {
       "extractionState": "stale",
       "localizations": {
@@ -2475,6 +2491,22 @@
         }
       }
     },
+    "Det här är inte en ljud- eller videofil som macOS kan läsa.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This isn't an audio or video file macOS can read."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det här är inte en ljud- eller videofil som macOS kan läsa."
+          }
+        }
+      }
+    },
     "Det tar några sekunder. Den gamla syns tills den nya är klar.": {
       "localizations": {
         "en": {
@@ -3112,6 +3144,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fel talare? Flytta till…"
+          }
+        }
+      }
+    },
+    "Filen har inget ljud.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file has no sound."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filen har inget ljud."
+          }
+        }
+      }
+    },
+    "Filen kunde inte läsas: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file couldn't be read: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filen kunde inte läsas: %@"
+          }
+        }
+      }
+    },
+    "Filen är för kort – under en sekund.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file is too short – under a second."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filen är för kort – under en sekund."
           }
         }
       }
@@ -3965,6 +4045,22 @@
         }
       }
     },
+    "Gick inte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gick inte"
+          }
+        }
+      }
+    },
     "Glöm %@": {
       "localizations": {
         "en": {
@@ -4595,6 +4691,22 @@
         }
       }
     },
+    "Håller isär rösterna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telling the voices apart"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håller isär rösterna"
+          }
+        }
+      }
+    },
     "Håller isär vem som pratar i möten. Av NVIDIA, Core ML av FluidInference. OpenMDW 1.1.": {
       "extractionState": "manual",
       "localizations": {
@@ -4889,6 +5001,70 @@
         }
       }
     },
+    "Importera": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importera"
+          }
+        }
+      }
+    },
+    "Importera fil…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import File…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importera fil…"
+          }
+        }
+      }
+    },
+    "Importerad %@ från %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imported %1$@ from %2$@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importerad %@ från %@"
+          }
+        }
+      }
+    },
+    "Importerad från %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imported from %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importerad från %@"
+          }
+        }
+      }
+    },
     "Inbyggd mikrofon": {
       "localizations": {
         "en": {
@@ -5127,6 +5303,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inget sades"
+          }
+        }
+      }
+    },
+    "Inget tal hördes i filen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No speech was heard in the file."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inget tal hördes i filen."
           }
         }
       }
@@ -5486,6 +5678,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klar – en ny sammanfattning"
+          }
+        }
+      }
+    },
+    "Klar – texten, rösterna och anteckningarna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done – the text, the voices and the notes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klar – texten, rösterna och anteckningarna"
           }
         }
       }
@@ -6224,6 +6432,22 @@
         }
       }
     },
+    "Ladda ned talmodellen och Nemotron 3 först – på sidan Möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download the speech model and Nemotron 3 first – on the Meetings page."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda ned talmodellen och Nemotron 3 först – på sidan Möten."
+          }
+        }
+      }
+    },
     "Laddar ned %@ · %lld %%": {
       "localizations": {
         "en": {
@@ -6430,6 +6654,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lite svagt – prata närmare mikrofonen"
+          }
+        }
+      }
+    },
+    "Ljud eller video – du får texten med vem som sa vad, anteckningar och kan fråga om innehållet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio or video – you get the text with who said what, notes, and can ask about it."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ljud eller video – du får texten med vem som sa vad, anteckningar och kan fråga om innehållet."
+          }
+        }
+      }
+    },
+    "Ljud eller video – texten, rösterna och anteckningarna hamnar i %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio or video – the text, voices and notes go into %@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ljud eller video – texten, rösterna och anteckningarna hamnar i %@."
           }
         }
       }
@@ -6657,6 +6913,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lyssna igenom mötet igen"
+          }
+        }
+      }
+    },
+    "Lyssna igenom på": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listen Through In"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssna igenom på"
           }
         }
       }
@@ -6986,6 +7258,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Läser dina möten…"
+          }
+        }
+      }
+    },
+    "Läser in ljudet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading the sound"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läser in ljudet"
           }
         }
       }
@@ -8502,6 +8790,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "När något du dikterar liknar ett ord i listan lyssnar Mindtalk en gång till efter just det ordet, så att namn stavas rätt redan från början. Allt sker på din Mac."
+          }
+        }
+      }
+    },
+    "När var mötet?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When was the meeting?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "När var mötet?"
           }
         }
       }
@@ -10062,6 +10366,38 @@
         }
       }
     },
+    "Skriv ut en ljud- eller videofil – eller dra in den på sidan (⌘O)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcribe an audio or video file – or drag it onto the page (⌘O)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriv ut en ljud- eller videofil – eller dra in den på sidan (⌘O)"
+          }
+        }
+      }
+    },
+    "Skriver anteckningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Writing notes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriver anteckningar"
+          }
+        }
+      }
+    },
     "Skriver anteckningar och svar, om du väljer den. Av Google. Apache 2.0.": {
       "extractionState": "manual",
       "localizations": {
@@ -10177,6 +10513,22 @@
         }
       }
     },
+    "Skriver ut": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcribing"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriver ut"
+          }
+        }
+      }
+    },
     "Skriver…": {
       "localizations": {
         "en": {
@@ -10273,6 +10625,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sluta lyssna"
+          }
+        }
+      }
+    },
+    "Släpp för att skriva ut": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop to transcribe"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Släpp för att skriva ut"
           }
         }
       }
@@ -13562,6 +13930,22 @@
         }
       }
     },
+    "Välj en ljud- eller videofil att skriva ut": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an audio or video file to transcribe"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj en ljud- eller videofil att skriva ut"
+          }
+        }
+      }
+    },
     "Välj ett eller båda. Modellen laddas ned en gång och fungerar sedan helt offline.": {
       "extractionState": "stale",
       "localizations": {
@@ -13688,6 +14072,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vänster ⌥ Option"
+          }
+        }
+      }
+    },
+    "Väntar på sin tur": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting its turn"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Väntar på sin tur"
           }
         }
       }
@@ -13919,6 +14319,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "i veckan"
+          }
+        }
+      }
+    },
+    "importerad från %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "imported from %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "importerad från %@"
           }
         }
       }
@@ -14263,6 +14679,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ändra %@"
+          }
+        }
+      }
+    },
+    "Ändra datum…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change Date…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ändra datum…"
           }
         }
       }

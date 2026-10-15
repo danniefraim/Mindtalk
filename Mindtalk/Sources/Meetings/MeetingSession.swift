@@ -1599,8 +1599,10 @@ final class MeetingSession: ObservableObject {
 
     /// A meeting cut short — Mindtalk quit or crashed while recording: its recording
     /// is on disk, so the final pass can still run, and the notes after it.
-    func finishInterrupted(_ id: UUID) {
-        guard phase == .idle, let saved = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
+    /// `language`: listened through in another one ("Lyssna igenom på ›").
+    func finishInterrupted(_ id: UUID, language other: SpeechModel? = nil) {
+        guard phase == .idle, var saved = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
+        if let other, other.isInstalled { saved.language = other }
         activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated],
                                                          reason: "Mindtalk lyssnar igenom ett möte")
         language = saved.language

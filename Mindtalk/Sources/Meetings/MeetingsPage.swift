@@ -45,6 +45,8 @@ struct MeetingsPage: View {
             }
         }
         .folderNaming()
+        // Sound or video dropped anywhere here: transcribed, as a meeting.
+        .importDrop()
         // A meeting that just ended stays on screen, now as saved.
         .onChange(of: session.finished) { _, id in if let id { open = id } }
         .onChange(of: open) { _, id in Self.lastOpen = id }
@@ -137,6 +139,7 @@ private struct MeetingList: View {
                        subtitle: "Spela in ett möte i rummet. Mindtalk skriver ned det som sägs och håller isär vem som pratar.")
                 .staggered(0)
             StartCard(session: session, voices: voices, dictation: dictation).staggered(1)
+            ImportCards { id in open(id, nil) }
             if store.meetings.isEmpty {
                 EmptyArchive().staggered(2)
             } else {
@@ -366,7 +369,20 @@ private struct StartCard: View {
                 }
             }
             Spacer(minLength: 16)
-            control
+            VStack(alignment: .trailing, spacing: 10) {
+                control
+                // A recording you already have: transcribed the same way.
+                if voices.state == .ready, dictation.engine.isInstalled {
+                    Button { MeetingImport.shared.choose(folder: folders.selected) } label: {
+                        Label("Importera fil…", systemImage: "square.and.arrow.down")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(DS.Colors.muted)
+                            .fixedSize()
+                    }
+                    .buttonStyle(.plain)
+                    .help("Skriv ut en ljud- eller videofil – eller dra in den på sidan (⌘O)")
+                }
+            }
         }
         .padding(24)
         .raised(cornerRadius: 20)
@@ -482,6 +498,12 @@ private struct MeetingRow: View {
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
+                        if let source = record.source {
+                            Image(systemName: source.video ? "film" : "waveform")
+                                .font(.system(size: 11.5, weight: .semibold))
+                                .foregroundStyle(DS.Colors.muted)
+                                .help(String(localized: "Importerad från \(source.file)"))
+                        }
                         Text(record.title).font(.system(size: 14.5, weight: .semibold)).lineLimit(1)
                         if !record.finished {
                             Text("Inte klart").font(.system(size: 11, weight: .semibold)).foregroundStyle(DS.Colors.warning)
@@ -767,6 +789,7 @@ struct MeetingView: View {
     @State private var title = ""
     @State private var confirmDelete = false
     @State private var confirmRemoveAudio = false
+    @State private var changingDate = false
     @State private var copied = false
     @State private var tab: Tab = .summary
     /// "Visa i texten" from a source: the turn to scroll to.
@@ -842,6 +865,7 @@ struct MeetingView: View {
         } message: {
             Text("Inspelningen, texten och sammanfattningen tas bort från din Mac och går inte att få tillbaka.")
         }
+        .sheet(isPresented: $changingDate) { MeetingDateSheet(record: record) { changingDate = false } }
         .confirmationDialog("Ta bort inspelningen?", isPresented: $confirmRemoveAudio) {
             Button("Flytta till papperskorgen", role: .destructive) {
                 if case .saved(let store, let id) = edit { store.removeAudio(of: id) }
@@ -938,6 +962,7 @@ struct MeetingView: View {
         var parts = [when, Self.duration(record.duration)]
         if record.informed != nil { parts.append(String(localized: "deltagarna informerades")) }
         if !record.hasAudio { parts.append(String(localized: "inspelningen borttagen")) }
+        if let source = record.source { parts.append(String(localized: "importerad från \(source.file)")) }
         return parts.joined(separator: " · ")
     }
 
@@ -1048,7 +1073,14 @@ struct MeetingView: View {
                         }
                     }
                     .disabled(!MeetingNotes.isAvailable || notes.writing.contains(record.id))
+                    Button("Ändra datum…") { changingDate = true }
                     if record.hasAudio {
+                        Menu("Lyssna igenom på") {
+                            ForEach(SpeechModel.allCases.filter(\.isInstalled), id: \.self) { model in
+                                Button(model.title) { MeetingSession.shared.finishInterrupted(record.id, language: model) }
+                            }
+                        }
+                        .disabled(MeetingSession.shared.phase != .idle)
                         Button("Fortsätt mötet") { AppDelegate.continueMeeting(record.id) }
                             .disabled(!record.finished || MeetingSession.shared.phase != .idle)
                         Button("Lyssna igenom mötet igen") { MeetingSession.shared.finishInterrupted(record.id) }

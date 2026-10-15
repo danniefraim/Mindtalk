@@ -61,6 +61,16 @@ targets:
         # verified before it's even unpacked.
         SURequireSignedFeed: true
         SUVerifyUpdateBeforeExtraction: true
+        # "Öppna med › Mindtalk" for sound and video: transcribed as a meeting.
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Audio
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.audio]
+          - CFBundleTypeName: Movie
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.movie]
         # Meetings dragged onto a folder: a type of Mindtalk's own, so text from
         # elsewhere is never taken for a meeting.
         UTExportedTypeDeclarations:

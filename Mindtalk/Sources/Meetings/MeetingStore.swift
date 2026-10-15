@@ -74,6 +74,15 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     /// whole meeting has been listened through again — after a crash, "Gör klart"
     /// knows it still has to.
     var continuedAt: Double?
+    /// Imported from a file rather than recorded here: which, and when.
+    var source: Source?
+
+    struct Source: Codable, Equatable {
+        /// The file's name, as it was.
+        var file: String
+        var video: Bool
+        var importedAt: Date
+    }
 
     var hasAudio: Bool { audioRemoved == nil }
 
@@ -157,6 +166,7 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         folder = try? c.decodeIfPresent(UUID.self, forKey: .folder)
         folderAsked = (try? c.decodeIfPresent(Bool.self, forKey: .folderAsked)) ?? false
         continuedAt = try? c.decodeIfPresent(Double.self, forKey: .continuedAt)
+        source = try? c.decodeIfPresent(Source.self, forKey: .source)
     }
 
     /// Speakers in the order they first spoke.
@@ -752,6 +762,14 @@ final class MeetingStore: ObservableObject {
     func applyRetention() {
         guard loaded else { retentionWaiting = true; return }
         for id in recordingsPast(days: MeetingAudio.keepDays) { removeAudio(of: id) }
+    }
+
+    /// When it really was (a file whose own date was wrong).
+    func setDate(_ date: Date, of id: UUID) {
+        guard var record = meetings.first(where: { $0.id == id }) else { return }
+        record.date = date
+        save(record)
+        meetings.sort { $0.date > $1.date }
     }
 
     /// Many meetings changed at once (moved to a folder), already written quietly.
