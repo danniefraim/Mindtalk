@@ -102,12 +102,14 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
 
     private var field: some View {
             ZStack(alignment: .topLeading) {
+                // The editor writes its first line at its very top, so the air above
+                // it is the editor's padding, not the placeholder's — the caret then
+                // sits on the placeholder's line rather than above it.
                 if draft.text.isEmpty {
                     Text("Anteckning – en rad per sak")
                         .font(.system(size: 13.5))
                         .foregroundStyle(.white.opacity(0.4))
-                        .padding(.top, 7)
-                        .padding(.leading, 5)
+                        .padding(.leading, 5)        // the text view's own line padding
                         .allowsHitTesting(false)
                 }
                 TextEditor(text: $draft.text)
@@ -116,11 +118,13 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
                     .foregroundStyle(.white)
                     .scrollContentBackground(.hidden)
                     .focused($focused)
-                    .frame(minHeight: 30, maxHeight: 92)
+                    .frame(minHeight: 18, maxHeight: 80)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 1)
+            .padding(.vertical, 7)
+            .contentShape(Rectangle())
+            .onTapGesture { focused = true }
             .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(.white.opacity(focused ? 0.1 : 0.06)))
             .animation(.easeOut(duration: 0.2), value: focused)
     }
