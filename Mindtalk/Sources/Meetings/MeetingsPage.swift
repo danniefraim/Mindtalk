@@ -1976,18 +1976,6 @@ private struct LiveBar: View {
                     .background(Capsule().fill(DS.Colors.paper.opacity(0.9)))
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
-            // "Innan ni börjar", while it has something to say: above the island, where
-            // your eyes are, and it doesn't scroll away as the text grows.
-            if session.isRecording, !session.introducing, session.showsOpening {
-                OpeningCard(session: session)
-                    .padding(12)
-                    .frame(maxWidth: 560)
-                    .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(DS.Colors.paper))
-                    .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(DS.Colors.divider, lineWidth: 0.5))
-                    .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
-                    .padding(.horizontal, 24)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
             // Recording: one island — the time, your note, the marks, stop.
             if session.isRecording, !session.introducing, !session.stopping {
                 NoteIsland(session: session) { timer } trailing: { MeetingControls(session: session) }

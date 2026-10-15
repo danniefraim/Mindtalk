@@ -720,21 +720,6 @@ final class MeetingSession: ObservableObject {
     /// The round was held (or put away) in this meeting: it isn't offered again.
     @Published private(set) var introductionHeld = false
 
-    /// The round, offered at the start of a meeting ("Innan ni börjar"): in its first
-    /// two minutes, while some voice is still without a name.
-    var offersIntroduction: Bool {
-        guard isRecording, !introducing, !introductionHeld, !isPaused, elapsed < 120, let record else { return false }
-        var speech: [Int: Double] = [:]
-        for w in record.words + pending { if let s = w.speaker, s >= 0 { speech[s, default: 0] += w.end - w.start } }
-        let voices = speech.filter { $0.value >= 1.5 }.keys
-        return voices.isEmpty || voices.contains { (record.names[String($0)] ?? "").isEmpty }
-    }
-
-    /// "Innan ni börjar" is up: the round, offered when the meeting began without it.
-    var showsOpening: Bool {
-        isRecording && offersIntroduction
-    }
-
     /// "Presentationsrunda" in a meeting already recording.
     func introduce() {
         // Not in a continued meeting: the round reads its audio from the meeting's start.

@@ -1037,6 +1037,7 @@
       }
     },
     "Alla säger sitt namn, och Mindtalk sätter namnen på rösterna": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3343,6 +3344,22 @@
         }
       }
     },
+    "Fråga alla dina möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask all your meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fråga alla dina möten"
+          }
+        }
+      }
+    },
     "Fråga inte igen": {
       "localizations": {
         "en": {
@@ -3355,6 +3372,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fråga inte igen"
+          }
+        }
+      }
+    },
+    "Fråga mötena i %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask the meetings in %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fråga mötena i %@"
           }
         }
       }
@@ -3408,6 +3441,7 @@
       }
     },
     "Fråga om dina möten": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3982,6 +4016,7 @@
       }
     },
     "Göm": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4015,6 +4050,7 @@
       }
     },
     "Göm – mötet fortsätter som vanligt": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5048,6 +5084,7 @@
       }
     },
     "Innan ni börjar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6938,6 +6975,7 @@
       }
     },
     "Låt alla säga sitt namn": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6954,6 +6992,7 @@
       }
     },
     "Låt alla säga sitt namn – Mindtalk känner igen dem som varit med förut.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6970,6 +7009,7 @@
       }
     },
     "Låt alla säga sitt namn – då står namnen i texten.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8827,6 +8867,7 @@
       }
     },
     "Presentationsrunda": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12692,6 +12733,7 @@
       }
     },
     "Vad ska jag göra?": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12930,6 +12972,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Viktigt"
+          }
+        }
+      }
+    },
+    "Vilka uppgifter har jag?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What are my tasks?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vilka uppgifter har jag?"
           }
         }
       }
@@ -14152,6 +14210,7 @@
       }
     },
     "Öppnar rundan i Mindtalks fönster": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

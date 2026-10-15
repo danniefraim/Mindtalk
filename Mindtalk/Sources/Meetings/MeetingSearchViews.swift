@@ -259,13 +259,23 @@ struct LibraryAskBar: View {
     @ObservedObject private var folders = MeetingFolders.shared
     @State private var question = ""
     @FocusState private var focused: Bool
-    private static let suggestions: [LocalizedStringResource] = ["Vad bestämdes den här veckan?", "Vad ska jag göra?",
+    private static let suggestions: [LocalizedStringResource] = ["Vad bestämdes den här veckan?", "Vilka uppgifter har jag?",
                                                                   "Vad pratade vi om i går?"]
     private var empty: Bool { question.trimmingCharacters(in: .whitespaces).isEmpty }
 
+    /// The pointer over the suggestions: they stay while you reach for one.
+    @State private var overSuggestions = false
+
     var body: some View {
         VStack(spacing: 10) {
-            if library.answers.isEmpty, !library.asking, empty {
+            // Suggestions once you're in the field — then the list isn't covered, and
+            // it's said what they ask: all your meetings, or the folder's.
+            if focused || overSuggestions, library.answers.isEmpty, !library.asking, empty {
+                VStack(spacing: 8) {
+                Text(folders.folder(folders.selected).map { String(localized: "Fråga mötena i \($0.name)") }
+                     ?? String(localized: "Fråga alla dina möten"))
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(DS.Colors.muted)
                 HStack(spacing: 8) {
                     ForEach(Self.suggestions, id: \.key) { s in
                         Button { ask(String(localized: s)) } label: {
@@ -280,7 +290,9 @@ struct LibraryAskBar: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .transition(.opacity)
+                }
+                .onHover { overSuggestions = $0 }
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
             HStack(spacing: 10) {
                 TextField(folders.folder(folders.selected).map { String(localized: "Fråga något om mötena i \($0.name)…") }
@@ -289,7 +301,8 @@ struct LibraryAskBar: View {
                     .font(.system(size: 14))
                     .focused($focused)
                     .onSubmit { ask(question) }
-                    .accessibilityLabel("Fråga om dina möten")
+                    .accessibilityLabel(folders.folder(folders.selected).map { String(localized: "Fråga mötena i \($0.name)") }
+                                        ?? String(localized: "Fråga alla dina möten"))
                 if library.asking {
                     SettlingLine(color: DS.Colors.ink).scaleEffect(0.7).frame(width: 40)
                 } else {
@@ -320,6 +333,7 @@ struct LibraryAskBar: View {
         .frame(maxWidth: .infinity)
         .background(LinearGradient(colors: [DS.Colors.paper.opacity(0), DS.Colors.paper], startPoint: .top, endPoint: .center))
         .animation(.spring(duration: 0.3, bounce: 0.15), value: library.answers.isEmpty)
+        .animation(.spring(duration: 0.3, bounce: 0.15), value: focused)
     }
 
     private func ask(_ q: String) {

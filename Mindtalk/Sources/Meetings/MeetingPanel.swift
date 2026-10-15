@@ -442,9 +442,6 @@ private struct LivePanel: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .transition(.opacity)
             }
-            if session.isRecording {
-                OpeningCard(session: session, compact: true) { MeetingPanel.shared.roundInWindow() }
-            }
             switch session.phase {
             case .finishing(let what):
                 HStack(spacing: 12) {
