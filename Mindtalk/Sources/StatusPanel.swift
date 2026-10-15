@@ -73,13 +73,16 @@ final class StatusPanel: NSObject, NSWindowDelegate {
         }
     }
 
-    func close() {
+    /// `immediately`: gone at once, no fade — when a window of Mindtalk's opens next (as
+    /// it fades, macOS hands the focus back to the app you were in, over that window).
+    func close(immediately: Bool = false) {
         if let outsideClick { NSEvent.removeMonitor(outsideClick) }
         if let insideClick { NSEvent.removeMonitor(insideClick) }
         outsideClick = nil
         insideClick = nil
         button?.highlight(false)
         guard let panel, panel.isVisible else { return }
+        if immediately { panel.orderOut(nil); panel.alphaValue = 0; return }
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.12
             panel.animator().alphaValue = 0
@@ -133,7 +136,7 @@ struct StatusPanelView: View {
 
     /// Closes the panel and opens the window on `page`.
     private func go(_ page: Page) {
-        close()
+        (NSApp.delegate as? AppDelegate)?.closeStatusPanel(immediately: true)
         AppDelegate.showWindow(page: page)
     }
 
@@ -173,7 +176,8 @@ struct StatusPanelView: View {
                 PanelSeparator()
             } else if VoiceModels.isInstalled {
                 PanelRow(title: "Starta möte", shortcut: Self.meetingKeys) {
-                    close()
+                    // Gone at once (no fade): the window the meeting opens in comes in front.
+                    (NSApp.delegate as? AppDelegate)?.closeStatusPanel(immediately: true)
                     AppDelegate.startMeeting()
                 }
             }

@@ -42,6 +42,9 @@ final class MeetingPanel: ObservableObject {
     private var meetingRan = false
     /// The round was opened in the window from the panel: the meeting goes back after it.
     private var returnToPanel = false
+    /// Started from the menu bar or the shortcut (the window was opened for the round):
+    /// the meeting belongs in the panel once the round is over.
+    var startedElsewhere = false
     private var watchingRound: AnyCancellable?
 
     private init() {}
@@ -87,7 +90,8 @@ final class MeetingPanel: ObservableObject {
             // meeting is busy without recording and stays in the window.)
             done = nil
             meetingRan = true
-            home = AppDelegate.mainWindowIsKey ? .window : .panel
+            home = startedElsewhere || !AppDelegate.mainWindowIsKey ? .panel : .window
+            startedElsewhere = false
             if home == .panel, session.introducing {
                 // Started from elsewhere (the menu bar, the shortcut): the round in the
                 // window, the meeting in the panel after it.

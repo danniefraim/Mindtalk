@@ -930,16 +930,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     /// permission is missing), the Meetings page says why.
     static func startMeeting(introducing: Bool = true) {
         let meeting = MeetingSession.shared
-        if VoiceModels.isInstalled { meeting.start(introducing: introducing) }
-        if !meeting.isRecording { showWindow(page: .meetings); return }
-        // With the round: it opens in the window, in front — you're about to say your
-        // name. Without it, from the menu bar: the panel shows the meeting, and the
-        // keyboard goes back to the app you were in rather than to Mindtalk with no window.
-        if meeting.introducing {
+        // With the round: the window comes forward first — while your click still counts,
+        // before the microphone takes its moment to start — so it lands in front of the
+        // app you were in, not behind it. (Afterwards the meeting goes to the panel.)
+        if introducing, VoiceModels.isInstalled, !mainWindowIsKey {
+            MeetingPanel.shared.startedElsewhere = true
             showWindow(page: .meetings)
-        } else if !mainWindowVisible {
-            NSApp.deactivate()
         }
+        if VoiceModels.isInstalled { meeting.start(introducing: introducing) }
+        if !meeting.isRecording {
+            MeetingPanel.shared.startedElsewhere = false
+            showWindow(page: .meetings)
+            return
+        }
+        // Without the round, from the menu bar: the panel shows the meeting, and the
+        // keyboard goes back to the app you were in rather than to Mindtalk with no window.
+        if !introducing, !mainWindowVisible { NSApp.deactivate() }
     }
 
     static var mainWindowVisible: Bool { (NSApp.delegate as? AppDelegate)?.window?.isVisible == true }
@@ -980,7 +986,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
     }
 
-    func closeStatusPanel() { statusPanel.close() }
+    func closeStatusPanel(immediately: Bool = false) { statusPanel.close(immediately: immediately) }
 
     /// Closes the menu bar panel if it's open; true if it was.
     static func closeStatusPanelIfShown() -> Bool {
@@ -1029,6 +1035,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     /// app to Dock app has to settle first, or macOS turns the activation down.
     private func bringForward(_ window: NSWindow?) {
         guard let window else { return }
+        // Asked at once, while the click that asked for it still counts.
+        NSApp.activate()
         window.orderFrontRegardless()
         DispatchQueue.main.async {
             NSApp.activate()
