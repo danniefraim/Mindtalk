@@ -3310,6 +3310,22 @@
         }
       }
     },
+    "Filen hittades inte – den kan ha tagits bort": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file wasn't found – it may have been deleted"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filen hittades inte – den kan ha tagits bort"
+          }
+        }
+      }
+    },
     "Filen kunde inte läsas: %@": {
       "localizations": {
         "en": {
@@ -5271,6 +5287,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Importerad från %@"
+          }
+        }
+      }
+    },
+    "Importerad från %@. Visa filen i Finder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imported from %@. Show the file in Finder"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importerad från %@. Visa filen i Finder"
           }
         }
       }
@@ -14027,6 +14059,22 @@
         }
       }
     },
+    "Visa filen i Finder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the file in Finder"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa filen i Finder"
+          }
+        }
+      }
+    },
     "Visa hela": {
       "localizations": {
         "en": {
@@ -14747,7 +14795,24 @@
         }
       }
     },
+    "importerad från": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "imported from"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "importerad från"
+          }
+        }
+      }
+    },
     "importerad från %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

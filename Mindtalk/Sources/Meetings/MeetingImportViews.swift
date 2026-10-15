@@ -301,3 +301,88 @@ struct ImportHint: View {
         .onHover { hovering = $0 }
     }
 }
+
+// MARK: - Where it came from
+
+/// "importerad från Khraftpodden #197.mp3" beside a meeting's date — click to see the
+/// file in Finder: where it was saved, where it was moved to since, or — imported
+/// before the place was kept — wherever Spotlight finds a file of that name.
+struct SourceLink: View {
+    let source: MeetingRecord.Source
+    @State private var hovering = false
+    @State private var missing = false
+
+    var body: some View {
+        Button(action: reveal) {
+            HStack(spacing: 4) {
+                Text(verbatim: "·")
+                Text("importerad från")
+                Text(source.file)
+                    .underline(hovering)
+                    .foregroundStyle(hovering ? DS.Colors.ink : DS.Colors.muted)
+                    .lineLimit(1).truncationMode(.middle)
+                    .frame(maxWidth: 320, alignment: .leading)
+                    .fixedSize(horizontal: true, vertical: false)
+                Image(systemName: missing ? "questionmark.folder" : "arrow.up.forward.square")
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .opacity(hovering || missing ? 1 : 0.6)
+            }
+            .font(.system(size: 13))
+            .foregroundStyle(DS.Colors.muted)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help(missing ? "Filen hittades inte – den kan ha tagits bort" : "Visa filen i Finder")
+        .accessibilityLabel("Importerad från \(source.file). Visa filen i Finder")
+    }
+
+    private func reveal() {
+        Task { @MainActor in
+            if let url = await Self.locate(source) {
+                missing = false
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+            } else {
+                withAnimation(.snappy) { missing = true }
+                NSSound.beep()
+            }
+        }
+    }
+
+    /// The bookmark (follows a move or a rename), the path, then Spotlight by name.
+    nonisolated static func locate(_ source: MeetingRecord.Source) async -> URL? {
+        let fm = FileManager.default
+        if let data = source.bookmark {
+            var stale = false
+            if let url = try? URL(resolvingBookmarkData: data, options: [.withoutUI], relativeTo: nil, bookmarkDataIsStale: &stale),
+               fm.fileExists(atPath: url.path) { return url }
+        }
+        if let path = source.path, fm.fileExists(atPath: path) { return URL(fileURLWithPath: path) }
+        // Imported before the place was kept: a file of that name, the newest one — or,
+        // a download's copy ("Podd (1).mp3") gone, the one it was a copy of.
+        if let found = await spotlight(source.file) { return found }
+        let plain = source.file.replacingOccurrences(of: #" \(\d+\)(?=\.[^.]+$)"#, with: "", options: .regularExpression)
+        return plain == source.file ? nil : await spotlight(plain)
+    }
+
+    nonisolated private static func spotlight(_ file: String) async -> URL? {
+        let fm = FileManager.default
+        let name = file.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/mdfind")
+        process.arguments = ["kMDItemFSName == \"\(name)\""]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        guard (try? process.run()) != nil else { return nil }
+        let out = await Task.detached { pipe.fileHandleForReading.readDataToEndOfFile() }.value
+        process.waitUntilExit()
+        let found = String(decoding: out, as: UTF8.self).split(separator: "\n").map { URL(fileURLWithPath: String($0)) }
+            .filter { !$0.path.contains("/Library/Application Support/Mindtalk/") && fm.fileExists(atPath: $0.path) }
+        return found.max { a, b in
+            let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            let db = (try? b.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            return da < db
+        }
+    }
+}

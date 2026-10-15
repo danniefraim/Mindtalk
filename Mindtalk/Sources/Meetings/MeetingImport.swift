@@ -271,6 +271,11 @@ final class MeetingImport: ObservableObject {
         // A name someone gave the file stays; "IMG_1234" gives way to the notes' title.
         record.userTitled = Self.isHumanName(job.url.deletingPathExtension().lastPathComponent)
         record.source = MeetingRecord.Source(file: job.url.lastPathComponent, video: job.video, importedAt: Date())
+        // Where the file is, to show it in Finder later — not a copy in a temporary folder.
+        if !job.url.path.hasPrefix(FileManager.default.temporaryDirectory.path) {
+            record.source?.path = job.url.path
+            record.source?.bookmark = try? job.url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+        }
         let audio = MeetingStore.audioURL(for: record.id)
         do {
             // 1. The sound, read once into the meeting's own recording.

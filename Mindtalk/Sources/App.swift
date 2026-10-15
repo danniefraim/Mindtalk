@@ -338,6 +338,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --test-locate "file.mp3"`: where "importerad från" would take you.
+        if let i = args.firstIndex(of: "--test-locate"), i + 1 < args.count {
+            Task {
+                let url = await SourceLink.locate(MeetingRecord.Source(file: args[i + 1], video: false, importedAt: Date()))
+                print("Hittad: \(url?.path ?? "–")")
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --test-names`-like check for imported files' names.
         if args.contains("--test-filenames") {
             for (name, human) in [("Intervju med Anna", true), ("Styrelsemöte oktober", true), ("Riksdagsdebatt", false),

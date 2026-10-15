@@ -82,6 +82,10 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         var file: String
         var video: Bool
         var importedAt: Date
+        /// Where it was — and a bookmark that finds it again after it moved or was
+        /// renamed. (Not for a copy an app handed over: that was Mindtalk's own.)
+        var path: String? = nil
+        var bookmark: Data? = nil
     }
 
     var hasAudio: Bool { audioRemoved == nil }

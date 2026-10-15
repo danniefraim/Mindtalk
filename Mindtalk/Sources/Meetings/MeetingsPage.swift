@@ -936,6 +936,10 @@ struct MeetingView: View {
                 FlowLayout(spacing: 8) {
                     Text(meta).font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
                         .padding(.trailing, 4)
+                    // Imported: the file it came from — a click shows it in Finder.
+                    if !live, let source = record.source {
+                        SourceLink(source: source).padding(.trailing, 4)
+                    }
                     FolderTag(record: record)
                     ForEach(cast.order, id: \.self) { s in
                         SpeakerChip(speaker: s, cast: cast, recognized: record.recognized[String(s)] != nil,
@@ -981,7 +985,6 @@ struct MeetingView: View {
         var parts = [when, Self.duration(record.duration)]
         if record.informed != nil { parts.append(String(localized: "deltagarna informerades")) }
         if !record.hasAudio { parts.append(String(localized: "inspelningen borttagen")) }
-        if let source = record.source { parts.append(String(localized: "importerad från \(source.file)")) }
         return parts.joined(separator: " · ")
     }
 
