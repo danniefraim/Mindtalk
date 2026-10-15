@@ -11567,6 +11567,23 @@
         }
       }
     },
+    "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får anteckningar.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record a meeting in the room, or transcribe a recording you already have. You see who said what and get notes."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får anteckningar."
+          }
+        }
+      }
+    },
     "Spela in ett möte i rummet. Mindtalk skriver ut vad som sägs och känner igen vem som pratar – allt stannar på din Mac.": {
       "extractionState": "manual",
       "localizations": {
