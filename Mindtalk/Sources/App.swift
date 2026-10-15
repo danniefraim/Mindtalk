@@ -1191,9 +1191,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         ]))
         main.addItem(submenu("Visa", [
             item("Hem", #selector(AppDelegate.menuDictation), "1"),
-            item("Möten", #selector(AppDelegate.menuMeetings), "2"),
-            item("Tankar", #selector(AppDelegate.menuThoughts), "3"),
-            item("Senaste", #selector(AppDelegate.menuRecent), "4"),
+            item("Diktering", #selector(AppDelegate.menuRecent), "2"),
+            item("Möten", #selector(AppDelegate.menuMeetings), "3"),
+            item("Tankar", #selector(AppDelegate.menuThoughts), "4"),
             item("Ordlista", #selector(AppDelegate.menuVocabulary), "5"),
         ]))
         let window = submenu("Fönster", [

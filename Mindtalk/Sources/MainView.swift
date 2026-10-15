@@ -4,15 +4,16 @@ import Carbon.HIToolbox
 
 // MARK: - Main window
 //
-// A floating tab bar (TabBar.swift) and five pages:
-//   • Diktering — what's missing, statistics, how to use it, and a box to try it in
+// A floating tab bar (TabBar.swift) and six pages:
+//   • Hem — your day on an ink tile, the latest meetings and thoughts (Home.swift)
+//   • Diktering — statistics, a box to try it in, and the last dictations, to copy again
 //   • Möten — meetings in the room, written out live (Meetings/)
-//   • Senaste — the last dictations, to copy again
+//   • Tankar — what you said with the thought key (Thoughts.swift)
 //   • Ordlista — names and words spelled your way (VocabularyPage.swift)
 //   • Inställningar — shortcuts, text, app, sound, appearance, languages, about
 
 enum Page: String, CaseIterable, Identifiable {
-    case dictation, meetings, thoughts, recent, vocabulary, settings
+    case dictation, recent, meetings, thoughts, vocabulary, settings
 
     var id: String { rawValue }
 
@@ -21,7 +22,7 @@ enum Page: String, CaseIterable, Identifiable {
         case .dictation: return String(localized: "Hem")
         case .meetings: return String(localized: "Möten")
         case .thoughts: return String(localized: "Tankar")
-        case .recent: return String(localized: "Senaste")
+        case .recent: return String(localized: "Diktering")
         case .vocabulary: return String(localized: "Ordlista")
         case .settings: return String(localized: "Inställningar")
         }
@@ -32,7 +33,7 @@ enum Page: String, CaseIterable, Identifiable {
         case .dictation: return "house"
         case .meetings: return "person.2.wave.2"
         case .thoughts: return "lightbulb"
-        case .recent: return "clock"
+        case .recent: return "mic"
         case .vocabulary: return "character.book.closed"
         case .settings: return "slider.horizontal.3"
         }
@@ -150,10 +151,6 @@ private struct IntroductionOverlay: View {
 private struct DictationPage: View {
     @ObservedObject var dictation: Dictation
     @Binding var page: Page
-    @State private var practice = ""
-
-    @State private var trying = false
-
     @State private var wide = true
 
     var body: some View {
@@ -163,60 +160,9 @@ private struct DictationPage: View {
             if dictation.needsSetup { setupCard.staggered(1) }
 
             HomeShelves(page: $page, wide: wide).staggered(2)
-
-            if !dictation.needsSetup { tryIt.staggered(3) }
         }
         .onGeometryChange(for: Bool.self) { $0.size.width >= 690 } action: { wide = $0 }
         .pageLayout()
-    }
-
-    /// "Prova dikteringen": folded away — it's for the first days.
-    private var tryIt: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Button {
-                withAnimation(.spring(duration: 0.35, bounce: 0.1)) { trying.toggle() }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "chevron.right").font(.system(size: 10.5, weight: .bold))
-                        .rotationEffect(.degrees(trying ? 90 : 0))
-                    Text("Prova dikteringen").font(.system(size: 15, weight: .semibold))
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
-            if trying {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(dictation.mode == .hold
-                         ? String(localized: "Håll in \(dictation.hotkey.inlineName) och prata, släpp när du är klar. Esc avbryter.")
-                         : dictation.mode == .toggle
-                            ? String(localized: "Tryck på \(dictation.hotkey.inlineName) för att börja och en gång till för att skriva in. Esc avbryter.")
-                            : String(localized: "Håll in \(dictation.hotkey.inlineName) och prata – eller dubbeltryck för att låsa och tryck igen när du är klar. Esc avbryter."))
-                        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                    ZStack(alignment: .topLeading) {
-                        TextEditor(text: $practice)
-                            .font(.system(size: 17))
-                            .scrollContentBackground(.hidden)
-                            .padding(12)
-                            .frame(minHeight: 130)
-                            .background(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous).fill(DS.Colors.field))
-                            .overlay(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                                .strokeBorder(practice.isEmpty ? AnyShapeStyle(DS.Colors.fieldStroke) : AnyShapeStyle(DS.Gradients.accent),
-                                              lineWidth: practice.isEmpty ? 1 : 1.5))
-                            .accessibilityLabel("Prova diktering här")
-                        if practice.isEmpty {
-                            Text("Klicka här, håll in \(dictation.hotkey.inlineName) och säg något.")
-                                .font(.system(size: 17))
-                                .foregroundStyle(DS.Colors.muted)
-                                .padding(.horizontal, 17).padding(.vertical, 12)
-                                .allowsHitTesting(false)
-                        }
-                    }
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
     }
 
     private func howTo<Trailing: View>(icon: String, title: String, detail: String,
@@ -590,7 +536,62 @@ private struct MeetingShortcutField: View {
     }
 }
 
-// MARK: - Senaste
+// MARK: - Diktering
+
+/// "Prova dikteringen": folded away — it's for the first days.
+private struct TryDictation: View {
+    @ObservedObject var dictation: Dictation
+    @State private var practice = ""
+    @State private var trying = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                withAnimation(.spring(duration: 0.35, bounce: 0.1)) { trying.toggle() }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "chevron.right").font(.system(size: 10.5, weight: .bold))
+                        .rotationEffect(.degrees(trying ? 90 : 0))
+                    Text("Prova dikteringen").font(.system(size: 15, weight: .semibold))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
+            if trying {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(dictation.mode == .hold
+                         ? String(localized: "Håll in \(dictation.hotkey.inlineName) och prata, släpp när du är klar. Esc avbryter.")
+                         : dictation.mode == .toggle
+                            ? String(localized: "Tryck på \(dictation.hotkey.inlineName) för att börja och en gång till för att skriva in. Esc avbryter.")
+                            : String(localized: "Håll in \(dictation.hotkey.inlineName) och prata – eller dubbeltryck för att låsa och tryck igen när du är klar. Esc avbryter."))
+                        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    ZStack(alignment: .topLeading) {
+                        TextEditor(text: $practice)
+                            .font(.system(size: 17))
+                            .scrollContentBackground(.hidden)
+                            .padding(12)
+                            .frame(minHeight: 130)
+                            .background(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous).fill(DS.Colors.field))
+                            .overlay(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                                .strokeBorder(practice.isEmpty ? AnyShapeStyle(DS.Colors.fieldStroke) : AnyShapeStyle(DS.Gradients.accent),
+                                              lineWidth: practice.isEmpty ? 1 : 1.5))
+                            .accessibilityLabel("Prova diktering här")
+                        if practice.isEmpty {
+                            Text("Klicka här, håll in \(dictation.hotkey.inlineName) och säg något.")
+                                .font(.system(size: 17))
+                                .foregroundStyle(DS.Colors.muted)
+                                .padding(.horizontal, 17).padding(.vertical, 12)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+}
 
 private struct RecentPage: View {
     @ObservedObject var dictation: Dictation
@@ -599,7 +600,7 @@ private struct RecentPage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .firstTextBaseline) {
-                PageHeader(title: "Senaste").staggered(0)
+                PageHeader(title: "Diktering").staggered(0)
                 Spacer()
                 if !dictation.recent.isEmpty {
                     Button("Rensa…") { confirmClear = true }.buttonStyle(.soft)
@@ -608,6 +609,9 @@ private struct RecentPage: View {
             // What talking instead of typing has given you — here, with what you said.
             if Stats.shared.totalWords > 0 {
                 StatsCard(stats: .shared).staggered(1)
+            }
+            if !dictation.needsSetup { TryDictation(dictation: dictation).staggered(1) }
+            if Stats.shared.totalWords > 0 {
                 SectionTitle("Det du dikterat").staggered(1)
             }
             if dictation.recent.isEmpty {

@@ -3,7 +3,7 @@ import Foundation
 
 // MARK: - Demo mode (debug builds only)
 //
-// For the screenshots in the README: `--demo` fills Senaste and the statistics
+// For the screenshots in the README: `--demo` fills Diktering and the statistics
 // with example data held in memory — nothing is read from or written to your
 // own history, stats or settings — and treats the app as ready.
 //

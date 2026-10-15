@@ -3,7 +3,7 @@ import ApplicationServices
 import Carbon
 
 /// Is the cursor in a password field right now? Then a dictation is typed but
-/// never kept: not in Senaste, not in the statistics, not polished by AI.
+/// never kept: not on Diktering, not in the statistics, not polished by AI.
 enum SecureInput {
     @MainActor static var isActive: Bool {
         // Ask the focused field. A hung app mustn't hang us (the key listener runs

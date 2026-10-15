@@ -3261,7 +3261,6 @@
       }
     },
     "Diktering": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11902,6 +11901,7 @@
       }
     },
     "Senaste": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

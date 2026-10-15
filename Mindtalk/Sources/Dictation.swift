@@ -772,7 +772,7 @@ final class Dictation: ObservableObject {
                     recent = Array(updated.prefix(Self.recentLimit))
                 }
                 // You switched app while it was being written: don't type into the
-                // wrong one. It's in Senaste, one ⌃⌥V away.
+                // wrong one. It's on Diktering, one ⌃⌥V away.
                 if !selfTest, let target, NSWorkspace.shared.frontmostApplication?.processIdentifier != target {
                     return fail(secret ? String(localized: "Du bytte app – texten skrevs inte in.")
                                        : String(localized: "Du bytte app – tryck ⌃⌥V för att klistra in texten."))
