@@ -9497,6 +9497,23 @@
         }
       }
     },
+    "Mindtalk hör vem som säger vad och skriver medan ni pratar – bäst med upp till fem personer.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hears who says what and writes while you talk – best with up to five people."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hör vem som säger vad och skriver medan ni pratar – bäst med upp till fem personer."
+          }
+        }
+      }
+    },
     "Mindtalk kunde inte flyttas": {
       "localizations": {
         "en": {
@@ -14755,6 +14772,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer nära Macen. Berätta för de andra att du spelar in."
+          }
+        }
+      }
+    },
+    "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text is written while you talk, and the voices are kept apart – best with up to five people."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer."
           }
         }
       }

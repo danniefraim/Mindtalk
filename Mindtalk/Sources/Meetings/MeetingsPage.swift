@@ -460,7 +460,7 @@ struct StartCard: View {
                 .animation(.easeIn(duration: 0.7), value: starting)
             VStack(alignment: .leading, spacing: 0) {
                 Text("Spela in ett möte").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white)
-                Text("Mindtalk hör vem som säger vad och skriver medan ni pratar – bäst med upp till fem personer nära Macen.")
+                Text("Mindtalk hör vem som säger vad och skriver medan ni pratar – bäst med upp till fem personer.")
                     .font(.system(size: 12.5)).foregroundStyle(.white.opacity(0.7))
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 5)
@@ -546,7 +546,7 @@ struct StartCard: View {
     private var detail: String {
         switch voices.state {
         case .ready:
-            return String(localized: "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer nära Macen.")
+            return String(localized: "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer.")
         case .downloading:
             return String(localized: "Laddar ned Nemotron 3 från NVIDIA – den håller isär rösterna…")
         case .missing, .failed:
