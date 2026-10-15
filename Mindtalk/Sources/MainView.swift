@@ -292,7 +292,7 @@ struct SettingsPage: View {
                         ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
                         : meetingShortcut == nil
                             ? String(localized: "Av. Inne i Mindtalk fungerar ⇧⌘R.")
-                            : String(localized: "Fungerar i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.")) {
+                            : meetingShortcut?.warning ?? String(localized: "Fungerar i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.")) {
                     MeetingShortcutField(chord: $meetingShortcut, picking: $pickingMeetingKey, taken: [thoughtShortcut])
                         .disabled(!dictation.accessibilityGranted)
                 }
@@ -301,7 +301,7 @@ struct SettingsPage: View {
                         ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
                         : thoughtShortcut == nil
                             ? String(localized: "Av. Tankar kan fortfarande sägas från sidan Tankar.")
-                            : String(localized: "Håll in och säg det du kommer på – det hamnar i Tankar. Ett snabbt tryck lyssnar tills du trycker igen.")) {
+                            : thoughtShortcut?.warning ?? String(localized: "Håll in och säg det du kommer på – det hamnar i Tankar. Ett snabbt tryck lyssnar tills du trycker igen.")) {
                     MeetingShortcutField(chord: $thoughtShortcut, picking: $pickingThoughtKey, taken: [meetingShortcut]) { new in
                         Settings.thoughtShortcut = new
                         KeyListener.shared.thoughtChord = new
@@ -516,7 +516,7 @@ private struct MeetingShortcutField: View {
             let new = KeyChord(keyCode: event.keyCode, modifiers: UInt64(event.modifierFlags.rawValue))
             // ⌃⌥V is "klistra in senaste igen"; a key on its own would stop typing it.
             let pasteLast = KeyChord(keyCode: UInt16(kVK_ANSI_V), modifiers: CGEventFlags([.maskControl, .maskAlternate]).rawValue)
-            guard new.isValid, new != pasteLast, !taken.contains(new) else { NSSound.beep(); return nil }
+            guard new.isValid, !new.isReserved, new != pasteLast, !taken.contains(new) else { NSSound.beep(); return nil }
             set(new)
             stop()
             return nil

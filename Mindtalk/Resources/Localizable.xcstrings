@@ -111,6 +111,22 @@
         }
       }
     },
+    "%@ betyder %@ i de flesta appar. Mindtalk tar över den överallt medan appen är igång – ⌃⌥ och en bokstav är ett säkrare val.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ means %2$@ in most apps. Mindtalk takes it over everywhere while it's running – ⌃⌥ and a letter is a safer choice."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ betyder %@ i de flesta appar. Mindtalk tar över den överallt medan appen är igång – ⌃⌥ och en bokstav är ett säkrare val."
+          }
+        }
+      }
+    },
     "%@ igen": {
       "localizations": {
         "en": {
@@ -4977,6 +4993,22 @@
         }
       }
     },
+    "Genvägar med bara ⌘ används ofta av andra appar. Mindtalk tar över den överallt medan appen är igång – ⌃⌥ och en bokstav är ett säkrare val.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shortcuts with only ⌘ are often used by other apps. Mindtalk takes it over everywhere while it's running – ⌃⌥ and a letter is a safer choice."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genvägar med bara ⌘ används ofta av andra appar. Mindtalk tar över den överallt medan appen är igång – ⌃⌥ och en bokstav är ett säkrare val."
+          }
+        }
+      }
+    },
     "Glöm %@": {
       "localizations": {
         "en": {
@@ -7786,6 +7818,23 @@
         }
       }
     },
+    "Ladda om": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reload"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda om"
+          }
+        }
+      }
+    },
     "Laddar ned %@ · %lld %%": {
       "localizations": {
         "en": {
@@ -10166,6 +10215,23 @@
         }
       }
     },
+    "Ny flik": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Tab"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ny flik"
+          }
+        }
+      }
+    },
     "Ny mapp": {
       "localizations": {
         "en": {
@@ -10277,6 +10343,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ny version %@ – installera…"
+          }
+        }
+      }
+    },
+    "Nytt": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nytt"
           }
         }
       }
@@ -12077,6 +12160,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skriv om"
+          }
+        }
+      }
+    },
+    "Skriv ut": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Print"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriv ut"
           }
         }
       }

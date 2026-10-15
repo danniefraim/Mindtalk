@@ -214,6 +214,38 @@ struct KeyChord: Codable, Equatable {
     /// Needs ⌘, ⌃ or ⌥ — with only ⇧ it would be typing.
     var isValid: Bool { modifiers & CGEventFlags([.maskCommand, .maskControl, .maskAlternate]).rawValue != 0 }
 
+    /// ⌘ alone (with or without ⇧) and a letter or digit: what most apps use for their own menus.
+    var isCommandOnly: Bool {
+        let f = CGEventFlags(rawValue: modifiers)
+        guard f.contains(.maskCommand), !f.contains(.maskControl), !f.contains(.maskAlternate) else { return false }
+        return Hotkey(keyCode: keyCode, modifierMask: 0).name.count == 1
+    }
+
+    /// ⌘Q, ⌘Tab and ⌘Space would take quitting, app switching or Spotlight from the whole Mac.
+    var isReserved: Bool {
+        let f = CGEventFlags(rawValue: modifiers)
+        guard f.contains(.maskCommand), !f.contains(.maskControl), !f.contains(.maskAlternate) else { return false }
+        return [kVK_ANSI_Q, kVK_Tab, kVK_Space].contains(Int(keyCode))
+    }
+
+    /// What ⌘ + this letter means in most apps — so a choice like ⌘T comes with a word of warning.
+    static let commonMeanings: [Int: String] = [
+        kVK_ANSI_N: "Nytt", kVK_ANSI_T: "Ny flik", kVK_ANSI_W: "Stäng", kVK_ANSI_S: "Spara", kVK_ANSI_P: "Skriv ut",
+        kVK_ANSI_Z: "Ångra", kVK_ANSI_A: "Markera allt", kVK_ANSI_C: "Kopiera", kVK_ANSI_V: "Klistra in", kVK_ANSI_X: "Klipp ut",
+        kVK_ANSI_F: "Sök", kVK_ANSI_R: "Ladda om", kVK_ANSI_O: "Öppna", kVK_ANSI_M: "Minimera", kVK_ANSI_H: "Göm",
+        kVK_ANSI_Comma: "Inställningar",
+    ]
+
+    /// A word of warning for a chord other apps count on — nil when there's nothing to say.
+    var warning: String? {
+        guard isCommandOnly else { return nil }
+        let f = CGEventFlags(rawValue: modifiers)
+        if !f.contains(.maskShift), let meaning = Self.commonMeanings[Int(keyCode)] {
+            return String(localized: "\(chip.replacingOccurrences(of: " ", with: "")) betyder \(String(localized: String.LocalizationValue(meaning))) i de flesta appar. Mindtalk tar över den överallt medan appen är igång – ⌃⌥ och en bokstav är ett säkrare val.")
+        }
+        return String(localized: "Genvägar med bara ⌘ används ofta av andra appar. Mindtalk tar över den överallt medan appen är igång – ⌃⌥ och en bokstav är ett säkrare val.")
+    }
+
     func matches(_ keyCode: UInt16, _ flags: CGEventFlags) -> Bool {
         keyCode == self.keyCode && flags.rawValue & Self.relevant == modifiers
     }
