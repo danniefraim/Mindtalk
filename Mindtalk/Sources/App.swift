@@ -955,7 +955,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 ? NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: String(localized: "Spelar in"))?
                     .withSymbolConfiguration(.init(paletteColors: [.white, .systemRed]))
                 : NSImage(systemSymbolName: "exclamationmark.triangle.fill",
-                          accessibilityDescription: String(localized: "Mötet behöver tillsyn"))?
+                          accessibilityDescription: String(localized: "Något är fel med inspelningen"))?
                     .withSymbolConfiguration(.init(paletteColors: [.black, .systemYellow]))
             dot?.isTemplate = false
             button.image = dot

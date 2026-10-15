@@ -75,8 +75,8 @@ struct DropSign: View {
 
     private var subtitle: String {
         if missing { return String(localized: "Ladda ned talmodellen och Nemotron 3 först – på sidan Möten.") }
-        if later { return String(localized: "Ljud eller video – den skrivs ned när mötet är slut.") }
-        if let folder { return String(localized: "Ljud eller video – texten, rösterna och anteckningarna hamnar i \(folder).") }
+        if later { return String(localized: "Ljud eller video – filen skrivs ned när mötet är slut.") }
+        if let folder { return String(localized: "Ljud eller video – mötet hamnar i \(folder).") }
         return String(localized: "Ljud eller video. Du ser vem som sa vad, får anteckningar och kan ställa frågor om innehållet.")
     }
 }
@@ -275,7 +275,7 @@ struct ImportHint: View {
         Button { MeetingImport.shared.choose(folder: MeetingFolders.shared.selected) } label: {
             HStack(spacing: 8) {
                 Image(systemName: "square.and.arrow.down")
-                Text("Har du redan en inspelning? Dra in den här, eller välj en fil")
+                Text("Har du redan en inspelning? Dra hit den, eller välj en fil")
                 Text(verbatim: "⌘O").foregroundStyle(DS.Colors.faint)
             }
             .font(.system(size: 12.5, weight: .medium))

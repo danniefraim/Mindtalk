@@ -337,7 +337,7 @@ struct SettingsPage: View {
                 }
                 CardDivider()
                 CardRow(title: "Starta och avsluta möte", detail: pickingMeetingKey
-                        ? String(localized: "Tryck en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
+                        ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
                         : meetingShortcut == nil
                             ? String(localized: "Av. Inne i Mindtalk fungerar ⇧⌘R.")
                             : String(localized: "Fungerar i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.")) {
@@ -505,7 +505,7 @@ private struct MeetingShortcutField: View {
             Button { picking ? stop() : start() } label: {
                 HStack(spacing: 10) {
                     if picking {
-                        Text("Tryck kombinationen…").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                        Text("Tryck på kombinationen…").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                     } else if let chord {
                         KeyChip(text: chord.chip)
                     } else {
@@ -524,7 +524,7 @@ private struct MeetingShortcutField: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Klicka och tryck en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
+            .help("Klicka och tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
             if chord != nil, !picking {
                 Button { set(nil) } label: {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 15)).foregroundStyle(DS.Colors.faint)
@@ -920,7 +920,7 @@ private struct AboutCard: View {
                 links([("Modell", Self.gemma), ("Licens", Self.apache)])
             }
             CardDivider()
-            row(title: "Förnamn", detail: "Namnen rundan känner igen. Statistiska centralbyrån (SCB), 2020. CC BY 4.0.") {
+            row(title: "Förnamn", detail: "Namn som presentationsrundan känner igen. Statistiska centralbyrån (SCB), 2020. CC BY 4.0.") {
                 links([("Källa", Self.scbNames), ("Licens", Self.ccBy)])
             }
             CardDivider()

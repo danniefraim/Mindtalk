@@ -540,8 +540,8 @@ final class MeetingSession: ObservableObject {
         }
         guard saved.finished, saved.hasAudio else {
             lastError = saved.hasAudio
-                ? String(localized: "Gör klart mötet först – sedan kan det fortsätta.")
-                : String(localized: "Inspelningen av mötet är borttagen – det går inte att fortsätta det.")
+                ? String(localized: "Gör klart mötet först – sedan kan du fortsätta det.")
+                : String(localized: "Inspelningen av mötet är borttagen – mötet går inte att fortsätta.")
             return
         }
         language = saved.language
@@ -558,11 +558,11 @@ final class MeetingSession: ObservableObject {
         // can't be done, nothing is touched (it is someone's recording).
         do { try MeetingStore.joinContinuation(for: id) } catch {
             Self.log.error("continued: an earlier part could not be joined: \(error.localizedDescription, privacy: .public)")
-            lastError = String(localized: "Inspelningen av mötet kunde inte läsas – det går inte att fortsätta det.")
+            lastError = String(localized: "Inspelningen av mötet kunde inte läsas – mötet går inte att fortsätta.")
             return
         }
         guard let file = try? AVAudioFile(forReading: url), file.processingFormat.sampleRate == Double(Self.rate) else {
-            lastError = String(localized: "Inspelningen av mötet kunde inte läsas – det går inte att fortsätta det.")
+            lastError = String(localized: "Inspelningen av mötet kunde inte läsas – mötet går inte att fortsätta.")
             return
         }
         // Where the new part begins: after the first, and the second of quiet put between.
@@ -1039,7 +1039,7 @@ final class MeetingSession: ObservableObject {
         } catch {
             Self.log.error("meeting models: \(error.localizedDescription, privacy: .public)")
             warning = tracker == nil && language.isInstalled
-                ? String(localized: "Rösterna kunde inte startas – texten skrivs utan talare.")
+                ? String(localized: "Röstmodellen kunde inte startas – texten skrivs utan talare.")
                 : error.localizedDescription
         }
         if phase == .starting { phase = .recording }
@@ -1090,7 +1090,7 @@ final class MeetingSession: ObservableObject {
     }
 
     private static var noText: String {
-        String(localized: "Texten kan inte skrivas just nu – ljudet spelas in och skrivs ut efter mötet.")
+        String(localized: "Texten kan inte skrivas just nu – ljudet spelas in och skrivs ned efter mötet.")
     }
 
     /// Says so when the recording can't be trusted.
@@ -1473,7 +1473,7 @@ final class MeetingSession: ObservableObject {
                 Vocabulary.shared.noteHeard(heard.fixed)
                 #endif
             }
-            // Listened to again ("Gör klart", "Lyssna igenom igen"): the new pass numbers
+            // Listened to again ("Gör klart", "Lyssna igenom på nytt"): the new pass numbers
             // the voices its own way — each takes the number of the voice it overlaps
             // most in the text you have, so names and merges stay where you put them.
             // Continued: a voice heard in the first part takes its number from there —

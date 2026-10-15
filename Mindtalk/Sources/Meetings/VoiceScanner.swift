@@ -128,26 +128,26 @@ struct VoiceScanner: View {
                 // The speech model still loading (it can take a minute after a macOS
                 // update): recording already, but nothing to listen with yet.
                 if scanner.session.phase == .starting {
-                    return (String(localized: "Förbereder"), String(localized: "Ett ögonblick …"),
-                            String(localized: "Inspelningen är igång. Efter en uppdatering av macOS kan det ta upp till en minut."))
+                    return (String(localized: "Förbereder"), String(localized: "Ett ögonblick…"),
+                            String(localized: "Inspelningen är igång. Efter en uppdatering av macOS kan förberedelserna ta upp till en minut."))
                 }
                 switch round.phase {
                 // Asked until someone starts talking — not only for the moment the turn opens.
                 // Right after someone was added, thanked first: "Tack, Anna! Nästa person…"
                 case .ready, .listening where round.progress == 0:
                     if let last = round.captures.last, let at = round.thankedAt, Date().timeIntervalSince(at) < 2.5 {
-                        return (String(localized: "Person \(round.turn)"), String(localized: "Tack, \(last.name)!"),
+                        return (String(localized: "Person \(round.turn)"), String(localized: "Tack, \(last.name)."),
                                 String(localized: "Nästa person – säg hej och ditt namn."))
                     }
                     return round.turn == 1
-                        ? (String(localized: "Person 1"), String(localized: "Säg ditt namn"), String(localized: "Börja med hej – en i taget."))
+                        ? (String(localized: "Person 1"), String(localized: "Säg ditt namn"), String(localized: "Börja med att säga hej – en i taget."))
                         : (String(localized: "Person \(round.turn)"), String(localized: "Nästa – säg ditt namn"), String(localized: "Samma sak – en i taget."))
                 case .listening:
                     return round.quiet
                         ? (String(localized: "Hör ingen"), String(localized: "Prata lite närmare"), String(localized: "Mikrofonen hör dig inte riktigt."))
-                        : (String(localized: "Person \(round.turn)"), String(localized: "Jag lyssnar …"), String(localized: "Prata på en stund."))
+                        : (String(localized: "Person \(round.turn)"), String(localized: "Jag lyssnar…"), String(localized: "Prata på en stund."))
                 case .known(let name):
-                    return (String(localized: "Känd röst"), String(localized: "Tack, \(name)!"), String(localized: "Välkommen tillbaka."))
+                    return (String(localized: "Känd röst"), String(localized: "Tack, \(name)."), String(localized: "Välkommen tillbaka."))
                 case .new:
                     let name = round.draft.trimmingCharacters(in: .whitespaces)
                     return (String(localized: "Ny röst"), name.isEmpty ? String(localized: "Vad heter du?") : name,
@@ -155,8 +155,8 @@ struct VoiceScanner: View {
                 case .same(let name):
                     return (String(localized: "Samma röst"), String(localized: "\(name) igen"), String(localized: "Nästa person, tack."))
                 case .closing:
-                    return (String(localized: "Alla här?"), String(localized: "\(round.captures.count) i rummet"),
-                            String(localized: "Fortsätter om \(round.secondsLeft ?? 0) …"))
+                    return (String(localized: "Är alla här?"), String(localized: "\(round.captures.count) i rummet"),
+                            String(localized: "Fortsätter om \(round.secondsLeft ?? 0)…"))
                 }
             }()
         }

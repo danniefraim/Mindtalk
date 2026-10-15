@@ -112,7 +112,7 @@ final class BetterNotes: ObservableObject {
     func download() {
         guard Self.supported, task == nil else { return }
         guard Self.hasRoom else {
-            state = .failed(String(localized: "Det behövs \(Self.sizeText) ledigt på disken, och lite till."))
+            state = .failed(String(localized: "Det behövs drygt \(Self.sizeText) ledigt på disken."))
             return
         }
         state = .downloading(0)

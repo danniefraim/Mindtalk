@@ -41,7 +41,7 @@ struct BetterNotesCard: View {
         case .missing, .failed:
             var text = String(localized: "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Laddas ned en gång (\(BetterNotes.sizeText)) och fungerar sedan offline.")
             if !BetterNotes.hasRoom {
-                text += " " + String(localized: "Det behövs \(BetterNotes.sizeText) ledigt på disken och lite till – du har \(BetterNotes.freeBytes / 1_000_000_000) GB.")
+                text += " " + String(localized: "Det behövs drygt \(BetterNotes.sizeText) ledigt på disken – du har \(BetterNotes.freeBytes / 1_000_000_000) GB.")
             }
             if case .failed(let message) = notes.state { text += " " + message }
             return text

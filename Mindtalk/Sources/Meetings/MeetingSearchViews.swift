@@ -272,8 +272,8 @@ struct LibraryAskBar: View {
             // it's said what they ask: all your meetings, or the folder's.
             if focused || overSuggestions, library.answers.isEmpty, !library.asking, empty {
                 VStack(spacing: 8) {
-                Text(folders.folder(folders.selected).map { String(localized: "Fråga mötena i \($0.name)") }
-                     ?? String(localized: "Fråga alla dina möten"))
+                Text(folders.folder(folders.selected).map { String(localized: "Fråga om mötena i \($0.name)") }
+                     ?? String(localized: "Fråga om alla dina möten"))
                     .font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(DS.Colors.muted)
                 HStack(spacing: 8) {
@@ -301,8 +301,8 @@ struct LibraryAskBar: View {
                     .font(.system(size: 14))
                     .focused($focused)
                     .onSubmit { ask(question) }
-                    .accessibilityLabel(folders.folder(folders.selected).map { String(localized: "Fråga mötena i \($0.name)") }
-                                        ?? String(localized: "Fråga alla dina möten"))
+                    .accessibilityLabel(folders.folder(folders.selected).map { String(localized: "Fråga om mötena i \($0.name)") }
+                                        ?? String(localized: "Fråga om alla dina möten"))
                 if library.asking {
                     SettlingLine(color: DS.Colors.ink).scaleEffect(0.7).frame(width: 40)
                 } else {

@@ -396,7 +396,7 @@ struct ExportMenu: View {
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help("Spara mötet som PDF, Word, Markdown eller text – eller ljudet och undertexter")
+        .help("Spara mötet som PDF, Word, Markdown eller text – eller ljudet och undertexterna")
     }
 
     private func put(_ text: String) {

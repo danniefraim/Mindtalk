@@ -101,7 +101,7 @@ final class MeetingFolders: ObservableObject {
     /// Writes the folders; false — and nothing changed — if it couldn't.
     private func write(_ new: [MeetingFolder]) -> Bool {
         guard !readOnly else {
-            problem = String(localized: "Mapparna kunde inte läsas från disken, så de ändras inte nu. Starta om Mindtalk.")
+            problem = String(localized: "Mapparna kunde inte läsas från disken och kan inte ändras just nu. Starta om Mindtalk.")
             return false
         }
         do {

@@ -555,7 +555,7 @@ struct VoiceMemoryCard: View {
             if !memory.people.isEmpty {
                 CardDivider()
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Röster Mindtalk känner igen").font(.system(size: 13, weight: .semibold))
+                    Text("Röster som Mindtalk känner igen").font(.system(size: 13, weight: .semibold))
                     FlowLayout(spacing: 8) {
                         ForEach(Array(memory.people.enumerated()), id: \.element.id) { i, person in
                             HStack(spacing: 6) {
@@ -567,7 +567,7 @@ struct VoiceMemoryCard: View {
                                     Image(systemName: "xmark").font(.system(size: 8.5, weight: .bold)).foregroundStyle(DS.Colors.faint)
                                 }
                                 .buttonStyle(.plain)
-                                .help("Glöm \(person.name)s röst")
+                                .help("Sluta känna igen \(person.name)")
                                 .accessibilityLabel("Glöm \(person.name)")
                             }
                             .padding(.horizontal, 10)
@@ -584,7 +584,7 @@ struct VoiceMemoryCard: View {
             }
         }
         .card()
-        .confirmationDialog("Glömma alla röster?", isPresented: $confirmForgetAll) {
+        .confirmationDialog("Glöm alla röster?", isPresented: $confirmForgetAll) {
             Button("Glöm alla", role: .destructive) { withAnimation(.snappy) { memory.forgetAll() } }
             Button("Avbryt", role: .cancel) {}
         } message: {
@@ -596,7 +596,7 @@ struct VoiceMemoryCard: View {
         if case .failed(let why) = memory.state, memory.enabled {
             return String(localized: "Röstmodellen kunde inte startas: \(why)")
         }
-        return String(localized: "Ge en talare ett namn en gång, så känner Mindtalk igen rösten i kommande möten. Ett röstavtryck sparas, inget ljud, och bara på din Mac. Fråga dem du spelar in om det är okej.")
+        return String(localized: "Ge en talare ett namn en gång, så känner Mindtalk igen rösten i kommande möten. Det som sparas är ett röstavtryck, inte ljud, och bara på din Mac. Fråga dem du spelar in om det är okej.")
     }
 }
 

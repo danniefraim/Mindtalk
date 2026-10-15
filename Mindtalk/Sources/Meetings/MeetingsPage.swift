@@ -498,7 +498,7 @@ struct StartCard: View {
         case .ready:
             return String(localized: "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer nära Macen.")
         case .downloading:
-            return String(localized: "Laddar ned Nemotron 3 från NVIDIA, som håller isär rösterna…")
+            return String(localized: "Laddar ned Nemotron 3 från NVIDIA – den håller isär rösterna…")
         case .missing, .failed:
             return String(localized: "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (\(VoiceModels.sizeText)). Laddas ned en gång och fungerar sedan offline.")
         }
@@ -854,7 +854,7 @@ struct SpeakerChip: View {
                             Label("Fel person? Ta bort namnet", systemImage: "xmark")
                         }
                         .buttonStyle(SoftButtonStyle(small: true))
-                        .help("Namnet tas bort i det här mötet. Rösten Mindtalk känner igen ändras inte.")
+                        .help("Namnet tas bort i det här mötet. Mindtalk känner fortfarande igen rösten.")
                     }
                 }
                 TextField(cast.name(of: speaker), text: $draft)
@@ -1139,9 +1139,9 @@ struct MeetingView: View {
 
     static func healText(_ heal: MeetingRecord.Heal) -> String {
         var parts: [String] = []
-        if heal.words > 0 { parts.append(String(localized: "skärpte \(heal.words) ord")) }
-        if heal.speakers == 1 { parts.append(String(localized: "rättade 1 talarbyte")) }
-        if heal.speakers > 1 { parts.append(String(localized: "rättade \(heal.speakers) talarbyten")) }
+        if heal.words > 0 { parts.append(String(localized: "rättade \(heal.words) ord")) }
+        if heal.speakers == 1 { parts.append(String(localized: "justerade 1 talarbyte")) }
+        if heal.speakers > 1 { parts.append(String(localized: "justerade \(heal.speakers) talarbyten")) }
         return String(localized: "Genomlyssnat efter mötet: \(parts.joined(separator: String(localized: " och ")))")
     }
 
@@ -1152,7 +1152,7 @@ struct MeetingView: View {
                 Image(systemName: record.finished ? "text.badge.checkmark" : "exclamationmark.circle")
                     .foregroundStyle(record.finished ? DS.Colors.muted : DS.Colors.warning)
                 Text(record.finished
-                     ? String(localized: "Texten är den som skrevs live. Lyssna igenom mötet igen för en mer exakt text.")
+                     ? String(localized: "Texten skrevs medan ni pratade. Lyssna igenom mötet igen för en mer exakt text.")
                      : String(localized: "Mötet avbröts innan det blev klart. Inspelningen finns kvar."))
                     .font(.system(size: 13))
                 Spacer()
@@ -1230,7 +1230,7 @@ struct MeetingView: View {
                         // Again — in another language too, when there's more than one.
                         let models = SpeechModel.allCases.filter(\.isInstalled)
                         if models.count > 1 {
-                            Menu("Lyssna igenom igen") {
+                            Menu("Lyssna igenom på nytt") {
                                 ForEach(models, id: \.self) { model in
                                     Button {
                                         MeetingSession.shared.finishInterrupted(record.id, language: model)
@@ -1335,7 +1335,7 @@ private struct TranscriptView: View {
     @ObservedObject private var player = MeetingPlayer.shared
     @State private var atBottom = true
     /// Following the newest text — until you scroll up yourself; back at the bottom
-    /// (or "Till nu"), it follows again. Not decided by where the view happens to be
+    /// (or "Till det senaste"), it follows again. Not decided by where the view happens to be
     /// when a burst of text arrives.
     @State private var following = true
     @State private var userScrolling = false
@@ -1437,7 +1437,7 @@ private struct TranscriptView: View {
                             following = true
                             withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) }
                         } label: {
-                            Label("Till nu", systemImage: "arrow.down")
+                            Label("Till det senaste", systemImage: "arrow.down")
                                 .font(.system(size: 12.5, weight: .semibold))
                                 .foregroundStyle(DS.Colors.onInk)
                                 .padding(.horizontal, 14)
@@ -2430,7 +2430,7 @@ private struct RewriteBanner: View {
                     .transition(.scale.combined(with: .opacity))
             }
             VStack(alignment: .leading, spacing: 3) {
-                Text(writing ? String(localized: "\(writer) skriver om sammanfattningen…") : String(localized: "Klar – en ny sammanfattning"))
+                Text(writing ? String(localized: "\(writer) skriver om sammanfattningen…") : String(localized: "Den nya sammanfattningen är klar"))
                     .font(.system(size: 14, weight: .semibold))
                 if writing {
                     Text("Det tar några sekunder. Den gamla syns tills den nya är klar.")

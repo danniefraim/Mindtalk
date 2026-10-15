@@ -279,7 +279,7 @@ struct StatusPanelView: View {
                 // A meeting has the mic: say so, with the time.
                 Circle().fill(DS.Colors.recording).frame(width: 6, height: 6)
                 TimelineView(.periodic(from: start, by: 1)) { context in
-                    Text("Möte spelas in · \(MeetingView.duration(meeting.clock(at: context.date)))").monospacedDigit()
+                    Text("Mötet spelas in · \(MeetingView.duration(meeting.clock(at: context.date)))").monospacedDigit()
                 }
             } else if case .finishing(let what) = meeting.phase {
                 Text(what)

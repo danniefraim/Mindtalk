@@ -129,7 +129,7 @@ struct VoiceBadge: View {
         if let name, let figure = VoiceFigure.remembered(name) {
             VoiceFigureMark(figure: figure, color: SpeakerMark.color(of: speaker, in: cast), lineWidth: 1.2)
                 .frame(width: size, height: size)
-                .help("Mindtalk känner igen \(name)s röst")
+                .help("Mindtalk känner igen \(name) på rösten")
         } else {
             SpeakerMark(speaker: speaker, cast: cast, size: size)
         }

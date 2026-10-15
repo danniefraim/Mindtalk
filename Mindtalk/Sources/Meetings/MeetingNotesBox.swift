@@ -345,7 +345,7 @@ struct SavedNotes: View {
                     .padding(6)
                     .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(DS.Colors.field))
                     .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
-                Text("Sammanfatta igen i menyn ⋯ så tas ändringarna med.")
+                Text("Välj Sammanfatta igen i menyn ⋯ så kommer ändringarna med.")
                     .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
             } else {
                 VStack(alignment: .leading, spacing: 6) {
@@ -390,7 +390,7 @@ struct MeetingPrivacyCard: View {
     var body: some View {
         VStack(spacing: 0) {
             CardRow(title: "Sammanfattningens språk",
-                    detail: String(localized: "Mötets språk skriver anteckningarna på det språk som talades. Välj ett språk för att alltid få dem på det.")) {
+                    detail: String(localized: "Sammanfattningen skrivs på samma språk som mötet, om du inte väljer ett annat språk här.")) {
                 MenuPicker(options: SummaryLanguage.allCases.map { ($0, $0.title) }, selection: $summaryLanguage)
                     .onChange(of: summaryLanguage) { _, new in SummaryLanguage.chosen = new }
             }

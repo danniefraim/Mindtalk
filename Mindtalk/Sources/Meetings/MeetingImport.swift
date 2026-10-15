@@ -64,7 +64,7 @@ final class MeetingImport: ObservableObject {
             case .writing: return String(localized: "Skriver ned")
             case .voices: return String(localized: "Håller isär rösterna")
             case .done: return String(localized: "Klar")
-            case .failed: return String(localized: "Gick inte")
+            case .failed: return String(localized: "Misslyckades")
             }
         }
 
@@ -190,7 +190,7 @@ final class MeetingImport: ObservableObject {
         if !refused.isEmpty {
             let text = refused.count == 1
                 ? String(localized: "\(refused[0]) är inte en ljud- eller videofil som macOS kan läsa.")
-                : String(localized: "\(refused.count) filer är inte ljud eller video som macOS kan läsa.")
+                : String(localized: "\(refused.count) filer är inte ljud- eller videofiler som macOS kan läsa.")
             self.refused = text
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(5))

@@ -398,7 +398,7 @@ private struct LivePanel: View {
                         following = true
                         withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) }
                     } label: {
-                        Label("Till nu", systemImage: "arrow.down")
+                        Label("Till det senaste", systemImage: "arrow.down")
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(DS.Colors.onInk)
                             .padding(.horizontal, 13)
@@ -519,7 +519,7 @@ private struct DonePanel: View {
                     Text(title).font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
                         .multilineTextAlignment(.center).lineLimit(2)
                     Button(action: expand) {
-                        Text("Öppna anteckningarna")
+                        Text("Öppna mötet")
                             .font(.system(size: 13.5, weight: .semibold))
                             .foregroundStyle(DS.Colors.onInk)
                             .padding(.horizontal, 22)
