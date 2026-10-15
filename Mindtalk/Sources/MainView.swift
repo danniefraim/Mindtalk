@@ -276,53 +276,117 @@ struct SettingsPage: View {
                 .staggered(0)
                 .padding(.bottom, 12)
 
-            SectionTitle("Genvägar")
+            // Without Hjälpmedel no shortcut works anywhere: said first, not at the bottom.
+            if !dictation.accessibilityGranted {
+                CardRow(title: "Slå på Hjälpmedel för Mindtalk",
+                        detail: "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på – ibland kräver macOS det efter en uppdatering.") {
+                    Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.ink)
+                }
+                .card()
+                .staggered(1)
+            }
+
+            // MARK: Inspelning — what both dictation and meetings hear with
+
+            SectionTitle("Inspelning")
+            .staggered(1)
+            CardRow(title: "Mikrofon", detail: !dictation.micGranted ? "Mindtalk behöver få använda mikrofonen."
+                    : meeting.isBusy ? String(localized: "\(mics.selectionName) · går att byta när mötet är klart") : mics.selectionName) {
+                if dictation.micGranted {
+                    Button("Ändra") { showMicPicker = true }.buttonStyle(.soft)
+                        .disabled(meeting.isBusy || dictation.phase == .recording || dictation.phase == .transcribing)
+                }
+                else { Button("Tillåt") { dictation.requestMicrophone() }.buttonStyle(.ink) }
+            }
+            .card()
             .staggered(1)
             VStack(spacing: 0) {
-                CardRow(title: "Dikteringsgenväg", detail: dictation.pickingKey
-                        ? String(localized: "Håll in en eller flera modifieringstangenter tillsammans och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
-                        : dictation.hotkey.note) { ShortcutField(dictation: dictation) }
-                CardDivider()
-                CardRow(title: "Sätt att diktera", detail: dictation.mode.explanation(key: dictation.hotkey.inlineName)) {
-                    MenuPicker(options: DictationMode.allCases.map { ($0, $0.title) },
-                               selection: Binding(get: { dictation.mode }, set: { dictation.setMode($0) }))
-                }
-                CardDivider()
-                CardRow(title: "Klistra in senaste igen", detail: "Om texten hamnade fel – ställ markören rätt och tryck.") {
-                    KeyChip(text: "⌃ ⌥ V")
-                }
-                CardDivider()
-                CardRow(title: "Starta och avsluta möte", detail: pickingMeetingKey
-                        ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
-                        : meetingShortcut == nil
-                            ? String(localized: "Av. Inne i Mindtalk fungerar ⇧⌘R.")
-                            : meetingShortcut?.warning ?? String(localized: "Fungerar i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.")) {
-                    MeetingShortcutField(chord: $meetingShortcut, picking: $pickingMeetingKey, taken: [thoughtShortcut])
-                        .disabled(!dictation.accessibilityGranted)
-                }
-                CardDivider()
-                CardRow(title: "Säg en tanke", detail: pickingThoughtKey
-                        ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
-                        : thoughtShortcut == nil
-                            ? String(localized: "Av. Du kan fortfarande säga en tanke på sidan Tankar.")
-                            : thoughtShortcut?.warning ?? String(localized: "Håll in och säg det du kommer på – det hamnar i Tankar. Tryck snabbt, så lyssnar Mindtalk tills du trycker igen.")) {
-                    MeetingShortcutField(chord: $thoughtShortcut, picking: $pickingThoughtKey, taken: [meetingShortcut]) { new in
-                        Settings.thoughtShortcut = new
-                        KeyListener.shared.thoughtChord = new
-                    }
-                    .disabled(!dictation.accessibilityGranted)
+                ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
+                    if i > 0 { CardDivider() }
+                    LanguageRow(model: m, dictation: dictation)
                 }
             }
             .card()
             .staggered(1)
+            Text("Språket du pratar, när du dikterar och i möten. Byt snabbt i menyraden – eller med ⌘1 och ⌘2 när menyn är öppen.")
+                .font(.system(size: 12))
+                .foregroundStyle(DS.Colors.muted)
+                .fixedSize(horizontal: false, vertical: true)
 
-            SectionTitle("Text")
+            // MARK: Diktering
+
+            SectionTitle("Diktering")
+            .staggered(2)
+            VStack(spacing: 0) {
+                CardRow(title: "Genväg", detail: dictation.pickingKey
+                        ? String(localized: "Håll in en eller flera modifieringstangenter tillsammans och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
+                        : dictation.hotkey.note) { ShortcutField(dictation: dictation) }
+                CardDivider()
+                CardRow(title: "Hur du dikterar", detail: dictation.mode.explanation(key: dictation.hotkey.inlineName)) {
+                    MenuPicker(options: DictationMode.allCases.map { ($0, $0.title) },
+                               selection: Binding(get: { dictation.mode }, set: { dictation.setMode($0) }))
+                }
+                CardDivider()
+                CardRow(title: "Ljud vid diktering", detail: "Ett diskret ljud när Mindtalk börjar lyssna och när texten klistras in.") {
+                    InkToggle(label: "Ljud vid diktering", isOn: $prefs.sounds)
+                }
+                CardDivider()
+                CardRow(title: "Musik medan du dikterar", detail: prefs.mediaMode.explanation) {
+                    MenuPicker(options: MediaMode.allCases.map { ($0, $0.title) }, selection: $prefs.mediaMode)
+                }
+                CardDivider()
+                CardRow(title: "Klistra in igen", detail: "Om texten hamnade fel – ställ markören rätt och tryck.") {
+                    KeyChip(text: "⌃ ⌥ V")
+                }
+            }
+            .card()
             .staggered(2)
             TextCleanupCard(prefs: prefs)
                 .staggered(2)
 
-            SectionTitle("App")
-            .staggered(2)
+            // MARK: Möten
+
+            SectionTitle("Möten")
+                .staggered(3)
+            CardRow(title: "Genväg", detail: pickingMeetingKey
+                    ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
+                    : meetingShortcut == nil
+                        ? String(localized: "Av. Inne i Mindtalk fungerar ⇧⌘R.")
+                        : meetingShortcut?.warning ?? String(localized: "Startar och avslutar ett möte i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.")) {
+                MeetingShortcutField(chord: $meetingShortcut, picking: $pickingMeetingKey, taken: [thoughtShortcut])
+                    .disabled(!dictation.accessibilityGranted)
+            }
+            .card()
+            .staggered(3)
+            BetterNotesCard(notes: .shared)
+                .staggered(3)
+            VoiceMemoryCard(memory: .shared)
+                .staggered(3)
+            MeetingPrivacyCard()
+                .staggered(3)
+
+            // MARK: Tankar
+
+            SectionTitle("Tankar")
+                .staggered(4)
+            CardRow(title: "Genväg", detail: pickingThoughtKey
+                    ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
+                    : thoughtShortcut == nil
+                        ? String(localized: "Av. Du kan fortfarande säga en tanke på sidan Tankar.")
+                        : thoughtShortcut?.warning ?? String(localized: "Håll in och säg det du kommer på – det hamnar i Tankar. Tryck snabbt, så lyssnar Mindtalk tills du trycker igen.")) {
+                MeetingShortcutField(chord: $thoughtShortcut, picking: $pickingThoughtKey, taken: [meetingShortcut]) { new in
+                    Settings.thoughtShortcut = new
+                    KeyListener.shared.thoughtChord = new
+                }
+                .disabled(!dictation.accessibilityGranted)
+            }
+            .card()
+            .staggered(4)
+
+            // MARK: Allmänt
+
+            SectionTitle("Allmänt")
+            .staggered(4)
             VStack(spacing: 0) {
                 CardRow(title: "Starta vid inloggning",
                         detail: loginStatus == .requiresApproval ? "Godkänn Mindtalk under Allmänt → Inloggningsobjekt i Systeminställningar." : nil) {
@@ -343,24 +407,12 @@ struct SettingsPage: View {
                     }
                 }
                 CardDivider()
-                CardRow(title: "Uppdateringar", detail: "Sök efter nya versioner automatiskt, en gång om dagen.") {
-                    HStack(spacing: 12) {
-                        Button("Sök nu") { Updates.shared.checkNow() }.buttonStyle(.soft)
-                        InkToggle(label: "Sök automatiskt", isOn: $updates.automatic)
-                    }
-                    .disabled(!Updates.isAvailable)
-                }
-                CardDivider()
                 CardRow(title: "Visa i Dock", detail: "Annars finns Mindtalk bara i menyraden när fönstret är stängt.") {
                     InkToggle(label: "Visa i Dock", isOn: $prefs.showInDock)
                 }
                 CardDivider()
-                CardRow(title: "Ljud vid diktering", detail: "Ett diskret ljud när Mindtalk börjar lyssna och när texten klistras in.") {
-                    InkToggle(label: "Ljud vid diktering", isOn: $prefs.sounds)
-                }
-                CardDivider()
-                CardRow(title: "Musik medan du dikterar", detail: prefs.mediaMode.explanation) {
-                    MenuPicker(options: MediaMode.allCases.map { ($0, $0.title) }, selection: $prefs.mediaMode)
+                CardRow(title: "Utseende") {
+                    PillPicker(options: Appearance.allCases.map { ($0, $0.title) }, selection: $prefs.appearance)
                 }
                 CardDivider()
                 CardRow(title: "Appens språk",
@@ -380,53 +432,18 @@ struct SettingsPage: View {
                     }
                 }
                 CardDivider()
-                CardRow(title: "Utseende") {
-                    PillPicker(options: Appearance.allCases.map { ($0, $0.title) }, selection: $prefs.appearance)
-                }
-            }
-            .card()
-            .staggered(2)
-
-            SectionTitle("Språk")
-            .staggered(3)
-            VStack(spacing: 0) {
-                ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
-                    if i > 0 { CardDivider() }
-                    LanguageRow(model: m, dictation: dictation)
-                }
-            }
-            .card()
-            .staggered(3)
-            Text("Byt snabbt i menyraden – eller med ⌘1 och ⌘2 när menyn är öppen.")
-                .font(.system(size: 12))
-                .foregroundStyle(DS.Colors.muted)
-
-            SectionTitle("Möten")
-                .staggered(3)
-            BetterNotesCard(notes: .shared)
-                .staggered(3)
-            MeetingPrivacyCard()
-                .staggered(3)
-            VoiceMemoryCard(memory: .shared)
-                .staggered(3)
-
-            SectionTitle("Behörigheter och ljud")
-            .staggered(4)
-            VStack(spacing: 0) {
-                CardRow(title: "Mikrofon", detail: !dictation.micGranted ? "Mindtalk behöver få använda mikrofonen."
-                        : meeting.isBusy ? String(localized: "\(mics.selectionName) · går att byta när mötet är klart") : mics.selectionName) {
-                    if dictation.micGranted {
-                        Button("Ändra") { showMicPicker = true }.buttonStyle(.soft)
-                            .disabled(meeting.isBusy || dictation.phase == .recording || dictation.phase == .transcribing)
+                CardRow(title: "Uppdateringar", detail: "Sök efter nya versioner automatiskt, en gång om dagen.") {
+                    HStack(spacing: 12) {
+                        Button("Sök nu") { Updates.shared.checkNow() }.buttonStyle(.soft)
+                        InkToggle(label: "Sök automatiskt", isOn: $updates.automatic)
                     }
-                    else { Button("Tillåt") { dictation.requestMicrophone() }.buttonStyle(.ink) }
+                    .disabled(!Updates.isAvailable)
                 }
-                CardDivider()
-                CardRow(title: "Hjälpmedel",
-                        detail: dictation.accessibilityGranted ? nil
-                            : "Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på – ibland kräver macOS det efter en uppdatering.") {
-                    if dictation.accessibilityGranted { GrantedLabel() }
-                    else { Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.ink) }
+                if dictation.accessibilityGranted {
+                    CardDivider()
+                    CardRow(title: "Hjälpmedel", detail: "Låter Mindtalk känna av genvägarna och skriva in texten där markören står.") {
+                        GrantedLabel()
+                    }
                 }
             }
             .card()

@@ -383,13 +383,22 @@ struct SavedNotes: View {
     }
 }
 
-/// Settings → Möten: the summary's language and how long recordings stay.
+/// Settings → Möten: the summary's language, how long recordings stay, and where they are.
 struct MeetingPrivacyCard: View {
     @ObservedObject private var store = MeetingStore.shared
     @State private var days = MeetingAudio.keepDays
     @State private var asking: Int?
 
     @State private var summaryLanguage = SummaryLanguage.chosen
+    /// What the meetings take on disk; nil while it's being counted.
+    @State private var bytes: Int64?
+
+    private var storage: String {
+        let n = store.meetings.count
+        let count = n == 1 ? String(localized: "1 möte") : String(localized: "\(n) möten")
+        guard let bytes else { return count }
+        return count + " · " + ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -404,8 +413,21 @@ struct MeetingPrivacyCard: View {
                 MenuPicker(options: MeetingAudio.choices.map { ($0, MeetingAudio.title($0)) },
                            selection: Binding(get: { days }, set: choose))
             }
+            CardDivider()
+            // Where they are, and how much room they take — mostly the recordings.
+            CardRow(title: "På den här Macen", detail: storage) {
+                Button("Visa i Finder") {
+                    try? FileManager.default.createDirectory(at: MeetingStore.root, withIntermediateDirectories: true)
+                    NSWorkspace.shared.activateFileViewerSelecting([MeetingStore.root])
+                }
+                .buttonStyle(.soft)
+            }
         }
         .card()
+        .task(id: store.meetings.count) {
+            let root = MeetingStore.root
+            bytes = await Task.detached(priority: .utility) { ModelDownload.allocatedBytes(in: root) }.value
+        }
         .confirmationDialog(confirmTitle, isPresented: Binding(get: { asking != nil }, set: { if !$0 { asking = nil } })) {
             Button("Flytta till papperskorgen", role: .destructive) {
                 if let asking { apply(asking) }

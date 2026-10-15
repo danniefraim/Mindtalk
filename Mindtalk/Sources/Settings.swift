@@ -104,7 +104,7 @@ enum Appearance: String, CaseIterable, Identifiable {
         switch self {
         case .light: return String(localized: "Ljust")
         case .dark: return String(localized: "Mörkt")
-        case .system: return String(localized: "System")
+        case .system: return String(localized: "Automatiskt")
         }
     }
 
@@ -235,7 +235,7 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     /// Each language in its own words, so you can always find yours.
     var title: String {
         switch self {
-        case .system: return String(localized: "Som datorn")
+        case .system: return String(localized: "Som Macen")
         case .swedish: return "Svenska"
         case .english: return "English"
         }

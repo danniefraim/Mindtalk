@@ -1606,6 +1606,23 @@
         }
       }
     },
+    "Allmänt": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allmänt"
+          }
+        }
+      }
+    },
     "Allt klart – fortsätt när du vill.": {
       "extractionState": "stale",
       "localizations": {
@@ -2739,6 +2756,7 @@
       }
     },
     "Byt snabbt i menyraden – eller med ⌘1 och ⌘2 när menyn är öppen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4685,6 +4703,7 @@
       }
     },
     "Fungerar i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5123,6 +5142,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Genomlyssnat efter mötet: %@"
+          }
+        }
+      }
+    },
+    "Genväg": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shortcut"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genväg"
           }
         }
       }
@@ -5652,6 +5688,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hoppa över"
+          }
+        }
+      }
+    },
+    "Hur du dikterar": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How you dictate"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hur du dikterar"
           }
         }
       }
@@ -6882,6 +6935,23 @@
         }
       }
     },
+    "Inspelning": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspelning"
+          }
+        }
+      }
+    },
     "Inspelningen av mötet kunde inte läsas – mötet går inte att fortsätta.": {
       "localizations": {
         "en": {
@@ -7417,6 +7487,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klistra in"
+          }
+        }
+      }
+    },
+    "Klistra in igen": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste again"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klistra in igen"
           }
         }
       }
@@ -9147,6 +9234,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Låt vara"
+          }
+        }
+      }
+    },
+    "Låter Mindtalk känna av genvägarna och skriva in texten där markören står.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lets Mindtalk notice the shortcuts and type the text where the cursor is."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Låter Mindtalk känna av genvägarna och skriva in texten där markören står."
           }
         }
       }
@@ -11570,6 +11674,23 @@
         }
       }
     },
+    "På den här Macen": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On this Mac"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "På den här Macen"
+          }
+        }
+      }
+    },
     "På din Mac": {
       "extractionState": "stale",
       "localizations": {
@@ -13066,7 +13187,24 @@
         }
       }
     },
+    "Som Macen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Like the Mac"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Som Macen"
+          }
+        }
+      }
+    },
     "Som datorn": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13491,6 +13629,22 @@
         }
       }
     },
+    "Språket du pratar, när du dikterar och i möten. Byt snabbt i menyraden – eller med ⌘1 och ⌘2 när menyn är öppen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The language you speak, when dictating and in meetings. Switch quickly in the menu bar – or with ⌘1 and ⌘2 while the menu is open."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Språket du pratar, när du dikterar och i möten. Byt snabbt i menyraden – eller med ⌘1 och ⌘2 när menyn är öppen."
+          }
+        }
+      }
+    },
     "Språket i filen": {
       "localizations": {
         "en": {
@@ -13754,6 +13908,22 @@
         }
       }
     },
+    "Startar och avslutar ett möte i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starts and ends a meeting in any app. Inside Mindtalk, ⇧⌘R works too."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startar och avslutar ett möte i alla appar. Inne i Mindtalk fungerar även ⇧⌘R."
+          }
+        }
+      }
+    },
     "Startar – första gången kan det ta upp till en minut.": {
       "localizations": {
         "en": {
@@ -13998,6 +14168,7 @@
       }
     },
     "System": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15892,6 +16063,23 @@
         }
       }
     },
+    "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på – ibland kräver macOS det efter en uppdatering.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Without it no shortcut works. Is Mindtalk already under Privacy & Security → Accessibility? Turn it off and on – macOS sometimes needs that after an update."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på – ibland kräver macOS det efter en uppdatering."
+          }
+        }
+      }
+    },
     "Utseende": {
       "extractionState": "stale",
       "localizations": {
@@ -16411,6 +16599,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa i Dock"
+          }
+        }
+      }
+    },
+    "Visa i Finder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in Finder"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa i Finder"
           }
         }
       }
