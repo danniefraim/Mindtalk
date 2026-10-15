@@ -158,6 +158,8 @@ final class MeetingNotes: ObservableObject {
     /// written when it's done (MeetingSession.done).
     private var afterMeeting: Set<UUID> = []
     func takeAfterMeeting(_ id: UUID) -> Bool { afterMeeting.remove(id) != nil }
+    /// Notes to write again once the meeting is listened through.
+    func writeAfterMeeting(_ id: UUID) { afterMeeting.insert(id) }
 
     private static func taskKey(_ text: String) -> String {
         text.lowercased().filter { $0.isLetter || $0.isNumber }

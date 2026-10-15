@@ -1,6 +1,7 @@
 import AVFoundation
 import AppKit
 import UniformTypeIdentifiers
+import UserNotifications
 import os
 
 // MARK: - Importing a recording
@@ -10,7 +11,8 @@ import os
 // text with its speakers and names, the same notes, questions, folders and export.
 // Its sound is read once into the meeting's own recording (16 kHz, as a meeting
 // records — of a video only the sound is kept), then listened through as a meeting
-// is when it ends. Files are taken one at a time; nothing leaves the Mac.
+// is when it ends. Files are taken one at a time; nothing leaves the Mac. The
+// meeting appears in the list only once it has its text — never half made.
 
 @MainActor
 final class MeetingImport: ObservableObject {
@@ -24,50 +26,73 @@ final class MeetingImport: ObservableObject {
         let video: Bool
         /// The folder chosen when it was dropped.
         let folder: UUID?
+        /// What it's listened to with — the dictation language, unless chosen.
+        var language: SpeechModel
         var stage: Stage = .waiting
-        #if DEBUG
-        init(url: URL, video: Bool, folder: UUID?, stage: Stage = .waiting, progress: Double = 0) {
-            self.url = url; self.video = video; self.folder = folder; self.stage = stage; self.progress = progress
-            if stage == .done { meeting = UUID() }
-            if stage == .failed { error = String(localized: "Det här är inte en ljud- eller videofil som macOS kan läsa.") }
-        }
-        #else
-        init(url: URL, video: Bool, folder: UUID?) { self.url = url; self.video = video; self.folder = folder }
-        #endif
         /// Of the whole job, 0…1 — estimated within a step from the recording's length.
         var progress: Double = 0
         var meeting: UUID?
+        /// The meeting's title once it's made (the notes may give it a better one).
+        var title: String?
         var error: String?
+        /// When it was done — the card goes a while after, unless you're looking at it.
+        var doneAt: Date?
+
+        init(url: URL, video: Bool, folder: UUID?, language: SpeechModel) {
+            self.url = url; self.video = video; self.folder = folder; self.language = language
+        }
+
+        #if DEBUG
+        init(url: URL, video: Bool, folder: UUID?, stage: Stage, progress: Double = 0) {
+            self.init(url: url, video: video, folder: folder, language: .swedish)
+            self.stage = stage; self.progress = progress
+            if stage == .done { meeting = UUID() }
+            if stage == .failed { error = String(localized: "Filen har inget ljud.") }
+        }
+        #endif
+
+        var active: Bool { stage != .waiting && stage != .done && stage != .failed }
     }
 
     enum Stage: Equatable {
-        case waiting, reading, writing, voices, notes, done, failed
+        case waiting, reading, writing, voices, done, failed
 
         var title: String {
             switch self {
             case .waiting: return String(localized: "Väntar på sin tur")
             case .reading: return String(localized: "Läser in ljudet")
-            case .writing: return String(localized: "Skriver ut")
+            case .writing: return String(localized: "Skriver ned")
             case .voices: return String(localized: "Håller isär rösterna")
-            case .notes: return String(localized: "Skriver anteckningar")
             case .done: return String(localized: "Klar")
             case .failed: return String(localized: "Gick inte")
             }
         }
 
-        /// Where the step begins in the whole, 0…1.
+        /// The steps shown as dots, in order.
+        static let steps: [Stage] = [.reading, .writing, .voices]
+        var index: Int { Stage.steps.firstIndex(of: self) ?? (self == .done ? Stage.steps.count : -1) }
+
+        /// Where the step begins in the whole, 0…1 — and where the next does.
         var start: Double {
             switch self {
             case .waiting, .reading: return 0
             case .writing: return 0.12
-            case .voices: return 0.55
-            case .notes: return 0.9
+            case .voices: return 0.6
             case .done, .failed: return 1
+            }
+        }
+        var end: Double {
+            switch self {
+            case .reading: return 0.12
+            case .writing: return 0.6
+            default: return 1
             }
         }
     }
 
     @Published private(set) var jobs: [Job] = []
+    /// Files that weren't sound or video — said for a few seconds, then gone.
+    @Published private(set) var refused: String?
     private var running: Task<Void, Never>?
 
     /// Sound and video — whatever macOS can read (mp3, m4a, wav, aiff, mp4, mov…).
@@ -78,45 +103,112 @@ final class MeetingImport: ObservableObject {
         return type.conforms(to: .audiovisualContent)
     }
 
-    /// "Importera fil…": one or more files from a panel.
+    /// Whether files can be written out now — the speech model and the voices are here.
+    var ready: Bool { Dictation.shared.engine.isInstalled && VoiceModels.isInstalled }
+
+    /// "Importera fil…": one or more files from a panel — with the language to hear
+    /// them in, when there's more than one.
     func choose(folder: UUID?) {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = Self.types
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.message = String(localized: "Välj en ljud- eller videofil att skriva ut")
+        panel.message = String(localized: "Välj en ljud- eller videofil att göra text av")
         panel.prompt = String(localized: "Importera")
-        guard panel.runModal() == .OK else { return }
-        add(panel.urls, folder: folder)
+        let models = SpeechModel.allCases.filter(\.isInstalled)
+        var popup: NSPopUpButton?
+        if models.count > 1 {
+            let menu = NSPopUpButton(frame: .zero, pullsDown: false)
+            for model in models { menu.addItem(withTitle: model.spokenIn) }
+            menu.selectItem(at: models.firstIndex(of: Dictation.shared.engine) ?? 0)
+            let label = NSTextField(labelWithString: String(localized: "Språk i filen:"))
+            let row = NSStackView(views: [label, menu])
+            row.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+            panel.accessoryView = row
+            panel.isAccessoryViewDisclosed = true
+            popup = menu
+        }
+        let language = { popup.map { models[max(0, $0.indexOfSelectedItem)] } }
+        if let window = NSApp.keyWindow {
+            panel.beginSheetModal(for: window) { [weak self] answer in
+                guard answer == .OK else { return }
+                self?.add(panel.urls, folder: folder, language: language())
+            }
+        } else if panel.runModal() == .OK {
+            add(panel.urls, folder: folder, language: language())
+        }
     }
 
-    /// Files dropped or opened: each one queued; anything that isn't sound or video is
-    /// said so, not silently left out.
-    func add(_ urls: [URL], folder: UUID?) {
-        var refused: [String] = []
+    /// Files dropped or opened: each one queued — the files in a folder too. Anything
+    /// that isn't sound or video is said, for a moment, not silently left out.
+    func add(_ urls: [URL], folder: UUID?, language: SpeechModel? = nil) {
+        var files: [URL] = []
         for url in urls {
+            if (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true {
+                let inside = (try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil,
+                                                                          options: [.skipsHiddenFiles])) ?? []
+                files += inside.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+            } else {
+                files.append(url)
+            }
+        }
+        var refused: [String] = []
+        var added = 0
+        for url in files {
             guard Self.canImport(url) else { refused.append(url.lastPathComponent); continue }
             guard !jobs.contains(where: { $0.url == url && $0.stage != .done && $0.stage != .failed }) else { continue }
             let video = UTType(filenameExtension: url.pathExtension)?.conforms(to: .movie) ?? false
-            jobs.append(Job(url: url, video: video, folder: MeetingFolders.shared.folder(folder)?.id))
+            jobs.append(Job(url: url, video: video, folder: MeetingFolders.shared.folder(folder)?.id,
+                            language: language ?? Dictation.shared.engine))
+            added += 1
         }
         if !refused.isEmpty {
-            var job = Job(url: URL(fileURLWithPath: refused.joined(separator: ", ")), video: false, folder: nil)
-            job.stage = .failed
-            job.error = String(localized: "Det här är inte en ljud- eller videofil som macOS kan läsa.")
-            jobs.append(job)
+            let text = refused.count == 1
+                ? String(localized: "\(refused[0]) är inte en ljud- eller videofil som macOS kan läsa.")
+                : String(localized: "\(refused.count) filer är inte ljud eller video som macOS kan läsa.")
+            self.refused = text
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(5))
+                if self?.refused == text { self?.refused = nil }
+            }
+        }
+        if added > 0 {
+            AccessibilityNotification.Announcement(added == 1 ? String(localized: "En fil skrivs ned")
+                                                   : String(localized: "\(added) filer skrivs ned")).post()
+            NotificationCenter.default.post(name: .importAdded, object: nil)
         }
         kick()
     }
 
-    /// Taken away: a waiting or finished card, or one being worked on (stopped).
+    /// A file dragged from an app that hands over a copy (Röstmemon, Bilder): written
+    /// to a folder of Mindtalk's own first, then imported as any file.
+    func addCopy(of provider: NSItemProvider, folder: UUID?) {
+        provider.loadFileRepresentation(forTypeIdentifier: UTType.audiovisualContent.identifier) { url, _ in
+            guard let url else { return }
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent("Mindtalk-import-\(UUID().uuidString)")
+            let copy = dir.appendingPathComponent(url.lastPathComponent)
+            do {
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                try FileManager.default.copyItem(at: url, to: copy)
+            } catch { return }
+            Task { @MainActor in MeetingImport.shared.add([copy], folder: folder) }
+        }
+    }
+
+    /// The language changed on a card that hasn't begun.
+    func setLanguage(_ language: SpeechModel, for id: UUID) {
+        update(id) { if $0.stage == .waiting { $0.language = language } }
+    }
+
+    /// Taken away: a waiting or finished card — or one being worked on, stopped.
     func remove(_ id: UUID) {
         guard let i = jobs.firstIndex(where: { $0.id == id }) else { return }
-        if jobs[i].stage != .waiting && jobs[i].stage != .done && jobs[i].stage != .failed {
-            running?.cancel()
-        }
+        if jobs[i].active { running?.cancel() }
         jobs.remove(at: i)
     }
+
+    /// Looked at (the pointer over it): a done card stays a while longer.
+    func touch(_ id: UUID) { update(id) { if $0.doneAt != nil { $0.doneAt = Date() } } }
 
     /// The next file — not while a meeting is being recorded or finished (they share
     /// the speech model and the Mac's attention).
@@ -131,21 +223,26 @@ final class MeetingImport: ObservableObject {
         }
     }
 
+    /// Being written out now — quitting asks first, an update waits.
+    var busy: Bool { jobs.contains(where: \.active) || running != nil }
+    private func busyAfter(_ id: UUID) -> Bool { jobs.contains { $0.id != id && $0.active } }
+
     private func update(_ id: UUID, _ change: (inout Job) -> Void) {
         guard let i = jobs.firstIndex(where: { $0.id == id }) else { return }
         change(&jobs[i])
     }
 
     /// A step's progress creeping on while it works — from what such a step usually
-    /// takes for this much sound — never quite to its end until it's done.
+    /// takes for this much sound — slowing near its end but never standing still.
     private func creep(_ id: UUID, _ stage: Stage, seconds: Double) -> Task<Void, Never> {
         Task { @MainActor [weak self] in
             let began = Date()
-            let next: Double = { switch stage { case .reading: 0.12; case .writing: 0.55; case .voices: 0.9; default: 1 } }()
             while !Task.isCancelled {
                 let t = Date().timeIntervalSince(began) / max(1, seconds)
-                let share = 1 - exp(-2.2 * t)                      // quick at first, slower near the end
-                self?.update(id) { $0.progress = stage.start + (next - stage.start) * min(0.95, share) }
+                // Quick at first; past the estimate, ever slower towards the step's end.
+                let share = t < 1.36 ? (1 - exp(-2.2 * t)) * 0.95 / 0.95
+                    : 0.95 + 0.04 * (1 - exp(-(t - 1.36)))
+                self?.update(id) { $0.progress = stage.start + (stage.end - stage.start) * min(0.99, share) }
                 try? await Task.sleep(for: .milliseconds(200))
             }
         }
@@ -153,17 +250,26 @@ final class MeetingImport: ObservableObject {
 
     private func run(_ id: UUID) async {
         guard let job = jobs.first(where: { $0.id == id }) else { return }
-        let language = Dictation.shared.engine
+        // Awake for it — a long file takes minutes, often with the window closed.
+        let activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated],
+                                                             reason: "Mindtalk skriver ned en fil")
+        defer {
+            ProcessInfo.processInfo.endActivity(activity)
+            // An update waiting for a quiet moment: now, if nothing else runs.
+            if !busyAfter(id), !MeetingSession.shared.isBusy { Updates.shared.meetingEnded() }
+        }
+        let language = job.language
         guard language.isInstalled, VoiceModels.isInstalled else {
             update(id) { $0.stage = .failed; $0.error = String(localized: "Ladda ned talmodellen och Nemotron 3 först – på sidan Möten.") }
             return
         }
-        Self.log.info("import: \(job.video ? "video" : "audio", privacy: .public), \(job.url.pathExtension, privacy: .public)")
+        Self.log.info("import: \(job.video ? "video" : "audio", privacy: .public), \(job.url.pathExtension, privacy: .public), \(language.rawValue, privacy: .public)")
         let date = await Self.recordedDate(job.url)
         var record = MeetingRecord(title: job.name, date: date, language: language)
-        record.finished = false
         record.folder = job.folder
         record.folderAsked = job.folder != nil
+        // A name someone gave the file stays; "IMG_1234" gives way to the notes' title.
+        record.userTitled = Self.isHumanName(job.name)
         record.source = MeetingRecord.Source(file: job.url.lastPathComponent, video: job.video, importedAt: Date())
         let audio = MeetingStore.audioURL(for: record.id)
         do {
@@ -173,18 +279,18 @@ final class MeetingImport: ObservableObject {
             let url = job.url
             let reading = Task.detached(priority: .userInitiated) { [weak self] in
                 try await Self.readSound(from: url, to: audio) { share in
-                    Task { @MainActor in self?.update(id) { $0.progress = 0.12 * share } }
+                    Task { @MainActor in self?.update(id) { $0.progress = Stage.reading.end * share } }
                 }
             }
             let duration = try await withTaskCancellationHandler { try await reading.value } onCancel: { reading.cancel() }
             try Task.checkCancellation()
             guard duration >= 1 else { throw ImportError.silent }
             record.duration = duration
-            MeetingStore.shared.save(record)
 
             // 2. What was said.
-            update(id) { $0.stage = .writing }
+            update(id) { $0.stage = .writing; $0.progress = Stage.writing.start }
             var creeping = creep(id, .writing, seconds: 8 + duration / 50)
+            defer { creeping.cancel() }
             let timed = try await SpeechEngine.shared.transcribeFile(audio, with: language)
             creeping.cancel()
             try Task.checkCancellation()
@@ -195,9 +301,14 @@ final class MeetingImport: ObservableObject {
             update(id) { $0.stage = .voices; $0.progress = Stage.voices.start }
             creeping = creep(id, .voices, seconds: 10 + duration / 25)
             let scores = try await VoiceTracker.score(file: audio, config: VoiceModels.final)
+            try Task.checkCancellation()
             _ = MeetingSession.assignSentences(&words, from: 0, scores: scores, final: true)
             let terms = VocabularyBoost.terms(from: Vocabulary.shared.entries.map(\.word))
-            if !terms.isEmpty { words = await VocabularyBoost.shared.refine(words: words, audio: audio, terms: terms).words }
+            if !terms.isEmpty {
+                let heard = await VocabularyBoost.shared.refine(words: words, audio: audio, terms: terms)
+                words = heard.words
+                Vocabulary.shared.noteHeard(heard.fixed)
+            }
             let found = await VoiceMemory.shared.recognise(words: words, audio: audio, names: [:])
             creeping.cancel()
             try Task.checkCancellation()
@@ -208,26 +319,23 @@ final class MeetingImport: ObservableObject {
             }
             record.refined = true
             record.finished = true
+            // Only now in the list: whole, with its text.
             MeetingStore.shared.save(record)
-
-            // 4. The notes — written in the background like a meeting's; the card waits a
-            // moment for them, then lets you open it.
-            update(id) { $0.stage = .notes; $0.progress = Stage.notes.start }
-            MeetingNotes.shared.summarize(record.id)
-            for _ in 0..<240 where MeetingNotes.shared.writing.contains(record.id) {
-                try? await Task.sleep(for: .milliseconds(500))
+            update(id) {
+                $0.stage = .done; $0.progress = 1; $0.title = record.title; $0.doneAt = Date()
             }
-            update(id) { $0.stage = .done; $0.progress = 1 }
             Self.log.info("import: done, \(Int(duration)) s, \(words.count) words, \(Set(words.compactMap(\.speaker)).count) voices")
+
+            // 4. The notes — written in the background, like a meeting's.
+            MeetingNotes.shared.summarize(record.id)
+            AccessibilityNotification.Announcement(String(localized: "\(record.title) är klar")).post()
+            Self.notifyIfAway(record)
+            scheduleTidy(id)
         } catch {
             let cancelled = error is CancellationError || Task.isCancelled
             Self.log.error("import: \(error.localizedDescription, privacy: .public)")
-            // Nothing half made is left in the list.
-            if MeetingStore.shared.meetings.contains(where: { $0.id == record.id }) {
-                MeetingStore.shared.delete(record.id)
-            } else {
-                try? FileManager.default.removeItem(at: MeetingStore.folder(for: record.id))
-            }
+            // Nothing half made is kept: the sound read so far, in Mindtalk's own folder.
+            try? FileManager.default.removeItem(at: MeetingStore.folder(for: record.id))
             guard !cancelled else { return }
             update(id) {
                 $0.stage = .failed
@@ -237,10 +345,49 @@ final class MeetingImport: ObservableObject {
         }
     }
 
+    /// A done card goes by itself a while after — unless you were looking at it.
+    private func scheduleTidy(_ id: UUID) {
+        Task { @MainActor [weak self] in
+            while let self, let job = self.jobs.first(where: { $0.id == id }), let done = job.doneAt {
+                let left = 25 - Date().timeIntervalSince(done)
+                if left <= 0 { self.jobs.removeAll { $0.id == id }; return }
+                try? await Task.sleep(for: .seconds(left))
+            }
+        }
+    }
+
+    /// Done while you were elsewhere (another page, another app): a notification —
+    /// clicked, the meeting opens.
+    private static func notifyIfAway(_ record: MeetingRecord) {
+        guard !(NSApp.isActive && AppDelegate.mainWindowIsKey && MainView.currentPage == .meetings) else { return }
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert]) { granted, _ in
+            guard granted else { return }
+            let content = UNMutableNotificationContent()
+            content.title = String(localized: "Klar att läsa")
+            content.body = record.title
+            content.userInfo = ["meeting": record.id.uuidString]
+            center.add(UNNotificationRequest(identifier: "import-\(record.id.uuidString)", content: content, trigger: nil))
+        }
+    }
+
+    /// A file name someone chose ("Intervju med Anna") rather than one a device gave
+    /// it ("IMG_1234", "Ny inspelning 12", "2025-12-15 13-15-13", "zoom_0").
+    static func isHumanName(_ name: String) -> Bool {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        let machine = [#"^(IMG|MOV|VID|DSC|PXL|GMT|REC|AUD|Audio|Video|zoom|Screen ?Recording|Skärminspelning)[ _-]?\d"#,
+                       #"^(Ny inspelning|New Recording|Inspelning|Recording)( \d+)?$"#,
+                       #"^[\d\s_.:-]+$"#, #"^[0-9A-Fa-f-]{20,}$"#, #"^\d{4}-\d{2}-\d{2}"#]
+        let letters = n.filter(\.isLetter).count
+        guard letters >= 3 else { return false }
+        return !machine.contains { n.range(of: $0, options: [.regularExpression, .caseInsensitive]) != nil }
+    }
+
     enum ImportError: Error {
-        case noSound, silent, noSpeech
+        case noSound, silent, noSpeech, protected
         var message: String {
             switch self {
+            case .protected: return String(localized: "Filen är kopieringsskyddad och kan inte läsas.")
             case .noSound: return String(localized: "Filen har inget ljud.")
             case .silent: return String(localized: "Filen är för kort – under en sekund.")
             case .noSpeech: return String(localized: "Inget tal hördes i filen.")
@@ -254,7 +401,13 @@ final class MeetingImport: ObservableObject {
     /// `out`, as a meeting records it. Returns its length in seconds.
     nonisolated static func readSound(from url: URL, to out: URL, progress: @escaping @Sendable (Double) -> Void) async throws -> Double {
         let asset = AVURLAsset(url: url)
-        let tracks = (try? await asset.loadTracks(withMediaType: .audio)) ?? []
+        if (try? await asset.load(.hasProtectedContent)) == true { throw ImportError.protected }
+        // One sound track: the first in use — a dubbed language or a commentary beside
+        // it would be mixed in otherwise, and two copies of the same sound clip.
+        var tracks: [AVAssetTrack] = []
+        for track in (try? await asset.loadTracks(withMediaType: .audio)) ?? [] where tracks.isEmpty {
+            if (try? await track.load(.isEnabled)) ?? true { tracks = [track] }
+        }
         let length = (try? await asset.load(.duration)) ?? .zero
         guard !tracks.isEmpty else { throw ImportError.noSound }
         let reader = try AVAssetReader(asset: asset)
@@ -272,6 +425,7 @@ final class MeetingImport: ObservableObject {
         guard reader.startReading() else { throw reader.error ?? ImportError.noSound }
         let total = max(1, length.seconds)
         var written = 0
+        var reported = 0.0
         while let sample = output.copyNextSampleBuffer() {
             if Task.isCancelled { reader.cancelReading(); throw CancellationError() }
             guard let block = CMSampleBufferGetDataBuffer(sample) else { continue }
@@ -283,9 +437,12 @@ final class MeetingImport: ObservableObject {
             _ = channel.withMemoryRebound(to: UInt8.self, capacity: bytes) { raw in
                 CMBlockBufferCopyDataBytes(block, atOffset: 0, dataLength: bytes, destination: raw)
             }
+            for i in 0..<count { channel[i] = max(-1, min(1, channel[i])) }      // no wrap-around in 16 bits
             try file.write(from: pcm)
             written += count
-            progress(min(1, Double(written) / 16_000 / total))
+            // Said now and then, not for every buffer.
+            let share = min(1, Double(written) / 16_000 / total)
+            if share - reported >= 0.005 { reported = share; progress(share) }
         }
         if reader.status == .failed { throw reader.error ?? ImportError.noSound }
         file.close()
@@ -296,14 +453,40 @@ final class MeetingImport: ObservableObject {
     /// else when the file was made, else now — never in the future.
     nonisolated static func recordedDate(_ url: URL) async -> Date {
         let now = Date()
+        // Not before the year 2000 (a zero date in a file's header is 1904 or 1970).
+        let plausible = { (d: Date) in d < now && d > Date(timeIntervalSince1970: 946_684_800) }
         let asset = AVURLAsset(url: url)
-        if let item = try? await asset.load(.creationDate), let date = try? await item.load(.dateValue), date < now {
-            return date
+        // A full time stamp, not a year alone ("2019" is a song's year, not a recording).
+        if let item = try? await asset.load(.creationDate), let date = try? await item.load(.dateValue), plausible(date) {
+            // Stored as a date, or as text with at least a day in it.
+            let text = (try? await item.load(.stringValue)) ?? nil
+            if text == nil || text!.count >= 10 { return date }
         }
-        if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
-           let created = attributes[.creationDate] as? Date, created < now {
-            return created
+        if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path) {
+            let created = attributes[.creationDate] as? Date
+            let modified = attributes[.modificationDate] as? Date
+            // A copy is newer than what it copied: the older of the two.
+            let candidates = [created, modified].compactMap { $0 }.filter(plausible)
+            if let date = candidates.min() { return date }
         }
         return now
+    }
+}
+
+extension SpeechModel {
+    /// In a menu of what a recording is in: "Svenska", "Flera språk".
+    var spokenIn: String {
+        switch self {
+        case .swedish: return String(localized: "Svenska")
+        case .multilingual: return String(localized: "Flera språk")
+        }
+    }
+
+    /// "På svenska", "På flera språk" — listening again in it.
+    var listenIn: String {
+        switch self {
+        case .swedish: return String(localized: "På svenska")
+        case .multilingual: return String(localized: "På flera språk")
+        }
     }
 }

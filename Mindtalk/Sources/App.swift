@@ -750,6 +750,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        defer {
+            launched = true
+            if !pendingOpen.isEmpty {
+                let files = pendingOpen
+                pendingOpen = []
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.application(NSApp, open: files) }
+            }
+        }
         // From the disk image or Downloads: offer to move to Applications first.
         if AppMover.offerIfNeeded() { return }
         MediaControl.shared.restoreAfterCrash()
@@ -933,6 +941,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     /// Mid-meeting, quitting asks first — and finishes the meeting before it goes.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let meeting = MeetingSession.shared
+        if !meeting.isBusy, MeetingImport.shared.busy {
+            NSApp.activate()
+            let alert = NSAlert()
+            alert.messageText = String(localized: "En fil skrivs ned")
+            alert.informativeText = String(localized: "Avslutar du nu blir den inte klar – du kan importera den igen sedan.")
+            alert.addButton(withTitle: String(localized: "Avsluta ändå"))
+            alert.addButton(withTitle: String(localized: "Vänta"))
+            return alert.runModal() == .alertFirstButtonReturn ? .terminateNow : .terminateCancel
+        }
         guard meeting.isBusy else { return .terminateNow }
         NSApp.activate()
         let alert = NSAlert()
@@ -1094,6 +1111,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     @objc func menuAbout() { Self.showAbout() }
     /// ⌘O: a sound or video file to transcribe — into the folder chosen on the Möten page.
     @objc func menuImport() {
+        MeetingsPage.lastOpen = nil
         Self.showWindow(page: .meetings)
         MeetingImport.shared.choose(folder: MeetingFolders.shared.selected)
     }
@@ -1102,9 +1120,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     func application(_ application: NSApplication, open urls: [URL]) {
         let files = urls.filter { MeetingImport.canImport($0) }
         guard !files.isEmpty else { return }
+        // Opened before Mindtalk had started: once it has.
+        guard launched else { pendingOpen += files; return }
+        MeetingsPage.lastOpen = nil
         Self.showWindow(page: .meetings)
-        MeetingImport.shared.add(files, folder: nil)
+        MeetingImport.shared.add(files, folder: MeetingFolders.shared.selected)
     }
+    private var launched = false
+    private var pendingOpen: [URL] = []
     @objc func menuSettings() { Self.showWindow(page: .settings) }
     @objc func menuDictation() { Self.showWindow(page: .dictation) }
     @objc func menuMeetings() { Self.showWindow(page: .meetings) }

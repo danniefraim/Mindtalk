@@ -574,7 +574,17 @@ final class MeetingStore: ObservableObject {
         var seen = Set<UUID>()
         return folders.compactMap { folder -> MeetingRecord? in
             let url = folder.appendingPathComponent("meeting.json")
-            guard let data = try? Data(contentsOf: url) else { return nil }
+            guard let data = try? Data(contentsOf: url) else {
+                // Only sound, no meeting: an import cut off (Mindtalk quit mid-way). An
+                // hour old, it is left over for good — to the Trash.
+                let audio = folder.appendingPathComponent("audio.caf")
+                if UUID(uuidString: folder.lastPathComponent) != nil, fm.fileExists(atPath: audio.path),
+                   let made = (try? fm.attributesOfItem(atPath: audio.path))?[.modificationDate] as? Date,
+                   Date().timeIntervalSince(made) > 3600 {
+                    try? fm.trashItem(at: folder, resultingItemURL: nil)
+                }
+                return nil
+            }
             do {
                 let record = try decoder.decode(MeetingRecord.self, from: data)
                 // A copied folder (Finder, a restore) can carry the same meeting twice.
@@ -653,7 +663,8 @@ final class MeetingStore: ObservableObject {
             NSLog("Mindtalk: could not save meeting: \(error.localizedDescription)")
         }
         if let i = meetings.firstIndex(where: { $0.id == record.id }) { meetings[i] = record } else {
-            meetings.insert(record, at: 0)
+            // In its place by date — an imported recording may be from long ago.
+            meetings.insert(record, at: meetings.firstIndex { $0.date < record.date } ?? meetings.count)
         }
     }
 
@@ -755,7 +766,9 @@ final class MeetingStore: ObservableObject {
     func recordingsPast(days: Int) -> [UUID] {
         guard days > 0 else { return [] }
         let limit = Date().addingTimeInterval(-Double(days) * 86_400)
-        return meetings.filter { $0.hasAudio && $0.finished && $0.refined && $0.date < limit }.map(\.id)
+        // An imported recording is kept from when it was imported, not from when it was made.
+        return meetings.filter { $0.hasAudio && $0.finished && $0.refined
+            && max($0.date, $0.source?.importedAt ?? $0.date) < limit }.map(\.id)
     }
 
     /// Keeps recordings no longer than you chose. At launch and after each meeting.

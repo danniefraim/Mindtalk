@@ -58,7 +58,7 @@ final class Updates: NSObject, ObservableObject, SPUStandardUserDriverDelegate, 
     nonisolated func updater(_ updater: SPUUpdater, shouldPostponeRelaunchForUpdate item: SUAppcastItem,
                              untilInvokingBlock installHandler: @escaping () -> Void) -> Bool {
         MainActor.assumeIsolated {
-            guard MeetingSession.shared.isBusy else { return false }
+            guard MeetingSession.shared.isBusy || MeetingImport.shared.busy else { return false }
             postponed = installHandler
             return true
         }

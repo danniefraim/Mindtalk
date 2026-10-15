@@ -44,6 +44,8 @@ struct MainView: View {
     @State private var introduction = false
     /// Where the window opens (Settings after a language switch).
     static var startPage: Page = .dictation
+    /// The page on screen (an import done elsewhere notifies).
+    static var currentPage: Page = .dictation
 
     var body: some View {
         // The page gets the whole window; a tab bar floats at the leading edge.
@@ -64,6 +66,8 @@ struct MainView: View {
                 }
                 .id(page)
                 .transition(.page)
+                .onAppear { MainView.currentPage = page }
+                .onChange(of: page) { _, now in MainView.currentPage = now }
             }
             .padding(.leading, 72)          // clear of the folded tab bar
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -96,6 +100,8 @@ struct MainView: View {
 }
 
 extension Notification.Name {
+    /// Files were queued for import: the Möten page shows its list, where they are.
+    static let importAdded = Notification.Name("ai.mindact.mindtalk.importAdded")
     /// Switch the main window to a page (object: Page).
     static let showPage = Notification.Name("MindtalkShowPage")
     /// Play the introduction inside the main window.

@@ -45,8 +45,21 @@ struct MeetingsPage: View {
             }
         }
         .folderNaming()
-        // Sound or video dropped anywhere here: transcribed, as a meeting.
+        // Sound or video dropped anywhere here: transcribed, as a meeting — the list
+        // shows it coming (from a meeting's page, back to the list; during a meeting,
+        // the cards float at the top).
         .importDrop()
+        .onReceive(NotificationCenter.default.publisher(for: .importAdded)) { _ in
+            if session.record == nil { withAnimation(.spring(duration: 0.45, bounce: 0.12)) { open = nil } }
+        }
+        .overlay(alignment: .topTrailing) {
+            if session.record != nil {
+                ImportCards(compact: true) { _ in }
+                    .frame(width: 380)
+                    .padding(.top, 64)
+                    .padding(.trailing, 24)
+            }
+        }
         // A meeting that just ended stays on screen, now as saved.
         .onChange(of: session.finished) { _, id in if let id { open = id } }
         .onChange(of: open) { _, id in Self.lastOpen = id }
@@ -142,6 +155,7 @@ private struct MeetingList: View {
             ImportCards { id in open(id, nil) }
             if store.meetings.isEmpty {
                 EmptyArchive().staggered(2)
+                ImportHint().frame(maxWidth: .infinity).staggered(2)
             } else {
                 Section {
                     LibraryAnswers(library: library, open: open)
@@ -338,6 +352,7 @@ private struct StartCard: View {
     @ObservedObject var voices: VoiceModels
     @ObservedObject var dictation: Dictation
     @ObservedObject private var folders = MeetingFolders.shared
+    @State private var importHover = false
 
     var body: some View {
         HStack(alignment: .center, spacing: 18) {
@@ -374,13 +389,17 @@ private struct StartCard: View {
                 // A recording you already have: transcribed the same way.
                 if voices.state == .ready, dictation.engine.isInstalled {
                     Button { MeetingImport.shared.choose(folder: folders.selected) } label: {
-                        Label("Importera fil…", systemImage: "square.and.arrow.down")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(DS.Colors.muted)
-                            .fixedSize()
+                        HStack(spacing: 6) {
+                            Label("Importera fil…", systemImage: "square.and.arrow.down")
+                            Text(verbatim: "⌘O").foregroundStyle(DS.Colors.faint)
+                        }
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(importHover ? DS.Colors.ink : DS.Colors.muted)
+                        .fixedSize()
                     }
                     .buttonStyle(.plain)
-                    .help("Skriv ut en ljud- eller videofil – eller dra in den på sidan (⌘O)")
+                    .onHover { importHover = $0 }
+                    .help("Gör text av en ljud- eller videofil – eller dra in den på sidan")
                 }
             }
         }
@@ -1075,16 +1094,25 @@ struct MeetingView: View {
                     .disabled(!MeetingNotes.isAvailable || notes.writing.contains(record.id))
                     Button("Ändra datum…") { changingDate = true }
                     if record.hasAudio {
-                        Menu("Lyssna igenom på") {
-                            ForEach(SpeechModel.allCases.filter(\.isInstalled), id: \.self) { model in
-                                Button(model.title) { MeetingSession.shared.finishInterrupted(record.id, language: model) }
-                            }
-                        }
-                        .disabled(MeetingSession.shared.phase != .idle)
                         Button("Fortsätt mötet") { AppDelegate.continueMeeting(record.id) }
                             .disabled(!record.finished || MeetingSession.shared.phase != .idle)
-                        Button("Lyssna igenom mötet igen") { MeetingSession.shared.finishInterrupted(record.id) }
+                        // Again — in another language too, when there's more than one.
+                        let models = SpeechModel.allCases.filter(\.isInstalled)
+                        if models.count > 1 {
+                            Menu("Lyssna igenom igen") {
+                                ForEach(models, id: \.self) { model in
+                                    Button {
+                                        MeetingSession.shared.finishInterrupted(record.id, language: model)
+                                    } label: {
+                                        if model == record.language { Label(model.listenIn, systemImage: "checkmark") } else { Text(model.listenIn) }
+                                    }
+                                }
+                            }
                             .disabled(MeetingSession.shared.phase != .idle)
+                        } else {
+                            Button("Lyssna igenom mötet igen") { MeetingSession.shared.finishInterrupted(record.id) }
+                                .disabled(MeetingSession.shared.phase != .idle)
+                        }
                         Button("Visa inspelningen i Finder") {
                             NSWorkspace.shared.activateFileViewerSelecting([MeetingStore.audioURL(for: record.id)])
                         }

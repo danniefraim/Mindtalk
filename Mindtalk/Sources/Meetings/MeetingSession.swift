@@ -1518,6 +1518,7 @@ final class MeetingSession: ObservableObject {
             }
             updated.words = words
             updated.refined = true
+            updated.language = language          // listened to in another language: it is that now
             record = updated
             MeetingStore.shared.save(updated)
             Self.log.info("meeting refined: \(words.count) words, \(found.count) voices recognised")
@@ -1601,11 +1602,12 @@ final class MeetingSession: ObservableObject {
     /// is on disk, so the final pass can still run, and the notes after it.
     /// `language`: listened through in another one ("Lyssna igenom på ›").
     func finishInterrupted(_ id: UUID, language other: SpeechModel? = nil) {
-        guard phase == .idle, var saved = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
-        if let other, other.isInstalled { saved.language = other }
+        guard phase == .idle, let saved = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
+        // Another language: its notes are written again from the new text.
+        if let other, other.isInstalled, other != saved.language { MeetingNotes.shared.writeAfterMeeting(id) }
         activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated],
                                                          reason: "Mindtalk lyssnar igenom ett möte")
-        language = saved.language
+        language = other.flatMap { $0.isInstalled ? $0 : nil } ?? saved.language
         // Cut off while continued (or while its recordings were being joined): the
         // new part may still be a recording of its own — joined first.
         continuing = saved.continuedAt != nil

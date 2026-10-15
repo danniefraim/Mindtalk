@@ -150,6 +150,7 @@ actor VoiceTracker {
         let samples = try AudioChunks(url: url)
         var scores: [Float] = []
         while let chunk = try samples.next(seconds: 60) {
+            try Task.checkCancellation()
             scores += try await tracker.feed(chunk)
         }
         scores += try await tracker.finish()
