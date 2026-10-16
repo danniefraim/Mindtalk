@@ -3988,22 +3988,6 @@
         }
       }
     },
-    "Det du kommer på i farten – sagt, inte skrivet. Sparas i Tankar.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "What comes to mind on the go – said, not typed. Kept in Thoughts."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Det du kommer på i farten – sagt, inte skrivet. Sparas i Tankar."
-          }
-        }
-      }
-    },
     "Det du kommer på mitt i något annat – sagt på en sekund, sparat här.": {
       "extractionState": "stale",
       "localizations": {
@@ -9255,6 +9239,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kom igång med möten"
+          }
+        }
+      }
+    },
+    "Kommer du på något du inte vill glömma, mitt i något annat? Håll in tangenten och säg det. Det sparas i Tankar, och du kan fortsätta med det du höll på med.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Think of something you don't want to forget, in the middle of something else? Hold the key and say it. It's saved in Thoughts, and you can carry on with what you were doing."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kommer du på något du inte vill glömma, mitt i något annat? Håll in tangenten och säg det. Det sparas i Tankar, och du kan fortsätta med det du höll på med."
           }
         }
       }

@@ -484,7 +484,11 @@ private struct MoreStep: View {
                 .staggered(0)
             HStack(alignment: .top, spacing: 14) {
                 tile(icon: "lightbulb", title: "Tankar", keys: thoughtKeys,
-                     text: "Det du kommer på i farten – sagt, inte skrivet. Sparas i Tankar.") {
+                     text: "Kommer du på något du inte vill glömma, mitt i något annat? Håll in tangenten och säg det. Det sparas i Tankar, och du kan fortsätta med det du höll på med.") {
+                    Text("t.ex. ”Ring tillbaka om offerten”")
+                        .font(.system(size: 12)).italic().foregroundStyle(.white.opacity(0.55))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.bottom, 2)
                     Button("Prova nu") { dictation.startThought() }
                         .buttonStyle(.soft).environment(\.colorScheme, .dark)
                         .disabled(dictation.model != .ready || dictation.phase == .recording || dictation.phase == .transcribing)
