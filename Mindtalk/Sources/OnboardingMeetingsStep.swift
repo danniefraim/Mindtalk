@@ -16,14 +16,17 @@ struct MeetingsStep: View {
 
     private static let tileWidth: CGFloat = 360
     private static let cardWidth: CGFloat = 264
-    private static let height: CGFloat = 322
+    private static let height: CGFloat = 352
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 24) {
+            // A summary is promised only where one can be written.
             StepHeader(title: "Spela in ett möte i rummet",
-                       subtitle: "Mindtalk hör vem som säger vad, skriver ned det medan ni pratar och sammanfattar efteråt.")
+                       subtitle: MeetingNotes.isAvailable
+                           ? "Mindtalk hör vem som säger vad, skriver ned det medan ni pratar och sammanfattar efteråt."
+                           : "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar. Sammanfattningar kräver Apple Intelligence.")
                 .staggered(0)
-            HStack(alignment: .top, spacing: 16) {
+            HStack(alignment: .top, spacing: DS.Layout.stepGap) {
                 DemoMeeting()
                     .frame(width: Self.tileWidth, height: Self.height)
                     .staggered(1)
@@ -31,24 +34,18 @@ struct MeetingsStep: View {
                     .frame(width: Self.cardWidth, height: Self.height)
                     .staggered(2)
             }
-            HStack(alignment: .top, spacing: 16) {
-                note(icon: "person.wave.2") {
-                    Text("Mötet börjar med att alla säger sitt namn – det går att hoppa över.")
-                }
-                .frame(width: Self.tileWidth, alignment: .leading)
-                shortcut
-                    .frame(width: Self.cardWidth, alignment: .leading)
-            }
-            .staggered(3)
         }
     }
+}
 
-    /// How to start one later: the shortcut that works in every app — or, when it's
-    /// turned off, where the button is.
-    @ViewBuilder private var shortcut: some View {
+/// How to start one later: the shortcut that works in every app — or, when it's
+/// turned off, where the button is.
+private struct MeetingShortcutLine: View {
+    var body: some View {
         if let chord = Settings.meetingShortcut {
+            let keys = chord.chip.replacingOccurrences(of: " ", with: "")
             HStack(alignment: .center, spacing: 8) {
-                KeyChip(text: chord.chip.replacingOccurrences(of: " ", with: ""))
+                KeyChip(text: keys)
                     .accessibilityHidden(true)
                 Text("startar ett möte, var du än är.")
                     .font(.system(size: 12))
@@ -56,22 +53,17 @@ struct MeetingsStep: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel(Text("\(chord.chip.replacingOccurrences(of: " ", with: "")) startar ett möte, var du än är."))
+            .accessibilityLabel(Text("\(keys) startar ett möte, var du än är."))
         } else {
-            note(icon: "record.circle") { Text("Starta ett möte under Möten.") }
-        }
-    }
-
-    private func note(icon: String, @ViewBuilder text: () -> Text) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 11.5, weight: .medium))
-                .foregroundStyle(DS.Colors.muted)
-                .accessibilityHidden(true)
-            text()
-                .font(.system(size: 12))
-                .foregroundStyle(DS.Colors.muted)
-                .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: "record.circle")
+                    .font(.system(size: 11.5, weight: .medium))
+                    .accessibilityHidden(true)
+                Text("Starta ett möte under Möten.")
+                    .font(.system(size: 12))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .foregroundStyle(DS.Colors.muted)
         }
     }
 }
@@ -144,20 +136,34 @@ private struct DemoMeeting: View {
             }
             .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .opacity(summaryShown ? 0.4 : 1)
+            // Under the summary the meeting steps back — less colour and a veil of
+            // night — but its text stays readable.
+            .saturation(summaryShown ? 0.35 : 1)
+            .overlay {
+                DS.Colors.night.opacity(summaryShown ? 0.3 : 0)
+                    .allowsHitTesting(false)
+            }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text("Exempel på ett möte: vem som säger vad, och en sammanfattning efteråt."))
 
             if summaryShown {
                 summary
                     .padding(10)
+                    // The meeting runs on under it: lines fade out above the edge rather than being cut.
+                    .background(alignment: .top) {
+                        LinearGradient(colors: [DS.Colors.night.opacity(0), DS.Colors.night.opacity(0.95)],
+                                       startPoint: .top, endPoint: .bottom)
+                            .frame(height: 40)
+                            .offset(y: -30)
+                            .allowsHitTesting(false)
+                    }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .background(alignment: .topTrailing) { sphere }
-        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(DS.Colors.night))
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: DS.Radius.panel, style: .continuous).fill(DS.Colors.night))
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.panel, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: DS.Radius.panel, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
         .shadow(color: .black.opacity(0.16), radius: 20, y: 10)
         .environment(\.colorScheme, .dark)
         // Cancelled when the step goes away: nothing keeps running behind the next one.
@@ -197,11 +203,11 @@ private struct DemoMeeting: View {
                         Text(verbatim: Self.clock(seconds))
                     }
                     .font(.system(size: 12, weight: .medium)).monospacedDigit()
-                    .foregroundStyle(.white.opacity(0.45))
+                    .foregroundStyle(.white.opacity(0.62))
                 } else if phase == .done {
                     Text(verbatim: Self.clock(length))
                         .font(.system(size: 12, weight: .medium)).monospacedDigit()
-                        .foregroundStyle(.white.opacity(0.45))
+                        .foregroundStyle(.white.opacity(0.62))
                 }
             }
         }
@@ -237,6 +243,17 @@ private struct DemoMeeting: View {
 
     private var transcript: some View {
         VStack(alignment: .leading, spacing: 13) {
+            // How a real one starts — kept clear of the sphere in the corner.
+            HStack(alignment: .firstTextBaseline, spacing: 7) {
+                Image(systemName: "person.wave.2")
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .accessibilityHidden(true)
+                Text("Först säger alla sitt namn – det går att hoppa över.")
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(.system(size: 11.5, weight: .medium))
+            .foregroundStyle(.white.opacity(0.62))
+            .frame(maxWidth: 236, alignment: .leading)
             ForEach(0..<turnsShown, id: \.self) { i in
                 let turn = Self.turns[i]
                 DemoTurnRow(turn: turn,
@@ -286,12 +303,12 @@ private struct DemoMeeting: View {
         return HStack(alignment: .firstTextBaseline, spacing: 9) {
             Image(systemName: icon)
                 .font(.system(size: 12.5))
-                .foregroundStyle(.white.opacity(0.55))
+                .foregroundStyle(.white.opacity(0.62))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
                     .font(.system(size: 10.5, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.66))
                 ZStack(alignment: .topLeading) {
                     Text(verbatim: text).opacity(0)
                     Text(verbatim: all.prefix(shown).joined(separator: " "))
@@ -446,11 +463,11 @@ private struct DemoTurnRow: View {
                 mark
                 Text(known ? String(localized: "Talare \(turn.speaker + 1)") : String(localized: "Känner igen rösten…"))
                     .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(known ? tint : .white.opacity(0.45))
+                    .foregroundStyle(known ? tint : .white.opacity(0.62))
                     .contentTransition(.opacity)
                 Text(verbatim: DemoMeeting.clock(start))
                     .font(.system(size: 11, weight: .medium)).monospacedDigit()
-                    .foregroundStyle(.white.opacity(0.32))
+                    .foregroundStyle(.white.opacity(0.62))
             }
             // The whole line, invisible, holds the row's size while it's being written.
             ZStack(alignment: .topLeading) {
@@ -492,7 +509,7 @@ private struct DemoTurnRow: View {
         let settled = all.prefix(live ? n - 1 : n).joined(separator: " ")
         let base = Text(verbatim: settled).foregroundStyle(.white.opacity(0.92))
         guard live else { return base }
-        let newest = Text(verbatim: (n > 1 ? " " : "") + all[n - 1]).foregroundStyle(.white.opacity(0.5))
+        let newest = Text(verbatim: (n > 1 ? " " : "") + all[n - 1]).foregroundStyle(.white.opacity(0.62))
         let cursor = Text(verbatim: " ▏").foregroundStyle(.white.opacity(0.55))
         return Text("\(base)\(newest)\(cursor)")
     }
@@ -555,16 +572,22 @@ private struct VoiceModelCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            switch state {
-            case .missing: offer(failure: nil)
-            case .failed(let message): offer(failure: message)
-            case .downloading(let p): downloading(p)
-            case .ready: ready
+            Group {
+                switch state {
+                case .missing: offer(failure: nil)
+                case .failed(let message): offer(failure: message)
+                case .downloading(let p): downloading(p)
+                case .ready: ready
+                }
             }
+            .frame(maxHeight: .infinity, alignment: .top)
+            // How to start one later, the same in every state.
+            MeetingShortcutLine()
+                .padding(.top, 14)
         }
         .padding(.horizontal, 20).padding(.vertical, 18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .raised()
+        .raised(cornerRadius: DS.Radius.panel)
         .animation(.smooth(duration: 0.4), value: kind)
         .onAppear {
             alive = true
@@ -583,7 +606,7 @@ private struct VoiceModelCard: View {
     }
 
     private var eyebrow: some View {
-        Text("Röstmodell")
+        Text("Talare")
             .font(.system(size: 11, weight: .semibold))
             .textCase(.uppercase)
             .tracking(1.2)
@@ -595,7 +618,7 @@ private struct VoiceModelCard: View {
     private func offer(failure: String?) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             eyebrow
-            Text(failure == nil ? String(localized: "För att veta vem som säger vad behöver Mindtalk en röstmodell.")
+            Text(failure == nil ? String(localized: "För att hålla isär vem som pratar behövs en modell till.")
                                 : String(localized: "Röstmodellen laddades inte ned"))
                 .font(.system(size: 15.5, weight: .semibold))
                 .fixedSize(horizontal: false, vertical: true)
@@ -721,7 +744,7 @@ private struct VoiceModelCard: View {
                 .font(.system(size: 17, weight: .semibold))
                 .multilineTextAlignment(.center)
                 .padding(.top, 18)
-            Text("Nemotron 3 finns på din Mac och känner igen vem som pratar.")
+            Text("Nemotron 3 finns på din Mac och håller isär rösterna i ett möte.")
                 .font(.system(size: 12.5))
                 .foregroundStyle(DS.Colors.muted)
                 .multilineTextAlignment(.center)

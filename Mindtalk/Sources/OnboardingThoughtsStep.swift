@@ -59,26 +59,29 @@ struct ThoughtsStep: View {
     private static let space = "thoughtsStep"
     private static let columnWidth: CGFloat = 360
     private static let panelWidth: CGFloat = 256
-    private static let columnHeight: CGFloat = 252
+    private static let columnHeight: CGFloat = 286
+    private static let triggerHeight: CGFloat = 80
 
     var body: some View {
-        VStack(spacing: 26) {
+        VStack(spacing: 24) {
             StepHeader(title: String(localized: "Spara en tanke"),
-                       subtitle: String(localized: "Kommer du på något du inte vill glömma, mitt i något annat? Säg det, så sparas det i Tankar – aldrig där du skriver."))
+                       subtitle: String(localized: "Kom på något mitt i något annat? Säg det – det hamnar i Tankar, inte i texten."))
                 .staggered(0)
-            HStack(alignment: .top, spacing: 24) {
-                VStack(spacing: 18) {
+            HStack(alignment: .top, spacing: DS.Layout.stepGap) {
+                VStack(spacing: DS.Layout.stepGap) {
                     trigger
-                        .frame(height: 84)
+                        // The keys' top in line with the panel's.
+                        .frame(height: Self.triggerHeight, alignment: .top)
                         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { source = $0 }
                     if live.ready {
                         checklist.transition(.opacity)
                     } else {
                         ModelState(dictation: dictation)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .raised(cornerRadius: 18)
+                            .raised(cornerRadius: DS.Radius.panel)
                             .transition(.opacity)
                     }
+                    anywhere
                 }
                 .frame(width: Self.columnWidth, height: Self.columnHeight, alignment: .top)
                 .staggered(1)
@@ -289,7 +292,8 @@ struct ThoughtsStep: View {
         let l = live
         return VStack(spacing: 2) {
             ChecklistRow(number: 1,
-                         text: l.useButton ? String(localized: "Håll in knappen") : String(localized: "Håll in \(keysInline)"),
+                         // The keys are right above: no need to spell them out again.
+                         text: l.useButton ? String(localized: "Håll in knappen") : String(localized: "Håll in tangenterna"),
                          state: state(0)) { EmptyView() }
             ChecklistRow(number: 2, text: String(localized: "Säg det du vill komma ihåg"), state: state(1)) {
                 if l.held || l.locked {
@@ -314,7 +318,26 @@ struct ThoughtsStep: View {
         .animation(.smooth(duration: 0.3), value: l.writing)
         .padding(8)
         .frame(maxHeight: .infinity, alignment: .top)
-        .raised(cornerRadius: 18)
+        .raised(cornerRadius: DS.Radius.panel)
+    }
+
+    /// The shortcut works in every app, not only here — said once, under the list.
+    @ViewBuilder private var anywhere: some View {
+        if let shortcut {
+            let keys = shortcut.chip.replacingOccurrences(of: " ", with: "")
+            HStack(alignment: .center, spacing: 8) {
+                KeyChip(text: keys)
+                    .accessibilityHidden(true)
+                Text("sparar en tanke, var du än är.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, 4)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(Text("\(keys) sparar en tanke, var du än är."))
+        }
     }
 
     private func state(_ i: Int) -> ItemState {
@@ -368,7 +391,7 @@ struct ThoughtsStep: View {
         .frame(width: Self.panelWidth, height: Self.columnHeight, alignment: .top)
         .mask(LinearGradient(stops: [.init(color: .black, location: 0.86), .init(color: .black.opacity(0.2), location: 1)],
                              startPoint: .top, endPoint: .bottom))
-        .raised(cornerRadius: 18, selected: panelLit)
+        .raised(cornerRadius: DS.Radius.panel, selected: panelLit)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text("Tankar"))
     }
@@ -412,7 +435,7 @@ struct ThoughtsStep: View {
                 .transition(.opacity)
                 .accessibilityHidden(!isLanded)
         case .earlier(let t):
-            NoteRow(thought: t).opacity(0.45).transition(.opacity)
+            NoteRow(thought: t).opacity(0.6).transition(.opacity)
         case .blank(let i):
             HStack(spacing: 8) {
                 Capsule().fill(DS.Colors.chip).frame(width: i == 0 ? 132 : 96, height: 7)
@@ -441,7 +464,7 @@ struct ThoughtsStep: View {
 
     private var hint: Hint? {
         let l = live
-        if !l.ready { return .info(String(localized: "Snart kan du prova – när talmodellen är klar.")) }
+        if !l.ready { return .info(String(localized: "Du kan prova så fort talmodellen är klar.")) }
         if !l.micGranted { return .info(Self.micText) }
         if l.locked { return .locked }
         if l.otherDictation {
@@ -477,7 +500,7 @@ struct ThoughtsStep: View {
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Det går bra att släppa").font(.system(size: 13.5, weight: .semibold))
-                        Text("Mindtalk lyssnar tills du trycker Klar.")
+                        Text("Mindtalk lyssnar tills du trycker på Klar.")
                             .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                     }
                     Spacer(minLength: 8)
@@ -485,8 +508,8 @@ struct ThoughtsStep: View {
                         .buttonStyle(.ink)
                 }
                 .padding(.leading, 12).padding(.trailing, 10).padding(.vertical, 9)
-                .frame(width: Self.columnWidth + 24 + Self.panelWidth)
-                .raised(cornerRadius: 16)
+                .frame(width: Self.columnWidth + DS.Layout.stepGap + Self.panelWidth)
+                .raised(cornerRadius: DS.Radius.panel)
                 .transition(.opacity.combined(with: .offset(y: 6)))
             case .saved:
                 Label {

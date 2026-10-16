@@ -5,9 +5,10 @@ import SwiftUI
 // Shown rather than told: a sentence as the speech model heard it, and the one
 // word the list spells right — on the night tile, like the Ordlista page. Then
 // your own first word, which drops into a small copy of the list as it looks in
-// the app. One bouncy spring, for the moment of correction; with Reduce Motion
-// the corrected sentence just stands there. The demo never touches your list —
-// only "Lägg till" does.
+// the app. One bouncy spring, for the moment of correction. Each example plays
+// once, then the corrected sentence stays; it skips to that as soon as you start
+// typing a word of your own, and with Reduce Motion it just stands there. The
+// demo never touches your list — only "Lägg till" does.
 
 struct VocabularyStep: View {
     let dictation: Dictation
@@ -17,36 +18,42 @@ struct VocabularyStep: View {
     @State private var highlighted: UUID?
     /// Added in this step: the card says so, instead of asking again.
     @State private var added: AddResult?
+    /// In one of the fields: the demo above stops moving.
+    @State private var typing = false
 
     /// A word typed but not yet added — "Öppna Mindtalk" adds it rather than lose it.
     /// Set while the card holds a word that can be added; nil otherwise.
     @MainActor static var commitPending: (() -> Void)?
 
     var body: some View {
-        VStack(spacing: 22) {
+        VStack(spacing: 24) {
             StepHeader(title: "Lär Mindtalk dina ord",
                        subtitle: "Namn och ord på listan stavas rätt i allt du dikterar – också i tankar och möten.")
                 .staggered(0)
-            CorrectionDemo()
-                .staggered(1)
-            HStack(alignment: .top, spacing: 14) {
-                FirstWordCard(vocabulary: vocabulary, hasOwnWords: hasOwnWords,
-                              added: $added, highlighted: $highlighted, done: $done)
-                MiniWordList(entries: entries, highlighted: highlighted, showsSlot: added == nil)
+            VStack(spacing: DS.Layout.stepGap) {
+                CorrectionDemo(stopped: typing)
+                    .staggered(1)
+                HStack(alignment: .top, spacing: DS.Layout.stepGap) {
+                    FirstWordCard(vocabulary: vocabulary, hasOwnWords: hasOwnWords,
+                                  added: $added, highlighted: $highlighted, done: $done, typing: $typing)
+                        .frame(height: 186)
+                    // As tall as what's on it, no taller.
+                    MiniWordList(entries: entries, highlighted: highlighted, showsSlot: added == nil)
+                }
+                .staggered(2)
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 12))
+                        .accessibilityHidden(true)
+                    Text("Namn du ger talarna i ett möte föreslås till listan. Hela listan finns under Ordlista.")
+                }
+                .font(.system(size: 12.5))
+                .foregroundStyle(DS.Colors.muted)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 560)
+                .padding(.top, 4)
+                .staggered(3)
             }
-            .frame(height: 174)
-            .staggered(2)
-            HStack(spacing: 8) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 12))
-                    .accessibilityHidden(true)
-                Text("Mindtalk föreslår också namnen du ger talare i möten. Hela listan finns under Ordlista.")
-            }
-            .font(.system(size: 12.5))
-            .foregroundStyle(DS.Colors.muted)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: 560)
-            .staggered(3)
         }
         #if DEBUG
         .onAppear { if VocabularyStepRender.added { added = .added("Kubernetes"); done = true } }
@@ -91,9 +98,12 @@ private enum VocabularyStepRender {
 // MARK: - Before and after
 
 /// A sentence types itself as the speech model heard it; the misheard word is
-/// struck out and springs into the spelling from your list. Two examples, in a
-/// gentle loop.
+/// struck out and springs into the spelling from your list. Two examples, each
+/// played once — then it rests on the corrected sentence. Stopped (you're typing
+/// below): straight to the corrected sentence, and still.
 private struct CorrectionDemo: View {
+    let stopped: Bool
+
     private struct Example {
         let before: String
         let heard: String
@@ -115,6 +125,8 @@ private struct CorrectionDemo: View {
     @State private var typed = 0
     @State private var stage = Stage.typing
     @State private var lineShown = true
+    /// Played through, or stopped: it stays on the corrected sentence from now on.
+    @State private var ended = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var example: Example { Self.examples[index] }
@@ -155,16 +167,19 @@ private struct CorrectionDemo: View {
         .frame(maxWidth: .infinity)
         .frame(height: 158)
         .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous).fill(DS.Colors.night)
+            RoundedRectangle(cornerRadius: DS.Radius.panel, style: .continuous).fill(DS.Colors.night)
                 .overlay(
                     // A faint light from above, where the words land.
                     RadialGradient(colors: [.white.opacity(0.07), .clear], center: .top, startRadius: 0, endRadius: 320)
-                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous)))
+                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.panel, style: .continuous)))
                 .shadow(color: .black.opacity(0.18), radius: 18, y: 8))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: DS.Radius.panel, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(localized: "Exempel: Mindtalk hörde ”\(example.heard)” och skrev ”\(example.fixed)” – från din ordlista."))
-        .task { await play() }
+        // A new id cancels the play: stopping it is the same as having watched it.
+        .task(id: stopped || ended) {
+            if stopped || ended { settle() } else { await play() }
+        }
     }
 
     // MARK: The line
@@ -231,7 +246,7 @@ private struct CorrectionDemo: View {
         }
     }
 
-    // MARK: The loop
+    // MARK: The play
 
     private func play() async {
         #if DEBUG
@@ -240,8 +255,7 @@ private struct CorrectionDemo: View {
         if reduceMotion { showFinished(); return }
         // Wait for the step's entrance before typing.
         guard await pause(0.9) else { return }
-        var i = 0
-        while !Task.isCancelled {
+        for i in Self.examples.indices {
             index = i
             typed = 0
             stage = .typing
@@ -257,10 +271,22 @@ private struct CorrectionDemo: View {
             guard await pause(0.75) else { return }
             // The moment it's fixed: the step's one bouncy spring.
             withAnimation(.spring(duration: 0.55, bounce: 0.38)) { stage = .fixed }
+            // The last one stays.
+            guard i < Self.examples.count - 1 else { break }
             guard await pause(3.2) else { return }
             withAnimation(.smooth(duration: 0.45)) { lineShown = false }
             guard await pause(0.5) else { return }
-            i = (i + 1) % Self.examples.count
+        }
+        ended = true
+    }
+
+    /// Stopped midway: the example on screen, corrected — no spring, nothing more to come.
+    private func settle() {
+        guard !(stage == .fixed && lineShown && typed == example.count) else { return }
+        withAnimation(.smooth(duration: 0.3)) {
+            typed = example.count
+            stage = .fixed
+            lineShown = true
         }
     }
 
@@ -315,9 +341,13 @@ private struct FirstWordCard: View {
     @Binding var added: AddResult?
     @Binding var highlighted: UUID?
     @Binding var done: Bool
+    /// In either field — the demo above holds still meanwhile.
+    @Binding var typing: Bool
     @State private var word = ""
     @State private var heardAs = ""
     @FocusState private var wordFocused: Bool
+    @FocusState private var heardAsFocused: Bool
+    @State private var shownAt: Date?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var canAdd: Bool { Vocabulary.isValidWord(Vocabulary.tidy(word)) && problem == nil }
@@ -328,7 +358,7 @@ private struct FirstWordCard: View {
         if word.count > 60 { return String(localized: "Ordet är för långt – högst 60 tecken.") }
         if !word.isEmpty, !Vocabulary.isValidWord(word) { return String(localized: "Skriv ett ord med bokstäver eller siffror.") }
         let variants = heardAs.split(separator: ",").map { Vocabulary.tidy(String($0)) }.filter { !$0.isEmpty }
-        if variants.contains(where: { $0.count > 60 }) { return String(localized: "”Hörs som” är för långt – högst 60 tecken.") }
+        if variants.contains(where: { $0.count > 60 }) { return String(localized: "Det som brukar bli fel är för långt – högst 60 tecken.") }
         if !word.isEmpty, variants.contains(where: { Self.key($0) == Self.key(word) }) {
             return String(localized: "Skriv hur det brukar bli fel – inte samma ord en gång till.")
         }
@@ -352,9 +382,16 @@ private struct FirstWordCard: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .raised(cornerRadius: 18)
+        .raised(cornerRadius: DS.Radius.panel)
         // "Öppna Mindtalk" adds what you typed rather than lose it.
         .onChange(of: [word, heardAs]) { registerPending() }
+        // You click into a field, or start typing: the demo stops. Not for a focus that
+        // comes by itself as the step appears — macOS may hand the first field focus.
+        .onChange(of: wordFocused || heardAsFocused) { _, now in
+            if now, let shownAt, Date().timeIntervalSince(shownAt) > 0.5 { typing = true }
+        }
+        .onChange(of: word.isEmpty && heardAs.isEmpty) { _, empty in if !empty { typing = true } }
+        .onAppear { shownAt = Date() }
         .onDisappear { VocabularyStep.commitPending = nil }
     }
 
@@ -390,7 +427,9 @@ private struct FirstWordCard: View {
             field(String(localized: "t.ex. ett företagsnamn"), text: $word)
                 .focused($wordFocused)
             HStack(spacing: 8) {
-                field(String(localized: "Hörs ofta som (valfritt)"), text: $heardAs)
+                // Its own words here; the Ordlista page keeps "Hörs ofta som".
+                field(String(localized: "Blir ofta fel som (valfritt)"), text: $heardAs)
+                    .focused($heardAsFocused)
                 Button("Lägg till", action: add)
                     .buttonStyle(.ink)
                     .disabled(!canAdd)
@@ -556,19 +595,19 @@ private struct MiniWordList: View {
                 .transition(reduceMotion ? .opacity
                             : .asymmetric(insertion: .modifier(active: DropIn(t: 1), identity: DropIn(t: 0)), removal: .opacity))
             }
-            Spacer(minLength: 0)
             if entries.count > rows.count {
                 Text("och \(entries.count - rows.count) till")
                     .font(.system(size: 11.5))
                     .foregroundStyle(DS.Colors.muted)
                     .padding(.horizontal, 18)
+                    .padding(.top, 2)
                     .padding(.bottom, 12)
             }
         }
-        .frame(width: 286)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .card()
-        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
+        .padding(.bottom, 4)
+        .frame(width: 286, alignment: .top)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.panel, style: .continuous))
+        .raised(cornerRadius: DS.Radius.panel)
         .accessibilityElement(children: .combine)
     }
 }
