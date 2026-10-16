@@ -31,6 +31,9 @@ struct VoiceScanner: View {
         .padding(.bottom, 88)
         .environment(\.colorScheme, .dark)
         .onAppear(perform: enter)
+        // Away from the page while the explanation was up: the round goes on as it
+        // always has, unseen, and ends by itself.
+        .onDisappear { if session.introducing, let round = session.round, round.explaining { round.begin() } }
     }
 
     /// The scene, following the round.
@@ -47,20 +50,21 @@ struct VoiceScanner: View {
                     let colour = SpeakerMark.fill(round.captures.count)
                     Constellation(figure: round.figure, color: colour, level: scanner.roomLevel,
                                   searching: round.phase == .listening && round.progress > 0)
-                    .overlay { ring(in: geo.size, colour: colour) }
-                    .overlay(alignment: .topLeading) { heading.padding(.leading, 40).padding(.top, 34) }
+                    .overlay { if round.explaining { explanation } else { ring(in: geo.size, colour: colour) } }
+                    .overlay(alignment: .topLeading) { if !round.explaining { heading.padding(.leading, 40).padding(.top, 34) } }
                     .overlay(alignment: .topTrailing) {
-                        scanner.continueButton(round).padding(24)
+                        if !round.explaining { scanner.continueButton(round).padding(24) }
                     }
-                    .overlay(alignment: .bottom) { prompt(width: geo.size.width).padding(.bottom, 40) }
-                    .overlay(alignment: .bottomLeading) { room.padding(.leading, 40).padding(.bottom, 38) }
-                    .overlay(alignment: .bottomTrailing) { card.padding(24) }
+                    .overlay(alignment: .bottom) { if !round.explaining { prompt(width: geo.size.width).padding(.bottom, 40) } }
+                    .overlay(alignment: .bottomLeading) { if !round.explaining { room.padding(.leading, 40).padding(.bottom, 38) } }
+                    .overlay(alignment: .bottomTrailing) { if !round.explaining { card.padding(24) } }
                     .opacity(shown ? 1 : 0)
                     .background(Self.night.opacity(lit ? 1 : 0))
                 }
             }
             .animation(.spring(duration: 0.5, bounce: 0.2), value: round.captures)
             .animation(.easeOut(duration: 0.35), value: round.phase)
+            .animation(.easeOut(duration: 0.4), value: round.explaining)
             .onChange(of: round.phase) { _, phase in
                 switch phase {
                 case .known(let name):
@@ -95,7 +99,17 @@ struct VoiceScanner: View {
             }
         }
 
+        /// The first round ever: what it is and why, before it listens — and a way past it.
+        private var explanation: some View {
+            RoundExplanation(remembers: VoiceMemory.shared.enabled,
+                             begin: { round.begin() },
+                             skip: { round.declineExplained(); scanner.leave() })
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.opacity)
+        }
+
         private var heading: some View {
+            VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 14) {
                 Text("Vem är här?").font(.system(size: 32, weight: .regular, design: .serif))
                     .foregroundStyle(.white.opacity(0.9))
@@ -119,6 +133,9 @@ struct VoiceScanner: View {
                         .contentTransition(.opacity)
                 }
                 .padding(.leading, 10)
+            }
+                Text("Så att texten visar vem som säger vad. Mötet spelas redan in.")
+                    .font(.system(size: 13)).foregroundStyle(.white.opacity(0.6))
             }
         }
 
@@ -267,7 +284,7 @@ struct VoiceScanner: View {
 
     func continueButton(_ round: IntroRound) -> some View {
         Button(action: leave) {
-            Text(round.captures.isEmpty ? "Hoppa över" : "Alla är här – fortsätt")
+            Text(round.captures.isEmpty ? "Hoppa över – börja mötet" : "Alla är här – fortsätt")
                 .font(.system(size: 14, weight: .semibold))
                 .padding(.horizontal, 10)
                 .frame(minHeight: 32)
@@ -345,4 +362,44 @@ struct VoiceScanner: View {
 
     /// What people say before or between names — never a name.
     static let greetings: Set<String> = ["hej", "hejsan", "hallå", "tjena", "tja", "tjenare", "morsning", "god", "hi", "hello", "hey", "ja", "nej", "okej", "ok", "tack"]
+}
+
+/// "Först: vem är här?" — the first time a meeting starts with the round: what it is,
+/// why, what's kept, and a way past it.
+struct RoundExplanation: View {
+    let remembers: Bool
+    let begin: () -> Void
+    let skip: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Först: vem är här?").font(.system(size: 32, weight: .regular, design: .serif))
+                .foregroundStyle(.white)
+                .accessibilityAddTraits(.isHeader)
+            Text("Var och en säger hej och sitt namn, en i taget. Då vet Mindtalk vem som säger vad i texten. Det tar en halv minut.")
+                .font(.system(size: 16)).foregroundStyle(.white.opacity(0.8))
+            Text(remembers
+                 ? "Röster du namnger känns igen i kommande möten. Bara ett röstavtryck sparas på din Mac, aldrig ljud."
+                 : "Rösterna sparas inte. Vill du att Mindtalk känner igen dem nästa gång slår du på det i Inställningar.")
+                .font(.system(size: 13)).foregroundStyle(.white.opacity(0.6))
+            HStack(spacing: 18) {
+                Button(action: begin) {
+                    Text("Börja").font(.system(size: 14, weight: .semibold)).padding(.horizontal, 14).frame(minHeight: 32)
+                }
+                .buttonStyle(.glassProminent).controlSize(.large)
+                .keyboardShortcut(.defaultAction)
+                Button(action: skip) {
+                    Text("Hoppa över – namnge efteråt").font(.system(size: 13, weight: .semibold))
+                }
+                .buttonStyle(.plain).foregroundStyle(.white.opacity(0.7))
+            }
+            .padding(.top, 8)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: 460, alignment: .leading)
+        .padding(32)
+        .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(DS.Colors.night.opacity(0.88)))
+        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
+        .environment(\.colorScheme, .dark)
+    }
 }

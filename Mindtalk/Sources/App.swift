@@ -422,6 +422,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             RunLoop.main.run()
         }
         // `Mindtalk --render-panel out.png [--dark]`: the menu bar panel, with your figures.
+        // `Mindtalk --render-round-intro out.png [--remembers]`: "Först: vem är här?" on the round's dark.
+        if let i = args.firstIndex(of: "--render-round-intro"), i + 1 < args.count {
+            Task { @MainActor in
+                let view = RoundExplanation(remembers: args.contains("--remembers"), begin: {}, skip: {})
+                    .padding(60).frame(width: 900, height: 520).background(DS.Colors.night)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         if let i = args.firstIndex(of: "--render-panel"), i + 1 < args.count {
             Task { @MainActor in
                 let dark = args.contains("--dark")

@@ -44,6 +44,10 @@ final class IntroRound: ObservableObject {
         let colour: Int
     }
 
+    /// The very first round: what it's for, before it listens ("Först: vem är här?").
+    /// Shown once — after that the round starts straight away.
+    @Published private(set) var explaining = !UserDefaults.standard.bool(forKey: IntroRound.explainedKey)
+    static let explainedKey = "roundExplained"
     @Published private(set) var turn = 1
     @Published private(set) var phase: Phase = .ready
     /// The ring: how much of the speech needed has been heard (0…1).
@@ -98,9 +102,14 @@ final class IntroRound: ObservableObject {
         self.session = session
         cursor = session.openingCountForRound
         turnStart = cursor
+        #if DEBUG
+        // Tests and screenshots run the round itself.
+        if CommandLine.arguments.contains(where: { ["--round-names", "--introduce-at", "--demo-phase"].contains($0) }) { explaining = false }
+        #endif
     }
 
     func start() {
+        guard !explaining, task == nil else { return }
         beginTurn()
         task = Task { [weak self] in
             while let self, !Task.isCancelled {
@@ -113,6 +122,20 @@ final class IntroRound: ObservableObject {
     func stop() {
         task?.cancel()
         task = nil
+    }
+
+    /// "Börja" on the explanation: the round listens from now — not to what was said
+    /// while it was being read.
+    func begin() {
+        UserDefaults.standard.set(true, forKey: Self.explainedKey)
+        explaining = false
+        if let session { cursor = session.openingCountForRound }
+        start()
+    }
+
+    /// "Hoppa över" on the explanation: not explained again, the meeting goes on.
+    func declineExplained() {
+        UserDefaults.standard.set(true, forKey: Self.explainedKey)
     }
 
     var recognitionOn: Bool {
@@ -633,6 +656,7 @@ final class IntroRound: ObservableObject {
     #if DEBUG
     /// Screenshots: a round in a given state (`--demo-phase listening|known|new|ready`).
     func demo(_ phase: String) {
+        if phase == "explain" { explaining = true; task?.cancel(); task = nil; return }
         if phase == "first" { set(.ready); task?.cancel(); return }
         captures = [Capture(name: "Anna", known: true, score: 0.8, from: 1, to: 6, print: nil,
                             figure: VoiceFigure.from(seed: "anna"), colour: 0)]

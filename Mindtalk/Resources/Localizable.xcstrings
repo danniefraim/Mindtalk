@@ -3514,6 +3514,22 @@
         }
       }
     },
+    "Börja": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Börja"
+          }
+        }
+      }
+    },
     "Börja använda Mindtalk": {
       "extractionState": "stale",
       "localizations": {
@@ -6037,6 +6053,22 @@
         }
       }
     },
+    "Först: vem är här?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First: who's here?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Först: vem är här?"
+          }
+        }
+      }
+    },
     "Försök igen": {
       "localizations": {
         "en": {
@@ -6846,6 +6878,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hoppa över"
+          }
+        }
+      }
+    },
+    "Hoppa över – börja mötet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip – start the meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hoppa över – börja mötet"
+          }
+        }
+      }
+    },
+    "Hoppa över – namnge efteråt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip – name people afterwards"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hoppa över – namnge efteråt"
           }
         }
       }
@@ -14776,6 +14840,22 @@
         }
       }
     },
+    "Röster du namnger känns igen i kommande möten. Bara ett röstavtryck sparas på din Mac, aldrig ljud.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voices you name are recognised in later meetings. Only a voiceprint is kept on your Mac, never audio."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Röster du namnger känns igen i kommande möten. Bara ett röstavtryck sparas på din Mac, aldrig ljud."
+          }
+        }
+      }
+    },
     "Röster i möten": {
       "localizations": {
         "en": {
@@ -14804,6 +14884,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Röster som Mindtalk känner igen"
+          }
+        }
+      }
+    },
+    "Rösterna sparas inte. Vill du att Mindtalk känner igen dem nästa gång slår du på det i Inställningar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voices aren't kept. If you'd like Mindtalk to recognise them next time, turn it on in Settings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rösterna sparas inte. Vill du att Mindtalk känner igen dem nästa gång slår du på det i Inställningar."
           }
         }
       }
@@ -17442,6 +17538,22 @@
         }
       }
     },
+    "Så att texten visar vem som säger vad. Mötet spelas redan in.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "So the text shows who says what. The meeting is already being recorded."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Så att texten visar vem som säger vad. Mötet spelas redan in."
+          }
+        }
+      }
+    },
     "Sök": {
       "extractionState": "stale",
       "localizations": {
@@ -19682,6 +19794,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Val"
+          }
+        }
+      }
+    },
+    "Var och en säger hej och sitt namn, en i taget. Då vet Mindtalk vem som säger vad i texten. Det tar en halv minut.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everyone says hello and their name, one at a time. Then Mindtalk knows who says what in the text. It takes half a minute."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Var och en säger hej och sitt namn, en i taget. Då vet Mindtalk vem som säger vad i texten. Det tar en halv minut."
           }
         }
       }
