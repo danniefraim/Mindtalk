@@ -72,11 +72,33 @@ struct HomeHero: View {
                         Text(what).font(.system(size: 14)).foregroundStyle(onInk.opacity(0.75))
                     }
                     .padding(.top, 10)
-                } else if dictation.needsSetup {
-                    // Not ready yet: the steps are in the card below, not a promise here.
-                    Text("Ett par steg kvar").font(.system(size: 44, weight: .regular, design: .serif)).foregroundStyle(onInk)
-                    Text(verbatim: dictation.setupIssue.map { $0.title } ?? String(localized: "Mindtalk gör sig redo."))
-                        .font(.system(size: 14)).foregroundStyle(onInk.opacity(0.75)).padding(.top, 10)
+                } else if needsSetup {
+                    if case .modelDownloading(let p) = setupIssue {
+                        // Only the download left: nothing for you to do but wait.
+                        Text("Nästan klart").font(.system(size: 44, weight: .regular, design: .serif)).foregroundStyle(onInk)
+                        Text(verbatim: SpeechModel.isPreparing(p)
+                             ? String(localized: "Talmodellen görs redo för din Mac – bara första gången.")
+                             : String(localized: "Laddar ned talmodellen · \(dictation.engine.progressText(p, started: dictation.downloadStarted[dictation.engine]))"))
+                            .font(.system(size: 14)).foregroundStyle(onInk.opacity(0.75)).monospacedDigit().padding(.top, 10)
+                    } else {
+                        // Not ready yet: the steps are in the card below, not a promise here.
+                        Text("Ett par steg kvar").font(.system(size: 44, weight: .regular, design: .serif)).foregroundStyle(onInk)
+                        Text(verbatim: setupIssue.map(issueLine) ?? String(localized: "Mindtalk gör sig redo."))
+                            .font(.system(size: 14)).foregroundStyle(onInk.opacity(0.75)).padding(.top, 10)
+                    }
+                } else if let since = slowStart {
+                    // The first start on a Mac compiles the model for the Neural Engine —
+                    // minutes, once. Said plainly rather than "Håll in … och prata".
+                    Text("Nästan klart").font(.system(size: 44, weight: .regular, design: .serif)).foregroundStyle(onInk)
+                    TimelineView(.periodic(from: since, by: 30)) { context in
+                        let minutes = Int(context.date.timeIntervalSince(since) / 60)
+                        let text = String(localized: "Talmodellen görs redo för din Mac – första gången tar det några minuter. Du kan stänga fönstret under tiden.")
+                        Text(verbatim: minutes < 1 ? text : text + " " + String(localized: "\(minutes) min hittills."))
+                            .font(.system(size: 15)).foregroundStyle(onInk.opacity(0.75)).monospacedDigit()
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.top, 10)
+                    SettlingLine(color: onInk).frame(width: 60, alignment: .leading).padding(.top, 14).accessibilityHidden(true)
                 } else {
                     let today = stats.today.words
                     if today > 0 || weekWords > 0 {
@@ -118,7 +140,7 @@ struct HomeHero: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            if !dictation.needsSetup {
+            if !needsSetup {
                 VStack(alignment: wide ? .trailing : .leading, spacing: 10) {
                     if session.isRecording {
                         meetingButtons
@@ -131,7 +153,7 @@ struct HomeHero: View {
             }
         }
         .padding(26)
-        .frame(minHeight: dictation.needsSetup ? 180 : 280)
+        .frame(minHeight: needsSetup ? 180 : 280)
         .background(alignment: .bottomTrailing) {
             // The sphere of light from Möten, breathing in the corner — with your voice
             // while you dictate.
@@ -146,6 +168,56 @@ struct HomeHero: View {
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
         .shadow(color: .black.opacity(0.10), radius: 14, y: 6)
         .animation(reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.1), value: session.phase)
+        // A start that takes more than a few seconds is the long first one; a language
+        // switch is over before it would show.
+        .task(id: dictation.model == .loading) {
+            slowSince = nil
+            guard dictation.model == .loading else { return }
+            let since = dictation.loadingSince
+            let wait = 3 - Date().timeIntervalSince(since)
+            if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+            if !Task.isCancelled, dictation.model == .loading { slowSince = since }
+        }
+    }
+
+    // MARK: Getting ready
+
+    /// Set when the speech model has been starting for a while.
+    @State private var slowSince: Date?
+
+    private var slowStart: Date? {
+        #if DEBUG
+        if HomeDebug.modelLoading { return Date().addingTimeInterval(-3 * 60 - 10) }
+        #endif
+        return slowSince
+    }
+
+    private var needsSetup: Bool {
+        #if DEBUG
+        if HomeDebug.ready { return false }
+        if HomeDebug.modelPreparing { return true }
+        #endif
+        return dictation.needsSetup
+    }
+
+    private var setupIssue: Dictation.SetupIssue? {
+        #if DEBUG
+        if HomeDebug.modelPreparing { return .modelDownloading(0.95) }
+        #endif
+        return dictation.setupIssue
+    }
+
+    /// The issue in Hem's words: one name for the model — "talmodellen".
+    private func issueLine(_ issue: Dictation.SetupIssue) -> String {
+        switch issue {
+        case .modelMissing: return String(localized: "Ladda ned talmodellen (\(dictation.engine.title.lowercased()))")
+        default: return issue.title
+        }
+    }
+
+    /// "Håll in" or "Tryck på", as the dictation key works.
+    private var pressVerb: String {
+        dictation.mode == .toggle ? String(localized: "Tryck på") : String(localized: "Håll in")
     }
 
     // MARK: Your day
@@ -155,7 +227,8 @@ struct HomeHero: View {
         if today > 0 { return today == 1 ? String(localized: "1 ord i dag") : String(localized: "\(Stats.number(today)) ord i dag") }
         if weekWords > 0 { return String(localized: "\(Stats.number(weekWords)) ord i veckan") }
         if !fresh { return String(localized: "Inget sagt i dag än") }
-        return String(localized: "Håll in \(dictation.hotkey.inlineName) och prata")
+        return dictation.mode == .toggle ? String(localized: "Tryck på \(dictation.hotkey.inlineName) och prata")
+                                         : String(localized: "Håll in \(dictation.hotkey.inlineName) och prata")
     }
 
     private func subline(week: [Stats.WeekDay], weekWords: Int, fresh: Bool) -> String {
@@ -241,7 +314,7 @@ struct HomeHero: View {
                   help: micBusy ? "Går när dikteringen är klar" : "Säg det du kommer på – det sparas i Tankar") { dictation.startThought() }
             .disabled(micBusy || !dictation.engine.isInstalled)
         HStack(spacing: 5) {
-            Text("Håll in").foregroundStyle(onInk.opacity(0.65))
+            Text(verbatim: pressVerb).foregroundStyle(onInk.opacity(0.65))
             Text(verbatim: dictation.hotkey.chip).font(.system(size: 11.5, weight: .semibold))
                 .padding(.horizontal, 6).padding(.vertical, 2)
                 .background(RoundedRectangle(cornerRadius: 5).fill(onInk.opacity(0.16)))
@@ -250,7 +323,8 @@ struct HomeHero: View {
         }
         .font(.system(size: 12.5)).padding(.top, 6)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Håll in \(dictation.hotkey.inlineName) för att diktera"))
+        .accessibilityLabel(dictation.mode == .toggle ? Text("Tryck på \(dictation.hotkey.inlineName) för att diktera")
+                                                      : Text("Håll in \(dictation.hotkey.inlineName) för att diktera"))
     }
 
     // MARK: The meeting going on
@@ -442,6 +516,8 @@ struct HomeShelves: View {
         let meetings = Array(store.meetings.filter { $0.id != live }.prefix(3))
         let open = thoughts.forHome
         VStack(alignment: .leading, spacing: 30) {
+            // In the setup card's place once the setup is done, for a new user.
+            FirstDayCard(dictation: .shared, page: $page)
             shelf("Senaste möten", more: "Alla möten", label: "Alla möten", action: { MeetingsPage.lastOpen = nil; page = .meetings }) {
                 VStack(alignment: .leading, spacing: 12) {
                     // A recording being written out: there, rather than an empty shelf.
@@ -466,7 +542,11 @@ struct HomeShelves: View {
             }
             shelf("Tankar", more: open.count > 4 ? "Alla \(open.count) tankar" : "Alla tankar", label: "Alla tankar", action: { page = .thoughts }) {
                 if open.isEmpty {
-                    hint("lightbulb", "Det du kommer på mitt i något annat – säg det, så ligger det här.")
+                    if let keys = Settings.thoughtShortcut?.chip.replacingOccurrences(of: " ", with: "") {
+                        hint("lightbulb", "Det du kommer på mitt i något annat – håll in \(keys) och säg det, så ligger det här.")
+                    } else {
+                        hint("lightbulb", "Det du kommer på mitt i något annat – säg det, så ligger det här.")
+                    }
                 } else {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: wide ? 2 : 1),
                               alignment: .leading, spacing: 12) {
@@ -474,6 +554,9 @@ struct HomeShelves: View {
                     }
                 }
             }
+            #if DEBUG
+            if HomeDebug.menuBarHint { MenuBarHintBubble() }
+            #endif
         }
         .onReceive(MeetingSession.shared.$record.map { $0?.id }.removeDuplicates()) { live = $0 }
     }

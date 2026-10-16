@@ -316,6 +316,9 @@ struct StatusPanelView: View {
                 Text("Skriver…")
             default:
                 switch dictation.model {
+                case .downloading(let p) where SpeechModel.isPreparing(p):
+                    // The files are in; a percentage stuck at 95 would only look stuck.
+                    Text("Förbereder \(dictation.engine.title.lowercased())")
                 case .downloading(let p):
                     Text("Laddar ned \(dictation.engine.title) · \(Int(p * 100)) %").monospacedDigit()
                 case .loading:
