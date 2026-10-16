@@ -5331,22 +5331,6 @@
         }
       }
     },
-    "Du kan gå vidare under tiden.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You can go on meanwhile."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Du kan gå vidare under tiden."
-          }
-        }
-      }
-    },
     "Du kan prova så fort talmodellen är klar.": {
       "localizations": {
         "en": {
@@ -23402,6 +23386,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vänta"
+          }
+        }
+      }
+    },
+    "Vänta gärna här – sedan provar du direkt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wait here if you can – then you try it right away."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vänta gärna här – sedan provar du direkt."
           }
         }
       }

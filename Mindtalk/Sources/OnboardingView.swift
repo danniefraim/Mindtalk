@@ -788,8 +788,9 @@ struct ModelState: View {
                     Text(minutes < 1 ? String(localized: "Bara första gången – det kan ta några minuter.")
                                      : String(localized: "Bara första gången – det kan ta några minuter. \(minutes) min hittills."))
                         .font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
-                    Text("Du kan gå vidare under tiden.")
-                        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                    // Wait here: the next steps try things out, and they need it too.
+                    Text("Vänta gärna här – sedan provar du direkt.")
+                        .font(.system(size: 13, weight: .medium)).foregroundStyle(.primary)
                 case .failed(let message):
                     Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 22)).foregroundStyle(.orange)
                     // Downloaded but wouldn't start, or never arrived — retryModel() knows which.
