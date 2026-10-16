@@ -88,6 +88,21 @@ final class Stats: ObservableObject {
     var totalWords: Int { days.values.reduce(0) { $0 + $1.words } }
     var totalSaved: Double { days.values.reduce(0) { $0 + $1.savedSeconds } }
 
+    /// How fast you talk when you dictate — over everything kept. Nil until there's
+    /// a minute of it, so a first "hej" doesn't say 400 words a minute.
+    var wordsPerMinute: Int? {
+        let seconds = days.values.reduce(0) { $0 + $1.seconds }
+        guard seconds >= 60 else { return nil }
+        return Int((Double(totalWords) / seconds * 60).rounded())
+    }
+
+    /// The day you said the most.
+    var bestDay: (date: Date, words: Int)? {
+        guard let best = days.max(by: { $0.value.words < $1.value.words }), best.value.words > 0,
+              let date = Self.dayFormatter.date(from: best.key) else { return nil }
+        return (date, best.value.words)
+    }
+
     /// Swedish weeks: Monday first, ISO week numbers.
     static let calendar: Calendar = {
         var cal = Calendar(identifier: .iso8601)
@@ -143,11 +158,13 @@ final class Stats: ObservableObject {
     }
 
     /// The same, written out for a sentence: "53 minuter", "1 timme", "2 timmar 5 minuter".
-    static func prose(_ seconds: Double) -> String {
+    /// `round`: whole hours from three hours up — "10 timmar", not "10 timmar 26 minuter".
+    static func prose(_ seconds: Double, round: Bool = false) -> String {
         let minutes = max(1, Int((seconds / 60).rounded()))
         func m(_ n: Int) -> String { n == 1 ? String(localized: "1 minut") : String(localized: "\(n) minuter") }
         func h(_ n: Int) -> String { n == 1 ? String(localized: "1 timme") : String(localized: "\(n) timmar") }
         if minutes < 60 { return m(minutes) }
+        if round, minutes >= 180 { return h(Int((Double(minutes) / 60).rounded())) }
         return minutes % 60 == 0 ? h(minutes / 60) : h(minutes / 60) + " " + m(minutes % 60)
     }
 

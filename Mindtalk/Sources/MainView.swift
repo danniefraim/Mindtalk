@@ -594,64 +594,142 @@ private struct MeetingShortcutField: View {
 }
 
 // MARK: - Diktering
+//
+// Everything about dictating, on one page: your key and how it works (with a box to
+// try it in), what talking instead of typing has added up to — the figures Hem
+// doesn't show — and the last fifty dictations by day, to copy again.
 
-/// "Prova dikteringen": folded away — it's for the first days.
-private struct TryDictation: View {
+/// Your key, how it works, and a place to try it.
+private struct DictationKeyCard: View {
     @ObservedObject var dictation: Dictation
+    /// The box to try it in: open for someone who hasn't dictated yet.
+    @State private var trying: Bool
     @State private var practice = ""
-    @State private var trying = false
+
+    init(dictation: Dictation) {
+        self.dictation = dictation
+        _trying = State(initialValue: dictation.recent.isEmpty && !dictation.needsSetup)
+    }
+
+    private var key: String { dictation.hotkey.inlineName }
+
+    private var title: String {
+        dictation.mode == .toggle ? String(localized: "Tryck på \(key) och prata") : String(localized: "Håll in \(key) och prata")
+    }
+
+    private var how: String {
+        switch dictation.mode {
+        case .hold: return String(localized: "Släpp när du är klar, så skrivs texten där markören står. Esc avbryter.")
+        case .toggle: return String(localized: "Tryck igen när du är klar, så skrivs texten där markören står. Esc avbryter.")
+        case .holdOrDoubleTap: return String(localized: "Släpp när du är klar, så skrivs texten där markören står. Dubbeltryck för att låsa och prata fritt. Esc avbryter.")
+        }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Button {
-                withAnimation(.spring(duration: 0.35, bounce: 0.1)) { trying.toggle() }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "chevron.right").font(.system(size: 10.5, weight: .bold))
-                        .rotationEffect(.degrees(trying ? 90 : 0))
-                    Text("Prova dikteringen").font(.system(size: 15, weight: .semibold))
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
-            if trying {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(dictation.mode == .hold
-                         ? String(localized: "Håll in \(dictation.hotkey.inlineName) och prata, släpp när du är klar. Esc avbryter.")
-                         : dictation.mode == .toggle
-                            ? String(localized: "Tryck på \(dictation.hotkey.inlineName) för att börja och en gång till för att skriva in. Esc avbryter.")
-                            : String(localized: "Håll in \(dictation.hotkey.inlineName) och prata – eller dubbeltryck för att låsa och tryck igen när du är klar. Esc avbryter."))
-                        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: 20) {
+                Text(verbatim: dictation.hotkey.chip)
+                    .font(.system(size: 20, weight: .medium, design: .rounded))
+                    .padding(.horizontal, 16)
+                    .frame(minWidth: 64, minHeight: 56)
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.field))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.fieldStroke).offset(y: 3))
+                    .fixedSize()
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(verbatim: title).font(.system(size: 17, weight: .semibold))
+                    Text(verbatim: how).font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                         .fixedSize(horizontal: false, vertical: true)
-                    ZStack(alignment: .topLeading) {
-                        TextEditor(text: $practice)
+                    Button {
+                        NotificationCenter.default.post(name: .showPage, object: Page.settings)
+                    } label: {
+                        Text("Ändra tangent och sätt i Inställningar")
+                            .font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted).underline()
+                            .padding(.vertical, 4).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                Spacer(minLength: 12)
+                if !dictation.needsSetup {
+                    Button(trying ? "Stäng" : "Prova") {
+                        withAnimation(.spring(duration: 0.35, bounce: 0.1)) { trying.toggle() }
+                    }
+                    .buttonStyle(.soft)
+                }
+            }
+            if trying && !dictation.needsSetup {
+                ZStack(alignment: .topLeading) {
+                    TextEditor(text: $practice)
+                        .font(.system(size: 17))
+                        .scrollContentBackground(.hidden)
+                        .padding(12)
+                        .frame(minHeight: 120)
+                        .background(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous).fill(DS.Colors.field))
+                        .overlay(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                            .strokeBorder(practice.isEmpty ? AnyShapeStyle(DS.Colors.fieldStroke) : AnyShapeStyle(DS.Gradients.accent),
+                                          lineWidth: practice.isEmpty ? 1 : 1.5))
+                        .accessibilityLabel("Prova diktering här")
+                    if practice.isEmpty {
+                        Text("Klicka här, håll in \(key) och säg något.")
                             .font(.system(size: 17))
-                            .scrollContentBackground(.hidden)
-                            .padding(12)
-                            .frame(minHeight: 130)
-                            .background(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous).fill(DS.Colors.field))
-                            .overlay(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                                .strokeBorder(practice.isEmpty ? AnyShapeStyle(DS.Colors.fieldStroke) : AnyShapeStyle(DS.Gradients.accent),
-                                              lineWidth: practice.isEmpty ? 1 : 1.5))
-                            .accessibilityLabel("Prova diktering här")
-                        if practice.isEmpty {
-                            Text("Klicka här, håll in \(dictation.hotkey.inlineName) och säg något.")
-                                .font(.system(size: 17))
-                                .foregroundStyle(DS.Colors.muted)
-                                .padding(.horizontal, 17).padding(.vertical, 12)
-                                .allowsHitTesting(false)
-                        }
+                            .foregroundStyle(DS.Colors.muted)
+                            .padding(.horizontal, 17).padding(.vertical, 12)
+                            .allowsHitTesting(false)
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+        .padding(22)
+        .card()
     }
 }
 
-private struct RecentPage: View {
+/// What it has added up to — the figures Hem doesn't show: everything so far, how
+/// fast you talk, your best day, and days in a row.
+private struct DictationFigures: View {
+    @ObservedObject var stats: Stats
+
+    var body: some View {
+        let best = stats.bestDay
+        HStack(alignment: .top, spacing: 0) {
+            figure(Stats.number(stats.totalWords), "ord totalt",
+                   detail: stats.totalSaved >= 60 ? String(localized: "Du har sluppit skriva i ungefär \(Stats.prose(stats.totalSaved, round: true)).") : nil)
+            if let wpm = stats.wordsPerMinute {
+                figure(Stats.number(wpm), "ord i minuten",
+                       detail: String(localized: "När du skriver: runt \(Int(Stats.typingWordsPerMinute))"))
+            }
+            if let best {
+                figure(Stats.number(best.words), "bästa dagen",
+                       detail: best.date.formatted(Date.FormatStyle().weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.locale)))
+            }
+            figure(Stats.number(stats.streak), stats.streak == 1 ? "dag i rad" : "dagar i rad", detail: nil)
+        }
+        .padding(.vertical, 20)
+        .card()
+    }
+
+    private func figure(_ value: String, _ label: LocalizedStringKey, detail: String?) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(verbatim: value).font(.system(size: 30, weight: .regular, design: .serif)).monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.6)
+            Text(label).font(.system(size: 13, weight: .medium))
+            if let detail {
+                Text(verbatim: detail).font(.system(size: 12)).foregroundStyle(DS.Colors.muted).lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, 22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct RecentPage: View {
     @ObservedObject var dictation: Dictation
+    /// Without the page's scroll view (screenshots).
+    var plain = false
     @ObservedObject private var stats = Stats.shared
     @State private var confirmClear = false
     /// A dictation just removed, and where it was — "Ångra" for a few seconds.
@@ -659,6 +737,32 @@ private struct RecentPage: View {
     @State private var removedTask: Task<Void, Never>?
 
     var body: some View {
+        if plain { content } else {
+            content
+                .pageLayout()
+                .overlay(alignment: .bottom) {
+                    if removed != nil {
+                        HStack(spacing: 14) {
+                            Text("Dikteringen är borttagen").font(.system(size: 13))
+                            Button("Ångra") { undoRemove() }.buttonStyle(.soft)
+                        }
+                        .padding(.leading, 18).padding(.trailing, 8).padding(.vertical, 8)
+                        .background(Capsule().fill(DS.Colors.card).shadow(color: .black.opacity(0.15), radius: 10, y: 4))
+                        .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke, lineWidth: 0.5))
+                        .padding(.bottom, 24)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .confirmationDialog("Rensa historiken?", isPresented: $confirmClear) {
+                    Button("Rensa", role: .destructive) { withAnimation(.snappy) { dictation.clearRecent() } }
+                    Button("Avbryt", role: .cancel) {}
+                } message: {
+                    Text("De tas bort från din Mac och kan inte återställas. ⌃⌥V har då inget att klistra in.")
+                }
+        }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .firstTextBaseline) {
                 PageHeader(title: "Diktering").staggered(0)
@@ -667,65 +771,54 @@ private struct RecentPage: View {
                     Button("Rensa…") { confirmClear = true }.buttonStyle(.soft)
                 }
             }
-            // What talking instead of typing has given you — here, with what you said.
+            DictationKeyCard(dictation: dictation).staggered(1)
             if stats.totalWords > 0 {
-                StatsCard(stats: stats).staggered(1)
+                DictationFigures(stats: stats).staggered(1)
             }
-            if !dictation.needsSetup { TryDictation(dictation: dictation).staggered(1) }
             if !dictation.recent.isEmpty {
-                SectionTitle("Det du dikterat").staggered(1)
-            }
-            if dictation.recent.isEmpty {
-                VStack(spacing: 10) {
-                    Image(systemName: "waveform").font(.system(size: 28)).foregroundStyle(DS.Colors.faint)
-                    Text("Inget dikterat än").font(.system(size: 15, weight: .semibold))
-                    Text("Det du dikterar dyker upp här, så att du kan kopiera det igen om det hamnade fel.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(DS.Colors.muted)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(40)
-                .card()
-                .staggered(1)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(dictation.recent.enumerated()), id: \.element.id) { i, entry in
-                        if i > 0 { CardDivider() }
-                        RecentRow(entry: entry, copy: { dictation.copy(entry) }, remove: { remove(entry, at: i) })
+                SectionTitle("Det du dikterat").staggered(2)
+                ForEach(Self.days(dictation.recent), id: \.title) { day in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(verbatim: day.title).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+                            .accessibilityAddTraits(.isHeader)
+                        VStack(spacing: 0) {
+                            ForEach(Array(day.items.enumerated()), id: \.element.id) { i, entry in
+                                if i > 0 { CardDivider() }
+                                RecentRow(entry: entry, copy: { dictation.copy(entry) }, remove: { remove(entry) })
+                            }
+                        }
+                        .card()
                     }
+                    .staggered(2)
                 }
-                .card()
-                .staggered(1)
-                Text("De senaste 50 sparas. ⌃⌥V klistrar in den senaste igen.")
+                Text("De 50 senaste sparas. ⌃⌥V klistrar in den senaste igen.")
                     .font(.system(size: 13))
                     .foregroundStyle(DS.Colors.muted)
             }
         }
-        .pageLayout()
-        .overlay(alignment: .bottom) {
-            if removed != nil {
-                HStack(spacing: 14) {
-                    Text("Dikteringen är borttagen").font(.system(size: 13))
-                    Button("Ångra") { undoRemove() }.buttonStyle(.soft)
-                }
-                .padding(.leading, 18).padding(.trailing, 8).padding(.vertical, 8)
-                .background(Capsule().fill(DS.Colors.card).shadow(color: .black.opacity(0.15), radius: 10, y: 4))
-                .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke, lineWidth: 0.5))
-                .padding(.bottom, 24)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    /// "I dag", "I går", then the day — like Tankar.
+    static func days(_ entries: [Dictation.Entry]) -> [(title: String, items: [Dictation.Entry])] {
+        let calendar = Calendar.current
+        var out: [(title: String, items: [Dictation.Entry])] = []
+        for e in entries {
+            let date = min(e.date, Date())
+            let title: String
+            if calendar.isDateInToday(date) { title = String(localized: "I dag") }
+            else if calendar.isDateInYesterday(date) { title = String(localized: "I går") }
+            else {
+                let day = date.formatted(Date.FormatStyle().weekday(.wide).day().month(.wide).locale(AppLanguage.locale))
+                title = day.prefix(1).uppercased() + day.dropFirst()
             }
+            if let i = out.firstIndex(where: { $0.title == title }) { out[i].items.append(e) } else { out.append((title, [e])) }
         }
-        .confirmationDialog("Rensa alla senaste dikteringar?", isPresented: $confirmClear) {
-            Button("Rensa", role: .destructive) { withAnimation(.snappy) { dictation.clearRecent() } }
-            Button("Avbryt", role: .cancel) {}
-        } message: {
-            Text("De tas bort från din Mac och går inte att få tillbaka. ⌃⌥V har sedan inget att klistra in.")
-        }
+        return out
     }
 
     /// One dictation away — back with "Ångra" for a few seconds.
-    private func remove(_ entry: Dictation.Entry, at index: Int) {
+    private func remove(_ entry: Dictation.Entry) {
+        let index = dictation.recent.firstIndex(where: { $0.id == entry.id }) ?? 0
         withAnimation(.snappy) {
             dictation.removeRecent(entry)
             removed = (entry, index)
@@ -748,6 +841,7 @@ private struct RecentPage: View {
     }
 }
 
+/// One dictation: the time on the left, the words, and a copy button.
 private struct RecentRow: View {
     let entry: Dictation.Entry
     let copy: () -> Void
@@ -758,63 +852,47 @@ private struct RecentRow: View {
     private var long: Bool { entry.text.count > 280 || entry.text.filter { $0 == "\n" }.count > 3 }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 14) {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            Text(verbatim: min(entry.date, Date()).formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale)))
+                .font(.system(size: 12.5)).monospacedDigit()
+                .foregroundStyle(DS.Colors.muted)
+                .frame(width: 44, alignment: .leading)
             VStack(alignment: .leading, spacing: 5) {
                 Text(entry.text)
                     .font(.system(size: 14))
                     .lineLimit(expanded ? nil : 4)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                HStack(spacing: 10) {
-                    // "För 4 minuter sedan" moves on while the page is open.
-                    TimelineView(.periodic(from: .now, by: 30)) { _ in
-                        Text(Self.when(min(entry.date, Date())))
-                            .font(.system(size: 12))
-                            .foregroundStyle(DS.Colors.muted)
-                    }
-                    if long {
-                        Button(expanded ? "Visa mindre" : "Visa hela") { withAnimation(.snappy) { expanded.toggle() } }
-                            .buttonStyle(.plain)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(DS.Colors.accent)
-                    }
+                if long {
+                    Button(expanded ? "Visa mindre" : "Visa hela") { withAnimation(.snappy) { expanded.toggle() } }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(DS.Colors.accent)
                 }
             }
             Button {
                 copy()
-                copied = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
+                withAnimation(.easeOut(duration: 0.15)) { copied = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { withAnimation(.easeOut(duration: 0.2)) { copied = false } }
             } label: {
-                Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                    .contentTransition(.symbolEffect(.replace))
-                    .frame(width: 18)
+                HStack(spacing: 5) {
+                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        .contentTransition(.symbolEffect(.replace))
+                    if copied { Text("Kopierad").font(.system(size: 12, weight: .medium)).transition(.opacity) }
+                }
+                .frame(minWidth: 18, minHeight: 24)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
             .help("Kopiera")
             .accessibilityLabel(Text("Kopiera"))
         }
         .padding(.horizontal, 22)
-        .padding(.vertical, 16)
+        .padding(.vertical, 14)
         .contextMenu {
             Button("Kopiera", action: copy)
             Button("Ta bort", role: .destructive, action: remove)
         }
-    }
-
-    /// "för 4 minuter sedan" today, "i går 14:32", then the date.
-    static func when(_ date: Date) -> String {
-        let calendar = Calendar.current
-        if Date().timeIntervalSince(date) < 3600 {
-            let f = RelativeDateTimeFormatter()
-            f.locale = AppLanguage.locale
-            f.unitsStyle = .full
-            let s = f.localizedString(for: date, relativeTo: Date())
-            return s.prefix(1).uppercased() + s.dropFirst()
-        }
-        let time = date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale))
-        if calendar.isDateInToday(date) { return String(localized: "I dag \(time)") }
-        if calendar.isDateInYesterday(date) { return String(localized: "I går \(time)") }
-        return date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened).locale(AppLanguage.locale))
     }
 }
 

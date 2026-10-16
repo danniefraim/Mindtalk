@@ -2,12 +2,13 @@ import SwiftUI
 
 // MARK: - Hem
 //
-// One ink tile that speaks about your day in big serif — the words you said,
-// the time you didn't spend typing, the week as a quiet skyline — with the ways to
-// start on its right. While a meeting goes on, the tile is the meeting: the clock,
-// pause and stop. Under it, the latest meetings as cards you can read without
-// opening, and the thoughts as notes. A meeting's tasks live in its summary —
-// Mindtalk isn't a to-do app.
+// One night-dark tile — the same room as "Nytt möte" on Möten, with its sphere of
+// light breathing in the corner — that speaks about your day: the words you said
+// in big serif, the time you didn't spend typing, the week as a small chart. The
+// ways to start sit on its right. While a meeting goes on, the tile is the meeting:
+// the clock, pause and stop. Under it, the latest meetings as cards you can read
+// without opening, and the thoughts as notes. A meeting's tasks live in its
+// summary — Mindtalk isn't a to-do app.
 
 enum HomeGreeting {
     static func greeting(_ date: Date) -> String {
@@ -18,6 +19,12 @@ enum HomeGreeting {
         default: return String(localized: "God kväll")
         }
     }
+
+    /// "Mathias" — the first name the Mac knows you by; nil if it knows none.
+    static let firstName: String? = {
+        let first = NSFullUserName().split(separator: " ").first.map(String.init) ?? ""
+        return first.isEmpty ? nil : first
+    }()
 
     /// "torsdag 15 oktober" — after "God kväll ·", so in lower case.
     static func day(_ date: Date) -> String {
@@ -36,7 +43,8 @@ struct HomeHero: View {
     @ObservedObject private var stats = Stats.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var onInk: Color { DS.Colors.onInk }
+    /// The tile is night in both modes, like the room on Möten: text is white on it.
+    private var onInk: Color { .white }
     private var meetingKeys: String? { Settings.meetingShortcut.map { $0.chip.replacingOccurrences(of: " ", with: "") } }
 
     var body: some View {
@@ -48,8 +56,10 @@ struct HomeHero: View {
         layout {
             VStack(alignment: .leading, spacing: 0) {
                 TimelineView(.periodic(from: .now, by: 60)) { context in
-                    Text(verbatim: HomeGreeting.greeting(context.date) + " · " + HomeGreeting.day(context.date))
-                        .font(.system(size: 13, weight: .medium)).foregroundStyle(onInk.opacity(0.72))
+                    let hello = HomeGreeting.greeting(context.date) + (HomeGreeting.firstName.map { ", " + $0 } ?? "")
+                    (Text(verbatim: hello).foregroundStyle(onInk.opacity(0.92))
+                     + Text(verbatim: " · " + HomeGreeting.day(context.date)).foregroundStyle(onInk.opacity(0.6)))
+                        .font(.system(size: 15, weight: .medium))
                         .accessibilityAddTraits(.isHeader)
                 }
                 Spacer(minLength: 18)
@@ -68,22 +78,39 @@ struct HomeHero: View {
                     Text(verbatim: dictation.setupIssue.map { $0.title } ?? String(localized: "Mindtalk gör sig redo."))
                         .font(.system(size: 14)).foregroundStyle(onInk.opacity(0.75)).padding(.top, 10)
                 } else {
-                    Text(verbatim: headline(weekWords: weekWords, fresh: fresh)).font(.system(size: 44, weight: .regular, design: .serif))
-                        .foregroundStyle(onInk).lineLimit(2).minimumScaleFactor(0.7)
-                    Text(verbatim: subline(week: week, weekWords: weekWords, fresh: fresh)).font(.system(size: 14)).foregroundStyle(onInk.opacity(0.75))
-                        .fixedSize(horizontal: false, vertical: true).padding(.top, 10)
+                    let today = stats.today.words
+                    if today > 0 || weekWords > 0 {
+                        // The figure is the headline: today's words, or the week's when today is still empty.
+                        HStack(alignment: .firstTextBaseline, spacing: 14) {
+                            DayFigure(value: today > 0 ? today : weekWords)
+                                .font(.system(size: 96, weight: .regular, design: .serif))
+                                .tracking(-2)
+                                .foregroundStyle(onInk)
+                                .lineLimit(1).minimumScaleFactor(0.5)
+                            Text(today > 0 ? "ord i dag" : "ord i veckan")
+                                .font(.system(size: 22, weight: .regular, design: .serif))
+                                .foregroundStyle(onInk.opacity(0.75))
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(Text(verbatim: headline(weekWords: weekWords, fresh: fresh)))
+                    } else {
+                        Text(verbatim: headline(weekWords: weekWords, fresh: fresh)).font(.system(size: 44, weight: .regular, design: .serif))
+                            .foregroundStyle(onInk).lineLimit(2).minimumScaleFactor(0.7)
+                    }
+                    Text(verbatim: subline(week: week, weekWords: weekWords, fresh: fresh)).font(.system(size: 15)).foregroundStyle(onInk.opacity(0.75))
+                        .fixedSize(horizontal: false, vertical: true).padding(.top, today > 0 || weekWords > 0 ? 2 : 10)
                 }
                 // A new user has no week to show: seven grey stubs would read as a broken chart.
                 if !fresh, !session.isRecording {
                     Spacer(minLength: 26)
-                    HStack(alignment: .bottom, spacing: 18) {
+                    HStack(alignment: .bottom, spacing: 22) {
                         weekBars(week)
-                        Spacer()
                         Text(verbatim: weekWords > 0
                              ? String(localized: "Vecka \(stats.weekNumber) · \(Stats.number(weekWords)) ord")
                              : String(localized: "Vecka \(stats.weekNumber)"))
-                            .font(.system(size: 12, weight: .medium)).foregroundStyle(onInk.opacity(0.65)).monospacedDigit()
-                            .lineLimit(1).minimumScaleFactor(0.85)
+                            .font(.system(size: 12, weight: .medium)).foregroundStyle(onInk.opacity(0.6)).monospacedDigit()
+                            .lineLimit(1).fixedSize()
+                            .padding(.bottom, 20)
                             .accessibilityHidden(true)
                     }
                 } else {
@@ -104,11 +131,20 @@ struct HomeHero: View {
             }
         }
         .padding(26)
-        .frame(minHeight: dictation.needsSetup ? 180 : 250)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(LinearGradient(colors: [DS.Colors.ink.opacity(0.86), DS.Colors.ink], startPoint: .top, endPoint: .bottom))
-                .shadow(color: .black.opacity(0.12), radius: 18, y: 8))
+        .frame(minHeight: dictation.needsSetup ? 180 : 280)
+        .background(alignment: .bottomTrailing) {
+            // The sphere of light from Möten, breathing in the corner — with your voice
+            // while you dictate.
+            HeroSphere(meter: dictation.meter, listening: dictation.phase == .recording)
+                .frame(width: 340, height: 340)
+                .offset(x: 70, y: 120)
+                .opacity(0.55)
+                .allowsHitTesting(false)
+        }
+        .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(DS.Colors.night))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
+        .shadow(color: .black.opacity(0.10), radius: 14, y: 6)
         .animation(reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.1), value: session.phase)
     }
 
@@ -117,6 +153,7 @@ struct HomeHero: View {
     private func headline(weekWords: Int, fresh: Bool) -> String {
         let today = stats.today.words
         if today > 0 { return today == 1 ? String(localized: "1 ord i dag") : String(localized: "\(Stats.number(today)) ord i dag") }
+        if weekWords > 0 { return String(localized: "\(Stats.number(weekWords)) ord i veckan") }
         if !fresh { return String(localized: "Inget sagt i dag än") }
         return String(localized: "Håll in \(dictation.hotkey.inlineName) och prata")
     }
@@ -130,8 +167,8 @@ struct HomeHero: View {
             if streak > 1 { parts.append(String(localized: "Du har dikterat \(streak) dagar i rad.")) }
         } else if weekWords > 0 {
             let saved = week.reduce(0) { $0 + $1.stat.savedSeconds }
-            parts.append(saved >= 60 ? String(localized: "I veckan har du sluppit skriva i ungefär \(Stats.prose(saved)).")
-                                     : String(localized: "Texten skrivs där markören står – i vilken app som helst."))
+            parts.append(String(localized: "Inget sagt i dag än."))
+            if saved >= 60 { parts.append(String(localized: "I veckan har du sluppit skriva i ungefär \(Stats.prose(saved)).")) }
         } else if !fresh {
             // A new week (a Monday morning) — not a new user.
             parts.append(streak > 0 ? String(localized: "Du har dikterat \(streak) dagar i rad.")
@@ -139,33 +176,45 @@ struct HomeHero: View {
         } else {
             parts.append(String(localized: "Texten skrivs där markören står – i vilken app som helst."))
         }
-        return parts.joined(separator: " ")
+        return parts.joined(separator: "\n")
     }
 
-    /// Monday to Sunday, today bright, the days to come faint.
+    /// Monday to Sunday: "mån tis ons", today bright with its figure above it, the
+    /// days to come faint, on a thin baseline.
     private func weekBars(_ week: [Stats.WeekDay]) -> some View {
         let top = max(1, week.map(\.stat.words).max() ?? 1)
         var cal = Calendar.current; cal.locale = AppLanguage.locale
-        let letters = cal.veryShortStandaloneWeekdaySymbols
+        let names = cal.shortStandaloneWeekdaySymbols
         let weekday = { (d: Date) in d.formatted(Date.FormatStyle().weekday(.wide).locale(AppLanguage.locale)) }
         // One element for VoiceOver: the days said, not seven stops.
         let spoken = week.filter { !$0.isFuture }.map { day in
             (day.isToday ? String(localized: "i dag") : weekday(day.date)) + " " + String(localized: "\(Stats.number(day.stat.words)) ord")
         }.joined(separator: ", ")
-        return HStack(alignment: .bottom, spacing: 8) {
-            ForEach(Array(week.enumerated()), id: \.offset) { _, day in
-                VStack(spacing: 5) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(onInk.opacity(day.isFuture ? 0.16 : day.stat.words > 0 ? (day.isToday ? 0.95 : 0.55) : 0.28))
-                        .frame(width: 22, height: max(4, 40 * CGFloat(day.stat.words) / CGFloat(top)))
-                    Text(verbatim: letters[cal.component(.weekday, from: day.date) - 1].uppercased())
-                        .font(.system(size: 10, weight: day.isToday ? .bold : .medium))
-                        .foregroundStyle(onInk.opacity(day.isToday ? 0.9 : 0.65))
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .bottom, spacing: 10) {
+                ForEach(Array(week.enumerated()), id: \.offset) { _, day in
+                    VStack(spacing: 5) {
+                        Text(verbatim: day.isToday && day.stat.words > 0 ? Stats.number(day.stat.words) : " ")
+                            .font(.system(size: 10.5, weight: .semibold)).monospacedDigit()
+                            .foregroundStyle(onInk.opacity(0.9)).lineLimit(1).fixedSize()
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(onInk.opacity(day.isFuture ? 0.12 : day.stat.words > 0 ? (day.isToday ? 0.95 : 0.5) : 0.22))
+                            .frame(width: 28, height: max(3, 64 * CGFloat(day.stat.words) / CGFloat(top)))
+                    }
+                    .frame(width: 28)
+                    .help(Text(verbatim: weekday(day.date) + ": " + String(localized: "\(Stats.number(day.stat.words)) ord")))
                 }
-                .help(Text(verbatim: weekday(day.date) + ": " + String(localized: "\(Stats.number(day.stat.words)) ord")))
+            }
+            Rectangle().fill(onInk.opacity(0.2)).frame(width: 7 * 28 + 6 * 10, height: 1)
+            HStack(spacing: 10) {
+                ForEach(Array(week.enumerated()), id: \.offset) { _, day in
+                    Text(verbatim: names[cal.component(.weekday, from: day.date) - 1].lowercased())
+                        .font(.system(size: 11, weight: day.isToday ? .semibold : .regular))
+                        .foregroundStyle(onInk.opacity(day.isToday ? 0.92 : 0.6))
+                        .frame(width: 28)
+                }
             }
         }
-        .frame(height: 58, alignment: .bottom)
         .animation(reduceMotion ? nil : .spring(duration: 0.5, bounce: 0.15), value: week.map(\.stat.words))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: String(localized: "Vecka \(stats.weekNumber)") + ": " + spoken))
@@ -272,7 +321,7 @@ struct HomeHero: View {
                 .frame(minWidth: 150)
                 .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(filled ? onInk : onInk.opacity(0.08)))
                 .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(onInk.opacity(filled ? 0 : 0.5), lineWidth: 1))
-                .foregroundStyle(filled ? DS.Colors.ink : onInk)
+                .foregroundStyle(filled ? DS.Colors.night : onInk)
                 .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             }
             .buttonStyle(PressStyle())
@@ -292,6 +341,58 @@ struct HomeHero: View {
                 .scaleEffect(configuration.isPressed ? 0.98 : 1)
                 .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
         }
+    }
+}
+
+/// The day's figure, counted up from nothing the first time Hem shows it after
+/// launch — then it simply changes. Still with Reduce Motion.
+private struct DayFigure: View {
+    let value: Int
+    @State private var shown: Double = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @MainActor private static var counted = false
+
+    var body: some View {
+        Counting(value: shown)
+            .onAppear {
+                var still = Self.counted || reduceMotion
+                #if DEBUG
+                still = still || CommandLine.arguments.contains("--render-home")   // screenshots: the figure, not its start
+                #endif
+                if still { shown = Double(value); return }
+                Self.counted = true
+                withAnimation(.easeOut(duration: 0.9)) { shown = Double(value) }
+            }
+            .onChange(of: value) { _, new in
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.4)) { shown = Double(new) }
+            }
+    }
+
+    private struct Counting: View, Animatable {
+        var value: Double
+        var animatableData: Double {
+            get { value }
+            set { value = newValue }
+        }
+        var body: some View { Text(verbatim: Stats.number(Int(value.rounded()))).monospacedDigit() }
+    }
+}
+
+/// The sphere of light in the tile's corner. It breathes at rest and follows your
+/// voice while you dictate; it stops when the window can't be seen.
+private struct HeroSphere: View {
+    @ObservedObject var meter: LevelMeter
+    let listening: Bool
+    @State private var visible = true
+
+    var body: some View {
+        let level = listening ? Double(min(1, (meter.levels.suffix(3).max() ?? 0) * 1.6)) : 0.22
+        Constellation(figure: nil, color: .white, level: level, searching: listening, paused: !visible)
+            .onAppear { visible = AppDelegate.mainWindowVisible }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)) { note in
+                guard let window = note.object as? NSWindow, window.contentViewController is NSHostingController<MainView> else { return }
+                visible = window.occlusionState.contains(.visible)
+            }
     }
 }
 
@@ -367,22 +468,9 @@ struct HomeShelves: View {
                 if open.isEmpty {
                     hint("lightbulb", "Det du kommer på mitt i något annat – säg det, så ligger det här.")
                 } else {
-                    FlowLayout(spacing: 10) {
-                        ForEach(open.prefix(4)) { t in
-                            Button { page = .thoughts } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "lightbulb").font(.system(size: 11)).foregroundStyle(DS.Colors.muted)
-                                        .accessibilityHidden(true)
-                                    Text(t.text).font(.system(size: 13)).lineLimit(1)
-                                }
-                                .padding(.horizontal, 13).padding(.vertical, 9)
-                                .frame(maxWidth: 380, alignment: .leading)
-                                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(DS.Colors.card))
-                                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            }
-                            .buttonStyle(.plain)
-                            .help(t.text)
-                        }
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: wide ? 2 : 1),
+                              alignment: .leading, spacing: 12) {
+                        ForEach(open.prefix(4)) { t in ThoughtNote(thought: t, page: $page) }
                     }
                 }
             }
@@ -420,6 +508,43 @@ struct HomeShelves: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 12)
         .card()
+    }
+
+    /// A thought as a note: your own words in serif, and when you said them.
+    private struct ThoughtNote: View {
+        let thought: Thought
+        @Binding var page: Page
+        @State private var hovering = false
+
+        var body: some View {
+            Button { page = .thoughts } label: {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(thought.text).font(.system(size: 15, design: .serif)).lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Spacer(minLength: 0)
+                    Text(verbatim: MeetingRecord.when(thought.date)).font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, minHeight: 86, alignment: .topLeading)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(hovering ? DS.Colors.chip : DS.Colors.card))
+                .overlay(alignment: .topTrailing) {
+                    if hovering {
+                        Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+                            .padding(10).accessibilityHidden(true)
+                    }
+                }
+                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .help(thought.text)
+            .onHover { hovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: hovering)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(verbatim: thought.text))
+            .accessibilityValue(Text(verbatim: MeetingRecord.when(thought.date)))
+            .accessibilityAddTraits(.isButton)
+        }
     }
 
     /// When, the title, what it was about, who was there.
