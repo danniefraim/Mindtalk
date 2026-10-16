@@ -23762,22 +23762,6 @@
         }
       }
     },
-    "det behövs mer ledigt utrymme": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "more free space is needed"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "det behövs mer ledigt utrymme"
-          }
-        }
-      }
-    },
     "dina ord stavas rätt redan när du pratar": {
       "localizations": {
         "en": {

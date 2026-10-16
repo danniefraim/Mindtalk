@@ -205,7 +205,11 @@ struct ModelsCard: View {
                 return message
             case .missing, .downloading:
                 var text = String(localized: "Från Google · \(m.sizeText) · från \(m.minimumMemoryGB) GB minne")
-                if !m.hasRoom { text += " · " + String(localized: "det behövs mer ledigt utrymme") }
+                // How much more, not just "more": you can tell whether emptying the Trash will do.
+                if !m.hasRoom {
+                    let short = max(100_000_000, m.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes)
+                    text += " · " + String(localized: "behöver \(BetterNotes.gigabytes(short)) mer ledigt")
+                }
                 return text
             }
         }()
