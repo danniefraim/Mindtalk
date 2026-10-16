@@ -308,6 +308,29 @@ final class VoiceMemory: ObservableObject {
         return s.count == person.prints.count ? s : Array(repeating: "", count: person.prints.count)
     }
 
+    /// The people named in a meeting whose voices could be remembered.
+    static func namesToRemember(in record: MeetingRecord) -> [String] {
+        var seen = Set<String>()
+        return record.names.sorted { $0.key < $1.key }.map(\.value)
+            .filter { isRealName($0) && seen.insert(key($0)).inserted }
+    }
+
+    /// "Spara" on the offer under a meeting: switched on, and — for a meeting already
+    /// over — its named voices learned now (a meeting still going is learned when it ends).
+    func turnOn(learningFrom record: MeetingRecord?) {
+        enabled = true
+        guard let record, record.hasAudio else { return }
+        Task {
+            for _ in 0..<150 where state != .ready {
+                if case .failed = state { return }
+                try? await Task.sleep(for: .milliseconds(200))
+            }
+            guard state == .ready else { return }
+            let given = record.names.filter { record.recognized[$0.key] == nil && Self.isRealName($0.value) }
+            await learn(words: record.words, audio: MeetingStore.audioURL(for: record.id), names: given)
+        }
+    }
+
     /// The default "Talare 2" isn't a name; anything you typed is.
     private static func isRealName(_ name: String) -> Bool {
         let n = name.trimmingCharacters(in: .whitespaces)

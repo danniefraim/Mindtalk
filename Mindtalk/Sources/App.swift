@@ -425,8 +425,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // `Mindtalk --render-round-intro out.png [--remembers]`: "Först: vem är här?" on the round's dark.
         if let i = args.firstIndex(of: "--render-round-intro"), i + 1 < args.count {
             Task { @MainActor in
-                let view = RoundExplanation(remembers: args.contains("--remembers"), begin: {}, skip: {})
-                    .padding(60).frame(width: 900, height: 520).background(DS.Colors.night)
+                var demo = MeetingRecord(title: "Veckomöte", date: Date(), language: .swedish)
+                demo.names = ["0": "Anna", "1": "Erik"]
+                let view = VStack(spacing: 30) {
+                    RoundExplanation(remembers: .constant(args.contains("--remembers")), begin: {}, skip: {})
+                        .padding(60).frame(width: 900, height: 560).background(DS.Colors.night)
+                    RememberVoicesOffer(record: demo, live: false, preview: true).frame(width: 760).padding(30)
+                }
+                .background(DS.Colors.paper)
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2
                 if let image = renderer.nsImage, let tiff = image.tiffRepresentation,

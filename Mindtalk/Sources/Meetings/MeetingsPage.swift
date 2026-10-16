@@ -1077,6 +1077,7 @@ struct MeetingView: View {
         let turns = MeetingText.turns(record.words, pending: pending, paragraphs: true)
         return VStack(spacing: 0) {
             header(cast)
+            RememberVoicesOffer(record: record, live: live).padding(.bottom, 12)
             ZStack {
                 if live || tab == .transcript {
                     TranscriptView(record: record, turns: turns, cast: cast, session: session, width: width,

@@ -42,6 +42,7 @@ struct VoiceScanner: View {
         @ObservedObject var round: IntroRound
         let lit: Bool
         let shown: Bool
+        @ObservedObject private var memory = VoiceMemory.shared
         @FocusState private var nameFocused: Bool
 
         var body: some View {
@@ -101,7 +102,7 @@ struct VoiceScanner: View {
 
         /// The first round ever: what it is and why, before it listens — and a way past it.
         private var explanation: some View {
-            RoundExplanation(remembers: VoiceMemory.shared.enabled,
+            RoundExplanation(remembers: $memory.enabled,
                              begin: { round.begin() },
                              skip: { round.declineExplained(); scanner.leave() })
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -367,7 +368,7 @@ struct VoiceScanner: View {
 /// "Först: vem är här?" — the first time a meeting starts with the round: what it is,
 /// why, what's kept, and a way past it.
 struct RoundExplanation: View {
-    let remembers: Bool
+    @Binding var remembers: Bool
     let begin: () -> Void
     let skip: () -> Void
 
@@ -378,10 +379,18 @@ struct RoundExplanation: View {
                 .accessibilityAddTraits(.isHeader)
             Text("Var och en säger hej och sitt namn, en i taget. Då vet Mindtalk vem som säger vad i texten. Det tar en halv minut.")
                 .font(.system(size: 16)).foregroundStyle(.white.opacity(0.8))
-            Text(remembers
-                 ? "Röster du namnger känns igen i kommande möten. Bara ett röstavtryck sparas på din Mac, aldrig ljud."
-                 : "Rösterna sparas inte. Vill du att Mindtalk känner igen dem nästa gång slår du på det i Inställningar.")
-                .font(.system(size: 13)).foregroundStyle(.white.opacity(0.6))
+            // A choice, made here and not by default: the voices are other people's.
+            Toggle(isOn: $remembers) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Känn igen rösterna i kommande möten").font(.system(size: 14, weight: .medium)).foregroundStyle(.white)
+                    Text("Bara ett röstavtryck sparas på din Mac, aldrig ljud. Säg till de andra i rummet.")
+                        .font(.system(size: 12.5)).foregroundStyle(.white.opacity(0.6))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.leading, 4)
+            }
+            .toggleStyle(.checkbox)
+            .padding(.top, 4)
             HStack(spacing: 18) {
                 Button(action: begin) {
                     Text("Börja").font(.system(size: 14, weight: .semibold)).padding(.horizontal, 14).frame(minHeight: 32)
@@ -401,5 +410,49 @@ struct RoundExplanation: View {
         .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(DS.Colors.night.opacity(0.88)))
         .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
         .environment(\.colorScheme, .dark)
+    }
+}
+
+/// "Spara rösterna?" — once, under a meeting whose people were named, while voice
+/// memory is off: the moment it's easiest to see what it's for (and to ask the room).
+struct RememberVoicesOffer: View {
+    let record: MeetingRecord
+    let live: Bool
+    var preview = false
+    @ObservedObject private var memory = VoiceMemory.shared
+    @AppStorage("voiceMemoryAsked") private var asked = false
+
+    var body: some View {
+        let names = VoiceMemory.namesToRemember(in: record)
+        if preview || (!memory.enabled && !asked && !names.isEmpty) {
+            HStack(alignment: .center, spacing: 14) {
+                Image(systemName: "person.wave.2").font(.system(size: 16)).foregroundStyle(DS.Colors.muted)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Spara rösterna så att \(Self.list(names)) känns igen nästa gång?")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("Bara ett röstavtryck sparas på din Mac, aldrig ljud. Fråga de andra i rummet först.")
+                        .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 12)
+                Button("Inte nu") { withAnimation(.snappy) { asked = true } }
+                    .buttonStyle(.plain).font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
+                Button("Spara") {
+                    withAnimation(.snappy) { asked = true }
+                    memory.turnOn(learningFrom: live ? nil : record)
+                }
+                .buttonStyle(.ink)
+            }
+            .padding(16)
+            .card()
+            .transition(.opacity)
+        }
+    }
+
+    /// "Anna", "Anna och Erik", "Anna, Erik och Sara" — and past three, "alla fyra".
+    static func list(_ names: [String]) -> String {
+        guard names.count <= 3 else { return String(localized: "alla \(names.count)") }
+        return ListFormatter.localizedString(byJoining: names)
     }
 }
