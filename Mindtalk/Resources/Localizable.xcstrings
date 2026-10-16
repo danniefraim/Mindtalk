@@ -5203,6 +5203,7 @@
       }
     },
     "Du byter språk med ett klick i menyraden.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7070,6 +7071,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ge talaren ett namn"
+          }
+        }
+      }
+    },
+    "Gemma 4": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4"
           }
         }
       }
@@ -23210,19 +23228,19 @@
         }
       }
     },
-    "Välj ett eller båda. Allt hämtas en gång och körs på din Mac – sedan behövs inget internet.": {
+    "Välj ett eller båda – du byter med ett klick i menyraden. Allt hämtas en gång och körs på din Mac.": {
       "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose one or both. Everything is downloaded once and runs on your Mac – after that, no internet is needed."
+            "value": "Choose one or both – switch with a click in the menu bar. Everything is downloaded once and runs on your Mac."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Välj ett eller båda. Allt hämtas en gång och körs på din Mac – sedan behövs inget internet."
+            "value": "Välj ett eller båda – du byter med ett klick i menyraden. Allt hämtas en gång och körs på din Mac."
           }
         }
       }
@@ -23500,6 +23518,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "avbryter"
+          }
+        }
+      }
+    },
+    "behöver %@ mer ledigt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "needs %@ more free"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "behöver %@ mer ledigt"
           }
         }
       }
@@ -23972,6 +24006,22 @@
         }
       }
     },
+    "mest träffsäker": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "most accurate"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "mest träffsäker"
+          }
+        }
+      }
+    },
     "mind talk": {
       "localizations": {
         "en": {
@@ -24278,6 +24328,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "sammanfattning"
+          }
+        }
+      }
+    },
+    "snabbare, tar mindre plats": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "faster, takes less room"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "snabbare, tar mindre plats"
           }
         }
       }

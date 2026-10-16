@@ -38,6 +38,8 @@ struct OnboardingView: View {
     @State private var voices = !VoiceModels.isInstalled
     /// Gemma: not ticked — big, and Apple Intelligence writes summaries without it.
     @State private var gemma = false
+    /// Which Gemma, when the Mac runs both: the recommended one if it fits, else the one that does.
+    @State private var gemmaPick: NotesModel? = LanguageStep.defaultGemma
     @State private var forward = true
     /// The feature steps (Tankar, Möten, Ordlista) you've tried — "Fortsätt" rather than
     /// "Hoppa över". Kept per step, so one stays done when you go back to it.
@@ -100,7 +102,7 @@ struct OnboardingView: View {
     @ViewBuilder private var stepView: some View {
         switch step {
         case .welcome: WelcomeStep()
-        case .language: LanguageStep(chosen: $chosen, listener: $listener, voices: $voices, gemma: $gemma)
+        case .language: LanguageStep(chosen: $chosen, listener: $listener, voices: $voices, gemma: $gemma, gemmaPick: $gemmaPick)
         case .permissions: PermissionsStep(dictation: dictation)
         case .tryIt: TryStep(dictation: dictation)
         case .thoughts: ThoughtsStep(dictation: dictation, done: tried(.thoughts))
@@ -182,21 +184,21 @@ struct OnboardingView: View {
         case .language:
             // Already on its way (the introduction shown again): nothing more to fetch.
             let missing = SpeechModel.allCases.filter { chosen.contains($0) && !$0.isInstalled && dictation.downloads[$0] == nil }
-            let extra = Self.extras(listener: listener, voices: voices, gemma: gemma)
+            let extra = Self.extras(listener: listener, voices: voices, gemma: gemma ? gemmaPick : nil)
             if missing.isEmpty, extra == 0 { return String(localized: "Fortsätt") }
             let bytes = missing.reduce(Int64(0)) { $0 + $1.downloadBytes } + extra
-            return String(localized: "Ladda ned \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) och fortsätt")
+            return String(localized: "Ladda ned \(RecommendedDownloads.size(bytes)) och fortsätt")
         case .ready: return String(localized: "Sätt igång")
         default: return String(localized: "Fortsätt")
         }
     }
 
     /// What the ticked extras still have to fetch, in bytes.
-    private static func extras(listener: Bool, voices: Bool, gemma: Bool) -> Int64 {
+    private static func extras(listener: Bool, voices: Bool, gemma: NotesModel?) -> Int64 {
         var bytes: Int64 = 0
         if listener, !VocabularyBoost.isInstalled, VocabularyBoostStatus.shared.state == .missing { bytes += 100_000_000 }
         if voices, VoiceModels.shared.state == .missing { bytes += 400_000_000 }
-        if gemma, let m = LanguageStep.gemmaModel, case .missing = BetterNotes.shared.state(m) { bytes += m.remainingBytes }
+        if let m = gemma, case .missing = BetterNotes.shared.state(m) { bytes += m.remainingBytes }
         return bytes
     }
 
@@ -210,7 +212,7 @@ struct OnboardingView: View {
             for m in order where !m.isInstalled { dictation.downloadModel(m) }
             if listener { Vocabulary.shared.fetchListener() }
             if voices, VoiceModels.shared.state == .missing { VoiceModels.shared.download() }
-            if gemma, let m = LanguageStep.gemmaModel, case .missing = BetterNotes.shared.state(m) { BetterNotes.shared.download(m) }
+            if gemma, let m = gemmaPick, m.hasRoom, case .missing = BetterNotes.shared.state(m) { BetterNotes.shared.download(m) }
             go(1)
         case .vocabulary:
             VocabularyStep.commitPending?()   // a word typed but not added
@@ -289,18 +291,24 @@ private struct LanguageStep: View {
     @Binding var listener: Bool
     @Binding var voices: Bool
     @Binding var gemma: Bool
+    @Binding var gemmaPick: NotesModel?
     @ObservedObject private var notes = BetterNotes.shared
 
-    /// The best Gemma this Mac runs that also fits on the disk.
-    static var gemmaModel: NotesModel? {
-        guard BetterNotes.shared.active == nil else { return nil }
-        return NotesModel.allCases.reversed().first { $0.supported && $0.hasRoom }
+    /// The Gemmas this Mac runs, largest first — none once one is in use, and none if
+    /// not even the smallest fits.
+    static var gemmaOptions: [NotesModel] {
+        guard BetterNotes.shared.active == nil else { return [] }
+        let options = NotesModel.allCases.reversed().filter(\.supported)
+        return options.contains(where: \.hasRoom) ? Array(options) : []
     }
 
+    /// The best one that fits: the recommended one when there's room for it.
+    static var defaultGemma: NotesModel? { gemmaOptions.first(where: \.hasRoom) }
+
     var body: some View {
-        VStack(spacing: 22) {
+        VStack(spacing: 18) {
             StepHeader(title: "Vilket språk pratar du?",
-                       subtitle: "Välj ett eller båda. Allt hämtas en gång och körs på din Mac – sedan behövs inget internet.")
+                       subtitle: "Välj ett eller båda – du byter med ett klick i menyraden. Allt hämtas en gång och körs på din Mac.")
                 .staggered(0)
             HStack(spacing: 16) {
                 ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
@@ -315,12 +323,6 @@ private struct LanguageStep: View {
             // Everything else worth having, fetched in the same go — so it's there by the
             // time the steps about meetings and the word list come.
             recommended.staggered(3)
-            Text("Du byter språk med ett klick i menyraden.")
-                .font(.system(size: 12))
-                .foregroundStyle(DS.Colors.muted)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 520)
-                .staggered(4)
         }
     }
 }
@@ -329,8 +331,8 @@ extension LanguageStep {
     @ViewBuilder fileprivate var recommended: some View {
         let showsVoices = !VoiceModels.isInstalled
         let showsListener = !VocabularyBoost.isInstalled
-        let model = Self.gemmaModel
-        if showsVoices || showsListener || model != nil {
+        let options = Self.gemmaOptions
+        if showsVoices || showsListener || !options.isEmpty {
             VStack(alignment: .leading, spacing: 9) {
                 Text("Rekommenderas också – laddas ned medan du går vidare")
                     .font(.system(size: 12, weight: .semibold)).foregroundStyle(DS.Colors.muted)
@@ -340,14 +342,15 @@ extension LanguageStep {
                 if showsListener {
                     extra($listener, name: "Lyssnaren", gives: "dina ord stavas rätt redan när du pratar", size: VocabularyBoost.sizeText)
                 }
-                if let m = model {
+                if options.count == 1, let m = options.first {
                     extra($gemma, name: m.name, gives: "mer träffsäkra sammanfattningar", size: m.sizeText)
-                    // The larger one, when this Mac runs it but it doesn't fit.
-                    if let best = NotesModel.recommended, best != m, !best.hasRoom {
-                        Text("Den större \(best.name) (\(best.sizeText)) passar också – frigör \(BetterNotes.gigabytes(max(100_000_000, best.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes))) till.")
-                            .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
-                            .padding(.leading, 24)
+                } else if !options.isEmpty {
+                    // Both sizes: pick one, the recommended one marked.
+                    extra($gemma, name: "Gemma 4", gives: "mer träffsäkra sammanfattningar", size: nil)
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(options) { m in gemmaOption(m, largest: m == options.first) }
                     }
+                    .padding(.leading, 24)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -356,16 +359,57 @@ extension LanguageStep {
         }
     }
 
-    private func extra(_ on: Binding<Bool>, name: String, gives: LocalizedStringKey, size: String) -> some View {
+    private func extra(_ on: Binding<Bool>, name: String, gives: LocalizedStringKey, size: String?) -> some View {
         Toggle(isOn: on) {
             HStack(spacing: 6) {
                 Text(LocalizedStringKey(name)).font(.system(size: 13, weight: .semibold))
                 Text(gives).font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                 Spacer(minLength: 8)
-                Text(verbatim: size).font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.Colors.muted)
+                if let size {
+                    Text(verbatim: size).font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.Colors.muted)
+                }
             }
         }
         .toggleStyle(.checkbox)
+    }
+
+    /// One size of Gemma: picking it ticks Gemma too. One that doesn't fit says how much
+    /// more room it needs.
+    private func gemmaOption(_ m: NotesModel, largest: Bool) -> some View {
+        let picked = gemmaPick == m
+        let fits = m.hasRoom
+        return Button {
+            withAnimation(.snappy(duration: 0.2)) { gemmaPick = m; gemma = true }
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: picked ? "largecircle.fill.circle" : "circle")
+                    .font(.system(size: 13)).foregroundStyle(picked ? DS.Colors.ink : DS.Colors.muted)
+                Text(verbatim: m.name.replacingOccurrences(of: "Gemma 4 ", with: ""))
+                    .font(.system(size: 12.5, weight: .semibold))
+                Text(verbatim: "· \(m.sizeText) ·").font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted).monospacedDigit()
+                Group {
+                    if !fits {
+                        Text("behöver \(BetterNotes.gigabytes(max(100_000_000, m.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes))) mer ledigt")
+                    } else if largest {
+                        Text("mest träffsäker")
+                    } else {
+                        Text("snabbare, tar mindre plats")
+                    }
+                }
+                .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                if m == NotesModel.recommended {
+                    Text("Rekommenderas för din Mac")
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .padding(.horizontal, 7).padding(.vertical, 2)
+                        .background(Capsule().fill(DS.Colors.chip))
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!fits)
+        .opacity(fits ? 1 : 0.55)
+        .accessibilityAddTraits(picked ? .isSelected : [])
     }
 }
 
@@ -383,9 +427,9 @@ private struct LanguageCard: View {
         Button(action: toggle) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top) {
-                    ModelBadge(model: model, size: 26, serif: true)
+                    ModelBadge(model: model, size: 21, serif: true)
                         .foregroundStyle(selected ? DS.Colors.onInk : DS.Colors.accent)
-                        .frame(width: 58, height: 58)
+                        .frame(width: 46, height: 46)
                         .background(Circle().fill(selected ? AnyShapeStyle(DS.Gradients.accent) : AnyShapeStyle(DS.Colors.chip)))
                         .shadow(color: DS.Colors.accent.opacity(selected ? 0.35 : 0), radius: 12, y: 5)
                     Spacer()
@@ -422,7 +466,7 @@ private struct LanguageCard: View {
             }
             .padding(22)
             .frame(maxWidth: .infinity, alignment: .topLeading)
-            .frame(height: 196)
+            .frame(height: 168)
             .raised(selected: selected)
             .overlay(
                 // Hover without choosing: a hint of the ink edge.
