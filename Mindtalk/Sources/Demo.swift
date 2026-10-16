@@ -29,7 +29,7 @@ enum Demo {
     /// och fortsätt", moves on to the last step and logs the progress.
     nonisolated static let autoDownload = CommandLine.arguments.contains("--auto-download")
 
-    /// `--onboarding-step welcome|language|permissions|key|tryIt`
+    /// `--onboarding-step welcome|language|permissions|tryIt|more`
     nonisolated static var onboardingStep: String? {
         let args = CommandLine.arguments
         guard let i = args.firstIndex(of: "--onboarding-step"), i + 1 < args.count else { return nil }

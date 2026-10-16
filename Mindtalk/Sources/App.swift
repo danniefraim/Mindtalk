@@ -553,6 +553,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --render-onboarding out.png --onboarding-step more [--dark]`: one step of the introduction.
+        if let i = args.firstIndex(of: "--render-onboarding"), i + 1 < args.count {
+            Task { @MainActor in
+                let dark = args.contains("--dark")
+                NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                let view = OnboardingView(dictation: .shared) {}.frame(width: 760, height: 640)
+                    .environment(\.colorScheme, dark ? .dark : .light)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                _ = renderer.nsImage
+                try? await Task.sleep(for: .seconds(2.5))     // the entrance and the typing
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --render-dictation out.png [--dark]`: the Diktering page with your history.
         if let i = args.firstIndex(of: "--render-dictation"), i + 1 < args.count {
             Task { @MainActor in
@@ -1412,6 +1432,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             window.delegate = self
             window.contentViewController = NSHostingController(rootView: OnboardingView(dictation: dictation) { [weak self] in
                 self?.onboardingWindow?.close()
+                // Not left with only an icon in the menu bar: Hem, where it all starts.
+                AppDelegate.showWindow(page: .dictation)
             })
             window.setContentSize(NSSize(width: 760, height: 640))
             window.center()
