@@ -27,6 +27,8 @@ struct OnboardingView: View {
     }
     @State private var chosen: Set<SpeechModel> = [Settings.engine]
     @State private var forward = true
+    /// The feature steps (Tankar, Möten, Ordlista): tried — "Fortsätt" rather than "Hoppa över".
+    @State private var stepDone = false
 
     var body: some View {
         ZStack {
@@ -76,9 +78,9 @@ struct OnboardingView: View {
         case .language: LanguageStep(chosen: $chosen)
         case .permissions: PermissionsStep(dictation: dictation)
         case .tryIt: TryStep(dictation: dictation)
-        case .thoughts: ThoughtsStep(dictation: dictation)
-        case .meetings: MeetingsStep()
-        case .vocabulary: VocabularyStep()
+        case .thoughts: ThoughtsStep(dictation: dictation, done: $stepDone)
+        case .meetings: MeetingsStep(done: $stepDone)
+        case .vocabulary: VocabularyStep(dictation: dictation, done: $stepDone)
         }
     }
 
@@ -121,6 +123,7 @@ struct OnboardingView: View {
             let bytes = missing.reduce(Int64(0)) { $0 + $1.downloadBytes }
             return String(localized: "Ladda ned \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) och fortsätt")
         case .vocabulary: return String(localized: "Öppna Mindtalk")
+        case .thoughts, .meetings: return stepDone ? String(localized: "Fortsätt") : String(localized: "Hoppa över")
         default: return String(localized: "Fortsätt")
         }
     }
@@ -148,6 +151,7 @@ struct OnboardingView: View {
     private func go(_ delta: Int) {
         guard let next = Step(rawValue: step.rawValue + delta) else { return }
         forward = delta > 0
+        stepDone = false
         withAnimation(.spring(duration: 0.55, bounce: 0.12)) { step = next }
     }
 }
