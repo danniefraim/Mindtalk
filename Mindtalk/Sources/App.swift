@@ -1024,6 +1024,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     private let dictation = Dictation.shared
 
     func applicationWillTerminate(_ notification: Notification) {
+        Self.isQuitting = true
         MediaControl.shared.restoreNow()
         MeetingSession.shared.saveBeforeQuit()
     }
@@ -1172,7 +1173,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
         if !Settings.didOnboard {
             // Start at login from the first launch — installed in /Applications, that is.
-            if Bundle.main.bundlePath.hasPrefix("/Applications") { try? SMAppService.mainApp.register() }
+            // Once: an item you removed in System Settings stays removed, also when the
+            // introduction comes back because it was closed early.
+            let registered = "loginItemRegistered"
+            if Bundle.main.bundlePath.hasPrefix("/Applications"), !UserDefaults.standard.bool(forKey: registered),
+               (try? SMAppService.mainApp.register()) != nil {
+                UserDefaults.standard.set(true, forKey: registered)
+            }
             showOnboarding()
         } else if let raw = UserDefaults.standard.string(forKey: "reopenPage"), let page = Page(rawValue: raw) {
             UserDefaults.standard.removeObject(forKey: "reopenPage")
@@ -1439,9 +1446,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     // MARK: Onboarding
 
+    /// The introduction is on screen — in its own window, or over the main one
+    /// (from Settings → Om). Trying the key there says what's missing instead of
+    /// opening the window.
     static var isOnboarding: Bool {
-        (NSApp.delegate as? AppDelegate)?.onboardingWindow?.isVisible == true
+        guard let delegate = NSApp.delegate as? AppDelegate else { return false }
+        return delegate.onboardingWindow?.isVisible == true || (MainView.introductionShown && mainWindowVisible)
     }
+
+    /// "Öppna Mindtalk" closes the introduction — Hem is already open.
+    private var finishingOnboarding = false
 
     func showOnboarding() {
         if onboardingWindow == nil {
@@ -1454,9 +1468,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             window.isReleasedWhenClosed = false
             window.delegate = self
             window.contentViewController = NSHostingController(rootView: OnboardingView(dictation: dictation) { [weak self] in
-                self?.onboardingWindow?.close()
+                VocabularyStep.commitPending?()     // a word typed but not added
+                VocabularyStep.commitPending = nil
+                Settings.didOnboard = true
+                self?.finishingOnboarding = true
                 // Not left with only an icon in the menu bar: Hem, where it all starts.
+                // Opened before the introduction closes, so Mindtalk stays in the Dock
+                // all along rather than leaving it for a moment.
                 AppDelegate.showWindow(page: .dictation)
+                self?.onboardingWindow?.close()
             })
             window.setContentSize(NSSize(width: 760, height: 640))
             window.center()
@@ -1527,7 +1547,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     static var mainWindowVisible: Bool { (NSApp.delegate as? AppDelegate)?.window?.isVisible == true }
     static var mainWindowIsKey: Bool { (NSApp.delegate as? AppDelegate)?.window?.isKeyWindow == true && mainWindowVisible }
-    /// Quitting with a meeting running: nothing opens on the way out.
+    /// Quitting (also with a meeting running): nothing opens on the way out.
     private(set) static var isQuitting = false
 
     static func hideMainWindow() { (NSApp.delegate as? AppDelegate)?.window?.close() }
@@ -1640,17 +1660,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     func windowWillClose(_ notification: Notification) {
         dictation.stopPickingKey()
+        let closing = notification.object as? NSWindow
         // The meeting carries on in its panel when its window goes.
-        if (notification.object as? NSWindow) === window { MeetingPanel.shared.mainWindowClosed() }
-        if (notification.object as? NSWindow) === onboardingWindow {
-            // Closing the introduction — however it's closed — means it's done.
-            Settings.didOnboard = true
+        if closing === window { MeetingPanel.shared.mainWindowClosed() }
+        if closing === onboardingWindow {
             onboardingWindow = nil
+            if finishingOnboarding {
+                finishingOnboarding = false
+            } else {
+                // Closed with the red button or ⌘W: a word typed in the list is kept, and
+                // past "Prova" the introduction counts as done — before it, it comes
+                // back at the next launch. Either way you land on Hem, not on nothing.
+                VocabularyStep.commitPending?()
+                VocabularyStep.commitPending = nil
+                if OnboardingView.pastTry { Settings.didOnboard = true }
+                if !Self.isQuitting { Self.showWindow(page: .dictation) }
+            }
         }
         windowOpen = [window, onboardingWindow].contains { w in
-            w != nil && w !== (notification.object as? NSWindow) && w?.isVisible == true
+            w != nil && w !== closing && w?.isVisible == true
         }
         Self.updateDockPolicy()
+        // Mindtalk just left the Dock: once, a word from the menu bar icon on where it went.
+        // Not while a meeting moves into its panel, nor on the way out.
+        if closing === window, !windowOpen, !Settings.showInDock, !Self.isQuitting, !MeetingSession.shared.isRecording {
+            MenuBarHint.showOnce(from: statusItem.button)
+        }
     }
 
     private var windowOpen = false

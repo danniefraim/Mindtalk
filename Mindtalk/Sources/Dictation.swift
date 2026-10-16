@@ -218,7 +218,8 @@ final class Dictation: ObservableObject {
         switch issue {
         case .accessibility: requestAccessibility()
         case .microphone: requestMicrophone()
-        case .modelMissing, .modelFailed: downloadModel()
+        case .modelMissing: downloadModel()
+        case .modelFailed: retryModel()
         case .modelDownloading: AppDelegate.showWindow(page: .settings)
         }
     }
@@ -452,20 +453,41 @@ final class Dictation: ObservableObject {
 
     /// A download error in words anyone understands.
     static func plainWords(for error: Error) -> String {
-        if let url = error as? URLError {
-            switch url.code {
-            case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed, .internationalRoamingOff:
-                return String(localized: "Internetanslutningen bröts. Kontrollera nätverket och försök igen.")
-            case .timedOut, .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed:
-                return String(localized: "Kunde inte nå servern just nu. Försök igen om en stund.")
-            default: break
+        switch DownloadTrouble(error) {
+        case .offline: return String(localized: "Internetanslutningen bröts. Kontrollera nätverket och försök igen.")
+        case .unreachable: return String(localized: "Kunde inte nå servern just nu. Försök igen om en stund.")
+        case .diskFull: return String(localized: "Det finns inte tillräckligt med ledigt utrymme på din Mac.")
+        case .other: return String(localized: "Något gick fel under nedladdningen. Försök igen.")
+        }
+    }
+
+    /// What went wrong with a download, roughly — also when a library wraps the
+    /// system's error in its own (the voice models' does).
+    enum DownloadTrouble {
+        case offline, unreachable, diskFull, other
+
+        init(_ error: Error) {
+            var next: Error? = error
+            for _ in 0..<5 {
+                guard let error = next else { break }
+                if let url = error as? URLError {
+                    switch url.code {
+                    case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed, .internationalRoamingOff:
+                        self = .offline; return
+                    case .timedOut, .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed:
+                        self = .unreachable; return
+                    default: break
+                    }
+                }
+                let ns = error as NSError
+                if (ns.domain == NSCocoaErrorDomain && ns.code == NSFileWriteOutOfSpaceError)
+                    || (ns.domain == NSPOSIXErrorDomain && ns.code == Int(ENOSPC)) {
+                    self = .diskFull; return
+                }
+                next = ns.userInfo[NSUnderlyingErrorKey] as? Error
             }
+            self = .other
         }
-        let ns = error as NSError
-        if ns.domain == NSCocoaErrorDomain, ns.code == NSFileWriteOutOfSpaceError {
-            return String(localized: "Det finns inte tillräckligt med ledigt utrymme på din Mac.")
-        }
-        return String(localized: "Något gick fel under nedladdningen. Försök igen.")
     }
 
     func cancelDownload(_ which: SpeechModel? = nil) {
@@ -670,11 +692,21 @@ final class Dictation: ObservableObject {
         }
         switch model {
         case .ready: break
-        case .loading: return report { $0.fail(String(localized: "Talmodellen startar – ett ögonblick…")) }
+        case .loading:
+            // Still not ready after a few seconds: the first time on this Mac, which takes
+            // minutes — said the same way as in the introduction.
+            let long = Date().timeIntervalSince(loadingSince) > 5
+            return report {
+                $0.fail(long ? String(localized: "Talmodellen görs redo – första gången tar det några minuter.")
+                             : String(localized: "Talmodellen startar – ett ögonblick…"))
+            }
         case .downloading: return report { $0.fail(String(localized: "Talmodellen laddas fortfarande ned…")) }
         case .missing, .failed:
             return report {
-                if AppDelegate.isOnboarding { $0.fail(String(localized: "\($0.engine.title) är inte nedladdad än.")) }
+                if AppDelegate.isOnboarding {
+                    $0.fail($0.engine.isInstalled ? String(localized: "Talmodellen startade inte.")
+                                                   : String(localized: "\($0.engine.title) är inte nedladdad än."))
+                }
                 else { AppDelegate.showWindow() }
             }
         }

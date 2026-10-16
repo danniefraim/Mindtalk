@@ -49,6 +49,9 @@ struct MainView: View {
     static var startPage: Page = .dictation
     /// The page on screen (an import done elsewhere notifies).
     static var currentPage: Page = .dictation
+    /// The introduction is playing over the window — it counts as the introduction
+    /// for the dictation key, too (AppDelegate.isOnboarding).
+    static var introductionShown = false
 
     var body: some View {
         // The page gets the whole window; a tab bar floats at the leading edge.
@@ -90,13 +93,19 @@ struct MainView: View {
         }
         .overlay {
             if introduction {
-                IntroductionOverlay(dictation: dictation) {
-                    withAnimation(.easeOut(duration: 0.25)) { introduction = false }
+                IntroductionOverlay(dictation: dictation) { finished in
+                    MainView.introductionShown = false
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        introduction = false
+                        // All the way through: on to Hem, where it all starts.
+                        if finished { page = .dictation }
+                    }
                 }
                 .transition(.opacity)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .showIntroduction)) { _ in
+            MainView.introductionShown = true
             withAnimation(.easeOut(duration: 0.3)) { introduction = true }
         }
         .onReceive(NotificationCenter.default.publisher(for: .showPage)) { note in
@@ -121,13 +130,14 @@ extension Notification.Name {
 /// The introduction over the whole main window, with a way out in the corner.
 private struct IntroductionOverlay: View {
     @ObservedObject var dictation: Dictation
-    let close: () -> Void
+    /// True when it was gone through to the end ("Öppna Mindtalk").
+    let close: (_ finished: Bool) -> Void
 
     var body: some View {
-        OnboardingView(dictation: dictation) { done() }
+        OnboardingView(dictation: dictation) { done(finished: true) }
             .background(DS.Colors.paper)
             .overlay(alignment: .topTrailing) {
-                Button(action: done) {
+                Button { done(finished: false) } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(DS.Colors.muted)
@@ -136,17 +146,20 @@ private struct IntroductionOverlay: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .keyboardShortcut(.cancelAction)
+                // No Esc: "Prova" uses it to stop a dictation, and one press too
+                // many shouldn't end the whole introduction.
                 .help("Stäng introduktionen")
                 .accessibilityLabel("Stäng introduktionen")
                 .padding(16)
             }
     }
 
-    private func done() {
+    private func done(finished: Bool) {
         dictation.stopPickingKey()
+        VocabularyStep.commitPending?()     // a word typed but not added
+        VocabularyStep.commitPending = nil
         Settings.didOnboard = true
-        close()
+        close(finished)
     }
 }
 
@@ -221,7 +234,8 @@ private func modelDetail(_ model: Dictation.ModelState, _ engine: SpeechModel) -
     case .downloading(let p) where p >= 0.9: return String(localized: "Förbereder modellen för din Mac…")
     case .downloading: return String(localized: "Laddar ned \(engine.modelName) – bara den här gången.")
     case .loading: return String(localized: "Startar – första gången kan det ta några minuter.")
-    case .failed(let message): return message
+    // Downloaded but wouldn't start: said plainly, not as the system's error.
+    case .failed(let message): return engine.isInstalled ? String(localized: "Talmodellen startade inte.") : message
     case .ready: return String(localized: "Redo att diktera.")
     }
 }
@@ -236,7 +250,10 @@ private struct ModelControl: View {
                 Text(dictation.engine.modelName).font(.system(size: 14, weight: .semibold))
             }
         case .missing, .failed:
-            Button(LocalizedStringKey(dictation.model == .missing ? "Ladda ned" : "Försök igen")) { dictation.downloadModel() }
+            Button(LocalizedStringKey(dictation.model == .missing ? "Ladda ned" : "Försök igen")) {
+                // A failed one is started again if it's here, downloaded again if not.
+                if dictation.model == .missing { dictation.downloadModel() } else { dictation.retryModel() }
+            }
                 .buttonStyle(.ink)
         case .downloading(let p):
             HStack(spacing: 10) {

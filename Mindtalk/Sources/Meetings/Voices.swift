@@ -33,6 +33,7 @@ final class VoiceModels: ObservableObject {
     static let final = Nemotron3Config.fast128
     /// Both bundles, rounded — shown before downloading.
     static let sizeText = "400 MB"
+    private static let downloadBytes: Int64 = 400_000_000
 
     static var directory: URL { SpeechModel.rootDirectory.appendingPathComponent("Voices") }
     private static var repoDirectory: URL { directory.appendingPathComponent("nemotron-3-diarization") }
@@ -50,6 +51,12 @@ final class VoiceModels: ObservableObject {
 
     func download() {
         if case .downloading = state { return }
+        // Room for the download and for preparing it for this Mac, with some to spare
+        // (as for the speech models).
+        guard BetterNotes.freeBytes > Self.downloadBytes * 2 + 500_000_000 else {
+            state = .failed(String(localized: "Det behövs drygt \(BetterNotes.gigabytes(Self.downloadBytes * 2)) ledigt på disken."))
+            return
+        }
         state = .downloading(0)
         Task {
             do {
@@ -65,8 +72,17 @@ final class VoiceModels: ObservableObject {
                 }
                 state = Self.isInstalled ? .ready : .failed(String(localized: "Nedladdningen blev inte komplett."))
             } catch {
-                state = .failed(error.localizedDescription)
+                state = .failed(Self.plainWords(for: error))
             }
+        }
+    }
+
+    /// A failed download in words anyone understands, not the system's.
+    private static func plainWords(for error: Error) -> String {
+        switch Dictation.DownloadTrouble(error) {
+        case .offline: return String(localized: "Ingen internetanslutning – försök igen när du är uppkopplad.")
+        case .diskFull: return String(localized: "Det finns inte plats på disken.")
+        case .unreachable, .other: return String(localized: "Röstmodellen kunde inte laddas ned – försök igen.")
         }
     }
 
