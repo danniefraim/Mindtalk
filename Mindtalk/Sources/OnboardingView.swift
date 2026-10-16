@@ -101,7 +101,7 @@ struct OnboardingView: View {
             if step == .permissions || step.rawValue >= Step.thoughts.rawValue { DownloadStatus(dictation: dictation) }
             Spacer()
             if step.rawValue >= Step.thoughts.rawValue, step != .vocabulary {
-                Button("Hoppa över resten") { done() }
+                Button("Avsluta introduktionen") { done() }
                     .buttonStyle(.plain)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(DS.Colors.muted)
