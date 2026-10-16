@@ -481,7 +481,7 @@ private struct FirstWordCard: View {
             Spacer(minLength: 10)
             HStack(spacing: 8) {
                 if case .added = result, offersListener {
-                    Button("Ladda ned \(VocabularyBoost.sizeText)") { Vocabulary.shared.allowListener() }
+                    Button("Ladda ned \(VocabularyBoost.sizeText)") { Vocabulary.shared.fetchListener() }
                         .buttonStyle(.ink)
                         .help("Lyssnaren hör dina ord direkt – också namn som låter som vanliga ord")
                 }

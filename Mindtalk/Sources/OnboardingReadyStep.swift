@@ -11,9 +11,10 @@ struct ReadyStep: View {
     @ObservedObject var dictation: Dictation
     @ObservedObject private var voices = VoiceModels.shared
     @ObservedObject private var notes = BetterNotes.shared
+    @ObservedObject private var listener = VocabularyBoostStatus.shared
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 18) {
             StepHeader(title: "Nu kör vi",
                        subtitle: "Det här fungerar nu – i vilken app som helst.")
                 .staggered(0)
@@ -30,6 +31,8 @@ struct ReadyStep: View {
                 CardDivider()
                 meetingsRow
                 CardDivider()
+                wordsRow
+                CardDivider()
                 summariesRow
             }
             .padding(.horizontal, 20)
@@ -38,7 +41,7 @@ struct ReadyStep: View {
             .staggered(1)
             HStack(spacing: 10) {
                 MenuBarChip()
-                Text("Mindtalk finns i menyraden och fortsätter när du stänger fönstret. Den startar när du loggar in – ändra under Inställningar.")
+                Text("Mindtalk finns i menyraden och startar när du loggar in.")
                     .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -63,6 +66,25 @@ struct ReadyStep: View {
             ReadyRow(icon: "person.2.wave.2", state: .optional, title: "Möten", keys: nil,
                      detail: String(localized: "Behöver röstmodellen för att hålla isär vem som pratar.")) {
                 Button("Ladda ned \(VoiceModels.sizeText)") { VoiceModels.shared.download() }
+                    .buttonStyle(SoftButtonStyle(small: true))
+            }
+        }
+    }
+
+    // MARK: Ordlista
+
+    @ViewBuilder private var wordsRow: some View {
+        switch listener.state {
+        case .ready:
+            ReadyRow(icon: "character.book.closed", state: .ready, title: "Ordlista", keys: nil,
+                     detail: String(localized: "Lyssnaren hör dina ord – de stavas rätt redan när du pratar."))
+        case .downloading:
+            ReadyRow(icon: "character.book.closed", state: .waiting, title: "Ordlista", keys: nil,
+                     detail: String(localized: "Lyssnaren laddas ned – sedan stavas dina ord rätt redan när du pratar."))
+        case .missing, .failed:
+            ReadyRow(icon: "character.book.closed", state: .optional, title: "Ordlista", keys: nil,
+                     detail: String(localized: "Med lyssnaren stavas namn och ord rätt redan när du pratar.")) {
+                Button("Ladda ned \(VocabularyBoost.sizeText)") { Vocabulary.shared.fetchListener() }
                     .buttonStyle(SoftButtonStyle(small: true))
             }
         }
@@ -93,11 +115,11 @@ struct ReadyStep: View {
             let apple = MeetingNotes.isAvailable
             ReadyRow(icon: "sparkle", state: apple ? .ready : .optional, title: "Sammanfattningar", keys: nil,
                      detail: (gemma.map { m in
-                         apple ? String(localized: "Skrivs av Apple Intelligence. Vill du ha mer träffsäkra? \(m.name) från Google hittar fler beslut och uppgifter (\(m.sizeText)).")
+                         apple ? String(localized: "Skrivs av Apple Intelligence. \(m.name) från Google hittar fler beslut och uppgifter (\(m.sizeText)).")
                                : String(localized: "\(m.name) från Google skriver dem på din Mac (\(m.sizeText)).")
                      } ?? (apple ? String(localized: "Skrivs av Apple Intelligence.")
                                  : String(localized: "Kräver Apple Intelligence – eller Gemma när det finns plats på disken.")))
-                     + (larger.map { " " + String(localized: "Den större \($0.name) (\($0.sizeText)) passar också din Mac – frigör \(BetterNotes.gigabytes(max(100_000_000, $0.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes))) till, så går den att välja under Inställningar → Modeller.") } ?? "")) {
+                     + (larger.map { " " + String(localized: "Den större \($0.name) (\($0.sizeText)) passar också – frigör \(BetterNotes.gigabytes(max(100_000_000, $0.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes))) till.") } ?? "")) {
                 if let m = gemma {
                     Button("Ladda ned") { notes.download(m) }
                         .buttonStyle(SoftButtonStyle(small: true))
@@ -138,7 +160,7 @@ private struct ReadyRow<Action: View>: View {
             Spacer(minLength: 8)
             action()
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, 9)
         .accessibilityElement(children: .combine)
     }
 

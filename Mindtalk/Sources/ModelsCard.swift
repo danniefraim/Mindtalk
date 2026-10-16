@@ -61,15 +61,13 @@ struct ModelsCard: View {
                 row(name: "Parakeet CTC",
                     detail: VocabularyBoost.isInstalled
                         ? String(localized: "Hör orden i din ordlista · \(size(VocabularyBoost.directory, fallback: VocabularyBoost.sizeText))")
-                        : vocabulary.hasOwnWords
-                            ? String(localized: "Hör orden i din ordlista – de stavas rätt redan när du pratar · \(VocabularyBoost.sizeText)")
-                            : String(localized: "Hör orden i din ordlista · går att ladda ned när du har lagt till ett eget ord")) {
+                        : String(localized: "Hör orden i din ordlista – de stavas rätt redan när du pratar · \(VocabularyBoost.sizeText)")) {
                     if VocabularyBoost.isInstalled {
                         finderMenu(VocabularyBoost.directory)
                     } else if listener.state == .downloading {
                         ProgressView().controlSize(.small)
-                    } else if vocabulary.hasOwnWords {
-                        Button("Ladda ned") { Vocabulary.shared.allowListener() }.buttonStyle(.soft)
+                    } else {
+                        Button("Ladda ned") { Vocabulary.shared.fetchListener() }.buttonStyle(.soft)
                     }
                 }
             }
@@ -298,9 +296,16 @@ struct ModelsCard: View {
         }
     }
 
+    /// On a model that's here: a green tick that says so, and ⋯ for Finder and removing.
     private var moreLabel: some View {
-        Image(systemName: "ellipsis").font(.system(size: 13, weight: .semibold)).foregroundStyle(DS.Colors.muted)
-            .frame(width: 28, height: 26).contentShape(Rectangle())
+        HStack(spacing: 10) {
+            Label("Nedladdad", systemImage: "checkmark.circle.fill")
+                .labelStyle(.iconOnly)
+                .font(.system(size: 15))
+                .foregroundStyle(DS.Colors.good)
+            Image(systemName: "ellipsis").font(.system(size: 13, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+        }
+        .frame(height: 26).padding(.horizontal, 4).contentShape(Rectangle())
     }
 
     private func finderMenu(_ folder: URL) -> some View {

@@ -31,6 +31,9 @@ struct OnboardingView: View {
         return .welcome
     }
     @State private var chosen: Set<SpeechModel> = [Settings.engine]
+    /// The listener for the word list (100 MB), fetched along with the speech model —
+    /// ticked from the start; it's small and makes names right as you speak.
+    @State private var listener = !VocabularyBoost.isInstalled
     @State private var forward = true
     /// The feature steps (Tankar, Möten, Ordlista) you've tried — "Fortsätt" rather than
     /// "Hoppa över". Kept per step, so one stays done when you go back to it.
@@ -93,7 +96,7 @@ struct OnboardingView: View {
     @ViewBuilder private var stepView: some View {
         switch step {
         case .welcome: WelcomeStep()
-        case .language: LanguageStep(chosen: $chosen)
+        case .language: LanguageStep(chosen: $chosen, listener: $listener)
         case .permissions: PermissionsStep(dictation: dictation)
         case .tryIt: TryStep(dictation: dictation)
         case .thoughts: ThoughtsStep(dictation: dictation, done: tried(.thoughts))
@@ -175,8 +178,9 @@ struct OnboardingView: View {
         case .language:
             // Already on its way (the introduction shown again): nothing more to fetch.
             let missing = SpeechModel.allCases.filter { chosen.contains($0) && !$0.isInstalled && dictation.downloads[$0] == nil }
-            if missing.isEmpty { return String(localized: "Fortsätt") }
+            if missing.isEmpty, !(listener && !VocabularyBoost.isInstalled && !Settings.listenerAllowed) { return String(localized: "Fortsätt") }
             let bytes = missing.reduce(Int64(0)) { $0 + $1.downloadBytes }
+                + (listener && !VocabularyBoost.isInstalled ? 100_000_000 : 0)
             return String(localized: "Ladda ned \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) och fortsätt")
         case .ready: return String(localized: "Sätt igång")
         default: return String(localized: "Fortsätt")
@@ -191,6 +195,7 @@ struct OnboardingView: View {
             let order = SpeechModel.allCases.filter(chosen.contains)
             if !chosen.contains(dictation.engine), let first = order.first { dictation.setEngine(first) }
             for m in order where !m.isInstalled { dictation.downloadModel(m) }
+            if listener { Vocabulary.shared.fetchListener() }
             go(1)
         case .vocabulary:
             VocabularyStep.commitPending?()   // a word typed but not added
@@ -265,6 +270,7 @@ private struct WelcomeStep: View {
 
 private struct LanguageStep: View {
     @Binding var chosen: Set<SpeechModel>
+    @Binding var listener: Bool
 
     var body: some View {
         VStack(spacing: 26) {
@@ -280,6 +286,18 @@ private struct LanguageStep: View {
                     }
                     .staggered(i + 1)
                 }
+            }
+            // The listener comes along — small, and what makes your own words right.
+            if !VocabularyBoost.isInstalled {
+                Toggle(isOn: $listener) {
+                    (Text("Lyssnaren för din ordlista").fontWeight(.semibold)
+                     + Text(verbatim: " · ")
+                     + Text("namn och ord stavas rätt redan när du pratar (\(VocabularyBoost.sizeText))"))
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(DS.Colors.muted)
+                }
+                .toggleStyle(.checkbox)
+                .staggered(3)
             }
             Text("Du byter språk med ett klick i menyraden.")
                 .font(.system(size: 12))

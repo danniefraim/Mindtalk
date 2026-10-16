@@ -334,6 +334,14 @@ final class Vocabulary: ObservableObject {
         prepareListener()
     }
 
+    /// The introduction and Modeller: fetched now, before there are words of your own —
+    /// it's small, and the words you add later are heard right away.
+    func fetchListener() {
+        Settings.listenerAllowed = true
+        guard !VocabularyBoost.isInstalled else { return }
+        Task { await VocabularyBoost.shared.prepare() }
+    }
+
     var hasOwnWords: Bool { Self.hasOwnWords(entries) }
 
     /// The polish may split a name ("Mindact" → "Mind act") in a way the list can't

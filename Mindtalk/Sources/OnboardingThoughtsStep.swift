@@ -513,7 +513,7 @@ struct ThoughtsStep: View {
                 .transition(.opacity.combined(with: .offset(y: 6)))
             case .saved:
                 Label {
-                    Text("Sparad i Tankar – inte där du skrev.")
+                    Text("Sparad i Tankar.")
                 } icon: {
                     Image(systemName: "checkmark.circle.fill")
                 }

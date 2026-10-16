@@ -27,10 +27,10 @@ struct RecommendedDownloads: View {
             all.append(Item(id: "voices", name: "Nemotron 3", gives: String(localized: "Vem som säger vad i möten"),
                             bytes: 400_000_000, start: { VoiceModels.shared.download() }))
         }
-        if listener.state == .missing, vocabulary.hasOwnWords {
+        if listener.state == .missing {
             all.append(Item(id: "listener", name: String(localized: "Lyssnaren"),
                             gives: String(localized: "Dina ord stavas rätt redan när du pratar"),
-                            bytes: 100_000_000, start: { Vocabulary.shared.allowListener() }))
+                            bytes: 100_000_000, start: { Vocabulary.shared.fetchListener() }))
         }
         var room = BetterNotes.freeBytes - 2_000_000_000
         // The best Gemma this Mac runs that also fits next to the rest — the large one
