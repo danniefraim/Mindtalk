@@ -15,6 +15,8 @@ struct ModelsCard: View {
     @ObservedObject private var voices = VoiceModels.shared
     @ObservedObject private var notes = BetterNotes.shared
     @ObservedObject private var meeting = MeetingSession.shared
+    @ObservedObject private var listener = VocabularyBoostStatus.shared
+    @ObservedObject private var vocabulary = Vocabulary.shared
     /// What each folder takes on disk — counted when the card shows.
     @State private var onDisk: [URL: Int64] = [:]
     @State private var total: Int64?
@@ -34,6 +36,7 @@ struct ModelsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            RecommendedDownloads()
             group("Tal", "Skriver ned det du säger – när du dikterar, i möten och för tankar.") {
                 ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
                     if i > 0 { CardDivider() }
@@ -58,8 +61,16 @@ struct ModelsCard: View {
                 row(name: "Parakeet CTC",
                     detail: VocabularyBoost.isInstalled
                         ? String(localized: "Hör orden i din ordlista · \(size(VocabularyBoost.directory, fallback: VocabularyBoost.sizeText))")
-                        : String(localized: "Hör orden i din ordlista · laddas ned (\(VocabularyBoost.sizeText)) när du lägger till ett eget ord")) {
-                    if VocabularyBoost.isInstalled { finderMenu(VocabularyBoost.directory) }
+                        : vocabulary.hasOwnWords
+                            ? String(localized: "Hör orden i din ordlista – de stavas rätt redan när du pratar · \(VocabularyBoost.sizeText)")
+                            : String(localized: "Hör orden i din ordlista · går att ladda ned när du har lagt till ett eget ord")) {
+                    if VocabularyBoost.isInstalled {
+                        finderMenu(VocabularyBoost.directory)
+                    } else if listener.state == .downloading {
+                        ProgressView().controlSize(.small)
+                    } else if vocabulary.hasOwnWords {
+                        Button("Ladda ned") { Vocabulary.shared.allowListener() }.buttonStyle(.soft)
+                    }
                 }
             }
             HStack(spacing: 10) {

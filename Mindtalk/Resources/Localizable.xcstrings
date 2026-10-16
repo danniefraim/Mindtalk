@@ -4925,6 +4925,22 @@
         }
       }
     },
+    "Dina ord stavas rätt redan när du pratar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your words spelled right as you speak"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dina ord stavas rätt redan när du pratar"
+          }
+        }
+      }
+    },
     "Ditt ord hamnar här": {
       "localizations": {
         "en": {
@@ -8596,18 +8612,34 @@
         }
       }
     },
-    "Hör orden i din ordlista · laddas ned (%@) när du lägger till ett eget ord": {
+    "Hör orden i din ordlista · går att ladda ned när du har lagt till ett eget ord": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hears the words in your word list · downloaded (%@) when you add a word of your own"
+            "value": "Hears the words on your list · can be downloaded once you've added a word of your own"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hör orden i din ordlista · laddas ned (%@) när du lägger till ett eget ord"
+            "value": "Hör orden i din ordlista · går att ladda ned när du har lagt till ett eget ord"
+          }
+        }
+      }
+    },
+    "Hör orden i din ordlista – de stavas rätt redan när du pratar · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hears the words on your list – they're spelled right as you speak · %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hör orden i din ordlista – de stavas rätt redan när du pratar · %@"
           }
         }
       }
@@ -8739,6 +8771,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "I dag %@"
+          }
+        }
+      }
+    },
+    "I dag rättas dina ord i texten efteråt. Med lyssnaren hör Mindtalk dem direkt – också namn som låter som vanliga ord. Den laddas ned en gång (%@) och körs på din Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today your words are corrected in the text afterwards. With the listener, Mindtalk hears them right away – even names that sound like ordinary words. It's downloaded once (%@) and runs on your Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I dag rättas dina ord i texten efteråt. Med lyssnaren hör Mindtalk dem direkt – också namn som låter som vanliga ord. Den laddas ned en gång (%@) och körs på din Mac."
           }
         }
       }
@@ -11106,6 +11154,22 @@
         }
       }
     },
+    "Ladda ned allt · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download all · %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda ned allt · %@"
+          }
+        }
+      }
+    },
     "Ladda ned den först": {
       "localizations": {
         "en": {
@@ -11118,6 +11182,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ladda ned den först"
+          }
+        }
+      }
+    },
+    "Ladda ned lyssnaren (%@), så blir ”%@” rätt redan när du pratar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download the listener (%1$@), and “%2$@” is right as you speak."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda ned lyssnaren (%@), så blir ”%@” rätt redan när du pratar."
           }
         }
       }
@@ -11385,6 +11465,38 @@
         }
       }
     },
+    "Laddar ned lyssnaren – sedan blir ”%@” rätt redan när du pratar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading the listener – then “%@” is right as you speak."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddar ned lyssnaren – sedan blir ”%@” rätt redan när du pratar."
+          }
+        }
+      }
+    },
+    "Laddar ned lyssnaren…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading the listener…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddar ned lyssnaren…"
+          }
+        }
+      }
+    },
     "Laddar ned röstmodellen": {
       "localizations": {
         "en": {
@@ -11429,6 +11541,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Laddar ned talmodellen – %lld %%"
+          }
+        }
+      }
+    },
+    "Laddas ned en gång och körs på din Mac. Du har %@ ledigt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloaded once and runs on your Mac. You have %@ free."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddas ned en gång och körs på din Mac. Du har %@ ledigt."
           }
         }
       }
@@ -12069,6 +12197,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lyssnar – låst"
+          }
+        }
+      }
+    },
+    "Lyssnaren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The listener"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssnaren"
+          }
+        }
+      }
+    },
+    "Lyssnaren hör dina ord direkt – också namn som låter som vanliga ord": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The listener hears your words right away – even names that sound like ordinary words"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssnaren hör dina ord direkt – också namn som låter som vanliga ord"
           }
         }
       }
@@ -18708,6 +18868,22 @@
         }
       }
     },
+    "Stava rätt redan när du pratar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spelled right as you speak"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stava rätt redan när du pratar"
+          }
+        }
+      }
+    },
     "Steg %lld av %lld": {
       "localizations": {
         "en": {
@@ -21922,6 +22098,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vem gör vad?"
+          }
+        }
+      }
+    },
+    "Vem som säger vad i möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Who says what in meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vem som säger vad i möten"
           }
         }
       }

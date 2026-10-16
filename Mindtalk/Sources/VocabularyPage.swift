@@ -53,6 +53,7 @@ struct VocabularyPage: View {
                 .padding(.bottom, 4)
                 .staggered(0)
             tile.staggered(0)
+            ListenerOffer().staggered(0)
             if !vocabulary.suggestions.isEmpty { suggestionsCard.staggered(0) }
 
             SectionTitle("Lägg till")
