@@ -362,7 +362,7 @@ struct SettingsPage: View {
             }
             .card()
             .staggered(3)
-            BetterNotesCard(notes: .shared)
+            SummaryWriterRow()
                 .staggered(3)
             VoiceMemoryCard(memory: .shared)
                 .staggered(3)
@@ -386,6 +386,13 @@ struct SettingsPage: View {
             }
             .card()
             .staggered(4)
+
+            // MARK: Modeller
+
+            SectionTitle("Modeller")
+                .staggered(4)
+            ModelsCard(dictation: dictation)
+                .staggered(4)
 
             // MARK: Allmänt
 

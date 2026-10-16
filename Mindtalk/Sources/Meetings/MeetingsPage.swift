@@ -2151,7 +2151,7 @@ private struct WritingPlaceholder: View {
         VStack(alignment: .leading, spacing: 30) {
             HStack(spacing: 8) {
                 SettlingLine(color: DS.Colors.ink).scaleEffect(0.8)
-                Text(BetterNotes.shared.isActive ? String(localized: "Gemma 4 skriver sammanfattningen…")
+                Text(BetterNotes.shared.isActive ? String(localized: "\(BetterNotes.shared.writerName) skriver sammanfattningen…")
                                                  : String(localized: "Skriver sammanfattningen…"))
             }
             .font(.system(size: 13, weight: .medium))
@@ -2469,7 +2469,7 @@ private struct RewriteBanner: View {
     let writing: Bool
     @State private var started = Date()
 
-    private var writer: String { BetterNotes.shared.isActive ? "Gemma 4" : "Apple Intelligence" }
+    private var writer: String { BetterNotes.shared.writerName }
 
     var body: some View {
         HStack(spacing: 14) {

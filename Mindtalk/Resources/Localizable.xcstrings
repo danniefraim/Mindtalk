@@ -341,6 +341,7 @@
       }
     },
     "%@ på disken. Ta bort den för att frigöra plats – Apple Intelligence tar över.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -368,6 +369,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ skriver om sammanfattningen…"
+          }
+        }
+      }
+    },
+    "%@ skriver sammanfattningen…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is writing the summary…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ skriver sammanfattningen…"
           }
         }
       }
@@ -2118,6 +2135,38 @@
         }
       }
     },
+    "Använd %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Använd %@"
+          }
+        }
+      }
+    },
+    "Använd för sammanfattningarna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use for the summaries"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Använd för sammanfattningarna"
+          }
+        }
+      }
+    },
     "Används": {
       "localizations": {
         "en": {
@@ -2299,6 +2348,38 @@
         }
       }
     },
+    "Apple Intelligence.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence."
+          }
+        }
+      }
+    },
+    "Apple Intelligence. %@ skriver mer träffsäkert – den laddar du ned under Modeller.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence. %@ writes more accurately – download it under Models."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence. %@ skriver mer träffsäkert – den laddar du ned under Modeller."
+          }
+        }
+      }
+    },
     "Att göra": {
       "extractionState": "manual",
       "localizations": {
@@ -2415,6 +2496,7 @@
       }
     },
     "Av. Apple Intelligence skriver sammanfattningarna.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3548,6 +3630,38 @@
         }
       }
     },
+    "Den kan laddas ned igen senare. Apple Intelligence skriver sammanfattningarna så länge.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It can be downloaded again later. Apple Intelligence writes the summaries meanwhile."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den kan laddas ned igen senare. Apple Intelligence skriver sammanfattningarna så länge."
+          }
+        }
+      }
+    },
+    "Den laddas ned i bakgrunden – du kan använda Mindtalk under tiden – och fungerar sedan utan internet. Du har %lld GB ledigt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It downloads in the background – you can use Mindtalk meanwhile – and then works without internet. You have %lld GB free."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den laddas ned i bakgrunden – du kan använda Mindtalk under tiden – och fungerar sedan utan internet. Du har %lld GB ledigt."
+          }
+        }
+      }
+    },
     "Den nya sammanfattningen är klar": {
       "localizations": {
         "en": {
@@ -3564,7 +3678,24 @@
         }
       }
     },
+    "Den som används kan inte tas bort – byt språk under Inspelning först.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The one in use can't be removed – switch language under Recording first."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den som används kan inte tas bort – byt språk under Inspelning först."
+          }
+        }
+      }
+    },
     "Det behövs drygt %@ ledigt på disken – du har %lld GB.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4731,6 +4862,22 @@
         }
       }
     },
+    "Finns inte på den här Macen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not available on this Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finns inte på den här Macen."
+          }
+        }
+      }
+    },
     "Fler i rummet? Säg hej.": {
       "extractionState": "stale",
       "localizations": {
@@ -4761,6 +4908,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fler val"
+          }
+        }
+      }
+    },
+    "Fler val under Modeller.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More choices under Models."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fler val under Modeller."
           }
         }
       }
@@ -5202,6 +5365,54 @@
         }
       }
     },
+    "Från %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From %@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Från %@."
+          }
+        }
+      }
+    },
+    "Från Google · %@ · från %lld GB minne": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From Google · %1$@ · from %2$lld GB of memory"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Från Google · %@ · från %lld GB minne"
+          }
+        }
+      }
+    },
+    "Från NVIDIA · ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From NVIDIA · "
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Från NVIDIA · "
+          }
+        }
+      }
+    },
     "Från en annan app, t.ex. ett mötesprogram": {
       "extractionState": "stale",
       "localizations": {
@@ -5516,6 +5727,7 @@
       }
     },
     "Gemma 4 från Google skriver djupare sammanfattningar och svar, men kräver minst %lld GB minne. Den här Macen har %lld GB, så Apple Intelligence skriver sammanfattningarna.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5566,6 +5778,7 @@
       }
     },
     "Gemma 4 från Google skriver sammanfattningarna och svarar på frågor – mer träffsäkert än Apple Intelligence och utan ämnesspärrar. Laddas ned en gång (%@) och fungerar sedan utan internet.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5616,6 +5829,7 @@
       }
     },
     "Gemma 4 skriver mötenas sammanfattningar och svarar på frågor.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5649,6 +5863,7 @@
       }
     },
     "Gemma 4 skriver sammanfattningen…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6790,6 +7005,22 @@
         }
       }
     },
+    "Håller isär vem som pratar och känner igen röster till nästa gång.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tells who is speaking and recognises voices next time."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håller isär vem som pratar och känner igen röster till nästa gång."
+          }
+        }
+      }
+    },
     "Höger ⇧ Shift": {
       "localizations": {
         "en": {
@@ -6883,6 +7114,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hör ingen"
+          }
+        }
+      }
+    },
+    "Hör orden i din ordlista · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hears the words in your word list · %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hör orden i din ordlista · %@"
+          }
+        }
+      }
+    },
+    "Hör orden i din ordlista · laddas ned (%@) när du lägger till ett eget ord": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hears the words in your word list · downloaded (%@) when you add a word of your own"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hör orden i din ordlista · laddas ned (%@) när du lägger till ett eget ord"
           }
         }
       }
@@ -7211,6 +7474,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Importerad från %@. Visa filen i Finder"
+          }
+        }
+      }
+    },
+    "Inbyggd": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Built in"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inbyggd"
+          }
+        }
+      }
+    },
+    "Inbyggd i macOS · alla Macar med Apple Intelligence": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Built into macOS · every Mac with Apple Intelligence"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inbyggd i macOS · alla Macar med Apple Intelligence"
           }
         }
       }
@@ -8535,6 +8830,22 @@
         }
       }
     },
+    "Kräver minst %lld GB minne – den här Macen har %lld GB.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs at least %1$lld GB of memory – this Mac has %2$lld GB."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kräver minst %lld GB minne – den här Macen har %lld GB."
+          }
+        }
+      }
+    },
     "Kunde inte ladda ned %@ (HTTP %lld).": {
       "localizations": {
         "en": {
@@ -8682,6 +8993,22 @@
         }
       }
     },
+    "Känner igen röster mellan möten · följer med appen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recognises voices between meetings · comes with the app"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Känner igen röster mellan möten · följer med appen"
+          }
+        }
+      }
+    },
     "Känner igen röster. Av LAB260, byggd på ReDimNet2 av Palabra.ai. Ingår i appen. Apache 2.0.": {
       "extractionState": "stale",
       "localizations": {
@@ -8767,7 +9094,6 @@
       }
     },
     "Ladda ned": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8795,6 +9121,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ladda ned %@"
+          }
+        }
+      }
+    },
+    "Ladda ned %@ (%@)?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download %1$@ (%2$@)?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda ned %@ (%@)?"
           }
         }
       }
@@ -8844,6 +9186,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ladda ned Nemotron 3 först – det görs på sidan Möten."
+          }
+        }
+      }
+    },
+    "Ladda ned den först": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download it first"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda ned den först"
           }
         }
       }
@@ -8979,6 +9337,7 @@
       }
     },
     "Laddar ned Gemma 4 från Google. Du kan fortsätta använda Mindtalk under tiden.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10679,6 +11038,7 @@
       }
     },
     "Mindtalk hör vem som säger vad och skriver medan ni pratar – bäst med upp till fem personer.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10695,7 +11055,6 @@
       }
     },
     "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10891,6 +11250,39 @@
         }
       }
     },
+    "Modeller": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Models"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modeller"
+          }
+        }
+      }
+    },
+    "Modellerna tar %@ på den här Macen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The models take %@ on this Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modellerna tar %@ på den här Macen."
+          }
+        }
+      }
+    },
     "Musik medan du dikterar": {
       "extractionState": "stale",
       "localizations": {
@@ -11037,6 +11429,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Möten du spelar in eller drar in hamnar här."
+          }
+        }
+      }
+    },
+    "Möten kan inte spelas in förrän den laddats ned igen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meetings can't be recorded until it's downloaded again."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Möten kan inte spelas in förrän den laddats ned igen."
           }
         }
       }
@@ -12034,6 +12442,22 @@
         }
       }
     },
+    "Ordlistan": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Word list"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordlistan"
+          }
+        }
+      }
+    },
     "PDF": {
       "localizations": {
         "en": {
@@ -12875,6 +13299,22 @@
         }
       }
     },
+    "Rekommenderas för din Mac": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recommended for your Mac"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rekommenderas för din Mac"
+          }
+        }
+      }
+    },
     "Rensa": {
       "localizations": {
         "en": {
@@ -12972,6 +13412,22 @@
         }
       }
     },
+    "Räknar ihop…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adding up…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Räknar ihop…"
+          }
+        }
+      }
+    },
     "Rättar skiljetecken, upprepningar och självrättelser som ”nej, jag menar…”. Körs med Apple Intelligence på din Mac – inget skickas iväg.": {
       "extractionState": "stale",
       "localizations": {
@@ -13049,6 +13505,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Röstavtrycken tas bort. Namnen i dina möten finns kvar."
+          }
+        }
+      }
+    },
+    "Röster i möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voices in meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Röster i möten"
           }
         }
       }
@@ -13281,6 +13753,22 @@
         }
       }
     },
+    "Sammanfattningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summaries"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfattningar"
+          }
+        }
+      }
+    },
     "Sammanfattningar kräver Apple Intelligence": {
       "localizations": {
         "en": {
@@ -13297,7 +13785,25 @@
         }
       }
     },
+    "Sammanfattningarna skrivs av": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summaries are written by"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfattningarna skrivs av"
+          }
+        }
+      }
+    },
     "Sammanfattningarna skrivs med Apple Intelligence igen. Du kan ladda ned Gemma 4 när du vill.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13758,6 +14264,22 @@
         }
       }
     },
+    "Skriver ned det du säger – när du dikterar, i möten och för tankar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Writes down what you say – when you dictate, in meetings and for thoughts."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriver ned det du säger – när du dikterar, i möten och för tankar."
+          }
+        }
+      }
+    },
     "Skriver ned tanken…": {
       "localizations": {
         "en": {
@@ -13787,6 +14309,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skriver om sammanfattningen…"
+          }
+        }
+      }
+    },
+    "Skriver sammanfattningen av ett möte och svarar på dina frågor. Välj vilken som skriver.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Writes a meeting's summary and answers your questions. Choose which one writes."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriver sammanfattningen av ett möte och svarar på dina frågor. Välj vilken som skriver."
           }
         }
       }
@@ -14083,6 +14621,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Slå på Apple Intelligence för att få en sammanfattning. Texten finns under fliken Text."
+          }
+        }
+      }
+    },
+    "Slå på Apple Intelligence i Systeminställningar för att använda den.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn on Apple Intelligence in System Settings to use it."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slå på Apple Intelligence i Systeminställningar för att använda den."
           }
         }
       }
@@ -15662,6 +16216,22 @@
         }
       }
     },
+    "Ta bort %@?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove %@?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort %@?"
+          }
+        }
+      }
+    },
     "Ta bort %lld tankar för gott?": {
       "localizations": {
         "en": {
@@ -15679,6 +16249,7 @@
       }
     },
     "Ta bort Gemma 4?": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15690,6 +16261,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ta bort Gemma 4?"
+          }
+        }
+      }
+    },
+    "Ta bort Nemotron 3?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Nemotron 3?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort Nemotron 3?"
           }
         }
       }
@@ -16046,6 +16633,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tack, %@."
+          }
+        }
+      }
+    },
+    "Tal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speech"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tal"
           }
         }
       }
@@ -16605,6 +17208,7 @@
       }
     },
     "Texten skrivs medan ni pratar, och rösterna hålls isär – bäst med upp till fem personer.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -18666,6 +19270,22 @@
         }
       }
     },
+    "det behövs mer ledigt utrymme": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "more free space is needed"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "det behövs mer ledigt utrymme"
+          }
+        }
+      }
+    },
     "fäst": {
       "localizations": {
         "en": {
@@ -18891,6 +19511,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "klar"
+          }
+        }
+      }
+    },
+    "macOS laddar fortfarande ned den.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS is still downloading it."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS laddar fortfarande ned den."
           }
         }
       }

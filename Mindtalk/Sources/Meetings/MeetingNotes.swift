@@ -222,7 +222,7 @@ final class MeetingNotes: ObservableObject {
         do {
             let t0 = Date()
             let local = BetterNotes.shared.isActive
-            print(local ? "Modell: \(BetterNotes.modelName)" : "Modell: Apple Intelligence")
+            print("Modell: \(BetterNotes.shared.writerName)")
             let s = try await write(lines, local: local)
             print(String(format: "\n(%.1f s)\nTitel: %@\nÖversikt: %@", Date().timeIntervalSince(t0), s.title ?? "–", s.overview))
             let show = { (title: String, items: [MeetingSummary.Item]) in

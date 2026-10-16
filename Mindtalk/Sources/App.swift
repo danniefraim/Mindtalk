@@ -72,19 +72,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         #if DEBUG
         // Self-test: `Mindtalk --meeting file.wav [--model …] [--speed 2]` plays a recording
         // through the meeting pipeline as if it were the microphone.
-        // `Mindtalk --install-notes`: downloads and checks "Bättre anteckningar" (Gemma 4).
-        if args.contains("--install-notes") {
+        // `Mindtalk --install-notes [e4b|a4b26]`: downloads and checks a notes model (Gemma 4).
+        if let i = args.firstIndex(of: "--install-notes") {
             Task { @MainActor in
+                let model = (i + 1 < args.count ? NotesModel(rawValue: args[i + 1]) : nil) ?? .large
                 let notes = BetterNotes.shared
-                print("Ledigt: \(BetterNotes.freeBytes / 1_000_000_000) GB, minne: \(BetterNotes.memoryGB) GB")
-                notes.download()
+                print("\(model.name) · ledigt: \(BetterNotes.freeBytes / 1_000_000_000) GB, minne: \(BetterNotes.memoryGB) GB")
+                notes.download(model)
                 var last = -1
                 while true {
-                    switch notes.state {
+                    switch notes.state(model) {
                     case .downloading(let p):
                         let pct = Int(p * 100)
                         if pct / 5 != last / 5 { last = pct; print("\(pct) %") }
-                    case .ready: print("Klar: \(BetterNotes.directory.path)"); exit(0)
+                    case .ready: print("Klar: \(model.directory.path)"); exit(0)
                     case .failed(let m): print("Fel: \(m)"); exit(1)
                     case .unsupported: print("Stöds inte på den här Macen."); exit(1)
                     case .missing: break
@@ -510,6 +511,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --render-models out.png [--dark]`: Settings → Modeller, as on this Mac.
+        if let i = args.firstIndex(of: "--render-models"), i + 1 < args.count {
+            Task { @MainActor in
+                let dark = args.contains("--dark")
+                NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                let view = ModelsCard(dictation: .shared)
+                    .padding(28).frame(width: 760).background(DS.Colors.paper)
+                    .environment(\.colorScheme, dark ? .dark : .light)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                _ = renderer.nsImage                       // starts counting the sizes
+                try? await Task.sleep(for: .seconds(3))
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --render-dictation out.png [--dark]`: the Diktering page with your history.
         if let i = args.firstIndex(of: "--render-dictation"), i + 1 < args.count {
             Task { @MainActor in
@@ -798,22 +820,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             print(failed == 0 ? "Polish guard, rules and names self-test passed (\(guardCases.count + ruleCases.count + nameCases.count) cases)." : "\(failed) fel")
             exit(failed == 0 ? 0 : 1)
         }
-        // `Mindtalk --gemma-download`: fetches Gemma 4 without the window, printing how
-        // far it is — continuing an earlier try. Stop it with Ctrl-C to test that.
-        if args.contains("--gemma-download") {
-            Task { @MainActor in
-                print("Kvar att hämta: \(BetterNotes.remainingBytes / 1_000_000) MB")
-                BetterNotes.shared.download()
-                let t0 = Date()
-                while case .downloading(let p) = BetterNotes.shared.state {
-                    print(String(format: "%5.1f %%  (%.0f s)", p * 100, Date().timeIntervalSince(t0)))
-                    try? await Task.sleep(for: .seconds(5))
-                }
-                print("Klart: \(BetterNotes.shared.state)")
-                exit(0)
-            }
-            RunLoop.main.run()
-        }
         // `Mindtalk --notes "fråga"`: notes and an answer for the newest meeting.
         if let i = args.firstIndex(of: "--notes"), i + 1 < args.count {
             Task {
@@ -946,6 +952,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // The voice models, ready before the first meeting (after an update macOS can
         // take a minute to prepare them — better now, quietly, than when you press start).
         DispatchQueue.main.asyncAfter(deadline: .now() + 8) { VoiceModels.warmUp() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { ModelHousekeeping.tidy() }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         // Left or right click: the panel — one menu, nothing hidden.
         statusItem.button?.target = self

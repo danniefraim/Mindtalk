@@ -399,8 +399,14 @@ final class Dictation: ObservableObject {
 
     func downloadModel(_ which: SpeechModel? = nil, thenUse: Bool = false) {
         let m = which ?? engine
-        if thenUse { useWhenReady.insert(m) }
         guard downloadTasks[m] == nil, !m.isInstalled else { return }
+        // Room for the download and for preparing it for this Mac, with some to spare.
+        guard BetterNotes.freeBytes > m.downloadBytes * 2 + 500_000_000 else {
+            downloadErrors[m] = String(localized: "Det behövs drygt \(BetterNotes.gigabytes(m.downloadBytes * 2)) ledigt på disken.")
+            refreshModels()
+            return
+        }
+        if thenUse { useWhenReady.insert(m) }
         downloads[m] = 0
         downloadStarted[m] = Date()
         downloadErrors[m] = nil

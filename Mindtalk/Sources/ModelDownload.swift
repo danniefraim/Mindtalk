@@ -57,7 +57,7 @@ enum ModelDownload {
             guard Int64(data.count) == file.size else { throw URLError(.cannotParseResponse) }
             return data
         }
-        guard digest(of: data) == file.sha256 else { throw ModelError.checksumMismatch(file.path) }
+        guard matches(data, file) else { throw ModelError.checksumMismatch(file.path) }
         try data.write(to: dest, options: .atomic)
     }
 
@@ -147,6 +147,17 @@ enum ModelDownload {
 
     private static func digest(of data: Data) -> String {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// A small file is checked against its SHA-256 — or, written "git:…", against the
+    /// id the model's repository gives it (Git's own hash of the file), so a pinned
+    /// revision can be checked without downloading its small files beforehand.
+    private static func matches(_ data: Data, _ file: SpeechModel.RemoteFile) -> Bool {
+        guard file.sha256.hasPrefix("git:") else { return digest(of: data) == file.sha256 }
+        var hasher = Insecure.SHA1()
+        hasher.update(data: Data("blob \(data.count)\0".utf8))
+        hasher.update(data: data)
+        return "git:" + hasher.finalize().map { String(format: "%02x", $0) }.joined() == file.sha256
     }
 
     /// Bytes on disk in a folder — what an interrupted download already has
