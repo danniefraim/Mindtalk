@@ -597,7 +597,13 @@ final class Dictation: ObservableObject {
         case .idle, .failed, .copied, .saved:
             forThought = true
             begin()
-            if phase == .recording { lock() } else { forThought = false }
+            if phase == .recording { lock() } else {
+                forThought = false
+                // A click has no key to let go of: a problem left waiting for a release
+                // would swallow the next real one.
+                pendingProblem = nil
+                lastReport = nil
+            }
         default:
             NSSound.beep()
         }

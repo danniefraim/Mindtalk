@@ -27,6 +27,12 @@ struct ThoughtsStep: View {
     @State private var nudge = false
     @State private var holdingButton = false
     @State private var buttonDown: Date?
+    /// The press reached the microphone — if not, a release says why rather than "too short".
+    @State private var pressRecorded = false
+    /// Down on the button right now; resets by itself if the gesture is torn down.
+    @GestureState private var pressing = false
+    /// The flight and the light, so leaving the step stops them.
+    @State private var tasks: [Task<Void, Never>] = []
 
     // The list, and the thought on its way into it.
     @State private var earlier: [Thought] = []
@@ -89,8 +95,16 @@ struct ThoughtsStep: View {
         .onAppear(perform: appeared)
         .onDisappear {
             // Navigated away mid-press: keep what was said rather than leave it listening.
-            if holdingButton { holdingButton = false; dictation.finishFromHUD() }
+            // A hands-free thought keeps listening — it's yours to finish, here or in the bubble.
+            releaseButton()
+            tasks.forEach { $0.cancel() }
+            tasks = []
         }
+        // The button gone or switched off under your finger, or another app in front:
+        // no press left hanging.
+        .onChange(of: live.useButton) { _, _ in releaseButton() }
+        .onChange(of: usable) { _, now in if !now { releaseButton() } }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in releaseButton() }
         .onChange(of: dictation.phase) { old, new in phaseChanged(from: old, to: new) }
         .onChange(of: thoughts.fresh) { _, id in arrived(id) }
         .onReceive(dictation.meter.$levels) { levels in
@@ -122,6 +136,7 @@ struct ThoughtsStep: View {
         /// The dictation key instead of the thought key.
         var otherDictation = false
         var useButton = false
+        var micGranted = true
     }
 
     private var live: Live {
@@ -135,13 +150,14 @@ struct ThoughtsStep: View {
                     locked: thought && dictation.handsFree && !holdingButton,
                     writing: dictation.phase == .transcribing && dictation.forThought,
                     otherDictation: recording && !dictation.forThought,
-                    useButton: shortcut == nil || !dictation.accessibilityGranted)
+                    useButton: shortcut == nil || !dictation.accessibilityGranted,
+                    micGranted: dictation.micGranted)
     }
 
     /// Ready, and nothing has happened yet.
     private var waiting: Bool {
         let l = live
-        return l.ready && progress == 0 && !l.held && !l.locked && !l.writing && arrivals.isEmpty && incoming == nil
+        return l.ready && l.micGranted && progress == 0 && !l.held && !l.locked && !l.writing && arrivals.isEmpty && incoming == nil
     }
 
     /// "⌃⌥T"
@@ -151,6 +167,15 @@ struct ThoughtsStep: View {
 
     private enum Note: Equatable {
         case noWords, tooShort, failed(String)
+    }
+
+    private static var micText: String { String(localized: "Mindtalk behöver mikrofonen – tillåt den i förra steget.") }
+
+    /// Why a press didn't start listening, in Dictation's own words where it has them.
+    private var whyNotListening: String? {
+        if MeetingSession.shared.isRecording { return String(localized: "Ett möte spelas in – dikteringen är pausad.") }
+        if !dictation.micGranted { return Self.micText }
+        return nil
     }
 
     // MARK: The key — or a button to hold
@@ -215,28 +240,35 @@ struct ThoughtsStep: View {
         .animation(.snappy(duration: 0.2), value: holdingButton)
         .animation(.snappy(duration: 0.2), value: held)
         .contentShape(Capsule())
-        .gesture(DragGesture(minimumDistance: 0)
-            .onChanged { _ in pressButton() }
-            .onEnded { _ in releaseButton() })
-        .opacity(live.ready ? 1 : 0.4)
-        .allowsHitTesting(live.ready)
+        .gesture(DragGesture(minimumDistance: 0).updating($pressing) { _, down, _ in down = true })
+        .onChange(of: pressing) { _, down in down ? pressButton() : releaseButton() }
+        .opacity(usable ? 1 : 0.4)
+        .allowsHitTesting(usable)
         .background { WaitingHalo(active: waiting, strong: nudge) }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Håll in och prata"))
+        // VoiceOver can't hold: once to start, once to keep it.
+        .accessibilityLabel(held || live.locked ? Text("Klar") : Text("Börja prata"))
         .accessibilityAddTraits(.isButton)
         .accessibilityAction {
-            // VoiceOver can't hold: once to start, once to keep it.
+            guard usable else { return }
             if dictation.phase == .recording { dictation.finishFromHUD() } else { dictation.startThought() }
         }
     }
 
+    /// The button can start listening: the model is ready and the mic allowed.
+    private var usable: Bool { live.ready && live.micGranted }
+
     private func pressButton() {
-        guard !holdingButton else { return }
+        guard !holdingButton, usable else { return }
         holdingButton = true
         buttonDown = Date()
         note = nil
+        // Busy writing the last one down: nothing starts, and that's not your press's fault.
+        let busy = dictation.phase == .transcribing
         dictation.startThought()
+        pressRecorded = dictation.phase == .recording && dictation.forThought
+        if !pressRecorded, !busy, let why = whyNotListening { note = .failed(why) }
     }
 
     private func releaseButton() {
@@ -244,6 +276,9 @@ struct ThoughtsStep: View {
         holdingButton = false
         let quick = buttonDown.map { Date().timeIntervalSince($0) < 0.6 } ?? false
         buttonDown = nil
+        // Never started (busy, a meeting, no mic): already said why, or nothing to say.
+        guard pressRecorded else { return }
+        pressRecorded = false
         if quick { note = .tooShort }
         if dictation.phase == .recording, dictation.forThought { dictation.finishFromHUD() }
     }
@@ -407,10 +442,11 @@ struct ThoughtsStep: View {
     private var hint: Hint? {
         let l = live
         if !l.ready { return .info(String(localized: "Snart kan du prova – när talmodellen är klar.")) }
+        if !l.micGranted { return .info(Self.micText) }
         if l.locked { return .locked }
         if l.otherDictation {
-            return .info(l.useButton ? String(localized: "Det är dikteringstangenten – för en tanke håller du in knappen.")
-                                     : String(localized: "Det är dikteringstangenten – för en tanke håller du in \(keysInline)."))
+            return .info(l.useButton ? String(localized: "Det är genvägen för diktering – för en tanke håller du in knappen.")
+                                     : String(localized: "Det är genvägen för diktering – för en tanke håller du in \(keysInline)."))
         }
         if l.held || l.writing { return nil }
         if let note {
@@ -440,8 +476,8 @@ struct ThoughtsStep: View {
                         .background(Circle().fill(DS.Colors.chip))
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Håll kvar medan du pratar").font(.system(size: 13.5, weight: .semibold))
-                        Text("Mindtalk lyssnar ändå – tryck Klar när du har sagt det.")
+                        Text("Det går bra att släppa").font(.system(size: 13.5, weight: .semibold))
+                        Text("Mindtalk lyssnar tills du trycker Klar.")
                             .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                     }
                     Spacer(minLength: 8)
@@ -494,8 +530,21 @@ struct ThoughtsStep: View {
 
     private func appeared() {
         #if DEBUG
-        if let demo = Self.demo { setUpDemo(demo) }
+        if let demo = Self.demo { return setUpDemo(demo) }
         #endif
+        // Back to the step while a thought is still listening (hands-free) or being
+        // written down: pick it up where it is.
+        guard dictation.forThought else { return }
+        switch dictation.phase {
+        case .recording:
+            attempt = true
+            progress = (dictation.meter.levels.suffix(6).max() ?? 0) > 0.08 ? 2 : 1
+        case .transcribing:
+            attempt = true
+            progress = 2
+        default:
+            break
+        }
     }
 
     private func phaseChanged(from old: Dictation.Phase, to new: Dictation.Phase) {
@@ -504,7 +553,7 @@ struct ThoughtsStep: View {
             attempt = true
             note = nil
             withAnimation(.snappy(duration: 0.3)) { progress = 1 }
-        case .failed(let message) where attempt:
+        case .failed(let message) where attempt || dictation.forThought:
             attempt = false
             note = .failed(message)
             withAnimation(.smooth(duration: 0.4)) { progress = 0 }
@@ -523,6 +572,8 @@ struct ThoughtsStep: View {
     private func arrived(_ id: UUID?) {
         guard let id, !arrivals.contains(where: { $0.id == id }),
               let t = thoughts.all.first(where: { $0.id == id }), t.writing == nil, !t.text.isEmpty else { return }
+        // Saved: the step is done now, whatever the flight is up to.
+        done = true
         if let previous = incoming { land(previous.id) }
         attempt = false
         note = nil
@@ -541,12 +592,12 @@ struct ThoughtsStep: View {
         arrivals.insert(t, at: 0)       // animated by the list
         incoming = t
         withAnimation(.smooth(duration: 0.35)) { appear = 1 }
-        Task { @MainActor in
+        tasks.append(Task { @MainActor in
             // A moment to read what you said, then off it goes.
             try? await Task.sleep(for: .milliseconds(650))
-            guard incoming?.id == t.id else { return }
+            guard !Task.isCancelled, incoming?.id == t.id else { return }
             withAnimation(.smooth(duration: 0.8)) { flight = 1 } completion: { land(t.id) }
-        }
+        })
     }
 
     private func land(_ id: UUID) {
@@ -564,20 +615,20 @@ struct ThoughtsStep: View {
     private func light(_ id: UUID) {
         lit.insert(id)
         withAnimation(.smooth(duration: 0.3)) { panelLit = true }
-        done = true
-        Task { @MainActor in
+        tasks.append(Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.4))
+            guard !Task.isCancelled else { return }
             withAnimation(.smooth(duration: 0.9)) {
                 lit.remove(id)
                 panelLit = false
             }
-        }
+        })
     }
 
     // MARK: Screenshots
 
     #if DEBUG
-    /// `--thoughts-demo waiting|nudge|talking|locked|writing|flying|landed|fallback|wrongkey|notready`
+    /// `--thoughts-demo waiting|nudge|talking|locked|writing|flying|landed|fallback|nomic|wrongkey|notready`
     private static let demo: String? = {
         let args = CommandLine.arguments
         guard let i = args.firstIndex(of: "--thoughts-demo"), i + 1 < args.count else { return nil }
@@ -592,6 +643,7 @@ struct ThoughtsStep: View {
         case "fallback": return Live(useButton: true)
         case "wrongkey": return Live(otherDictation: true)
         case "notready": return Live(ready: false)
+        case "nomic": return Live(useButton: true, micGranted: false)
         default: return Live()
         }
     }
