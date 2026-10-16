@@ -301,8 +301,9 @@ struct HomeHero: View {
         if voices.state == .ready, dictation.engine.isInstalled {
             inkButton("Starta möte", dot: true, filled: true, keys: meetingKeys,
                       help: micBusy ? "Går när dikteringen är klar" : "Spela in ett möte i rummet") {
-                session.start(introducing: true)
-                if session.phase != .idle { page = .meetings }
+                // To the start card, waiting for your choice: nothing is recorded yet.
+                session.armed = true
+                page = .meetings
             }
             .disabled(micBusy)
         } else {

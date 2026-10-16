@@ -475,10 +475,10 @@ private struct LivePanel: View {
             Image(systemName: "waveform").font(.system(size: 22)).foregroundStyle(DS.Colors.faint)
             if session.phase == .starting {
                 Text("Förbereder…").font(.system(size: 14, weight: .semibold))
-                Text("Inspelningen är redan igång, så inget går förlorat.")
+                Text("Inspelningen är igång, inget går förlorat.")
             } else {
                 Text("Lyssnar").font(.system(size: 14, weight: .semibold))
-                Text("Börja prata, så dyker texten upp här.")
+                Text("Börja prata, så skrivs texten medan ni pratar.")
             }
         }
         .font(.system(size: 12.5))

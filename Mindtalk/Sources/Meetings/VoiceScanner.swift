@@ -31,9 +31,6 @@ struct VoiceScanner: View {
         .padding(.bottom, 88)
         .environment(\.colorScheme, .dark)
         .onAppear(perform: enter)
-        // Away from the page while the explanation was up: the round goes on as it
-        // always has, unseen, and ends by itself.
-        .onDisappear { if session.introducing, let round = session.round, round.explaining { round.begin() } }
     }
 
     /// The scene, following the round.
@@ -51,21 +48,18 @@ struct VoiceScanner: View {
                     let colour = SpeakerMark.fill(round.captures.count)
                     Constellation(figure: round.figure, color: colour, level: scanner.roomLevel,
                                   searching: round.phase == .listening && round.progress > 0)
-                    .overlay { if round.explaining { explanation } else { ring(in: geo.size, colour: colour) } }
-                    .overlay(alignment: .topLeading) { if !round.explaining { heading.padding(.leading, 40).padding(.top, 34) } }
-                    .overlay(alignment: .topTrailing) {
-                        if !round.explaining { scanner.continueButton(round).padding(24) }
-                    }
-                    .overlay(alignment: .bottom) { if !round.explaining { prompt(width: geo.size.width).padding(.bottom, 40) } }
-                    .overlay(alignment: .bottomLeading) { if !round.explaining { room.padding(.leading, 40).padding(.bottom, 38) } }
-                    .overlay(alignment: .bottomTrailing) { if !round.explaining { card.padding(24) } }
+                    .overlay { ring(in: geo.size, colour: colour) }
+                    .overlay(alignment: .topLeading) { heading.padding(.leading, 40).padding(.top, 34) }
+                    .overlay(alignment: .topTrailing) { scanner.continueButton(round).padding(24) }
+                    .overlay(alignment: .bottom) { prompt(width: geo.size.width).padding(.bottom, 40) }
+                    .overlay(alignment: .bottomLeading) { room.padding(.leading, 40).padding(.bottom, 38) }
+                    .overlay(alignment: .bottomTrailing) { card.padding(24) }
                     .opacity(shown ? 1 : 0)
                     .background(Self.night.opacity(lit ? 1 : 0))
                 }
             }
             .animation(.spring(duration: 0.5, bounce: 0.2), value: round.captures)
             .animation(.easeOut(duration: 0.35), value: round.phase)
-            .animation(.easeOut(duration: 0.4), value: round.explaining)
             .onChange(of: round.phase) { _, phase in
                 switch phase {
                 case .known(let name):
@@ -100,15 +94,6 @@ struct VoiceScanner: View {
             }
         }
 
-        /// The first round ever: what it is and why, before it listens — and a way past it.
-        private var explanation: some View {
-            RoundExplanation(remembers: $memory.enabled,
-                             begin: { round.begin() },
-                             skip: { round.declineExplained(); scanner.leave() })
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .transition(.opacity)
-        }
-
         private var heading: some View {
             VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 14) {
@@ -135,7 +120,7 @@ struct VoiceScanner: View {
                 }
                 .padding(.leading, 10)
             }
-                Text("Så att texten visar vem som säger vad. Mötet spelas redan in.")
+                Text("Inspelningen är igång. Namnen gör att texten visar vem som säger vad.")
                     .font(.system(size: 13)).foregroundStyle(.white.opacity(0.6))
             }
         }
@@ -147,7 +132,7 @@ struct VoiceScanner: View {
                 // update): recording already, but nothing to listen with yet.
                 if scanner.session.phase == .starting {
                     return (String(localized: "Förbereder"), String(localized: "Ett ögonblick…"),
-                            String(localized: "Inspelningen är igång. Efter en uppdatering av macOS kan förberedelserna ta några minuter."))
+                            String(localized: "Inspelningen är igång. Efter en macOS-uppdatering kan det ta några minuter."))
                 }
                 switch round.phase {
                 // Asked until someone starts talking — not only for the moment the turn opens.
@@ -155,26 +140,26 @@ struct VoiceScanner: View {
                 case .ready, .listening where round.progress == 0:
                     if let last = round.captures.last, let at = round.thankedAt, Date().timeIntervalSince(at) < 2.5 {
                         return (String(localized: "Person \(round.turn)"), String(localized: "Tack, \(last.name)"),
-                                String(localized: "Nästa person: säg hej och ditt namn."))
+                                String(localized: "Nästa person, säg hej och vad du heter."))
                     }
                     return round.turn == 1
-                        ? (String(localized: "Person 1"), String(localized: "Säg ditt namn"), String(localized: "Börja med att säga hej, en i taget."))
-                        : (String(localized: "Person \(round.turn)"), String(localized: "Nästa: säg ditt namn"), String(localized: "Samma sak, en i taget."))
+                        ? (String(localized: "Person 1"), String(localized: "Vem vill börja?"), String(localized: "Säg hej och ditt namn, en i taget."))
+                        : (String(localized: "Person \(round.turn)"), String(localized: "Nästa, säg ditt namn"), String(localized: "Hej och namnet räcker."))
                 case .listening:
                     return round.quiet
-                        ? (String(localized: "Hör ingen"), String(localized: "Prata lite närmare"), String(localized: "Mikrofonen hör dig inte riktigt."))
-                        : (String(localized: "Person \(round.turn)"), String(localized: "Jag lyssnar…"), String(localized: "Prata på en stund."))
+                        ? (String(localized: "Hör inget"), String(localized: "Kom lite närmare"), String(localized: "Mikrofonen hör dig knappt."))
+                        : (String(localized: "Person \(round.turn)"), String(localized: "Jag lyssnar…"), String(localized: "Fortsätt prata en liten stund."))
                 case .known(let name):
-                    return (String(localized: "Känd röst"), String(localized: "Tack, \(name)"), String(localized: "Välkommen tillbaka."))
+                    return (String(localized: "Känd röst"), String(localized: "Välkommen tillbaka, \(name)"), String(localized: "Jag känner igen rösten."))
                 case .new:
                     let name = round.draft.trimmingCharacters(in: .whitespaces)
                     return (String(localized: "Ny röst"), name.isEmpty ? String(localized: "Vad heter du?") : name,
-                            name.isEmpty ? String(localized: "Säg ditt namn.") : String(localized: "Stämmer namnet?"))
+                            name.isEmpty ? String(localized: "Säg ditt namn, eller skriv det i rutan.") : String(localized: "Stämmer det? Annars ändra i rutan."))
                 case .same(let name):
-                    return (String(localized: "Samma röst"), String(localized: "\(name) igen"), String(localized: "Nästa person, tack."))
+                    return (String(localized: "Samma röst"), String(localized: "Det är \(name) igen"), String(localized: "Nästa person, varsågod."))
                 case .closing:
-                    return (String(localized: "Är alla här?"), String(localized: "\(round.captures.count) i rummet"),
-                            String(localized: "Fortsätter om \(round.secondsLeft ?? 0)…"))
+                    return (String(localized: "Alla här?"), String(localized: "\(round.captures.count) i rummet"),
+                            String(localized: "Vi går vidare om \(round.secondsLeft ?? 0)…"))
                 }
             }()
         }
@@ -243,7 +228,7 @@ struct VoiceScanner: View {
         @ViewBuilder private var card: some View {
             if case .new = round.phase {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Ny röst. Säg namnet, eller skriv det").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                    Text("Ny röst. Säg namnet eller skriv det här").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
                     // Not "Namn": macOS would offer your contacts in a box over the card.
                     TextField("Vem är det?", text: $round.draft)
                         .textFieldStyle(.plain)
@@ -254,7 +239,7 @@ struct VoiceScanner: View {
                         .onSubmit { round.save() }
                     if let at = round.autoSaveAt {
                         TimelineView(.periodic(from: .now, by: 0.25)) { _ in
-                            Text("Sparas om \(max(0, Int(ceil(at.timeIntervalSinceNow)))) s. Skriv för att ändra")
+                            Text("Sparas om \(max(0, Int(ceil(at.timeIntervalSinceNow)))) s, skriv om det blev fel")
                                 .font(.system(size: 12)).foregroundStyle(.white.opacity(0.55))
                         }
                     }
@@ -285,7 +270,7 @@ struct VoiceScanner: View {
 
     func continueButton(_ round: IntroRound) -> some View {
         Button(action: leave) {
-            Text(round.captures.isEmpty ? "Hoppa över och börja mötet" : "Alla är här, fortsätt")
+            Text(round.captures.isEmpty ? "Hoppa över, börja mötet" : "Alla är här")
                 .font(.system(size: 14, weight: .semibold))
                 .padding(.horizontal, 10)
                 .frame(minHeight: 32)
@@ -363,54 +348,6 @@ struct VoiceScanner: View {
 
     /// What people say before or between names — never a name.
     static let greetings: Set<String> = ["hej", "hejsan", "hallå", "tjena", "tja", "tjenare", "morsning", "god", "hi", "hello", "hey", "ja", "nej", "okej", "ok", "tack"]
-}
-
-/// "Först: vem är här?" — the first time a meeting starts with the round: what it is,
-/// why, what's kept, and a way past it.
-struct RoundExplanation: View {
-    @Binding var remembers: Bool
-    let begin: () -> Void
-    let skip: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Först: vem är här?").font(.system(size: 32, weight: .regular, design: .serif))
-                .foregroundStyle(.white)
-                .accessibilityAddTraits(.isHeader)
-            Text("Var och en säger hej och sitt namn, en i taget. Då vet Mindtalk vem som säger vad i texten. Det tar en halv minut.")
-                .font(.system(size: 16)).foregroundStyle(.white.opacity(0.8))
-            // A choice, made here and not by default: the voices are other people's.
-            Toggle(isOn: $remembers) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Känn igen rösterna i kommande möten").font(.system(size: 14, weight: .medium)).foregroundStyle(.white)
-                    Text("Bara ett röstavtryck sparas på din Mac, aldrig ljud. Säg till de andra i rummet.")
-                        .font(.system(size: 12.5)).foregroundStyle(.white.opacity(0.6))
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.leading, 4)
-            }
-            .toggleStyle(.checkbox)
-            .padding(.top, 4)
-            HStack(spacing: 18) {
-                Button(action: begin) {
-                    Text("Börja").font(.system(size: 14, weight: .semibold)).padding(.horizontal, 14).frame(minHeight: 32)
-                }
-                .buttonStyle(.glassProminent).controlSize(.large)
-                .keyboardShortcut(.defaultAction)
-                Button(action: skip) {
-                    Text("Hoppa över och namnge efteråt").font(.system(size: 13, weight: .semibold))
-                }
-                .buttonStyle(.plain).foregroundStyle(.white.opacity(0.7))
-            }
-            .padding(.top, 8)
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: 460, alignment: .leading)
-        .padding(32)
-        .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(DS.Colors.night.opacity(0.88)))
-        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
-        .environment(\.colorScheme, .dark)
-    }
 }
 
 /// "Spara rösterna?" — once, under a meeting whose people were named, while voice

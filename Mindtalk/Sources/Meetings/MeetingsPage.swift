@@ -21,6 +21,9 @@ struct MeetingsPage: View {
     static var lastOpen: UUID?
     /// Opened from a search hit or an answer's source: the moment to show.
     static var focusAt: Double?
+    /// "Nu spelar vi in": a second over the page as a meeting starts, then the room.
+    @State private var startCue = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geo in
@@ -29,6 +32,7 @@ struct MeetingsPage: View {
                     MeetingView(record: record, pending: session.pending, session: session, width: geo.size.width,
                                 edit: .live(session))
                         .transition(.opacity)
+                        .overlay { if startCue { StartCue().transition(.opacity) } }
                 } else if let id = open, let record = store.meetings.first(where: { $0.id == id }) {
                     MeetingView(record: record, pending: [], session: nil, width: geo.size.width,
                                 edit: .saved(store, id),
@@ -62,6 +66,20 @@ struct MeetingsPage: View {
         }
         // A meeting that just ended stays on screen, now as saved.
         .onChange(of: session.finished) { _, id in if let id { open = id } }
+        // Started by hand: the start moment, clear to everyone in the room, then the
+        // round or the text.
+        .onChange(of: session.startMoment) { _, at in
+            guard at != nil else { return }
+            startCue = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.5)) { startCue = false }
+            }
+        }
+        // "Starta möte" from the menu bar or Hem: the start card, not a meeting you were reading.
+        .onChange(of: session.armed) { _, armed in
+            if armed, open != nil { withAnimation(.spring(duration: 0.45, bounce: 0.12)) { open = nil } }
+        }
+        .onAppear { if session.armed, open != nil { open = nil } }
         .onChange(of: open) { _, id in Self.lastOpen = id }
         #if DEBUG
         .onAppear {   // screenshots: `--open-latest [--summarize]`
@@ -400,21 +418,42 @@ private struct MeetingList: View {
 
 }
 
-/// Start a meeting — or what's needed first, with the way to fix it.
+/// "Nu spelar vi in": the start moment, a second long, over the room as it comes in.
+private struct StartCue: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            Text("Nu spelar vi in").font(.system(size: 44, weight: .regular, design: .serif))
+                .foregroundStyle(.white)
+            Text("Mötet har börjat.").font(.system(size: 16)).foregroundStyle(.white.opacity(0.7))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DS.Colors.night)
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// "Nytt möte": choose first, then one clear start. Nothing is recorded until a button
+/// is pressed — or what's needed first, with the way to fix it.
 struct StartCard: View {
     @ObservedObject var session: MeetingSession
     @ObservedObject var voices: VoiceModels
     @ObservedObject var dictation: Dictation
     @ObservedObject private var folders = MeetingFolders.shared
     @ObservedObject private var importer = MeetingImport.shared
+    @ObservedObject private var memory = VoiceMemory.shared
     /// Room for the two side by side.
     @State private var wide = true
     /// The card is in view: the sphere only turns while someone can see it.
     @State private var onScreen = true
-    /// Starta möte was just pressed: the sphere swells as the room takes over.
+    /// A start was just pressed: the sphere swells as the room takes over.
     @State private var starting = false
     /// The window can be seen (not hidden behind others or minimised): the sphere turns.
     @State private var windowVisible = true
+    /// The way you started last time: filled white, and what Return does.
+    @State private var remembered = MeetingSession.startMode
+    /// Opened for this (the menu bar, the shortcut, Hem): the remembered button holds the keyboard.
+    @FocusState private var focus: MeetingSession.StartMode?
 
     /// Both doors open: the voices and the speech model are here.
     private var ready: Bool { voices.state == .ready && dictation.engine.isInstalled }
@@ -450,9 +489,17 @@ struct StartCard: View {
         // Whether it's on screen: a file dragged over the page then lights this card's
         // zone, rather than covering the page.
         .onScrollVisibilityChange(threshold: 0.4) { visible in importer.zoneVisible = visible; onScreen = visible }
-        .onDisappear { importer.zoneVisible = false; onScreen = false }
+        .onDisappear { importer.zoneVisible = false; onScreen = false; putDown() }
         .onChange(of: session.phase) { _, now in if now == .idle { starting = false } }
-        .onAppear { windowVisible = AppDelegate.mainWindowVisible }
+        .onAppear { windowVisible = AppDelegate.mainWindowVisible; if session.armed { takeKeyboard() } }
+        .onChange(of: session.armed) { _, armed in if armed { takeKeyboard() } }
+        .background {
+            // Esc while the card waits: nothing starts, nothing is recorded.
+            if session.armed {
+                Button("") { putDown() }.keyboardShortcut(.cancelAction)
+                    .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)) { note in
             guard let window = note.object as? NSWindow, window.contentViewController is NSHostingController<MainView> else { return }
             windowVisible = window.occlusionState.contains(.visible)
@@ -472,11 +519,12 @@ struct StartCard: View {
         .padding(24)
         .frame(minHeight: wide ? 230 : nil)
         .background(alignment: .bottomLeading) {
+            // Low in the seam between the words and the drop zone, clear of the text.
             Constellation(figure: nil, color: .white, level: 0.3, paused: !onScreen || !windowVisible || importer.dropping)
                 .frame(width: 330, height: 330)
                 .scaleEffect(starting ? 1.8 : 1)
-                .offset(x: wide ? 250 : 180, y: 120)
-                .opacity(0.6)
+                .offset(x: wide ? 340 : 180, y: wide ? 170 : 120)
+                .opacity(0.5)
                 .animation(.easeIn(duration: 0.7), value: starting)
                 .allowsHitTesting(false)
         }
@@ -487,31 +535,50 @@ struct StartCard: View {
         .onGeometryChange(for: Bool.self) { $0.size.width >= 600 } action: { wide = $0 }
     }
 
-    /// Record a meeting, now: the words, the way in, and what it runs on.
+    /// A new meeting: the choice, the two ways in, the voices, and what it runs on.
     private var room: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Spela in ett möte").font(.system(size: 28, weight: .regular, design: .serif)).foregroundStyle(.white)
-            Text("Mindtalk hör vem som säger vad och skriver ned det medan ni pratar.")
-                .font(.system(size: 13.5)).foregroundStyle(.white.opacity(0.72))
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 6)
-                .frame(maxWidth: 300, alignment: .leading)
+            Text("Nytt möte").font(.system(size: 28, weight: .regular, design: .serif)).foregroundStyle(.white)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Är ni flera? Ta en namnrunda, så står rätt namn i texten.")
+                Text("Du kan också namnge talarna under mötet genom att klicka på dem.")
+            }
+            .font(.system(size: 13.5)).foregroundStyle(.white.opacity(0.72))
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 6)
+            .frame(maxWidth: 440, alignment: .leading)
             if let error = session.lastError {
                 Text(error).font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
                     .fixedSize(horizontal: false, vertical: true).padding(.top, 6)
             }
-            Spacer(minLength: 20)
+            Spacer(minLength: 22)
+            roomControl
+            if dictation.micGranted {
+                // A choice, made here and not by default: the voices are other people's.
+                Toggle(isOn: $memory.enabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Kom ihåg rösterna till nästa möte").font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
+                        Text("Bara ett röstavtryck sparas på din Mac, inget ljud. Berätta för de andra i rummet.")
+                            .font(.system(size: 11.5)).foregroundStyle(.white.opacity(0.55))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.leading, 2)
+                }
+                .toggleStyle(.checkbox)
+                .environment(\.colorScheme, .dark)
+                .padding(.top, 18)
+            }
+            // The shortcut, what it runs on, and where a new one goes — quietly, at the foot.
             HStack(spacing: 10) {
-                roomControl
                 if dictation.micGranted {
                     Text(verbatim: "⇧⌘R").font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.6))
+                        .help("Starta möte (⇧⌘R). Du väljer om ni tar en namnrunda eller startar direkt.")
+                }
+                if let caption {
+                    Text(verbatim: caption).font(.system(size: 11.5)).foregroundStyle(.white.opacity(0.5)).lineLimit(1)
                 }
             }
-            // What it runs on, and where a new one goes — quietly, at the foot.
-            if let caption {
-                Text(verbatim: caption).font(.system(size: 11.5)).foregroundStyle(.white.opacity(0.5))
-                    .lineLimit(1).padding(.top, 14)
-            }
+            .padding(.top, 16)
         }
         .opacity(starting ? 0 : 1)
         .animation(.easeOut(duration: 0.3), value: starting)
@@ -525,35 +592,75 @@ struct StartCard: View {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    /// The way in, white on the night.
+    /// The ways in, on the night: the round of names, or straight into the meeting.
     @ViewBuilder private var roomControl: some View {
         if !dictation.micGranted {
-            roomButton("Tillåt mikrofonen", dot: false, help: "Mindtalk behöver få använda mikrofonen") { dictation.fix(.microphone) }
+            roomButton("Tillåt mikrofonen", filled: true, help: "Mindtalk behöver få använda mikrofonen") { dictation.fix(.microphone) }
         } else {
-            // One start: the meeting begins with the round ("Vem är här?"), which
-            // can be skipped.
-            roomButton("Starta möte", dot: true, help: "Starta möte (⇧⌘R). Börjar med en presentationsrunda som går att hoppa över") {
-                starting = true
-                session.start(introducing: true, folder: MeetingFolders.shared.selected)
+            HStack(alignment: .top, spacing: 12) {
+                choice(.round, "Starta med namnrunda", caption: "Alla säger hej och sitt namn. En halv minut.")
+                choice(.direct, "Starta direkt", caption: "Namnge talarna under mötet om du vill.")
             }
-            .accessibilityHint("Mötet börjar med en presentationsrunda som går att hoppa över")
             .disabled(dictation.phase != .idle || starting)
         }
     }
 
-    private func roomButton(_ title: LocalizedStringKey, dot: Bool, help: LocalizedStringKey, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+    /// One way in, with a line under it. The one you took last time is filled white
+    /// and on Return while the card waits for you; the other is soft.
+    private func choice(_ mode: MeetingSession.StartMode, _ title: LocalizedStringKey, caption: LocalizedStringKey) -> some View {
+        let filled = remembered == mode
+        return VStack(alignment: .leading, spacing: 8) {
+            roomButton(title, filled: filled, ring: filled && session.armed, help: caption) { begin(introducing: mode == .round) }
+                .focused($focus, equals: mode)
+                .keyboardShortcut(filled && session.armed ? .defaultAction : nil)
+                .accessibilityHint(caption)
+            Text(caption).font(.system(size: 12)).foregroundStyle(.white.opacity(0.6))
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 200, alignment: .leading)
+        }
+    }
+
+    private func roomButton(_ title: LocalizedStringKey, filled: Bool, ring: Bool = false, help: LocalizedStringKey,
+                            action: @escaping () -> Void) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        return Button(action: action) {
             HStack(spacing: 8) {
-                if dot { Circle().fill(DS.Colors.recording).frame(width: 8, height: 8).accessibilityHidden(true) }
+                Circle().fill(DS.Colors.recording).frame(width: 8, height: 8).accessibilityHidden(true)
                 Text(title).font(.system(size: 14, weight: .semibold))
             }
+            .lineLimit(1).fixedSize()
             .padding(.horizontal, 18).padding(.vertical, 11)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white))
-            .foregroundStyle(.black)
-            .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .background(shape.fill(filled ? Color.white : Color.white.opacity(0.12)))
+            .overlay(shape.strokeBorder(.white.opacity(filled ? 0 : 0.22), lineWidth: 1))
+            .foregroundStyle(filled ? .black : .white)
+            .contentShape(shape)
         }
         .buttonStyle(.plain)
+        // Opened for this: the button that Return presses, ringed.
+        .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).strokeBorder(.white.opacity(ring ? 0.8 : 0), lineWidth: 1.5).padding(-4))
+        .animation(.easeOut(duration: 0.25), value: ring)
         .help(help)
+    }
+
+    /// A press: the way is remembered, the sphere swells, and the meeting starts this moment.
+    private func begin(introducing: Bool) {
+        MeetingSession.startMode = introducing ? .round : .direct
+        remembered = MeetingSession.startMode
+        starting = true
+        session.start(introducing: introducing, folder: MeetingFolders.shared.selected)
+        if session.phase == .idle { starting = false }     // it couldn't: the card says why
+    }
+
+    /// Opened for a meeting: the remembered button holds the keyboard, so Return starts.
+    private func takeKeyboard() {
+        DispatchQueue.main.async { focus = remembered }
+    }
+
+    /// Esc, or away from the page, while the card waits: nothing starts, nothing is recorded.
+    private func putDown() {
+        guard session.phase == .idle, session.armed else { return }
+        session.armed = false
+        MeetingPanel.shared.startedElsewhere = false
     }
 
     private var detail: String {
@@ -589,10 +696,9 @@ struct StartCard: View {
                 }
                 .buttonStyle(.soft)
             } else {
-                // One start: the meeting begins with the round ("Vem är här?"), which
-                // can be skipped.
+                // The way you started last time (the tile above offers both).
                 Button {
-                    session.start(introducing: true, folder: MeetingFolders.shared.selected)
+                    session.startRemembered(folder: MeetingFolders.shared.selected)
                 } label: {
                     HStack(spacing: 8) {
                         Circle().fill(DS.Colors.recording).frame(width: 8, height: 8)
@@ -600,8 +706,7 @@ struct StartCard: View {
                     }
                 }
                 .buttonStyle(.ink)
-                .help("Starta möte (⇧⌘R). Börjar med en presentationsrunda som går att hoppa över")
-                .accessibilityHint("Mötet börjar med en presentationsrunda som går att hoppa över")
+                .help("Starta möte (⇧⌘R). Du väljer om ni tar en namnrunda eller startar direkt.")
                 .disabled(dictation.phase != .idle)
             }
         case .downloading(let p):
@@ -1584,10 +1689,10 @@ private struct TranscriptView: View {
             Image(systemName: "waveform").font(.system(size: 26)).foregroundStyle(DS.Colors.faint)
             if session?.phase == .starting {
                 Text("Förbereder…").font(.system(size: 15, weight: .semibold))
-                Text("Inspelningen är redan igång, så inget går förlorat.")
+                Text("Inspelningen är igång, inget går förlorat.")
             } else if live {
                 Text("Lyssnar").font(.system(size: 15, weight: .semibold))
-                Text("Börja prata, så dyker texten upp här.")
+                Text("Börja prata, så skrivs texten medan ni pratar.")
             } else {
                 Text("Inget hördes").font(.system(size: 15, weight: .semibold))
             }

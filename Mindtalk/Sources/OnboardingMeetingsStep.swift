@@ -47,13 +47,13 @@ private struct MeetingShortcutLine: View {
             HStack(alignment: .center, spacing: 8) {
                 KeyChip(text: keys)
                     .accessibilityHidden(true)
-                Text("startar ett möte, var du än är.")
+                Text("öppnar ett nytt möte, var du än är.")
                     .font(.system(size: 12))
                     .foregroundStyle(DS.Colors.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel(Text("\(keys) startar ett möte, var du än är."))
+            .accessibilityLabel(Text("\(keys) öppnar ett nytt möte, var du än är."))
         } else {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: "record.circle")
@@ -252,7 +252,7 @@ private struct DemoMeeting: View {
                 Image(systemName: "person.wave.2")
                     .font(.system(size: 10.5, weight: .semibold))
                     .accessibilityHidden(true)
-                Text("Först säger alla sitt namn. Det går att hoppa över.")
+                Text("Namnrunda först om ni är flera, eller namnge talarna under mötet.")
                     .fixedSize(horizontal: false, vertical: true)
             }
             .font(.system(size: 11.5, weight: .medium))

@@ -485,14 +485,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             RunLoop.main.run()
         }
         // `Mindtalk --render-panel out.png [--dark]`: the menu bar panel, with your figures.
-        // `Mindtalk --render-round-intro out.png [--remembers]`: "Först: vem är här?" on the round's dark.
+        // `Mindtalk --render-round-intro out.png [--armed]`: the start card ("Nytt möte"), waiting
+        // for a press when opened from the menu bar, over the offer to save the voices.
         if let i = args.firstIndex(of: "--render-round-intro"), i + 1 < args.count {
             Task { @MainActor in
                 var demo = MeetingRecord(title: "Veckomöte", date: Date(), language: .swedish)
                 demo.names = ["0": "Anna", "1": "Erik"]
+                MeetingSession.shared.armed = args.contains("--armed")
                 let view = VStack(spacing: 30) {
-                    RoundExplanation(remembers: .constant(args.contains("--remembers")), begin: {}, skip: {})
-                        .padding(60).frame(width: 900, height: 560).background(DS.Colors.night)
+                    StartCard(session: .shared, voices: .shared, dictation: .shared)
+                        .padding(30).frame(width: 900)
                     RememberVoicesOffer(record: demo, live: false, preview: true).frame(width: 760).padding(30)
                 }
                 .background(DS.Colors.paper)
@@ -618,13 +620,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
-        // `Mindtalk --render-moten-top out.png [--dark]` and `--render-vocabulary out.png [--dark]`.
+        // `Mindtalk --render-moten-top out.png [--dark] [--armed]` and `--render-vocabulary out.png [--dark]`.
         for flag in ["--render-moten-top", "--render-vocabulary"] {
             guard let i = args.firstIndex(of: flag), i + 1 < args.count else { continue }
             Task { @MainActor in
                 let dark = args.contains("--dark")
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                 MeetingStore.shared.loadNow()
+                MeetingSession.shared.armed = args.contains("--armed")      // the start card, waiting for a press
                 let page: AnyView = flag == "--render-moten-top" ? AnyView(MeetingsTopPreview()) : AnyView(VocabularyPage(vocabulary: .shared, plain: true))
                 let view = page.padding(28).frame(width: 820).background(DS.Colors.paper)
                     .environment(\.colorScheme, dark ? .dark : .light)
@@ -1570,30 +1573,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         print(String(format: "Putsad: %@ (%.2f s)", polished?.debugDescription ?? "– (behåller reglernas text)", Date().timeIntervalSince(t0)))
     }
 
-    /// Starts a meeting — with the round ("Vem är här?"), which can be skipped; after
-    /// it, the meeting goes on in its panel. If it can't start (a model or a
-    /// permission is missing), the Meetings page says why.
-    static func startMeeting(introducing: Bool = true) {
+    /// "Starta möte" from the menu bar, the shortcut or the Möte menu: nothing is
+    /// recorded yet. The window opens on Möten with the start card waiting for your
+    /// choice (the round of names, or straight in), its remembered button on Return.
+    /// With the card already in front of you (⇧⌘R on the Möten page, or the shortcut
+    /// pressed again while it waits), the meeting starts the way you chose last time.
+    /// Started from elsewhere, it goes on in its panel afterwards.
+    static func startMeeting() {
         let meeting = MeetingSession.shared
-        // From the Möten page (⇧⌘R in the window): into the folder chosen there. From
-        // the menu bar or the shortcut elsewhere, in none.
-        let folder = mainWindowIsKey ? MeetingFolders.shared.selected : nil
-        // With the round: the window comes forward first — while your click still counts,
-        // before the microphone takes its moment to start — so it lands in front of the
-        // app you were in, not behind it. (Afterwards the meeting goes to the panel.)
-        if introducing, VoiceModels.isInstalled, !mainWindowIsKey {
-            MeetingPanel.shared.startedElsewhere = true
-            showWindow(page: .meetings)
-        }
-        if VoiceModels.isInstalled { meeting.start(introducing: introducing, folder: folder) }
-        if !meeting.isRecording {
-            MeetingPanel.shared.startedElsewhere = false
-            showWindow(page: .meetings)
+        guard meeting.phase == .idle else { return }
+        let cardShown = mainWindowIsKey && MainView.currentPage == .meetings && MeetingsPage.lastOpen == nil
+        if cardShown || meeting.armed {
+            // Into the folder chosen on the page, as a press on the card would.
+            meeting.startRemembered(folder: MeetingFolders.shared.selected)
+            if !meeting.isRecording { MeetingPanel.shared.startedElsewhere = false }
             return
         }
-        // Without the round, from the menu bar: the panel shows the meeting, and the
-        // keyboard goes back to the app you were in rather than to Mindtalk with no window.
-        if !introducing, !mainWindowVisible { NSApp.deactivate() }
+        // Opened for this: after the round (or at once, without it) the meeting goes to
+        // the panel, back over the app you were in.
+        MeetingPanel.shared.startedElsewhere = !mainWindowIsKey
+        meeting.armed = true
+        showWindow(page: .meetings)
     }
 
     /// Goes on with a finished meeting — in the window when it's open, in the panel

@@ -51,6 +51,24 @@ final class MeetingSession: ObservableObject {
     /// Stopping was asked for once; asking again within a few seconds ends the meeting.
     /// "Vem är här?": the meeting starts with a round of names (VoiceScanner).
     @Published private(set) var introducing = false
+    /// "Starta möte" from the menu bar, the shortcut or Hem: the window is open on
+    /// Möten and the start card waits for your choice. Nothing is recorded until then.
+    @Published var armed = false
+    /// The moment a meeting was started by hand: the page shows "Nu spelar vi in".
+    @Published private(set) var startMoment: Date?
+
+    /// How the last meeting was started: with the round of names, or straight in.
+    /// The card's default button, and what the shortcut does.
+    enum StartMode: String { case round, direct }
+    static var startMode: StartMode {
+        get { UserDefaults.standard.string(forKey: "meetingStartMode").flatMap(StartMode.init) ?? .round }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "meetingStartMode") }
+    }
+
+    /// Starts the way you chose last time (the shortcut, the card's Return key).
+    func startRemembered(folder: UUID? = nil) {
+        start(introducing: Self.startMode == .round, folder: folder)
+    }
     /// Voices you've named before, recognised while the meeting runs (the round does
     /// its own while it's up).
     private var recognition: Task<Void, Never>?
@@ -418,6 +436,7 @@ final class MeetingSession: ObservableObject {
     /// in it. (From the menu bar or the shortcut, in none: the page suggests one after.)
     func start(introducing: Bool = false, folder: UUID? = nil) {
         guard phase == .idle else { return }
+        armed = false
         // Nothing plays while the microphone listens — into AirPods, or back into the text.
         MeetingPlayer.shared.stop()
         lastError = nil
@@ -434,7 +453,7 @@ final class MeetingSession: ObservableObject {
         }
         guard VoiceModels.isInstalled else { return }
         guard Recorder.micAuthorized else {
-            lastError = String(localized: "Mindtalk behöver tillgång till mikrofonen.")
+            lastError = String(localized: "Mindtalk behöver få använda mikrofonen.")
             return
         }
         let date = Date()
@@ -473,6 +492,7 @@ final class MeetingSession: ObservableObject {
         lastSave = date
         lastHeard = date
         phase = .starting
+        startMoment = date
         lastRestart = nil
         // Not into a Bluetooth headset: when a sound there ends, macOS may hand the
         // headset's link over (to a phone it's also paired with) and the mic goes dead.
@@ -483,6 +503,7 @@ final class MeetingSession: ObservableObject {
         Self.log.info("meeting started (\(self.language.rawValue, privacy: .public))")
         begin()
         introductionHeld = false
+        // The round from the first second: the mic just opened, so it listens from 0 s.
         if introducing { beginIntroduction() }
     }
 
@@ -555,7 +576,7 @@ final class MeetingSession: ObservableObject {
             return
         }
         guard Recorder.micAuthorized else {
-            lastError = String(localized: "Mindtalk behöver tillgång till mikrofonen.")
+            lastError = String(localized: "Mindtalk behöver få använda mikrofonen.")
             return
         }
         let url = MeetingStore.audioURL(for: id)
