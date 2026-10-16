@@ -7,8 +7,9 @@ import SwiftUI
 // rösten…" and then gets its number and colour — the sphere falling into that voice's
 // figure, as in a real meeting — and afterwards the summary writes itself. Beside it,
 // the voice model, benefit first: why it's needed, what it is, how big, where it runs,
-// and what waiting means. Played once ("Spela igen" to see it again); with Reduce
-// Motion, and in the DEBUG render, the finished meeting stands still.
+// and what waiting means. It plays each time the step comes into view, then stops
+// ("Spela igen" to see it again); with Reduce Motion, and in the DEBUG render, the
+// finished meeting stands still.
 
 struct MeetingsStep: View {
     @Binding var done: Bool
@@ -517,11 +518,25 @@ private struct RecordingPulse: View {
 private struct VoiceModelCard: View {
     @Binding var done: Bool
     @ObservedObject private var voices = VoiceModels.shared
-    /// The download finished while you watched: the check comes in with a bounce.
+    /// The download was going while you watched: when it's done, the check comes in
+    /// with a bounce. Set before the ready view exists, so it's built with it.
     @State private var celebrate = false
+    /// On screen and not leaving: the outgoing step mustn't touch the next one's button.
+    @State private var alive = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private enum Kind: Equatable { case offer, downloading, ready }
+    /// The model's state without its progress — changes once per step, not every tick.
+    private enum Phase: Equatable { case missing, downloading, failed, ready }
+
+    private var phase: Phase {
+        switch voices.state {
+        case .missing: return .missing
+        case .downloading: return .downloading
+        case .failed: return .failed
+        case .ready: return .ready
+        }
+    }
 
     private var state: VoiceModels.State {
         #if DEBUG
@@ -551,13 +566,19 @@ private struct VoiceModelCard: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .raised()
         .animation(.smooth(duration: 0.4), value: kind)
-        .onAppear { if kind != .offer { done = true } }
-        .onChange(of: voices.state) { old, new in
-            if case .downloading = new { done = true }
-            if new == .ready {
+        .onAppear {
+            alive = true
+            if kind != .offer { done = true }
+            if phase == .downloading { celebrate = !reduceMotion }
+        }
+        .onDisappear { alive = false }
+        .onChange(of: phase) { _, new in
+            guard alive else { return }
+            if new == .downloading {
+                celebrate = !reduceMotion
                 done = true
-                if case .downloading = old { celebrate = !reduceMotion }
             }
+            if new == .ready { done = true }
         }
     }
 
@@ -608,7 +629,7 @@ private struct VoiceModelCard: View {
             }
             .buttonStyle(.ink)
             .help("Laddas ned i bakgrunden – du kan fortsätta under tiden")
-            Text("**Senare?** Utan röstmodellen kan du inte spela in möten än – du laddar ned den under Möten när du vill.")
+            Text("**Senare?** Du hittar den under Möten. Utan den går det inte att spela in möten.")
                 .font(.system(size: 11.5))
                 .foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -635,8 +656,9 @@ private struct VoiceModelCard: View {
         #if DEBUG
         if Self.preview != nil { return }
         #endif
+        celebrate = !reduceMotion
         voices.download()
-        done = true
+        if alive { done = true }
     }
 
     // MARK: On its way
