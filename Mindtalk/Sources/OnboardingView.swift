@@ -108,7 +108,7 @@ struct OnboardingView: View {
                     .help("Allt finns kvar i appen när du vill")
             }
             GlowButton(title: primaryTitle, action: primary)
-                .keyboardShortcut(step == .tryIt ? nil : .defaultAction)
+                .keyboardShortcut(step == .tryIt || step == .vocabulary ? nil : .defaultAction)
         }
         .frame(height: 44)
         .animation(.snappy(duration: 0.25), value: step)
