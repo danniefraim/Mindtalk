@@ -31,8 +31,10 @@ struct OnboardingView: View {
     }
     @State private var chosen: Set<SpeechModel> = [Settings.engine]
     @State private var forward = true
-    /// The feature steps (Tankar, Möten, Ordlista): tried — "Fortsätt" rather than "Hoppa över".
-    @State private var stepDone = false
+    /// The feature steps (Tankar, Möten, Ordlista) you've tried — "Fortsätt" rather than
+    /// "Hoppa över". Kept per step, so one stays done when you go back to it.
+    @State private var completed: Set<Step> = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -42,17 +44,20 @@ struct OnboardingView: View {
                     .padding(.top, 20)
 
                 ZStack {
+                    // Every step hangs from the same line, so the title stays put between
+                    // them; only the welcome sits in the middle.
                     stepView
+                        .padding(.top, step == .welcome ? 0 : 24)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: step == .welcome ? .center : .top)
                         .id(step)
-                        .transition(.asymmetric(
-                            insertion: .modifier(active: StepShift(offset: forward ? 40 : -40), identity: StepShift(offset: 0)),
-                            removal: .modifier(active: StepShift(offset: forward ? -40 : 40), identity: StepShift(offset: 0))))
+                        .transition(stepTransition)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.horizontal, 60)
 
                 footer
-                    .padding(.horizontal, 32)
+                    .padding(.leading, 24)   // "Tillbaka" brings 8 pt of its own hit area
+                    .padding(.trailing, 32)
                     .padding(.bottom, 26)
             }
             .frame(width: 760, height: 640)
@@ -63,6 +68,14 @@ struct OnboardingView: View {
         // The steps keep their size; the paper fills whatever holds them —
         // its own window at first launch, the main window when shown again.
         .frame(minWidth: 760, maxWidth: .infinity, minHeight: 640, maxHeight: .infinity)
+    }
+
+    /// Slide and focus; with Reduce Motion just a quick fade.
+    private var stepTransition: AnyTransition {
+        if reduceMotion { return .opacity }
+        return .asymmetric(
+            insertion: .modifier(active: StepShift(offset: forward ? 40 : -40), identity: StepShift(offset: 0)),
+            removal: .modifier(active: StepShift(offset: forward ? -40 : 40), identity: StepShift(offset: 0)))
     }
 
     #if DEBUG
@@ -82,13 +95,26 @@ struct OnboardingView: View {
         case .language: LanguageStep(chosen: $chosen)
         case .permissions: PermissionsStep(dictation: dictation)
         case .tryIt: TryStep(dictation: dictation)
-        case .thoughts: ThoughtsStep(dictation: dictation, done: $stepDone)
-        case .meetings: MeetingsStep(done: $stepDone)
-        case .vocabulary: VocabularyStep(dictation: dictation, done: $stepDone)
+        case .thoughts: ThoughtsStep(dictation: dictation, done: tried(.thoughts))
+        case .meetings: MeetingsStep(done: tried(.meetings))
+        case .vocabulary: VocabularyStep(dictation: dictation, done: tried(.vocabulary))
         }
     }
 
+    /// One step's "tried it" — once set, it stays.
+    private func tried(_ s: Step) -> Binding<Bool> {
+        Binding(get: { completed.contains(s) },
+                set: { if $0 { completed.insert(s) } })
+    }
+
     // MARK: Footer
+
+    /// Tankar and Möten before you've tried them: a quiet way past, not a call to action.
+    private var skipping: Bool {
+        (step == .thoughts || step == .meetings) && !completed.contains(step)
+    }
+
+    private var permitted: Bool { dictation.micGranted && dictation.accessibilityGranted }
 
     private var footer: some View {
         HStack(spacing: 14) {
@@ -97,37 +123,60 @@ struct OnboardingView: View {
                     Label("Tillbaka", systemImage: "chevron.left")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(DS.Colors.muted)
+                        .padding(8)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .transition(.opacity)
             }
-            // While you go through the steps; "Prova" shows it in the box itself.
-            if step == .permissions || step.rawValue >= Step.thoughts.rawValue { DownloadStatus(dictation: dictation) }
-            Spacer()
-            if step.rawValue >= Step.thoughts.rawValue, step != .vocabulary {
-                Button("Avsluta introduktionen") { done() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(DS.Colors.muted)
-                    .help("Allt finns kvar i appen när du vill")
+            // While you go through the steps; "Prova" shows it in the box itself — unless the
+            // box is asking for a permission. From "Prova" on just a ring and a number, so
+            // the footer keeps to one line.
+            if step == .permissions || step.rawValue >= Step.thoughts.rawValue || (step == .tryIt && !permitted) {
+                DownloadStatus(dictation: dictation, compact: step.rawValue >= Step.tryIt.rawValue)
             }
-            GlowButton(title: primaryTitle, action: primary)
-                .keyboardShortcut(step == .tryIt || step == .vocabulary ? nil : .defaultAction)
+            Spacer(minLength: 8)
+            if step.rawValue >= Step.thoughts.rawValue, step != .vocabulary {
+                Button { done() } label: {
+                    Text("Avsluta introduktionen")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(DS.Colors.muted)
+                        .padding(8)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Du hittar allt i appen sen")
+                .transition(.opacity)
+            }
+            if skipping {
+                Button(action: primary) {
+                    Text("Hoppa över").contentTransition(.opacity)
+                }
+                .buttonStyle(.soft)
+                .transition(.opacity)
+            } else {
+                // Return only where there's nothing to type or say into.
+                GlowButton(title: primaryTitle, action: primary)
+                    .keyboardShortcut(step.rawValue <= Step.permissions.rawValue ? .defaultAction : nil)
+                    .transition(.opacity)
+            }
         }
+        .lineLimit(1)
         .frame(height: 44)
         .animation(.snappy(duration: 0.25), value: step)
+        .animation(.snappy(duration: 0.3), value: skipping)
     }
 
     private var primaryTitle: String {
         switch step {
         case .welcome: return String(localized: "Kom igång")
         case .language:
-            let missing = SpeechModel.allCases.filter { chosen.contains($0) && !$0.isInstalled }
+            // Already on its way (the introduction shown again): nothing more to fetch.
+            let missing = SpeechModel.allCases.filter { chosen.contains($0) && !$0.isInstalled && dictation.downloads[$0] == nil }
             if missing.isEmpty { return String(localized: "Fortsätt") }
             let bytes = missing.reduce(Int64(0)) { $0 + $1.downloadBytes }
             return String(localized: "Ladda ned \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) och fortsätt")
-        case .vocabulary: return String(localized: "Öppna Mindtalk")
-        case .thoughts, .meetings: return stepDone ? String(localized: "Fortsätt") : String(localized: "Hoppa över")
+        case .vocabulary: return String(localized: "Sätt igång")
         default: return String(localized: "Fortsätt")
         }
     }
@@ -135,9 +184,10 @@ struct OnboardingView: View {
     private func primary() {
         switch step {
         case .language:
-            // Swedish first if chosen — it becomes the active language.
+            // The language you already use stays if it's among those chosen — the
+            // introduction shown again shouldn't switch it. Otherwise Swedish first.
             let order = SpeechModel.allCases.filter(chosen.contains)
-            if let first = order.first { dictation.setEngine(first) }
+            if !chosen.contains(dictation.engine), let first = order.first { dictation.setEngine(first) }
             for m in order where !m.isInstalled { dictation.downloadModel(m) }
             go(1)
         case .vocabulary:
@@ -155,25 +205,30 @@ struct OnboardingView: View {
 
     private func go(_ delta: Int) {
         guard let next = Step(rawValue: step.rawValue + delta) else { return }
+        // On from "Prova": closing the window now counts as done.
+        if step == .tryIt, delta > 0 { OnboardingView.pastTry = true }
         forward = delta > 0
-        stepDone = false
-        withAnimation(.spring(duration: 0.55, bounce: 0.12)) { step = next }
+        withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.55, bounce: 0.12)) { step = next }
     }
 }
 
 // MARK: - Step 1: Welcome
 
 private struct WelcomeStep: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         VStack(spacing: 26) {
             // The sphere of light that listens in meetings — breathing on its night tile,
-            // like the app's icon.
+            // like the app's icon. On dark paper a faint edge keeps the tile from melting in.
             Constellation(figure: nil, color: .white, level: 0.3)
                 .frame(width: 210, height: 210)
                 .offset(y: 18)
                 .frame(width: 168, height: 168)
                 .background(RoundedRectangle(cornerRadius: 38, style: .continuous).fill(DS.Colors.night))
                 .clipShape(RoundedRectangle(cornerRadius: 38, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 38, style: .continuous)
+                    .strokeBorder(.white.opacity(colorScheme == .dark ? 0.1 : 0), lineWidth: 1))
                 .shadow(color: .black.opacity(0.22), radius: 22, y: 10)
                 .staggered(0)
                 .accessibilityHidden(true)
@@ -202,7 +257,7 @@ private struct LanguageStep: View {
     var body: some View {
         VStack(spacing: 26) {
             StepHeader(title: "Vilket språk pratar du?",
-                       subtitle: "Välj ett eller båda. Hämtas en gång – sedan klarar du dig utan internet.")
+                       subtitle: "Välj ett eller båda. Talmodellen hämtas en gång – sedan behövs inget internet.")
                 .staggered(0)
             HStack(spacing: 16) {
                 ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
@@ -301,7 +356,7 @@ private struct PermissionsStep: View {
     var body: some View {
         VStack(spacing: 26) {
             StepHeader(title: "Två behörigheter, en gång",
-                       subtitle: "Samma mikrofon används för diktering, tankar och möten – du frågas inte igen.")
+                       subtitle: "En gång räcker – samma tillåtelse gäller diktering, tankar och möten.")
                 .staggered(0)
             HStack(spacing: 16) {
                 PermissionCard(icon: "hand.point.up.left.fill", title: "Hjälpmedel",
@@ -309,7 +364,7 @@ private struct PermissionsStep: View {
                                granted: dictation.accessibilityGranted, button: "Öppna") { dictation.requestAccessibility() }
                     .staggered(1)
                 PermissionCard(icon: "mic.fill", title: "Mikrofon",
-                               text: "Hör dig bara när du dikterar, säger en tanke eller spelar in ett möte. Ljudet lämnar aldrig din Mac.",
+                               text: "Hör dig bara när du dikterar, sparar en tanke eller spelar in ett möte. Ljudet lämnar aldrig din Mac.",
                                granted: dictation.micGranted, button: "Tillåt") { dictation.requestMicrophone() }
                     .staggered(2)
             }
@@ -322,14 +377,19 @@ private struct PermissionsStep: View {
                           systemImage: "info.circle")
                         .foregroundStyle(DS.Colors.muted)
                         .transition(.opacity)
+                } else {
+                    Label("Tillåt mikrofonen – annars hör Mindtalk dig inte.", systemImage: "info.circle")
+                        .foregroundStyle(DS.Colors.muted)
+                        .transition(.opacity)
                 }
             }
             .font(.system(size: 12.5, weight: .medium))
             .multilineTextAlignment(.center)
             .staggered(3)
         }
-        .animation(.spring(duration: 0.45, bounce: 0.3), value: dictation.micGranted)
-        .animation(.spring(duration: 0.45, bounce: 0.3), value: dictation.accessibilityGranted)
+        // Calm; the check mark's own bounce is the only spring here.
+        .animation(.smooth(duration: 0.4), value: dictation.micGranted)
+        .animation(.smooth(duration: 0.4), value: dictation.accessibilityGranted)
         .onAppear { dictation.refreshPermissions() }
     }
 }
@@ -387,18 +447,27 @@ private struct TryStep: View {
     @State private var practice = ""
     @State private var celebrated = false
     @State private var confetti = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var ready: Bool { dictation.model == .ready }
+    /// Both permissions — without them talking into the box would do nothing.
+    private var permitted: Bool { dictation.accessibilityGranted && dictation.micGranted }
     private var recording: Bool { dictation.phase == .recording }
     private var hearing: Bool { recording && (meter.levels.suffix(8).max() ?? 0) > 0.08 }
 
+    private var subtitle: String {
+        if celebrated { return String(localized: "Din första text – utan att skriva ett ord. Det fungerar i alla appar.") }
+        if !permitted { return String(localized: "Snart kan du prova – först behövs din tillåtelse.") }
+        if ready { return String(localized: "Klicka i rutan, håll in \(dictation.hotkey.inlineName) och säg något.") }
+        return String(localized: "Snart kan du prova – när talmodellen är klar.")
+    }
+
     var body: some View {
-        ZStack {
+        // Top: the confetti fills the step, the rest hangs from the title line.
+        ZStack(alignment: .top) {
             VStack(spacing: 20) {
                 StepHeader(title: celebrated ? String(localized: "Snyggt.") : String(localized: "Prova på riktigt"),
-                           subtitle: celebrated ? String(localized: "Din första text – utan att röra tangentbordet. Det fungerar i alla appar.")
-                                                : ready ? String(localized: "Klicka i rutan, håll in \(dictation.hotkey.inlineName) och säg något.")
-                                                        : String(localized: "Snart kan du prova – när talmodellen är klar."))
+                           subtitle: subtitle)
                     .staggered(0)
                     .animation(.easeOut(duration: 0.3), value: celebrated)
                 VStack(spacing: 10) {
@@ -408,7 +477,7 @@ private struct TryStep: View {
                         .frame(height: 84)
                     Group {
                         if dictation.pickingKey {
-                            Text("Håll in en eller flera modifieringstangenter tillsammans och släpp för att spara. Esc avbryter.")
+                            Text("Håll in tangenterna du vill ha (⌃ ⌥ ⇧ ⌘) och släpp. Esc avbryter.")
                         } else if hearing {
                             Text("Vi hör dig!").foregroundStyle(DS.Colors.ink)
                         } else if dictation.phase == .transcribing {
@@ -441,7 +510,7 @@ private struct TryStep: View {
                             .strokeBorder(practice.isEmpty ? AnyShapeStyle(DS.Colors.fieldStroke) : AnyShapeStyle(DS.Colors.ink),
                                           lineWidth: practice.isEmpty ? 1 : 2))
                         .shadow(color: .black.opacity(0.05), radius: 16, y: 8)
-                    if practice.isEmpty && ready {
+                    if practice.isEmpty && ready && permitted {
                         Text("”Hej! Det här är min första diktering.”")
                             .font(.system(size: 19))
                             .foregroundStyle(DS.Colors.muted)
@@ -449,29 +518,42 @@ private struct TryStep: View {
                             .allowsHitTesting(false)
                     }
                 }
-                .disabled(!ready)
+                .disabled(!ready || !permitted)
                 .overlay {
-                    if !ready {
+                    // What stands in the way first: a permission, then the model.
+                    if !dictation.accessibilityGranted {
+                        Blocker(title: String(localized: "Slå på Hjälpmedel först"), button: String(localized: "Öppna")) {
+                            dictation.requestAccessibility()
+                        }
+                        .transition(.opacity)
+                    } else if !dictation.micGranted {
+                        Blocker(title: String(localized: "Tillåt mikrofonen för att prova"), button: String(localized: "Tillåt")) {
+                            dictation.requestMicrophone()
+                        }
+                        .transition(.opacity)
+                    } else if !ready {
                         ModelState(dictation: dictation)
                             .transition(.opacity)
                     }
                 }
                 .animation(.easeOut(duration: 0.3), value: ready)
+                .animation(.easeOut(duration: 0.3), value: permitted)
                 .staggered(2)
                 // After the first words: the rest of the key, as a reward rather than a lesson.
                 if celebrated {
                     HStack(spacing: 12) {
-                        KeyHint(icon: "hand.tap.fill", title: "Håll in", text: "för korta meddelanden")
-                        KeyHint(icon: "lock.fill", title: "Dubbeltryck", text: "för att prata fritt")
+                        KeyHint(icon: "hand.tap.fill", title: "Håll in", text: "prata, släpp – klart")
+                        KeyHint(icon: "lock.fill", title: "Dubbeltryck", text: "prata utan att hålla")
                         KeyHint(icon: "escape", title: "Esc", text: "avbryter")
                     }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                 }
             }
             Confetti(trigger: confetti)
                 .allowsHitTesting(false)
         }
-        .animation(.spring(duration: 0.55, bounce: 0.2), value: celebrated)
+        .animation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.55, bounce: 0.2), value: celebrated)
+        .onAppear { dictation.refreshPermissions() }
         .onChange(of: practice) { _, text in
             guard !celebrated, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
             celebrated = true
@@ -550,9 +632,11 @@ struct ModelState: View {
         TimelineView(.periodic(from: .now, by: 1)) { _ in
             VStack(spacing: 12) {
                 switch dictation.model {
+                // "Talmodellen" rather than the language's name — "Flerspråkig" isn't a
+                // thing you can make ready.
                 case .downloading(let p):
-                    Text(SpeechModel.isPreparing(p) ? String(localized: "Förbereder \(dictation.engine.title.lowercased())")
-                                                    : String(localized: "\(dictation.engine.title) laddas ned"))
+                    Text(SpeechModel.isPreparing(p) ? String(localized: "Förbereder talmodellen")
+                                                    : String(localized: "Talmodellen laddas ned"))
                         .font(.system(size: 16, weight: .semibold))
                     ProgressView(value: min(1, p / 0.9))
                         .progressViewStyle(.linear)
@@ -563,7 +647,7 @@ struct ModelState: View {
                         .foregroundStyle(DS.Colors.muted)
                 case .loading:
                     ProgressView().controlSize(.regular)
-                    Text("Gör \(dictation.engine.title.lowercased()) redo för din Mac").font(.system(size: 16, weight: .semibold))
+                    Text("Talmodellen görs redo för din Mac").font(.system(size: 16, weight: .semibold))
                     // The first time on a Mac the Neural Engine compiles the model — measured
                     // at about six minutes; after that it starts in seconds.
                     let minutes = Int(Date().timeIntervalSince(dictation.loadingSince) / 60)
@@ -574,12 +658,15 @@ struct ModelState: View {
                         .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                 case .failed(let message):
                     Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 22)).foregroundStyle(.orange)
-                    Text("\(dictation.engine.title) laddades inte ned").font(.system(size: 16, weight: .semibold))
+                    // Downloaded but wouldn't start, or never arrived — retryModel() knows which.
+                    Text(dictation.engine.isInstalled ? String(localized: "Talmodellen startade inte")
+                                                      : String(localized: "Talmodellen laddades inte ned"))
+                        .font(.system(size: 16, weight: .semibold))
                     Text(message).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                         .multilineTextAlignment(.center).lineLimit(2)
-                    Button("Försök igen") { dictation.downloadModel() }.buttonStyle(.ink)
+                    Button("Försök igen") { dictation.retryModel() }.buttonStyle(.ink)
                 case .missing:
-                    Text("\(dictation.engine.title) är inte nedladdad").font(.system(size: 16, weight: .semibold))
+                    Text("Talmodellen är inte nedladdad").font(.system(size: 16, weight: .semibold))
                     Button("Ladda ned \(dictation.engine.sizeText)") { dictation.downloadModel() }.buttonStyle(.ink)
                 case .ready:
                     EmptyView()
@@ -591,8 +678,29 @@ struct ModelState: View {
     }
 }
 
+/// A permission still missing, in the box where you'd talk — with the way to fix it.
+private struct Blocker: View {
+    let title: String
+    let button: String
+    let action: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(title).font(.system(size: 16, weight: .semibold))
+            Button(button, action: action).buttonStyle(.ink)
+        }
+        .multilineTextAlignment(.center)
+        .padding(.horizontal, 24)
+    }
+}
+
 // MARK: - Shared pieces
 
+/// A step's title and what to do. Always the same height — room for two lines of
+/// subtitle — so the title sits on the same line on every step. VoiceOver reads the
+/// new step out when it comes in, wherever you are (on "Fortsätt", usually).
+/// An announcement rather than moving focus: `accessibilityFocused` turns the title
+/// into something ImageRenderer can't draw.
 struct StepHeader: View {
     let title: String
     let subtitle: String
@@ -602,6 +710,7 @@ struct StepHeader: View {
             Text(LocalizedStringKey(title))
                 .font(.system(size: 38, weight: .regular, design: .serif))
                 .contentTransition(.opacity)
+                .accessibilityAddTraits(.isHeader)
             Text(LocalizedStringKey(subtitle))
                 .font(.system(size: 15.5))
                 .foregroundStyle(DS.Colors.muted)
@@ -610,6 +719,14 @@ struct StepHeader: View {
                 .contentTransition(.opacity)
         }
         .frame(maxWidth: 560)
+        .frame(height: 104, alignment: .top)
+        // After the step has slid in, so it isn't cut off by the one leaving.
+        .task {
+            try? await Task.sleep(for: .milliseconds(450))
+            let heading = String(localized: String.LocalizationValue(title))
+            let stop = heading.last.map { ".?!".contains($0) } == true ? " " : ". "
+            AccessibilityNotification.Announcement(heading + stop + String(localized: String.LocalizationValue(subtitle))).post()
+        }
     }
 }
 
@@ -623,6 +740,7 @@ struct GlowButton: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Text(title)
+                    .contentTransition(.opacity)
                 Image(systemName: "arrow.right")
                     .font(.system(size: 12, weight: .bold))
                     .offset(x: hovering ? 3 : 0)
@@ -653,6 +771,7 @@ private struct PressableStyle: ButtonStyle {
 private struct ProgressSegments: View {
     let count: Int
     let current: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 6) {
@@ -663,49 +782,131 @@ private struct ProgressSegments: View {
                     .frame(width: i == current ? 34 : 18, height: 4)
             }
         }
-        .animation(.spring(duration: 0.5, bounce: 0.2), value: current)
+        .animation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.5, bounce: 0.2), value: current)
         .accessibilityElement()
         .accessibilityLabel(String(localized: "Steg \(current + 1) av \(count)"))
     }
 }
 
-/// Downloads in progress, bottom-left in the footer.
 /// The downloads, next to the Back button: a ring, the model, MB and time left —
-/// or what went wrong, with a way to try again.
+/// or what went wrong, with a way to try again. The speech models and, once Möten
+/// has asked for it, the voice model. `compact` (from "Prova" on, where the footer
+/// also holds "Avsluta introduktionen"): only a ring and a percentage each — the
+/// whole sentence is in the tooltip and for VoiceOver — plus the name when there's
+/// just one.
 struct DownloadStatus: View {
     @ObservedObject var dictation: Dictation
+    var compact = false
+    @ObservedObject private var voices = VoiceModels.shared
+
+    /// One thing on its way, or one that went wrong.
+    private struct Item: Identifiable {
+        let id: String
+        let name: String
+        /// nil: it failed.
+        let progress: Double?
+        let detail: String
+        let retry: () -> Void
+    }
+
+    private var items: [Item] {
+        var items: [Item] = []
+        for m in SpeechModel.allCases {
+            if let p = dictation.downloads[m] {
+                items.append(Item(id: m.rawValue, name: m.title, progress: p,
+                                  detail: m.progressText(p, started: dictation.downloadStarted[m]), retry: {}))
+            } else if dictation.downloadErrors[m] != nil {
+                items.append(Item(id: m.rawValue, name: m.title, progress: nil,
+                                  detail: String(localized: "\(m.title) laddades inte ned"),
+                                  retry: { dictation.downloadModel(m) }))
+            }
+        }
+        switch voices.state {
+        case .downloading(let p):
+            items.append(Item(id: "voices", name: String(localized: "Röstmodellen"), progress: p,
+                              detail: String(localized: "\(Self.percent(p)) %"), retry: {}))
+        case .failed:
+            items.append(Item(id: "voices", name: String(localized: "Röstmodellen"), progress: nil,
+                              detail: String(localized: "Röstmodellen laddades inte ned"),
+                              retry: { VoiceModels.shared.download() }))
+        default: break
+        }
+        return items
+    }
+
+    /// The speech models spend their last tenth preparing for this Mac.
+    private static func percent(_ p: Double, model: Bool = false) -> Int {
+        Int((model ? min(1, p / 0.9) : p) * 100)
+    }
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { _ in
-            HStack(spacing: 18) {
-                ForEach(SpeechModel.allCases) { m in
-                    if let p = dictation.downloads[m] {
-                        HStack(spacing: 9) {
-                            ProgressRing(progress: p).frame(width: 20, height: 20)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(m.title).font(.system(size: 12.5, weight: .semibold))
-                                Text(m.progressText(p, started: dictation.downloadStarted[m]))
-                                    .font(.system(size: 11.5)).monospacedDigit()
-                                    .foregroundStyle(DS.Colors.muted)
-                            }
-                        }
-                    } else if dictation.downloadErrors[m] != nil {
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text("\(m.title) laddades inte ned").font(.system(size: 12.5, weight: .semibold))
-                                Button("Försök igen") { dictation.downloadModel(m) }
-                                    .buttonStyle(.plain)
-                                    .font(.system(size: 11.5, weight: .semibold))
-                                    .foregroundStyle(DS.Colors.accent)
-                            }
-                        }
-                    }
+            let items = self.items
+            HStack(spacing: compact ? 12 : 18) {
+                ForEach(items) { item in
+                    if compact { compactRow(item, named: items.count == 1) } else { fullRow(item) }
                 }
             }
-            .padding(.leading, 10)
+            .padding(.leading, compact ? 4 : 10)
+            .animation(.easeOut(duration: 0.25), value: items.map(\.id))
         }
-        .animation(.easeOut(duration: 0.25), value: dictation.downloads.keys.sorted { $0.rawValue < $1.rawValue })
+    }
+
+    @ViewBuilder private func fullRow(_ item: Item) -> some View {
+        if let p = item.progress {
+            HStack(spacing: 9) {
+                ProgressRing(progress: p).frame(width: 20, height: 20)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(item.name).font(.system(size: 12.5, weight: .semibold))
+                    Text(item.detail)
+                        .font(.system(size: 11.5)).monospacedDigit()
+                        .foregroundStyle(DS.Colors.muted)
+                }
+            }
+        } else {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(item.detail).font(.system(size: 12.5, weight: .semibold))
+                    retryButton(item)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func compactRow(_ item: Item, named: Bool) -> some View {
+        let model = item.id != "voices"
+        Group {
+            if let p = item.progress {
+                let preparing = model && SpeechModel.isPreparing(p)
+                let amount = String(localized: "\(Self.percent(p, model: model)) %")
+                HStack(spacing: 6) {
+                    ProgressRing(progress: p).frame(width: 16, height: 16)
+                    Text(preparing ? (named ? String(localized: "\(item.name) förbereds") : String(localized: "Förbereds"))
+                                   : (named ? "\(item.name) \(amount)" : amount))
+                        .font(.system(size: 12, weight: .medium)).monospacedDigit()
+                        .foregroundStyle(DS.Colors.muted)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(String(localized: "\(item.name) laddas ned, \(Self.percent(p, model: model)) procent"))
+                .help(String(localized: "\(item.name) laddas ned · \(item.detail)"))
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    retryButton(item)
+                }
+                .help(item.detail)
+            }
+        }
+        .fixedSize()
+    }
+
+    private func retryButton(_ item: Item) -> some View {
+        Button("Försök igen", action: item.retry)
+            .buttonStyle(.plain)
+            .font(.system(size: compact ? 12 : 11.5, weight: .semibold))
+            .foregroundStyle(DS.Colors.accent)
+            .accessibilityHint(item.detail)
     }
 }
 
@@ -743,6 +944,27 @@ struct Typewriter: View {
     private var current: String { line ?? text }
 
     var body: some View {
+        if reduceMotion {
+            // Still: the line it ends on, with a cursor that stays lit.
+            HStack(spacing: 3) {
+                Text(then.last ?? text).font(font)
+                cursor
+            }
+            .lineLimit(1)
+            .accessibilityElement()
+            .accessibilityLabel(then.last ?? text)
+        } else {
+            typing
+        }
+    }
+
+    private var cursor: some View {
+        RoundedRectangle(cornerRadius: 1.5)
+            .fill(DS.Gradients.accent)
+            .frame(width: 3, height: cursorHeight)
+    }
+
+    private var typing: some View {
         ZStack(alignment: .leading) {
             // The whole line, invisible, keeps the layout still while typing — and
             // widens smoothly when the next line is longer.
@@ -751,10 +973,7 @@ struct Typewriter: View {
                 Text(String(current.prefix(shown))).font(font)
                 TimelineView(.periodic(from: .now, by: 0.5)) { context in
                     let on = shown < current.count || Int(context.date.timeIntervalSinceReferenceDate * 2) % 2 == 0
-                    RoundedRectangle(cornerRadius: 1.5)
-                        .fill(DS.Gradients.accent)
-                        .frame(width: 3, height: cursorHeight)
-                        .opacity(on ? 1 : 0)
+                    cursor.opacity(on ? 1 : 0)
                 }
             }
         }
@@ -763,7 +982,6 @@ struct Typewriter: View {
         .accessibilityElement()
         .accessibilityLabel(text)
         .task {
-            if reduceMotion { shown = text.count; return }
             try? await Task.sleep(for: .seconds(delay))
             await type(text, from: 0)
             for next in then {
@@ -794,7 +1012,8 @@ struct Typewriter: View {
 
 // MARK: - Step transitions & entrances
 
-/// Steps slide a little and come into focus.
+/// Steps slide a little and come into focus. Not with Reduce Motion — then the
+/// shell fades them instead (see `stepTransition`).
 private struct StepShift: ViewModifier {
     let offset: CGFloat
     func body(content: Content) -> some View {
