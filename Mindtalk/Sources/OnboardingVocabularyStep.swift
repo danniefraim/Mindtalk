@@ -337,8 +337,6 @@ private struct FromListChip: View {
 
 private struct FirstWordCard: View {
     @ObservedObject var vocabulary: Vocabulary
-    /// The listener (100 MB), offered the moment there's a word for it to hear.
-    @ObservedObject private var listener = VocabularyBoostStatus.shared
     let hasOwnWords: Bool
     @Binding var added: AddResult?
     @Binding var highlighted: UUID?
@@ -460,10 +458,6 @@ private struct FirstWordCard: View {
             .padding(.top, 14)
             Group {
                 switch result {
-                case .added(let word) where listener.state == .downloading:
-                    Text("Laddar ned lyssnaren – sedan blir ”\(word)” rätt redan när du pratar.")
-                case .added(let word) where offersListener:
-                    Text("Ladda ned lyssnaren (\(VocabularyBoost.sizeText)), så blir ”\(word)” rätt redan när du pratar.")
                 case .added(let word):
                     Text("Från och med nu stavas ”\(word)” så i allt du dikterar.")
                 case .existing(let word, let variants) where variants.isEmpty:
@@ -480,11 +474,6 @@ private struct FirstWordCard: View {
             .padding(.top, 3)
             Spacer(minLength: 10)
             HStack(spacing: 8) {
-                if case .added = result, offersListener {
-                    Button("Ladda ned \(VocabularyBoost.sizeText)") { Vocabulary.shared.fetchListener() }
-                        .buttonStyle(.ink)
-                        .help("Lyssnaren hör dina ord direkt – också namn som låter som vanliga ord")
-                }
                 Button("Lägg till fler") {
                     withAnimation(.smooth(duration: 0.35)) { added = nil }
                     DispatchQueue.main.async { wordFocused = true }
@@ -492,11 +481,6 @@ private struct FirstWordCard: View {
                 .buttonStyle(SoftButtonStyle(small: true))
             }
         }
-    }
-
-    /// No listener yet, and not asked for: the moment to offer it.
-    private var offersListener: Bool {
-        listener.state == .missing && !Settings.listenerAllowed
     }
 
     private func isNew(_ result: AddResult) -> Bool {

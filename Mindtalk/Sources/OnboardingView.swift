@@ -34,6 +34,10 @@ struct OnboardingView: View {
     /// The listener for the word list (100 MB), fetched along with the speech model —
     /// ticked from the start; it's small and makes names right as you speak.
     @State private var listener = !VocabularyBoost.isInstalled
+    /// The voice model for meetings (400 MB): ticked — small, and needed for meetings.
+    @State private var voices = !VoiceModels.isInstalled
+    /// Gemma: not ticked — big, and Apple Intelligence writes summaries without it.
+    @State private var gemma = false
     @State private var forward = true
     /// The feature steps (Tankar, Möten, Ordlista) you've tried — "Fortsätt" rather than
     /// "Hoppa över". Kept per step, so one stays done when you go back to it.
@@ -96,7 +100,7 @@ struct OnboardingView: View {
     @ViewBuilder private var stepView: some View {
         switch step {
         case .welcome: WelcomeStep()
-        case .language: LanguageStep(chosen: $chosen, listener: $listener)
+        case .language: LanguageStep(chosen: $chosen, listener: $listener, voices: $voices, gemma: $gemma)
         case .permissions: PermissionsStep(dictation: dictation)
         case .tryIt: TryStep(dictation: dictation)
         case .thoughts: ThoughtsStep(dictation: dictation, done: tried(.thoughts))
@@ -178,13 +182,22 @@ struct OnboardingView: View {
         case .language:
             // Already on its way (the introduction shown again): nothing more to fetch.
             let missing = SpeechModel.allCases.filter { chosen.contains($0) && !$0.isInstalled && dictation.downloads[$0] == nil }
-            if missing.isEmpty, !(listener && !VocabularyBoost.isInstalled && !Settings.listenerAllowed) { return String(localized: "Fortsätt") }
-            let bytes = missing.reduce(Int64(0)) { $0 + $1.downloadBytes }
-                + (listener && !VocabularyBoost.isInstalled ? 100_000_000 : 0)
+            let extra = Self.extras(listener: listener, voices: voices, gemma: gemma)
+            if missing.isEmpty, extra == 0 { return String(localized: "Fortsätt") }
+            let bytes = missing.reduce(Int64(0)) { $0 + $1.downloadBytes } + extra
             return String(localized: "Ladda ned \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) och fortsätt")
         case .ready: return String(localized: "Sätt igång")
         default: return String(localized: "Fortsätt")
         }
+    }
+
+    /// What the ticked extras still have to fetch, in bytes.
+    private static func extras(listener: Bool, voices: Bool, gemma: Bool) -> Int64 {
+        var bytes: Int64 = 0
+        if listener, !VocabularyBoost.isInstalled, VocabularyBoostStatus.shared.state == .missing { bytes += 100_000_000 }
+        if voices, VoiceModels.shared.state == .missing { bytes += 400_000_000 }
+        if gemma, let m = LanguageStep.gemmaModel, case .missing = BetterNotes.shared.state(m) { bytes += m.remainingBytes }
+        return bytes
     }
 
     private func primary() {
@@ -196,6 +209,8 @@ struct OnboardingView: View {
             if !chosen.contains(dictation.engine), let first = order.first { dictation.setEngine(first) }
             for m in order where !m.isInstalled { dictation.downloadModel(m) }
             if listener { Vocabulary.shared.fetchListener() }
+            if voices, VoiceModels.shared.state == .missing { VoiceModels.shared.download() }
+            if gemma, let m = LanguageStep.gemmaModel, case .missing = BetterNotes.shared.state(m) { BetterNotes.shared.download(m) }
             go(1)
         case .vocabulary:
             VocabularyStep.commitPending?()   // a word typed but not added
@@ -271,11 +286,20 @@ private struct WelcomeStep: View {
 private struct LanguageStep: View {
     @Binding var chosen: Set<SpeechModel>
     @Binding var listener: Bool
+    @Binding var voices: Bool
+    @Binding var gemma: Bool
+    @ObservedObject private var notes = BetterNotes.shared
+
+    /// The best Gemma this Mac runs that also fits on the disk.
+    static var gemmaModel: NotesModel? {
+        guard BetterNotes.shared.active == nil else { return nil }
+        return NotesModel.allCases.reversed().first { $0.supported && $0.hasRoom }
+    }
 
     var body: some View {
-        VStack(spacing: 26) {
+        VStack(spacing: 22) {
             StepHeader(title: "Vilket språk pratar du?",
-                       subtitle: "Välj ett eller båda. Talmodellen hämtas en gång – sedan behövs inget internet.")
+                       subtitle: "Välj ett eller båda. Allt hämtas en gång och körs på din Mac – sedan behövs inget internet.")
                 .staggered(0)
             HStack(spacing: 16) {
                 ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
@@ -287,25 +311,60 @@ private struct LanguageStep: View {
                     .staggered(i + 1)
                 }
             }
-            // The listener comes along — small, and what makes your own words right.
-            if !VocabularyBoost.isInstalled {
-                Toggle(isOn: $listener) {
-                    (Text("Lyssnaren för din ordlista").fontWeight(.semibold)
-                     + Text(verbatim: " · ")
-                     + Text("namn och ord stavas rätt redan när du pratar (\(VocabularyBoost.sizeText))"))
-                        .font(.system(size: 12.5))
-                        .foregroundStyle(DS.Colors.muted)
-                }
-                .toggleStyle(.checkbox)
-                .staggered(3)
-            }
+            // Everything else worth having, fetched in the same go — so it's there by the
+            // time the steps about meetings and the word list come.
+            recommended.staggered(3)
             Text("Du byter språk med ett klick i menyraden.")
                 .font(.system(size: 12))
                 .foregroundStyle(DS.Colors.muted)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 520)
-                .staggered(3)
+                .staggered(4)
         }
+    }
+}
+
+extension LanguageStep {
+    @ViewBuilder fileprivate var recommended: some View {
+        let showsVoices = !VoiceModels.isInstalled
+        let showsListener = !VocabularyBoost.isInstalled
+        let model = Self.gemmaModel
+        if showsVoices || showsListener || model != nil {
+            VStack(alignment: .leading, spacing: 9) {
+                Text("Rekommenderas också – laddas ned medan du går vidare")
+                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+                if showsVoices {
+                    extra($voices, name: "Röstmodellen", gives: "vem som säger vad i möten", size: VoiceModels.sizeText)
+                }
+                if showsListener {
+                    extra($listener, name: "Lyssnaren", gives: "dina ord stavas rätt redan när du pratar", size: VocabularyBoost.sizeText)
+                }
+                if let m = model {
+                    extra($gemma, name: m.name, gives: "mer träffsäkra sammanfattningar", size: m.sizeText)
+                    // The larger one, when this Mac runs it but it doesn't fit.
+                    if let best = NotesModel.recommended, best != m, !best.hasRoom {
+                        Text("Den större \(best.name) (\(best.sizeText)) passar också – frigör \(BetterNotes.gigabytes(max(100_000_000, best.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes))) till.")
+                            .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
+                            .padding(.leading, 24)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .raised(cornerRadius: DS.Radius.panel)
+        }
+    }
+
+    private func extra(_ on: Binding<Bool>, name: String, gives: LocalizedStringKey, size: String) -> some View {
+        Toggle(isOn: on) {
+            HStack(spacing: 6) {
+                Text(LocalizedStringKey(name)).font(.system(size: 13, weight: .semibold))
+                Text(gives).font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                Spacer(minLength: 8)
+                Text(verbatim: size).font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.Colors.muted)
+            }
+        }
+        .toggleStyle(.checkbox)
     }
 }
 
@@ -335,7 +394,7 @@ private struct LanguageCard: View {
                         .contentTransition(.symbolEffect(.replace))
                         .symbolEffect(.bounce, value: selected)
                 }
-                Spacer(minLength: 18)
+                Spacer(minLength: 10)
                 HStack(spacing: 8) {
                     Text(model.title).font(.system(size: 19, weight: .semibold))
                     if recommended {
@@ -362,7 +421,7 @@ private struct LanguageCard: View {
             }
             .padding(22)
             .frame(maxWidth: .infinity, alignment: .topLeading)
-            .frame(height: 232)
+            .frame(height: 196)
             .raised(selected: selected)
             .overlay(
                 // Hover without choosing: a hint of the ink edge.
@@ -863,6 +922,9 @@ struct DownloadStatus: View {
                               detail: String(localized: "Röstmodellen laddades inte ned"),
                               retry: { VoiceModels.shared.download() }))
         default: break
+        }
+        if let m = BetterNotes.shared.downloading, case .downloading(let p) = BetterNotes.shared.state(m) {
+            items.append(Item(id: "notes", name: m.name, progress: p, detail: String(localized: "\(Self.percent(p)) %"), retry: {}))
         }
         return items
     }

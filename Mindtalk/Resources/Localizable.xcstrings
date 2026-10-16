@@ -11332,22 +11332,6 @@
         }
       }
     },
-    "Ladda ned lyssnaren (%@), så blir ”%@” rätt redan när du pratar.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Download the listener (%1$@), and “%2$@” is right as you speak."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ladda ned lyssnaren (%@), så blir ”%@” rätt redan när du pratar."
-          }
-        }
-      }
-    },
     "Ladda ned och fortsätt": {
       "extractionState": "stale",
       "localizations": {
@@ -11624,22 +11608,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Laddar ned lyssnaren (%@). Det sker bara en gång – sedan fungerar den utan internet."
-          }
-        }
-      }
-    },
-    "Laddar ned lyssnaren – sedan blir ”%@” rätt redan när du pratar.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Downloading the listener – then “%@” is right as you speak."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Laddar ned lyssnaren – sedan blir ”%@” rätt redan när du pratar."
           }
         }
       }
@@ -12376,38 +12344,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lyssnaren"
-          }
-        }
-      }
-    },
-    "Lyssnaren för din ordlista": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The listener for your word list"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lyssnaren för din ordlista"
-          }
-        }
-      }
-    },
-    "Lyssnaren hör dina ord direkt – också namn som låter som vanliga ord": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The listener hears your words right away – even names that sound like ordinary words"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lyssnaren hör dina ord direkt – också namn som låter som vanliga ord"
           }
         }
       }
@@ -16515,6 +16451,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rekommenderas för din Mac"
+          }
+        }
+      }
+    },
+    "Rekommenderas också – laddas ned medan du går vidare": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Also recommended – downloads while you go on"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rekommenderas också – laddas ned medan du går vidare"
           }
         }
       }
@@ -23258,19 +23210,19 @@
         }
       }
     },
-    "Välj ett eller båda. Talmodellen hämtas en gång – sedan behövs inget internet.": {
+    "Välj ett eller båda. Allt hämtas en gång och körs på din Mac – sedan behövs inget internet.": {
       "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose one or both. The speech model is downloaded once – after that, no internet is needed."
+            "value": "Choose one or both. Everything is downloaded once and runs on your Mac – after that, no internet is needed."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Välj ett eller båda. Talmodellen hämtas en gång – sedan behövs inget internet."
+            "value": "Välj ett eller båda. Allt hämtas en gång och körs på din Mac – sedan behövs inget internet."
           }
         }
       }
@@ -23664,6 +23616,22 @@
         }
       }
     },
+    "dina ord stavas rätt redan när du pratar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "your words spelled right as you speak"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dina ord stavas rätt redan när du pratar"
+          }
+        }
+      }
+    },
     "från mötet %@": {
       "localizations": {
         "en": {
@@ -23988,6 +23956,22 @@
         }
       }
     },
+    "mer träffsäkra sammanfattningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "more accurate summaries"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "mer träffsäkra sammanfattningar"
+          }
+        }
+      }
+    },
     "mind talk": {
       "localizations": {
         "en": {
@@ -24017,22 +24001,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "mot att skriva själv"
-          }
-        }
-      }
-    },
-    "namn och ord stavas rätt redan när du pratar (%@)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "names and words are spelled right as you speak (%@)"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "namn och ord stavas rätt redan när du pratar (%@)"
           }
         }
       }
@@ -24538,6 +24506,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "variant"
+          }
+        }
+      }
+    },
+    "vem som säger vad i möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "who says what in meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vem som säger vad i möten"
           }
         }
       }
