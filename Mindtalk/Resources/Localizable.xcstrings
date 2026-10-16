@@ -159,6 +159,22 @@
         }
       }
     },
+    "%@ från Google · %@, laddas ned i bakgrunden": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ from Google · %2$@, downloads in the background"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ från Google · %@, laddas ned i bakgrunden"
+          }
+        }
+      }
+    },
     "%@ förbereds": {
       "localizations": {
         "en": {
@@ -3780,7 +3796,6 @@
       }
     },
     "Bättre sammanfattningar": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7610,6 +7625,22 @@
         }
       }
     },
+    "Hittar fler beslut och uppgifter än Apple Intelligence – och skriver dem på din Mac": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finds more decisions and tasks than Apple Intelligence – and writes them on your Mac"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hittar fler beslut och uppgifter än Apple Intelligence – och skriver dem på din Mac"
+          }
+        }
+      }
+    },
     "Hittar ingen fungerande mikrofon.": {
       "localizations": {
         "en": {
@@ -11281,6 +11312,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ladda om"
+          }
+        }
+      }
+    },
+    "Laddar ned %@ i bakgrunden – %lld %%": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading %1$@ in the background – %2$lld %%"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddar ned %@ i bakgrunden – %lld %%"
           }
         }
       }
