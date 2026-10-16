@@ -127,6 +127,22 @@
         }
       }
     },
+    "%@ från Google hittar fler beslut och uppgifter och skriver dem på din Mac. Den behöver %@ ledigt – du har %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ from Google finds more decisions and tasks and writes them on your Mac. It needs %2$@ free – you have %3$@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ från Google hittar fler beslut och uppgifter och skriver dem på din Mac. Den behöver %@ ledigt – du har %@."
+          }
+        }
+      }
+    },
     "%@ från Google hittar fler beslut och uppgifter och skriver dem på din Mac. Den laddas ned en gång (%@) och fungerar sedan utan internet. Du har %lld GB ledigt.": {
       "localizations": {
         "en": {
@@ -3498,6 +3514,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bra. Då säger vi fjärde november."
+          }
+        }
+      }
+    },
+    "Byt modell": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change model"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Byt modell"
           }
         }
       }
@@ -15905,18 +15937,18 @@
         }
       }
     },
-    "Sammanfattat av %@. Stämmer något inte? Klicka på en tid och lyssna själv.": {
+    "Sammanfattat av %@.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Summarized by %@. Something off? Click a time and listen for yourself."
+            "value": "Summarised by %@."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sammanfattat av %@. Stämmer något inte? Klicka på en tid och lyssna själv."
+            "value": "Sammanfattat av %@."
           }
         }
       }
@@ -18055,6 +18087,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stämmer namnet?"
+          }
+        }
+      }
+    },
+    "Stämmer något inte? Klicka på en tid och lyssna själv.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Something not right? Click a time and listen for yourself."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stämmer något inte? Klicka på en tid och lyssna själv."
           }
         }
       }
@@ -21431,6 +21479,22 @@
         }
       }
     },
+    "Visa modeller": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show models"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa modeller"
+          }
+        }
+      }
+    },
     "Visa mötena": {
       "localizations": {
         "en": {
@@ -21772,6 +21836,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Välj vad Mindtalk lyssnar med. Prata för att testa."
+          }
+        }
+      }
+    },
+    "Välj vem som skriver sammanfattningarna – i Inställningar → Modeller": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose who writes the summaries – in Settings → Models"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj vem som skriver sammanfattningarna – i Inställningar → Modeller"
           }
         }
       }

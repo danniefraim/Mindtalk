@@ -415,6 +415,29 @@ struct NotesModelOffer: View {
                 .padding(18)
                 .card()
                 .transition(.opacity)
+            // Doesn't fit: said anyway, once — what it would give, and how much room it needs.
+            case .missing where !answered:
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "sparkle").font(.system(size: 15)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Mer träffsäkra sammanfattningar").font(.system(size: 14, weight: .semibold))
+                            Text("\(m.name) från Google hittar fler beslut och uppgifter och skriver dem på din Mac. Den behöver \(BetterNotes.gigabytes(m.remainingBytes + 2_000_000_000)) ledigt – du har \(BetterNotes.gigabytes(BetterNotes.freeBytes)).")
+                                .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    HStack(spacing: 10) {
+                        Spacer()
+                        Button("Inte nu") { withAnimation(.snappy) { answered = true } }
+                            .buttonStyle(.plain).font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
+                        Button("Visa modeller") { SettingsPage.openModels() }
+                            .buttonStyle(.ink)
+                    }
+                }
+                .padding(18)
+                .card()
+                .transition(.opacity)
             default:
                 EmptyView()
             }

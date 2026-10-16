@@ -274,6 +274,14 @@ struct SettingsPage: View {
 
     /// Set before opening Settings to land on "Om Mindtalk".
     static var jumpToAbout = false
+    /// Set before opening Settings to land on "Modeller" (Byt modell under a summary).
+    static var jumpToModels = false
+
+    /// Settings, scrolled to the models.
+    static func openModels() {
+        jumpToModels = true
+        NotificationCenter.default.post(name: .showPage, object: Page.settings)
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -392,6 +400,7 @@ struct SettingsPage: View {
             // MARK: Modeller
 
             SectionTitle("Modeller")
+                .id("models")
                 .staggered(4)
             ModelsCard(dictation: dictation)
                 .staggered(4)
@@ -468,7 +477,15 @@ struct SettingsPage: View {
                 .id("about")
                 .staggered(5)
         }
-        .onAppear { if Self.jumpToAbout { showAbout(proxy, after: 0.45) } }
+        .onAppear {
+            if Self.jumpToAbout { showAbout(proxy, after: 0.45) }
+            if Self.jumpToModels {
+                Self.jumpToModels = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    withAnimation(.spring(duration: 0.6)) { proxy.scrollTo("models", anchor: .top) }
+                }
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .showAbout)) { _ in showAbout(proxy, after: 0.1) }
         }
         .pageLayout()

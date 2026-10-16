@@ -1921,7 +1921,12 @@ private struct SummaryView: View {
                 HStack(alignment: .center, spacing: 7) {
                     Image(systemName: summary.writer == nil ? "apple.intelligence" : "sparkle")
                         .font(.system(size: 12))
-                    Text(String(localized: "Sammanfattat av \(summary.writer ?? "Apple Intelligence"). Stämmer något inte? Klicka på en tid och lyssna själv."))
+                    Text(String(localized: "Sammanfattat av \(summary.writer ?? "Apple Intelligence")."))
+                    // Who writes the summaries is chosen in Settings → Modeller: one click away.
+                    Button("Byt modell") { SettingsPage.openModels() }
+                        .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.ink)
+                        .help("Välj vem som skriver sammanfattningarna – i Inställningar → Modeller")
+                    Text("Stämmer något inte? Klicka på en tid och lyssna själv.")
                     Spacer(minLength: 16)
                     Button {
                         notes.summarize(record.id)
