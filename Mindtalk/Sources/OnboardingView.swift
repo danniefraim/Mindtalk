@@ -2,32 +2,31 @@ import SwiftUI
 
 // MARK: - First run
 //
-// Five steps — welcome → language (starts the download) → permissions (while it
-// downloads) → try it for real, with your key → what else Mindtalk does — and then
-// Hem. The first dictation is celebrated; meetings, thoughts and the word list are
-// shown, not set up (Nemotron only if you tick it, Gemma never here). With Reduce
-// Motion on, it's all calm and still.
+// Seven steps — welcome → language (starts the download) → permissions (while it
+// downloads) → try it for real, with your key → a thought, for real → meetings (and
+// the voice model, if you want it) → the word list — and then Hem. Each feature gets
+// its own step that says what to do and when (OnboardingThoughts/Meetings/
+// VocabularyStep.swift). Gemma never here. With Reduce Motion on, it's all calm and still.
 
 struct OnboardingView: View {
     @ObservedObject var dictation: Dictation
     let finish: () -> Void
 
-    enum Step: Int, CaseIterable { case welcome, language, permissions, tryIt, more }
+    enum Step: Int, CaseIterable { case welcome, language, permissions, tryIt, thoughts, meetings, vocabulary }
 
     @State private var step: Step = OnboardingView.firstStep
 
     private static var firstStep: Step {
         #if DEBUG
         let names: [String: Step] = ["welcome": .welcome, "language": .language, "permissions": .permissions, "key": .tryIt,
-                                     "tryIt": .tryIt, "more": .more]
+                                     "tryIt": .tryIt, "more": .thoughts,
+                                     "thoughts": .thoughts, "meetings": .meetings, "vocabulary": .vocabulary]
         if let name = Demo.onboardingStep, let step = names[name] { return step }
         #endif
         return .welcome
     }
     @State private var chosen: Set<SpeechModel> = [Settings.engine]
     @State private var forward = true
-    /// "Hämta röstmodellen nu" on the last step.
-    @State private var fetchVoices = false
 
     var body: some View {
         ZStack {
@@ -77,7 +76,9 @@ struct OnboardingView: View {
         case .language: LanguageStep(chosen: $chosen)
         case .permissions: PermissionsStep(dictation: dictation)
         case .tryIt: TryStep(dictation: dictation)
-        case .more: MoreStep(dictation: dictation, fetchVoices: $fetchVoices)
+        case .thoughts: ThoughtsStep(dictation: dictation)
+        case .meetings: MeetingsStep()
+        case .vocabulary: VocabularyStep()
         }
     }
 
@@ -95,14 +96,14 @@ struct OnboardingView: View {
                 .transition(.opacity)
             }
             // While you go through the steps; "Prova" shows it in the box itself.
-            if step == .permissions || step == .more { DownloadStatus(dictation: dictation) }
+            if step == .permissions || step.rawValue >= Step.thoughts.rawValue { DownloadStatus(dictation: dictation) }
             Spacer()
-            if step == .more {
-                Button("Senare") { done() }
+            if step.rawValue >= Step.thoughts.rawValue, step != .vocabulary {
+                Button("Hoppa över resten") { done() }
                     .buttonStyle(.plain)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(DS.Colors.muted)
-                    .help("Börja med dikteringen – möten och tankar finns kvar när du vill")
+                    .help("Allt finns kvar i appen när du vill")
             }
             GlowButton(title: primaryTitle, action: primary)
                 .keyboardShortcut(step == .tryIt ? nil : .defaultAction)
@@ -119,7 +120,7 @@ struct OnboardingView: View {
             if missing.isEmpty { return String(localized: "Fortsätt") }
             let bytes = missing.reduce(Int64(0)) { $0 + $1.downloadBytes }
             return String(localized: "Ladda ned \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) och fortsätt")
-        case .more: return String(localized: "Öppna Mindtalk")
+        case .vocabulary: return String(localized: "Öppna Mindtalk")
         default: return String(localized: "Fortsätt")
         }
     }
@@ -132,8 +133,7 @@ struct OnboardingView: View {
             if let first = order.first { dictation.setEngine(first) }
             for m in order where !m.isInstalled { dictation.downloadModel(m) }
             go(1)
-        case .more:
-            if fetchVoices, !VoiceModels.isInstalled { VoiceModels.shared.download() }
+        case .vocabulary:
             done()
         default:
             go(1)
@@ -467,87 +467,7 @@ private struct TryStep: View {
     }
 }
 
-// MARK: - Step 5: What else Mindtalk does
-
-private struct MoreStep: View {
-    @ObservedObject var dictation: Dictation
-    @Binding var fetchVoices: Bool
-    @ObservedObject private var voices = VoiceModels.shared
-
-    private var thoughtKeys: String? { Settings.thoughtShortcut.map { $0.chip.replacingOccurrences(of: " ", with: "") } }
-    private var meetingKeys: String { Settings.meetingShortcut.map { $0.chip.replacingOccurrences(of: " ", with: "") } ?? "⇧⌘R" }
-
-    var body: some View {
-        VStack(spacing: 24) {
-            StepHeader(title: "Mindtalk kan mer",
-                       subtitle: "Det mesta gör du med en tangent. Resten finns i menyraden.")
-                .staggered(0)
-            HStack(alignment: .top, spacing: 14) {
-                tile(icon: "lightbulb", title: "Tankar", keys: thoughtKeys,
-                     text: "Kommer du på något du inte vill glömma, mitt i något annat? Håll in tangenten och säg det. Det sparas i Tankar, och du kan fortsätta med det du höll på med.") {
-                    Text("t.ex. ”Ring tillbaka om offerten”")
-                        .font(.system(size: 12)).italic().foregroundStyle(.white.opacity(0.55))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.bottom, 2)
-                    Button("Prova nu") { dictation.startThought() }
-                        .buttonStyle(.soft).environment(\.colorScheme, .dark)
-                        .disabled(dictation.model != .ready || dictation.phase == .recording || dictation.phase == .transcribing)
-                }
-                .staggered(1)
-                tile(icon: "person.2.wave.2", title: "Möten", keys: meetingKeys,
-                     text: "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar.") {
-                    if VoiceModels.isInstalled {
-                        Label("Klart att använda", systemImage: "checkmark").font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.7))
-                    } else {
-                        Toggle(isOn: $fetchVoices) {
-                            Text("Hämta röstmodellen nu (Nemotron 3, \(VoiceModels.sizeText))")
-                                .font(.system(size: 12)).foregroundStyle(.white.opacity(0.8))
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .toggleStyle(.checkbox)
-                        .environment(\.colorScheme, .dark)
-                    }
-                }
-                .staggered(2)
-                tile(icon: "character.book.closed", title: "Ordlista", keys: nil,
-                     text: "Lär Mindtalk namn och ord så att de stavas rätt – i allt du säger.") {
-                    EmptyView()
-                }
-                .staggered(3)
-            }
-            .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    /// One more thing Mindtalk does, on the night tile like Hem.
-    private func tile<A: View>(icon: String, title: LocalizedStringKey, keys: String?, text: LocalizedStringKey,
-                               @ViewBuilder action: () -> A) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Image(systemName: icon).font(.system(size: 16, weight: .medium)).accessibilityHidden(true)
-                Spacer()
-                if let keys {
-                    Text(verbatim: keys).font(.system(size: 11.5, weight: .semibold))
-                        .padding(.horizontal, 7).padding(.vertical, 3)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.14)))
-                }
-            }
-            Text(title).font(.system(size: 22, weight: .regular, design: .serif))
-            Text(text).font(.system(size: 13)).foregroundStyle(.white.opacity(0.72))
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 8)
-            action()
-        }
-        .foregroundStyle(.white)
-        .padding(18)
-        .frame(maxWidth: .infinity, minHeight: 230, maxHeight: .infinity, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(DS.Colors.night))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
-    }
-}
-
-private struct KeyHint: View {
+struct KeyHint: View {
     let icon: String
     let title: String
     let text: String
@@ -608,7 +528,7 @@ struct Keycap: View {
 /// Until the model is ready, the box says what's happening — downloading (with
 /// MB and time left), getting ready, or what went wrong — instead of inviting
 /// you to talk when nothing would happen yet.
-private struct ModelState: View {
+struct ModelState: View {
     @ObservedObject var dictation: Dictation
 
     var body: some View {
@@ -652,7 +572,7 @@ private struct ModelState: View {
 
 // MARK: - Shared pieces
 
-private struct StepHeader: View {
+struct StepHeader: View {
     let title: String
     let subtitle: String
 
@@ -673,7 +593,7 @@ private struct StepHeader: View {
 }
 
 /// The ink primary button, with an arrow that leans forward on hover.
-private struct GlowButton: View {
+struct GlowButton: View {
     let title: String
     let action: () -> Void
     @State private var hovering = false
@@ -731,7 +651,7 @@ private struct ProgressSegments: View {
 /// Downloads in progress, bottom-left in the footer.
 /// The downloads, next to the Back button: a ring, the model, MB and time left —
 /// or what went wrong, with a way to try again.
-private struct DownloadStatus: View {
+struct DownloadStatus: View {
     @ObservedObject var dictation: Dictation
 
     var body: some View {
@@ -787,7 +707,7 @@ private struct ProgressRing: View {
 
 /// The app icon, alive — the wave rolls and the cursor blinks. It floats gently.
 /// Types its text one character at a time, with a blinking cursor at the end.
-private struct Typewriter: View {
+struct Typewriter: View {
     let text: String
     let font: Font
     var delay: Double = 0
@@ -840,7 +760,7 @@ private struct StepShift: ViewModifier {
 // MARK: - Confetti
 
 /// A short burst of paper in black, white and greys, falling with a little spin.
-private struct Confetti: View {
+struct Confetti: View {
     let trigger: Int
     @State private var start: Date?
     @State private var pieces: [Piece] = []
