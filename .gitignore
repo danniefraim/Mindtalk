@@ -14,3 +14,4 @@ Mindtalk.xcodeproj/
 *.mobileprovision
 *.provisionprofile
 *.dSYM/
+.claude/worktrees/
