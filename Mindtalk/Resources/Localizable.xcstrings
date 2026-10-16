@@ -6293,6 +6293,22 @@
         }
       }
     },
+    "Fortsätt ändå": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue anyway"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsätt ändå"
+          }
+        }
+      }
+    },
     "Fortsätt – %@ kvar": {
       "localizations": {
         "en": {
@@ -10269,6 +10285,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klart – möten fungerar."
+          }
+        }
+      }
+    },
+    "Klart – prova nu!": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready – try it now!"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klart – prova nu!"
           }
         }
       }

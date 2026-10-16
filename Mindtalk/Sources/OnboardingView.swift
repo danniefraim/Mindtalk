@@ -125,6 +125,12 @@ struct OnboardingView: View {
         (step == .thoughts || step == .meetings) && !completed.contains(step)
     }
 
+    /// "Prova" while the speech model gets ready: going on is possible, but waiting is
+    /// what's asked for — the next steps need it too.
+    private var waitingForModel: Bool {
+        step == .tryIt && dictation.model != .ready && permitted
+    }
+
     private var permitted: Bool { dictation.micGranted && dictation.accessibilityGranted }
 
     private var footer: some View {
@@ -159,9 +165,9 @@ struct OnboardingView: View {
                 .help("Du hittar allt i appen sen")
                 .transition(.opacity)
             }
-            if skipping {
+            if skipping || waitingForModel {
                 Button(action: primary) {
-                    Text("Hoppa över").contentTransition(.opacity)
+                    Text(waitingForModel ? "Fortsätt ändå" : "Hoppa över").contentTransition(.opacity)
                 }
                 .buttonStyle(.soft)
                 .transition(.opacity)
@@ -176,6 +182,7 @@ struct OnboardingView: View {
         .frame(height: 44)
         .animation(.snappy(duration: 0.25), value: step)
         .animation(.snappy(duration: 0.3), value: skipping)
+        .animation(.snappy(duration: 0.3), value: waitingForModel)
     }
 
     private var primaryTitle: String {
@@ -581,6 +588,8 @@ private struct TryStep: View {
     @State private var practice = ""
     @State private var celebrated = false
     @State private var confetti = 0
+    /// "Klart – prova nu!" for a moment when the speech model becomes ready while you wait.
+    @State private var justReady = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var ready: Bool { dictation.model == .ready }
@@ -604,6 +613,17 @@ private struct TryStep: View {
                            subtitle: subtitle)
                     .staggered(0)
                     .animation(.easeOut(duration: 0.3), value: celebrated)
+                    .overlay(alignment: .bottom) {
+                        if justReady {
+                            Label("Klart – prova nu!", systemImage: "checkmark.circle.fill")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(DS.Colors.onInk)
+                                .padding(.horizontal, 14).padding(.vertical, 7)
+                                .background(Capsule().fill(DS.Colors.ink))
+                                .offset(y: 8)
+                                .transition(.scale(scale: 0.85).combined(with: .opacity))
+                        }
+                    }
                 VStack(spacing: 10) {
                     Keycap(text: dictation.pickingKey ? "…" : dictation.hotkey.chip, pressed: recording,
                            isCombination: !dictation.pickingKey && dictation.hotkey.modifierKeys.count > 1)
@@ -693,6 +713,17 @@ private struct TryStep: View {
             celebrated = true
             confetti += 1
             Cue.celebrate()
+        }
+        // Waited for it: a sound and a moment's "Klart – prova nu!", so you notice even
+        // if you looked away.
+        .onChange(of: dictation.model) { old, new in
+            guard new == .ready, old != .ready, !celebrated else { return }
+            Cue.done()
+            withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.45, bounce: 0.25)) { justReady = true }
+            AccessibilityNotification.Announcement(String(localized: "Klart – prova nu!")).post()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                withAnimation(.easeOut(duration: 0.3)) { justReady = false }
+            }
         }
         .onDisappear { dictation.stopPickingKey() }
     }
