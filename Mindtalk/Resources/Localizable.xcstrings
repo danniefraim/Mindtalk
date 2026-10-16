@@ -10694,6 +10694,23 @@
         }
       }
     },
+    "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hears who says what and writes it down while you talk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar."
+          }
+        }
+      }
+    },
     "Mindtalk kunde inte flyttas": {
       "localizations": {
         "en": {
