@@ -346,7 +346,7 @@ enum ModelError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notInstalled: return String(localized: "Språkmodellen är inte nedladdad.")
+        case .notInstalled: return String(localized: "Talmodellen är inte nedladdad.")
         case .checksumMismatch(let f): return String(localized: "Nedladdningen av \(f) blev skadad. Försök igen.")
         case .badResponse(let f, let code): return String(localized: "Kunde inte ladda ned \(f) (HTTP \(code)).")
         }

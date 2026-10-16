@@ -1,4 +1,5 @@
 import AVFoundation
+import Accessibility
 import AppKit
 import FluidAudio
 import os
@@ -421,10 +422,12 @@ final class MeetingSession: ObservableObject {
         NoteDraft.shared.text = ""
         steps = 0
         let dictation = Dictation.shared
-        guard dictation.phase == .idle else { return }
+        // Only while the dictation has the microphone — a thought just saved or text
+        // just copied (the HUD still saying so) doesn't stand in the way.
+        guard dictation.phase != .recording, dictation.phase != .transcribing else { return }
         language = dictation.engine
         guard language.isInstalled else {
-            lastError = String(localized: "Ladda ned \(language.modelName) först, under Inställningar → Språk.")
+            lastError = String(localized: "Ladda ned \(language.modelName) först, under Inställningar → Inspelning.")
             return
         }
         guard VoiceModels.isInstalled else { return }
@@ -546,7 +549,7 @@ final class MeetingSession: ObservableObject {
         }
         language = saved.language
         guard language.isInstalled else {
-            lastError = String(localized: "Ladda ned \(language.modelName) först, under Inställningar → Språk.")
+            lastError = String(localized: "Ladda ned \(language.modelName) först, under Inställningar → Inspelning.")
             return
         }
         guard Recorder.micAuthorized else {
@@ -863,6 +866,8 @@ final class MeetingSession: ObservableObject {
             return true
         }
         stopAt = Date().addingTimeInterval(Self.undoSeconds)
+        // Said aloud too: there are a few seconds to change your mind.
+        AccessibilityNotification.Announcement(String(localized: "Mötet avslutas om \(Int(Self.undoSeconds)) sekunder. Ångra finns.")).post()
         stopCountdown?.cancel()
         stopCountdown = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(Self.undoSeconds))

@@ -195,8 +195,9 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         if calendar.isDateInToday(date) { return String(localized: "I dag \(time)") }
         if calendar.isDateInYesterday(date) { return String(localized: "I går \(time)") }
         if let days = calendar.dateComponents([.day], from: date, to: Date()).day, days < 6 {
+            // First on its line, like "I dag" and "I går": "Fredag 23:18".
             let weekday = date.formatted(Date.FormatStyle().weekday(.wide).locale(AppLanguage.locale))
-            return "\(weekday) \(time)"
+            return weekday.prefix(1).uppercased() + weekday.dropFirst() + " \(time)"
         }
         let sameYear = calendar.isDate(date, equalTo: Date(), toGranularity: .year)
         let style = sameYear ? Date.FormatStyle().day().month(.abbreviated) : Date.FormatStyle().day().month(.abbreviated).year()

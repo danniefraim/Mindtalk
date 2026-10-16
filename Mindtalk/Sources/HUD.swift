@@ -94,8 +94,10 @@ private struct HUDView: View {
                         .padding(.leading, dictation.handsFree ? 0 : 2)
                         .transition(.opacity)
                 }
-                Waveform(levels: Array(dictation.levels.suffix(14)), gap: 2.5, color: .white)
-                    .frame(width: 52, height: 16)
+                MeterReader(meter: dictation.meter) { levels in
+                    Waveform(levels: Array(levels.suffix(14)), gap: 2.5, color: .white)
+                }
+                .frame(width: 52, height: 16)
                 if dictation.showsLanguage {
                     ModelBadge(model: dictation.engine, size: 10)
                         .foregroundStyle(.white.opacity(0.85))

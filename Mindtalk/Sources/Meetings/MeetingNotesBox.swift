@@ -486,7 +486,7 @@ struct MarkChips: View {
     }
 }
 
-/// "Avslutar om 3 s · Ångra" — on ink, in the panel's stop button and the window's
+/// "Avslutas om 3 s · Ångra" — on ink, in the panel's stop button and the window's
 /// recording pill. The ring empties as the seconds run out.
 struct StopCountdown: View {
     @ObservedObject var session: MeetingSession
@@ -509,7 +509,7 @@ struct StopCountdown: View {
                                 .rotationEffect(.degrees(-90))
                         }
                         .frame(width: 15, height: 15)
-                        Text("Avslutar om \(Int(left.rounded(.up))) s")
+                        Text("Avslutas om \(Int(left.rounded(.up))) s")
                             .font(.system(size: 13, weight: .medium)).monospacedDigit()
                             .foregroundStyle(fore)
                             .fixedSize()

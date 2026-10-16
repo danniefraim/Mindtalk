@@ -256,10 +256,12 @@ struct StatusPanelView: View {
         HStack(spacing: 12) {
             // The tile and the name open the window — the top of the menu, not the bottom.
             Button { go(.dictation) } label: {
-                TimelineView(.animation(paused: dictation.phase != .recording)) { context in
-                    LogoTile(size: 36, t: context.date.timeIntervalSinceReferenceDate,
-                             animated: dictation.phase == .recording,
-                             levels: dictation.phase == .recording ? dictation.levels : nil)
+                MeterReader(meter: dictation.meter) { levels in
+                    TimelineView(.animation(paused: dictation.phase != .recording)) { context in
+                        LogoTile(size: 36, t: context.date.timeIntervalSinceReferenceDate,
+                                 animated: dictation.phase == .recording,
+                                 levels: dictation.phase == .recording ? levels : nil)
+                    }
                 }
                 .shadow(color: .black.opacity(0.25), radius: 6, y: 2)
             }
@@ -275,8 +277,10 @@ struct StatusPanelView: View {
             }
             Spacer(minLength: 8)
             if dictation.phase == .recording {
-                Waveform(levels: Array(dictation.levels.suffix(14)), gap: 2)
-                    .frame(width: 46, height: 16)
+                MeterReader(meter: dictation.meter) { levels in
+                    Waveform(levels: Array(levels.suffix(14)), gap: 2)
+                }
+                .frame(width: 46, height: 16)
                     .transition(.opacity)
             }
         }

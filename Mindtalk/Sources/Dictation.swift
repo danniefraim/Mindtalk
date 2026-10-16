@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import Combine
+import SwiftUI
 import os
 
 // MARK: - Dictation
@@ -46,9 +47,13 @@ final class Dictation: ObservableObject {
     }
     /// This recording is a thought (Tankar): kept there, not typed where you are.
     @Published private(set) var forThought = false
-    @Published private(set) var level: Float = 0
-    /// The last second or two of mic levels, oldest first — the HUD's waveform.
-    @Published private(set) var levels = [Float](repeating: 0, count: Dictation.levelCount)
+    /// The latest mic level — not published: thirty buffers a second would redraw
+    /// every view that watches the dictation.
+    private(set) var level: Float = 0
+    /// The last second or two of mic levels, oldest first — the HUD's waveform. In
+    /// `meter`, so only the views that draw it redraw with it.
+    let meter = LevelMeter()
+    var levels: [Float] { meter.levels }
     static let levelCount = 24
     private var lastLevelPush = Date.distantPast
 
@@ -59,7 +64,7 @@ final class Dictation: ObservableObject {
         recordingStarted = Date().addingTimeInterval(-7)
         let voice: [Float] = [0.05, 0.12, 0.30, 0.52, 0.41, 0.66, 0.35, 0.22, 0.48, 0.71, 0.58, 0.33,
                               0.18, 0.40, 0.62, 0.50, 0.28, 0.45, 0.69, 0.54, 0.31, 0.47, 0.60, 0.38]
-        levels = voice
+        meter.levels = voice
         handsFree = CommandLine.arguments.contains("--demo-locked")
         showsLanguage = CommandLine.arguments.contains("--demo-language")
         if CommandLine.arguments.contains("--demo-transcribing") { phase = .transcribing }
@@ -74,8 +79,10 @@ final class Dictation: ObservableObject {
         level = value
         guard Date().timeIntervalSince(lastLevelPush) > 0.05 else { return }
         lastLevelPush = Date()
-        levels.removeFirst()
-        levels.append(value)
+        var wave = meter.levels
+        wave.removeFirst()
+        wave.append(value)
+        meter.levels = wave
     }
     @Published private(set) var engine = Settings.engine
     @Published private(set) var model: ModelState = Settings.engine.isInstalled ? .loading : .missing
@@ -91,7 +98,8 @@ final class Dictation: ObservableObject {
     @Published private(set) var pickingKey = false
     @Published private(set) var accessibilityGranted = AXIsProcessTrusted()
     @Published private(set) var micGranted = Recorder.micAuthorized
-    /// Recent dictations — in memory only, so a paste that landed nowhere can be copied.
+    /// The last dictations, kept on this Mac (Application Support, readable only by you)
+    /// so a paste that landed nowhere can be copied — never a password field's.
     @Published private(set) var recent: [Entry] = Dictation.loadRecent() {
         didSet { saveRecent() }
     }
@@ -175,7 +183,7 @@ final class Dictation: ObservableObject {
             case .microphone: return String(localized: "Tillåt mikrofonen")
             case .modelMissing: return String(localized: "Ladda ned språkmodellen (\(model))")
             case .modelDownloading(let p): return String(localized: "Laddar ned språkmodellen – \(Int(p * 100)) %")
-            case .modelFailed: return String(localized: "Språkmodellen startade inte – försök igen")
+            case .modelFailed: return String(localized: "Talmodellen startade inte – försök igen")
             }
         }
 
@@ -638,8 +646,8 @@ final class Dictation: ObservableObject {
         }
         switch model {
         case .ready: break
-        case .loading: return report { $0.fail(String(localized: "Språkmodellen startar – ett ögonblick…")) }
-        case .downloading: return report { $0.fail(String(localized: "Språkmodellen laddas fortfarande ned…")) }
+        case .loading: return report { $0.fail(String(localized: "Talmodellen startar – ett ögonblick…")) }
+        case .downloading: return report { $0.fail(String(localized: "Talmodellen laddas fortfarande ned…")) }
         case .missing, .failed:
             return report {
                 if AppDelegate.isOnboarding { $0.fail(String(localized: "\($0.engine.title) är inte nedladdad än.")) }
@@ -755,7 +763,7 @@ final class Dictation: ObservableObject {
                 if Settings.aiPolish, !secret, let polished = await Polisher.shared.polish(text) {
                     text = Vocabulary.shared.reapply(polished)
                 }
-                guard !text.isEmpty else {
+                guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     return heard < 0.03 ? fail(String(localized: "Hörde inget – kontrollera mikrofonen.")) : reset()
                 }
                 // A thought: kept in Tankar — nothing typed anywhere.
@@ -816,7 +824,7 @@ final class Dictation: ObservableObject {
         pressedAt = nil
         recordingStarted = nil
         level = 0
-        levels = [Float](repeating: 0, count: Self.levelCount)
+        meter.levels = [Float](repeating: 0, count: Self.levelCount)
         hud.hide()
     }
 
@@ -869,7 +877,7 @@ final class Dictation: ObservableObject {
             if let app = NSWorkspace.shared.frontmostApplication, FocusedField.kind(in: app.processIdentifier) == .none {
                 return copied(last.text)
             }
-            TextInserter.insert(last.text + " ", keeping: Settings.keepInClipboard ? last.text : nil)
+            TextInserter.insert(last.text.hasSuffix("\n") ? last.text : last.text + " ", keeping: Settings.keepInClipboard ? last.text : nil)
         }
     }
 
@@ -880,4 +888,25 @@ final class Dictation: ObservableObject {
     func clearRecent() { recent = [] }
 
     func removeRecent(_ entry: Entry) { recent.removeAll { $0.id == entry.id } }
+
+    /// "Ångra": back where it was.
+    func restoreRecent(_ entry: Entry, at index: Int) {
+        guard !recent.contains(where: { $0.id == entry.id }) else { return }
+        var updated = recent
+        updated.insert(entry, at: min(index, updated.count))
+        recent = Array(updated.prefix(Self.recentLimit))
+    }
+}
+
+/// The mic levels of the dictation going on, apart from everything else it publishes.
+@MainActor
+final class LevelMeter: ObservableObject {
+    @Published var levels = [Float](repeating: 0, count: Dictation.levelCount)
+}
+
+/// Reads the mic levels in a view of its own, so only it redraws with every level.
+struct MeterReader<Content: View>: View {
+    @ObservedObject var meter: LevelMeter
+    @ViewBuilder let content: ([Float]) -> Content
+    var body: some View { content(meter.levels) }
 }

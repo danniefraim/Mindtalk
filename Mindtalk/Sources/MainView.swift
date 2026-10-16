@@ -154,6 +154,9 @@ private struct DictationPage: View {
     @ObservedObject var dictation: Dictation
     @Binding var page: Page
     @State private var wide = true
+    /// A new day (midnight, or the Mac waking on one): "i dag", the week and
+    /// "I går 14:02" on the cards are all drawn afresh.
+    @ObservedObject private var stats = Stats.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 30) {
@@ -163,6 +166,7 @@ private struct DictationPage: View {
 
             HomeShelves(page: $page, wide: wide).staggered(2)
         }
+        .id(stats.day)
         .onGeometryChange(for: Bool.self) { $0.size.width >= 690 } action: { wide = $0 }
         .pageLayout()
     }
@@ -190,17 +194,17 @@ private struct DictationPage: View {
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle("Kom igång")
             VStack(spacing: 0) {
-                CardRow(title: "Mikrofon", detail: "Hör vad du säger medan du dikterar – aldrig annars.") {
+                CardRow(title: "Mikrofon", detail: "Hör dig bara när du dikterar eller spelar in ett möte.") {
                     if dictation.micGranted { GrantedLabel(text: "Tillåten") }
                     else { Button("Tillåt") { dictation.requestMicrophone() }.buttonStyle(.ink) }
                 }
                 CardDivider()
-                CardRow(title: "Hjälpmedel", detail: "Används för att känna av din tangent och skriva in texten där markören står.") {
+                CardRow(title: "Hjälpmedel", detail: "Behövs för att märka när du håller in tangenten och för att skriva texten där markören står.") {
                     if dictation.accessibilityGranted { GrantedLabel() }
                     else { Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.ink) }
                 }
                 CardDivider()
-                CardRow(title: String(localized: "Språkmodell – \(dictation.engine.title.lowercased())"), detail: modelDetail(dictation.model, dictation.engine)) {
+                CardRow(title: String(localized: "Talmodell – \(dictation.engine.title.lowercased())"), detail: modelDetail(dictation.model, dictation.engine)) {
                     ModelControl(dictation: dictation)
                 }
             }
@@ -648,7 +652,11 @@ private struct TryDictation: View {
 
 private struct RecentPage: View {
     @ObservedObject var dictation: Dictation
+    @ObservedObject private var stats = Stats.shared
     @State private var confirmClear = false
+    /// A dictation just removed, and where it was — "Ångra" for a few seconds.
+    @State private var removed: (entry: Dictation.Entry, index: Int)?
+    @State private var removedTask: Task<Void, Never>?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -660,11 +668,11 @@ private struct RecentPage: View {
                 }
             }
             // What talking instead of typing has given you — here, with what you said.
-            if Stats.shared.totalWords > 0 {
-                StatsCard(stats: .shared).staggered(1)
+            if stats.totalWords > 0 {
+                StatsCard(stats: stats).staggered(1)
             }
             if !dictation.needsSetup { TryDictation(dictation: dictation).staggered(1) }
-            if Stats.shared.totalWords > 0 {
+            if !dictation.recent.isEmpty {
                 SectionTitle("Det du dikterat").staggered(1)
             }
             if dictation.recent.isEmpty {
@@ -684,8 +692,7 @@ private struct RecentPage: View {
                 VStack(spacing: 0) {
                     ForEach(Array(dictation.recent.enumerated()), id: \.element.id) { i, entry in
                         if i > 0 { CardDivider() }
-                        RecentRow(entry: entry, copy: { dictation.copy(entry) },
-                                  remove: { withAnimation(.snappy) { dictation.removeRecent(entry) } })
+                        RecentRow(entry: entry, copy: { dictation.copy(entry) }, remove: { remove(entry, at: i) })
                     }
                 }
                 .card()
@@ -696,11 +703,47 @@ private struct RecentPage: View {
             }
         }
         .pageLayout()
+        .overlay(alignment: .bottom) {
+            if removed != nil {
+                HStack(spacing: 14) {
+                    Text("Dikteringen är borttagen").font(.system(size: 13))
+                    Button("Ångra") { undoRemove() }.buttonStyle(.soft)
+                }
+                .padding(.leading, 18).padding(.trailing, 8).padding(.vertical, 8)
+                .background(Capsule().fill(DS.Colors.card).shadow(color: .black.opacity(0.15), radius: 10, y: 4))
+                .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke, lineWidth: 0.5))
+                .padding(.bottom, 24)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
         .confirmationDialog("Rensa alla senaste dikteringar?", isPresented: $confirmClear) {
             Button("Rensa", role: .destructive) { withAnimation(.snappy) { dictation.clearRecent() } }
             Button("Avbryt", role: .cancel) {}
         } message: {
             Text("De tas bort från din Mac och går inte att få tillbaka. ⌃⌥V har sedan inget att klistra in.")
+        }
+    }
+
+    /// One dictation away — back with "Ångra" for a few seconds.
+    private func remove(_ entry: Dictation.Entry, at index: Int) {
+        withAnimation(.snappy) {
+            dictation.removeRecent(entry)
+            removed = (entry, index)
+        }
+        removedTask?.cancel()
+        removedTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(6))
+            guard !Task.isCancelled else { return }
+            withAnimation(.snappy) { removed = nil }
+        }
+    }
+
+    private func undoRemove() {
+        guard let removed else { return }
+        removedTask?.cancel()
+        withAnimation(.snappy) {
+            dictation.restoreRecent(removed.entry, at: removed.index)
+            self.removed = nil
         }
     }
 }
@@ -723,9 +766,12 @@ private struct RecentRow: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 10) {
-                    Text(Self.when(entry.date))
-                        .font(.system(size: 12))
-                        .foregroundStyle(DS.Colors.muted)
+                    // "För 4 minuter sedan" moves on while the page is open.
+                    TimelineView(.periodic(from: .now, by: 30)) { _ in
+                        Text(Self.when(min(entry.date, Date())))
+                            .font(.system(size: 12))
+                            .foregroundStyle(DS.Colors.muted)
+                    }
                     if long {
                         Button(expanded ? "Visa mindre" : "Visa hela") { withAnimation(.snappy) { expanded.toggle() } }
                             .buttonStyle(.plain)
@@ -745,7 +791,7 @@ private struct RecentRow: View {
             }
             .buttonStyle(.borderless)
             .help("Kopiera")
-            .accessibilityLabel(Text("Kopiera: \(entry.text)"))
+            .accessibilityLabel(Text("Kopiera"))
         }
         .padding(.horizontal, 22)
         .padding(.vertical, 16)

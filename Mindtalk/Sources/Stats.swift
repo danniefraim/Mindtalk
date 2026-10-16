@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 // MARK: - Statistik
 //
@@ -36,12 +36,28 @@ final class Stats: ObservableObject {
         return f
     }()
 
+    /// Today's key. It moves at midnight — and when the Mac wakes on a new day — so
+    /// "i dag" and the week follow the clock rather than wait for the next dictation.
+    @Published private(set) var day = Stats.key(for: Date())
+    private var dayWatch: [NSObjectProtocol] = []
+
     private init() {
         #if DEBUG
         if Demo.on { days = Demo.days; return }
         #endif
         let data = UserDefaults.standard.data(forKey: Self.key)
         days = data.flatMap { try? JSONDecoder().decode([String: DayStat].self, from: $0) } ?? [:]
+        let roll: @Sendable (Notification) -> Void = { _ in Task { @MainActor in Stats.shared.rollDay() } }
+        dayWatch = [
+            NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main, using: roll),
+            NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main, using: roll),
+            NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main, using: roll),
+        ]
+    }
+
+    private func rollDay() {
+        let now = Self.key(for: Date())
+        if now != day { day = now }
     }
 
     private func save() {
@@ -124,6 +140,15 @@ final class Stats: ObservableObject {
         let minutes = s / 60
         if minutes < 60 { return "\(minutes) min" }
         return minutes % 60 == 0 ? "\(minutes / 60) h" : "\(minutes / 60) h \(minutes % 60) min"
+    }
+
+    /// The same, written out for a sentence: "53 minuter", "1 timme", "2 timmar 5 minuter".
+    static func prose(_ seconds: Double) -> String {
+        let minutes = max(1, Int((seconds / 60).rounded()))
+        func m(_ n: Int) -> String { n == 1 ? String(localized: "1 minut") : String(localized: "\(n) minuter") }
+        func h(_ n: Int) -> String { n == 1 ? String(localized: "1 timme") : String(localized: "\(n) timmar") }
+        if minutes < 60 { return m(minutes) }
+        return minutes % 60 == 0 ? h(minutes / 60) : h(minutes / 60) + " " + m(minutes % 60)
     }
 
     static func number(_ n: Int) -> String {

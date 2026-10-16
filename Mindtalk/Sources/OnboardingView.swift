@@ -337,6 +337,8 @@ private struct PermissionCard: View {
 
 private struct KeyStep: View {
     @ObservedObject var dictation: Dictation
+    /// The wave and "hör dig" here follow every level — this step is about the voice.
+    @ObservedObject private var meter = Dictation.shared.meter
 
     private var recording: Bool { dictation.phase == .recording }
     private var hearing: Bool { recording && (dictation.levels.suffix(8).max() ?? 0) > 0.08 }
