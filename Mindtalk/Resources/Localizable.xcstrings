@@ -3238,18 +3238,34 @@
         }
       }
     },
-    "Bara första gången – upp till en minut.": {
+    "Bara första gången – det kan ta några minuter.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Only the first time – up to a minute."
+            "value": "Only the first time – it can take a few minutes."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bara första gången – upp till en minut."
+            "value": "Bara första gången – det kan ta några minuter."
+          }
+        }
+      }
+    },
+    "Bara första gången – det kan ta några minuter. %lld min hittills.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the first time – it can take a few minutes. %lld min so far."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bara första gången – det kan ta några minuter. %lld min hittills."
           }
         }
       }
@@ -4907,6 +4923,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Du kan fortsätta – den laddas ned i bakgrunden."
+          }
+        }
+      }
+    },
+    "Du kan gå vidare under tiden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can go on meanwhile."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du kan gå vidare under tiden."
           }
         }
       }
@@ -7090,23 +7122,6 @@
         }
       }
     },
-    "Gör modellen redo för din Mac – första gången tar det upp till en minut.": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Getting the model ready for your Mac – the first time takes up to a minute."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gör modellen redo för din Mac – första gången tar det upp till en minut."
-          }
-        }
-      }
-    },
     "Gör om": {
       "extractionState": "stale",
       "localizations": {
@@ -9153,18 +9168,18 @@
         }
       }
     },
-    "Inspelningen är igång. Efter en uppdatering av macOS kan förberedelserna ta upp till en minut.": {
+    "Inspelningen är igång. Efter en uppdatering av macOS kan förberedelserna ta några minuter.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recording has started. After a macOS update this can take up to a minute."
+            "value": "Recording has started. After a macOS update, getting ready can take a few minutes."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Inspelningen är igång. Efter en uppdatering av macOS kan förberedelserna ta upp till en minut."
+            "value": "Inspelningen är igång. Efter en uppdatering av macOS kan förberedelserna ta några minuter."
           }
         }
       }
@@ -17964,18 +17979,18 @@
         }
       }
     },
-    "Startar – första gången kan det ta upp till en minut.": {
+    "Startar – första gången kan det ta några minuter.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Starting – the first time can take up to a minute."
+            "value": "Starting – the first time it can take a few minutes."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Startar – första gången kan det ta upp till en minut."
+            "value": "Startar – första gången kan det ta några minuter."
           }
         }
       }

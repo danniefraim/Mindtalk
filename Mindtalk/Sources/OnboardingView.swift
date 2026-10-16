@@ -554,7 +554,13 @@ struct ModelState: View {
                 case .loading:
                     ProgressView().controlSize(.regular)
                     Text("Gör \(dictation.engine.title.lowercased()) redo för din Mac").font(.system(size: 16, weight: .semibold))
-                    Text("Bara första gången – upp till en minut.")
+                    // The first time on a Mac the Neural Engine compiles the model — measured
+                    // at about six minutes; after that it starts in seconds.
+                    let minutes = Int(Date().timeIntervalSince(dictation.loadingSince) / 60)
+                    Text(minutes < 1 ? String(localized: "Bara första gången – det kan ta några minuter.")
+                                     : String(localized: "Bara första gången – det kan ta några minuter. \(minutes) min hittills."))
+                        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
+                    Text("Du kan gå vidare under tiden.")
                         .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                 case .failed(let message):
                     Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 22)).foregroundStyle(.orange)

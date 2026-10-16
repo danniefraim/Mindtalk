@@ -220,7 +220,7 @@ private func modelDetail(_ model: Dictation.ModelState, _ engine: SpeechModel) -
     case .missing: return String(localized: "\(engine.modelName), \(engine.sizeText). Laddas ned en gång och fungerar sedan utan internet.")
     case .downloading(let p) where p >= 0.9: return String(localized: "Förbereder modellen för din Mac…")
     case .downloading: return String(localized: "Laddar ned \(engine.modelName) – bara den här gången.")
-    case .loading: return String(localized: "Startar – första gången kan det ta upp till en minut.")
+    case .loading: return String(localized: "Startar – första gången kan det ta några minuter.")
     case .failed(let message): return message
     case .ready: return String(localized: "Redo att diktera.")
     }

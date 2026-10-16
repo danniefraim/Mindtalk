@@ -147,7 +147,7 @@ struct VoiceScanner: View {
                 // update): recording already, but nothing to listen with yet.
                 if scanner.session.phase == .starting {
                     return (String(localized: "Förbereder"), String(localized: "Ett ögonblick…"),
-                            String(localized: "Inspelningen är igång. Efter en uppdatering av macOS kan förberedelserna ta upp till en minut."))
+                            String(localized: "Inspelningen är igång. Efter en uppdatering av macOS kan förberedelserna ta några minuter."))
                 }
                 switch round.phase {
                 // Asked until someone starts talking — not only for the moment the turn opens.

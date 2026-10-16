@@ -86,6 +86,9 @@ final class Dictation: ObservableObject {
     }
     @Published private(set) var engine = Settings.engine
     @Published private(set) var model: ModelState = Settings.engine.isInstalled ? .loading : .missing
+    /// When the speech model began getting ready — the first time on a Mac (the Neural
+    /// Engine compiling it) can take several minutes; the waiting card counts them.
+    @Published private(set) var loadingSince = Date()
     @Published private(set) var installed = Set(SpeechModel.allCases.filter(\.isInstalled))
     /// Models downloading right now, with progress 0…1.
     @Published private(set) var downloads: [SpeechModel: Double] = [:]
@@ -381,14 +384,17 @@ final class Dictation: ObservableObject {
         #endif
         guard engine.isInstalled else { return refreshModels() }
         model = .loading
+        loadingSince = Date()
         loadGeneration += 1
         let generation = loadGeneration
         let target = engine
         Task {
             do {
                 try await SpeechEngine.shared.load(target)
+                Self.log.info("speech model ready in \(Int(Date().timeIntervalSince(self.loadingSince))) s")
                 if generation == loadGeneration { model = .ready }
             } catch {
+                Self.log.error("speech model failed after \(Int(Date().timeIntervalSince(self.loadingSince))) s: \(error.localizedDescription, privacy: .public)")
                 if generation == loadGeneration { model = .failed(error.localizedDescription) }
             }
         }
