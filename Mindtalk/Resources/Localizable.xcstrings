@@ -4334,34 +4334,34 @@
         }
       }
     },
-    "Den större %@ passar också din Mac men behöver %@ ledigt – den finns under Inställningar → Modeller.": {
+    "Den större %@ (%@) passar också din Mac och är ännu bättre. Frigör %@ till, så föreslås den här i stället.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The larger %1$@ also suits your Mac but needs %2$@ free – it's under Settings → Models."
+            "value": "The larger %1$@ (%2$@) also suits your Mac and is even better. Free up %3$@ more, and it's suggested here instead."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Den större %@ passar också din Mac men behöver %@ ledigt – den finns under Inställningar → Modeller."
+            "value": "Den större %@ (%@) passar också din Mac och är ännu bättre. Frigör %@ till, så föreslås den här i stället."
           }
         }
       }
     },
-    "Den större %@ passar också din Mac men behöver %@ ledigt.": {
+    "Den större %@ (%@) passar också din Mac – frigör %@ till, så går den att välja under Inställningar → Modeller.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The larger %1$@ also suits your Mac but needs %2$@ free."
+            "value": "The larger %1$@ (%2$@) also suits your Mac – free up %3$@ more, and you can choose it under Settings → Models."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Den större %@ passar också din Mac men behöver %@ ledigt."
+            "value": "Den större %@ (%@) passar också din Mac – frigör %@ till, så går den att välja under Inställningar → Modeller."
           }
         }
       }

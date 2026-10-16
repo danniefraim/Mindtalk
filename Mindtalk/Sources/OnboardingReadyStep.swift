@@ -97,7 +97,7 @@ struct ReadyStep: View {
                                : String(localized: "\(m.name) från Google skriver dem på din Mac (\(m.sizeText)).")
                      } ?? (apple ? String(localized: "Skrivs av Apple Intelligence.")
                                  : String(localized: "Kräver Apple Intelligence – eller Gemma när det finns plats på disken.")))
-                     + (larger.map { " " + String(localized: "Den större \($0.name) passar också din Mac men behöver \(BetterNotes.gigabytes($0.remainingBytes + 2_000_000_000)) ledigt – den finns under Inställningar → Modeller.") } ?? "")) {
+                     + (larger.map { " " + String(localized: "Den större \($0.name) (\($0.sizeText)) passar också din Mac – frigör \(BetterNotes.gigabytes(max(100_000_000, $0.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes))) till, så går den att välja under Inställningar → Modeller.") } ?? "")) {
                 if let m = gemma {
                     Button("Ladda ned") { notes.download(m) }
                         .buttonStyle(SoftButtonStyle(small: true))

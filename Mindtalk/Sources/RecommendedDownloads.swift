@@ -74,7 +74,7 @@ struct RecommendedDownloads: View {
                 // The larger Gemma, when this Mac runs it but it doesn't fit: said, not offered.
                 if let best = NotesModel.recommended, notes.active == nil, !best.hasRoom,
                    items.contains(where: { $0.id == "notes" }) {
-                    Text("Den större \(best.name) passar också din Mac men behöver \(BetterNotes.gigabytes(best.remainingBytes + 2_000_000_000)) ledigt.")
+                    Text("Den större \(best.name) (\(best.sizeText)) passar också din Mac och är ännu bättre. Frigör \(BetterNotes.gigabytes(max(100_000_000, best.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes))) till, så föreslås den här i stället.")
                         .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                 }
                 HStack(spacing: 10) {
