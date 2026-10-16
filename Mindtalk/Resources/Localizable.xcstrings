@@ -6587,6 +6587,7 @@
       }
     },
     "Från Google · %@ · från %lld GB minne": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6598,6 +6599,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Från Google · %@ · från %lld GB minne"
+          }
+        }
+      }
+    },
+    "Från Google · %@ · för Macar med minst %lld GB minne": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From Google · %1$@ · for Macs with at least %2$lld GB of memory"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Från Google · %@ · för Macar med minst %lld GB minne"
+          }
+        }
+      }
+    },
+    "Från Google · tar %@ på disken": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From Google · takes %@ on disk"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Från Google · tar %@ på disken"
           }
         }
       }
@@ -6745,6 +6778,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fånga en tanke"
+          }
+        }
+      }
+    },
+    "Får inte plats just nu. Frigör %@ till för att ladda ned den.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Doesn't fit right now. Free up %@ more to download it."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Får inte plats just nu. Frigör %@ till för att ladda ned den."
           }
         }
       }
@@ -10957,6 +11006,7 @@
       }
     },
     "Kräver minst %lld GB minne – den här Macen har %lld GB.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10968,6 +11018,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kräver minst %lld GB minne – den här Macen har %lld GB."
+          }
+        }
+      }
+    },
+    "Kräver minst %lld GB minne. Den här Macen har %lld GB.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs at least %1$lld GB of memory. This Mac has %2$lld GB."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kräver minst %lld GB minne. Den här Macen har %lld GB."
           }
         }
       }

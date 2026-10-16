@@ -198,17 +198,18 @@ struct ModelsCard: View {
         let detail: String = {
             switch state {
             case .unsupported:
-                return String(localized: "Kräver minst \(m.minimumMemoryGB) GB minne – den här Macen har \(BetterNotes.memoryGB) GB.")
+                return String(localized: "Kräver minst \(m.minimumMemoryGB) GB minne. Den här Macen har \(BetterNotes.memoryGB) GB.")
             case .ready:
-                return String(localized: "Från Google · \(size(m.directory, fallback: m.sizeText)) · från \(m.minimumMemoryGB) GB minne")
+                return String(localized: "Från Google · tar \(size(m.directory, fallback: m.sizeText)) på disken")
             case .failed(let message):
                 return message
             case .missing, .downloading:
-                var text = String(localized: "Från Google · \(m.sizeText) · från \(m.minimumMemoryGB) GB minne")
-                // How much more, not just "more": you can tell whether emptying the Trash will do.
+                var text = String(localized: "Från Google · \(m.sizeText) · för Macar med minst \(m.minimumMemoryGB) GB minne")
+                // Not room for it: say how much more, so you can tell whether emptying
+                // the Trash will do.
                 if !m.hasRoom {
                     let short = max(100_000_000, m.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes)
-                    text += " · " + String(localized: "behöver \(BetterNotes.gigabytes(short)) mer ledigt")
+                    text += "\n" + String(localized: "Får inte plats just nu. Frigör \(BetterNotes.gigabytes(short)) till för att ladda ned den.")
                 }
                 return text
             }
