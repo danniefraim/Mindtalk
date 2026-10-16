@@ -770,7 +770,9 @@ final class Dictation: ObservableObject {
                 let cleaned = TextCleanup.apply(raw, fillers: Settings.removeFillers, commands: Settings.voiceCommands)
                 var text = selfTest ? cleaned : Vocabulary.shared.apply(cleaned)
                 if Settings.aiPolish, !secret, let polished = await Polisher.shared.polish(text) {
-                    text = Vocabulary.shared.reapply(polished)
+                    let fixed = Vocabulary.shared.reapply(polished)
+                    // A name from your list split by the polish: the text before it is kept.
+                    if Vocabulary.shared.keepsWords(of: text, in: fixed) { text = fixed }
                 }
                 guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     if let pending { Thoughts.shared.discard(pending) }

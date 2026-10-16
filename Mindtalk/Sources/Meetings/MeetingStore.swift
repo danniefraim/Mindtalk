@@ -492,6 +492,13 @@ enum MeetingText {
     @MainActor private static var cache: [String: String] = [:]
     @MainActor private static var older: [String: String] = [:]
 
+    /// The word list or the filler setting changed: meetings are cleaned afresh, so a
+    /// word you just added shows in the ones already recorded.
+    @MainActor static func forget() {
+        cache.removeAll()
+        older.removeAll()
+    }
+
     /// Who spoke when: runs of one speaker, a pause of up to 1.5 s kept inside.
     struct Segment: Equatable {
         let speaker: Int
@@ -580,6 +587,8 @@ final class MeetingStore: ObservableObject {
         return folders.compactMap { folder -> MeetingRecord? in
             let url = folder.appendingPathComponent("meeting.json")
             guard let data = try? Data(contentsOf: url) else {
+                // A meeting.json that's there but can't be read is never touched.
+                guard !fm.fileExists(atPath: url.path) else { return nil }
                 // Only sound, no meeting: an import cut off (Mindtalk quit mid-way). An
                 // hour old, it is left over for good — to the Trash.
                 let audio = folder.appendingPathComponent("audio.caf")
@@ -772,8 +781,9 @@ final class MeetingStore: ObservableObject {
         guard days > 0 else { return [] }
         let limit = Date().addingTimeInterval(-Double(days) * 86_400)
         // An imported recording is kept from when it was imported, not from when it was made.
-        return meetings.filter { $0.hasAudio && $0.finished && $0.refined
-            && max($0.date, $0.source?.importedAt ?? $0.date) < limit }.map(\.id)
+        let busy = MeetingSession.shared.record?.id
+        return meetings.filter { $0.id != busy && $0.hasAudio && $0.finished && $0.refined
+            && max($0.date.addingTimeInterval($0.duration), $0.source?.importedAt ?? $0.date) < limit }.map(\.id)
     }
 
     /// Keeps recordings no longer than you chose. At launch and after each meeting.

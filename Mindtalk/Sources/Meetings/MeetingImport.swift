@@ -62,7 +62,7 @@ final class MeetingImport: ObservableObject {
             case .waiting: return String(localized: "Väntar på sin tur")
             case .reading: return String(localized: "Läser in ljudet")
             case .writing: return String(localized: "Skriver ned")
-            case .voices: return String(localized: "Håller isär rösterna")
+            case .voices: return String(localized: "Håller isär talarna")
             case .done: return String(localized: "Klar")
             case .failed: return String(localized: "Misslyckades")
             }
@@ -146,7 +146,7 @@ final class MeetingImport: ObservableObject {
             let menu = NSPopUpButton(frame: .zero, pullsDown: false)
             for model in models { menu.addItem(withTitle: model.spokenIn) }
             menu.selectItem(at: models.firstIndex(of: Dictation.shared.engine) ?? 0)
-            let label = NSTextField(labelWithString: String(localized: "Språk i filen:"))
+            let label = NSTextField(labelWithString: String(localized: "Språket i filen"))
             let row = NSStackView(views: [label, menu])
             row.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
             panel.accessoryView = row
@@ -207,6 +207,24 @@ final class MeetingImport: ObservableObject {
 
     /// A file dragged from an app that hands over a copy (Röstmemon, Bilder): written
     /// to a folder of Mindtalk's own first, then imported as any file.
+    /// The folder an import's copy was made in — removed when the job ends.
+    nonisolated static func dropCopy(_ url: URL) {
+        let dir = url.deletingLastPathComponent()
+        guard dir.lastPathComponent.hasPrefix("Mindtalk-import-"),
+              dir.deletingLastPathComponent().standardizedFileURL == FileManager.default.temporaryDirectory.standardizedFileURL else { return }
+        try? FileManager.default.removeItem(at: dir)
+    }
+
+    /// At launch: copies left from a run that stopped part way.
+    nonisolated static func sweepCopies() {
+        let fm = FileManager.default
+        let tmp = fm.temporaryDirectory
+        for dir in (try? fm.contentsOfDirectory(at: tmp, includingPropertiesForKeys: nil)) ?? []
+        where dir.lastPathComponent.hasPrefix("Mindtalk-import-") {
+            try? fm.removeItem(at: dir)
+        }
+    }
+
     func addCopy(of provider: NSItemProvider, folder: UUID?) {
         provider.loadFileRepresentation(forTypeIdentifier: UTType.audiovisualContent.identifier) { url, _ in
             guard let url else { return }
@@ -280,12 +298,14 @@ final class MeetingImport: ObservableObject {
                                                              reason: "Mindtalk skriver ned en fil")
         defer {
             ProcessInfo.processInfo.endActivity(activity)
+            // A copy made for this import (from Röstmemon, Bilder): not left in the temporary folder.
+            Self.dropCopy(job.url)
             // An update waiting for a quiet moment: now, if nothing else runs.
             if !busyAfter(id), !MeetingSession.shared.isBusy { Updates.shared.meetingEnded() }
         }
         let language = job.language
         guard language.isInstalled, VoiceModels.isInstalled else {
-            update(id) { $0.stage = .failed; $0.error = String(localized: "Ladda ned talmodellen och Nemotron 3 först – på sidan Möten.") }
+            update(id) { $0.stage = .failed; $0.error = String(localized: "Ladda ned talmodellen och Nemotron 3 först, under Inställningar → Modeller.") }
             return
         }
         Self.log.info("import: \(job.video ? "video" : "audio", privacy: .public), \(job.url.pathExtension, privacy: .public), \(language.rawValue, privacy: .public)")
@@ -358,7 +378,7 @@ final class MeetingImport: ObservableObject {
 
             // 4. The notes — written in the background, like a meeting's.
             MeetingNotes.shared.summarize(record.id)
-            AccessibilityNotification.Announcement(String(localized: "\(record.title) är klar")).post()
+            AccessibilityNotification.Announcement(String(localized: "\(record.title) – klart att läsa")).post()
             Self.notifyIfAway(record)
             scheduleTidy(id)
         } catch {
@@ -476,6 +496,7 @@ final class MeetingImport: ObservableObject {
             AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: 16_000, AVNumberOfChannelsKey: 1,
             AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false,
         ], commonFormat: .pcmFormatFloat32, interleaved: false)
+        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: out.path)
         guard reader.startReading() else { throw reader.error ?? ImportError.noSound }
         let total = max(1, length.seconds)
         var written = 0

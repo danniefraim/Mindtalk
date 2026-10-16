@@ -81,6 +81,8 @@ struct MainView: View {
                 .padding(.leading, 16)
         }
         .ignoresSafeArea()
+        // Minska rörelse: no springs, slides or scaling anywhere in the window.
+        .transaction { t in if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { t.animation = nil } }
         .frame(minWidth: 940, minHeight: 580)
         .onAppear { dictation.refreshPermissions() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in

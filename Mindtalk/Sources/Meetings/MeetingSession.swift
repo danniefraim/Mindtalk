@@ -418,6 +418,8 @@ final class MeetingSession: ObservableObject {
     /// in it. (From the menu bar or the shortcut, in none: the page suggests one after.)
     func start(introducing: Bool = false, folder: UUID? = nil) {
         guard phase == .idle else { return }
+        // Nothing plays while the microphone listens — into AirPods, or back into the text.
+        MeetingPlayer.shared.stop()
         lastError = nil
         NoteDraft.shared.text = ""
         steps = 0
@@ -427,7 +429,7 @@ final class MeetingSession: ObservableObject {
         guard dictation.phase != .recording, dictation.phase != .transcribing else { return }
         language = dictation.engine
         guard language.isInstalled else {
-            lastError = String(localized: "Ladda ned \(language.modelName) först, under Inställningar → Inspelning.")
+            lastError = String(localized: "Ladda ned \(language.modelName) först, under Inställningar → Modeller.")
             return
         }
         guard VoiceModels.isInstalled else { return }
@@ -538,7 +540,7 @@ final class MeetingSession: ObservableObject {
             return
         }
         guard VoiceModels.isInstalled else {
-            lastError = String(localized: "Ladda ned Nemotron 3 först – det görs på sidan Möten.")
+            lastError = String(localized: "Ladda ned Nemotron 3 först, under Inställningar → Modeller.")
             return
         }
         guard saved.finished, saved.hasAudio else {
@@ -549,7 +551,7 @@ final class MeetingSession: ObservableObject {
         }
         language = saved.language
         guard language.isInstalled else {
-            lastError = String(localized: "Ladda ned \(language.modelName) först, under Inställningar → Inspelning.")
+            lastError = String(localized: "Ladda ned \(language.modelName) först, under Inställningar → Modeller.")
             return
         }
         guard Recorder.micAuthorized else {
@@ -867,7 +869,7 @@ final class MeetingSession: ObservableObject {
         }
         stopAt = Date().addingTimeInterval(Self.undoSeconds)
         // Said aloud too: there are a few seconds to change your mind.
-        AccessibilityNotification.Announcement(String(localized: "Mötet avslutas om \(Int(Self.undoSeconds)) sekunder. Ångra finns.")).post()
+        AccessibilityNotification.Announcement(String(localized: "Mötet avslutas om \(Int(Self.undoSeconds)) sekunder – du kan ångra.")).post()
         stopCountdown?.cancel()
         stopCountdown = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(Self.undoSeconds))
@@ -1026,6 +1028,7 @@ final class MeetingSession: ObservableObject {
     /// Mindtalk is quitting mid-meeting: keep what has been written. It opens as
     /// an unfinished meeting next time, ready to be finished.
     func saveBeforeQuit() {
+        applyNotes()          // what you typed in the last moment
         guard var record, isBusy else { return }
         record.words += pending
         // (Listening again to a finished meeting there's no intake: its length stands.)
@@ -1044,7 +1047,7 @@ final class MeetingSession: ObservableObject {
         } catch {
             Self.log.error("meeting models: \(error.localizedDescription, privacy: .public)")
             warning = tracker == nil && language.isInstalled
-                ? String(localized: "Röstmodellen kunde inte startas – texten skrivs utan talare.")
+                ? String(localized: "Nemotron 3 kunde inte startas – texten skrivs utan att visa vem som pratar.")
                 : error.localizedDescription
         }
         if phase == .starting { phase = .recording }
@@ -1101,7 +1104,7 @@ final class MeetingSession: ObservableObject {
     /// Says so when the recording can't be trusted.
     private func checkInput() {
         if intake?.writeFailed == true {
-            warning = String(localized: "Ljudet kan inte sparas – är disken full? Texten skrivs ändå.")
+            warning = String(localized: "Inspelningen kan inte sparas – är disken full? Texten skrivs ändå.")
         } else if !isPaused, Date().timeIntervalSince(lastHeard) > 20 {
             warning = String(localized: "Jag hör nästan ingenting – är rätt mikrofon vald?")
         } else if warning == String(localized: "Jag hör nästan ingenting – är rätt mikrofon vald?") {
@@ -1367,6 +1370,8 @@ final class MeetingSession: ObservableObject {
         if let rest = try? await tracker?.finish() { scores += rest }
         if let rest = try? await steady?.finish() { steadyScores += rest }
         resolveSpeakers(final: true)
+        // Names from the round that found no voice yet: one last try, now that every word is in.
+        if !roundLeft.isEmpty { placeRound(roundLeft) }
         guard var record else { return done() }
         record.words += pending
         pending = []
@@ -1427,6 +1432,13 @@ final class MeetingSession: ObservableObject {
     /// Reads the whole recording once more: seamless words, voices with more context.
     private func refine() async {
         guard let id = record?.id, (record?.duration ?? 0) > 2 else { return }
+        // The recording is shorter than the meeting (the disk filled, a write failed):
+        // a pass over it would replace the whole live text with part of it. Keep the text.
+        let length = (try? AVAudioFile(forReading: MeetingStore.audioURL(for: id))).map { Double($0.length) / Double(Self.rate) } ?? 0
+        if intake?.writeFailed == true || length < (record?.duration ?? 0) - 2 {
+            Self.log.error("final pass skipped: the recording has \(Int(length)) of \(Int(self.record?.duration ?? 0)) s")
+            return
+        }
         do {
             let url = MeetingStore.audioURL(for: id)
             let listening = String(localized: "Lyssnar igenom hela mötet…")
@@ -1517,8 +1529,8 @@ final class MeetingSession: ObservableObject {
                 updated = latest
                 MeetingRecord.apply(updated.moves, to: &words)     // moves made meanwhile too
             }
-            // Continued: voices merged while this pass ran (in the text's numbering).
-            if continuing, !aliases.isEmpty {
+            // Voices merged while this pass ran (in the text's numbering).
+            if !aliases.isEmpty {
                 for i in words.indices { if let s = words[i].speaker, let to = aliases[s] { words[i].speaker = to } }
             }
             updated.words = words
@@ -1755,12 +1767,31 @@ final class MeetingSession: ObservableObject {
         // go first, or the restart is a no-op and the meeting records silence.
         _ = recorder.stop()
         do {
-            try recorder.start(device: nil)
+            try startMicrophone()
             inform(String(localized: "Mikrofonen kopplades bort – inspelningen fortsätter med Macens mikrofon."))
         } catch {
             warning = error.localizedDescription
+            retryMicrophone()
         }
     }
+
+    /// Tries the microphone again every few seconds for a minute — a headset coming
+    /// back, macOS settling — rather than recording silence for the rest of the meeting.
+    private func retryMicrophone() {
+        micRetry?.cancel()
+        micRetry = Task { @MainActor [weak self] in
+            for _ in 0..<20 {
+                try? await Task.sleep(for: .seconds(3))
+                guard let self, !Task.isCancelled, self.isRecording, !self.isPaused else { return }
+                if (try? self.startMicrophone()) != nil {
+                    self.warning = nil
+                    self.inform(String(localized: "Mikrofonen är tillbaka – inspelningen fortsätter."))
+                    return
+                }
+            }
+        }
+    }
+    private var micRetry: Task<Void, Never>?
 
     /// Is `word`, just heard, the settled `last` read once more? Read again with more
     /// context a word can land a little later, or come out differently ("höger" →
@@ -1894,6 +1925,8 @@ final class AudioIntake: @unchecked Sendable {
             AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false,
         ]
         file = try AVAudioFile(forWriting: url, settings: settings, commonFormat: .pcmFormatFloat32, interleaved: false)
+        // Readable only by you, like the meeting's text.
+        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
 
     /// From the audio thread.

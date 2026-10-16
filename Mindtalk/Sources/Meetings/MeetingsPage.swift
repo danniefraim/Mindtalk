@@ -223,7 +223,7 @@ private struct MeetingList: View {
             }
             Button("Avbryt", role: .cancel) {}
         } message: {
-            Text("Inspelningen, texten och sammanfattningen tas bort från din Mac och går inte att få tillbaka.")
+            Text("Inspelningen, texten och sammanfattningen flyttas till papperskorgen. Där finns de kvar tills du tömmer den.")
         }
     }
 
@@ -396,6 +396,8 @@ struct StartCard: View {
     @State private var onScreen = true
     /// Starta möte was just pressed: the sphere swells as the room takes over.
     @State private var starting = false
+    /// The window can be seen (not hidden behind others or minimised): the sphere turns.
+    @State private var windowVisible = true
 
     /// Both doors open: the voices and the speech model are here.
     private var ready: Bool { voices.state == .ready && dictation.engine.isInstalled }
@@ -448,13 +450,18 @@ struct StartCard: View {
         .onScrollVisibilityChange(threshold: 0.4) { visible in importer.zoneVisible = visible; onScreen = visible }
         .onDisappear { importer.zoneVisible = false; onScreen = false }
         .onChange(of: session.phase) { _, now in if now == .idle { starting = false } }
+        .onAppear { windowVisible = AppDelegate.mainWindowVisible }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)) { note in
+            guard let window = note.object as? NSWindow, window.contentViewController is NSHostingController<MainView> else { return }
+            windowVisible = window.occlusionState.contains(.visible)
+        }
     }
 
     /// Record a meeting, now: a dark room with the listening sphere — the same one
     /// that falls into each voice's figure once the meeting is going — and the way in.
     private var room: some View {
         ZStack {
-            Constellation(figure: nil, color: .white, level: 0.3, paused: !onScreen || importer.dropping)
+            Constellation(figure: nil, color: .white, level: 0.3, paused: !onScreen || !windowVisible || importer.dropping)
                 .scaleEffect(starting ? 2.4 : 1.5)
                 .offset(x: 130, y: 82)
                 .animation(.easeIn(duration: 0.7), value: starting)
@@ -548,7 +555,7 @@ struct StartCard: View {
         case .ready:
             return String(localized: "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar.")
         case .downloading:
-            return String(localized: "Laddar ned Nemotron 3 från NVIDIA – den håller isär rösterna…")
+            return String(localized: "Laddar ned Nemotron 3 från NVIDIA, så att Mindtalk hör vem som pratar…")
         case .missing, .failed:
             return String(localized: "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (\(VoiceModels.sizeText)). Laddas ned en gång och fungerar sedan utan internet.")
         }
@@ -921,7 +928,7 @@ struct SpeakerChip: View {
                     }
                     .menuStyle(.borderlessButton)
                     .fixedSize()
-                    .help("Två röster som är samma person slås ihop")
+                    .help("Två talare som är samma person slås ihop")
                 }
                 HStack {
                     Spacer()
@@ -1060,7 +1067,7 @@ struct MeetingView: View {
             }
             Button("Avbryt", role: .cancel) {}
         } message: {
-            Text("Inspelningen, texten och sammanfattningen tas bort från din Mac och går inte att få tillbaka.")
+            Text("Inspelningen, texten och sammanfattningen flyttas till papperskorgen. Där finns de kvar tills du tömmer den.")
         }
         .sheet(isPresented: $changingDate) { MeetingDateSheet(record: record) { changingDate = false } }
         .confirmationDialog("Ta bort inspelningen?", isPresented: $confirmRemoveAudio) {
@@ -1069,7 +1076,7 @@ struct MeetingView: View {
             }
             Button("Avbryt", role: .cancel) {}
         } message: {
-            Text("Ljudet flyttas till papperskorgen. Texten, dina anteckningar och sammanfattningen finns kvar, men det går inte längre att lyssna på mötet.")
+            Text("Inspelningen flyttas till papperskorgen. Texten, dina anteckningar och sammanfattningen finns kvar, men det går inte längre att lyssna på mötet.")
         }
     }
 
@@ -1192,12 +1199,12 @@ struct MeetingView: View {
         if heal.words > 0 { parts.append(String(localized: "rättade \(heal.words) ord")) }
         if heal.speakers == 1 { parts.append(String(localized: "justerade 1 talarbyte")) }
         if heal.speakers > 1 { parts.append(String(localized: "justerade \(heal.speakers) talarbyten")) }
-        return String(localized: "Genomlyssnat efter mötet: \(parts.joined(separator: String(localized: " och ")))")
+        return String(localized: "Mindtalk lyssnade igenom mötet och \(parts.joined(separator: String(localized: " och ")))")
     }
 
     /// A meeting that didn't get its final pass: say so, and offer it.
     @ViewBuilder private var banner: some View {
-        if !live, record.hasAudio, MeetingSession.shared.phase == .idle, !record.finished || !record.refined, !record.words.isEmpty {
+        if !live, record.hasAudio, MeetingSession.shared.phase == .idle, !record.finished || (!record.refined && !record.words.isEmpty) {
             HStack(spacing: 10) {
                 Image(systemName: record.finished ? "text.badge.checkmark" : "exclamationmark.circle")
                     .foregroundStyle(record.finished ? DS.Colors.muted : DS.Colors.warning)
@@ -1238,7 +1245,7 @@ struct MeetingView: View {
             // older one has it in the ⋯ menu).
             if !live, record.finished, record.hasAudio, Calendar.current.isDateInToday(record.date) {
                 Button { AppDelegate.continueMeeting(record.id) } label: {
-                    Label("Fortsätt mötet", systemImage: "record.circle")
+                    Label("Spela in mer", systemImage: "record.circle")
                         .font(.system(size: 12.5, weight: .semibold))
                         .padding(.horizontal, 12)
                         .frame(height: 30)
@@ -1275,12 +1282,12 @@ struct MeetingView: View {
                     .disabled(!MeetingNotes.isAvailable || notes.writing.contains(record.id))
                     Button("Ändra datum…") { changingDate = true }
                     if record.hasAudio {
-                        Button("Fortsätt mötet") { AppDelegate.continueMeeting(record.id) }
+                        Button("Spela in mer") { AppDelegate.continueMeeting(record.id) }
                             .disabled(!record.finished || MeetingSession.shared.phase != .idle)
                         // Again — in another language too, when there's more than one.
                         let models = SpeechModel.allCases.filter(\.isInstalled)
                         if models.count > 1 {
-                            Menu("Lyssna igenom på nytt") {
+                            Menu("Lyssna igenom igen") {
                                 ForEach(models, id: \.self) { model in
                                     Button {
                                         MeetingSession.shared.finishInterrupted(record.id, language: model)
@@ -1291,7 +1298,7 @@ struct MeetingView: View {
                             }
                             .disabled(MeetingSession.shared.phase != .idle)
                         } else {
-                            Button("Lyssna igenom mötet igen") { MeetingSession.shared.finishInterrupted(record.id) }
+                            Button("Lyssna igenom igen") { MeetingSession.shared.finishInterrupted(record.id) }
                                 .disabled(MeetingSession.shared.phase != .idle)
                         }
                         Button("Visa inspelningen i Finder") {
@@ -1771,7 +1778,7 @@ private struct SummaryView: View {
                     notesSection
                     if record.notes.isEmpty, !addingNotes {
                         Button { withAnimation(.easeOut(duration: 0.2)) { addingNotes = true } } label: {
-                            Label("Egna anteckningar", systemImage: "plus")
+                            Label("Lägg till anteckningar", systemImage: "plus")
                                 .font(.system(size: 12.5, weight: .semibold))
                                 .foregroundStyle(DS.Colors.muted)
                         }
@@ -1875,7 +1882,7 @@ private struct SummaryView: View {
         } else {
             HStack(spacing: 14) {
                 Image(systemName: "apple.intelligence").font(.system(size: 18)).foregroundStyle(DS.Colors.muted)
-                Text("Ingen sammanfattning än.").font(.system(size: 15, weight: .semibold))
+                Text("Ingen sammanfattning än").font(.system(size: 15, weight: .semibold))
                 Spacer()
                 Button {
                     notes.summarize(record.id)
@@ -1894,7 +1901,7 @@ private struct SummaryView: View {
         HStack(spacing: 14) {
             Image(systemName: "apple.intelligence").font(.system(size: 18)).foregroundStyle(DS.Colors.muted)
             VStack(alignment: .leading, spacing: 4) {
-                Text("Sammanfattningar kräver Apple Intelligence").font(.system(size: 15, weight: .semibold))
+                Text("Sammanfattningar behöver Apple Intelligence eller Gemma 4").font(.system(size: 15, weight: .semibold))
                 Text(LocalizedStringKey(unavailableDetail))
                     .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
             }
@@ -1914,7 +1921,10 @@ private struct SummaryView: View {
         switch Polisher.status {
         case .notEnabled: return String(localized: "Slå på Apple Intelligence för att få en sammanfattning. Texten finns under fliken Text.")
         case .notReady: return String(localized: "Apple Intelligence laddas ned. Sammanfatta när den är klar.")
-        default: return String(localized: "Den här Macen kan inte köra Apple Intelligence. Texten finns under fliken Text.")
+        default:
+            return NotesModel.recommended != nil
+                ? String(localized: "Den här Macen kan inte köra Apple Intelligence – ladda ned Gemma 4 under Inställningar → Modeller. Texten finns under fliken Text.")
+                : String(localized: "Den här Macen kan inte köra Apple Intelligence. Texten finns under fliken Text.")
         }
     }
 
@@ -2223,7 +2233,7 @@ private struct LiveBar: View {
     }
 
     private var caption: (text: String, warning: Bool)? {
-        if case .finishing = session.phase { return (String(localized: "Texten blir mer exakt när det är klart."), false) }
+        if case .finishing = session.phase { return (String(localized: "Texten blir mer exakt när mötet är klart."), false) }
         if session.stopping {
             return (session.isPaused ? String(localized: "Mötet avslutas om några sekunder.")
                                      : String(localized: "Spelar in tills nedräkningen är klar."), false)

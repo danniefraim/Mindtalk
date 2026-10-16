@@ -39,6 +39,7 @@ final class Vocabulary: ObservableObject {
             save()
             if entries.map(\.word) != oldValue.map(\.word) || entries.map(\.heardAs) != oldValue.map(\.heardAs) {
                 matcher = Self.matcher(for: entries)
+                MeetingText.forget()
             }
             if !Self.hasOwnWords(oldValue), Self.hasOwnWords(entries) { prepareListener() }
         }
@@ -60,11 +61,13 @@ final class Vocabulary: ObservableObject {
         }
         #endif
         if let data = defaults.data(forKey: Self.key) {
-            if let saved = try? JSONDecoder().decode([VocabularyEntry].self, from: data) {
-                loaded = saved
+            if let saved = try? JSONDecoder().decode([Lenient].self, from: data) {
+                // One entry that can't be read is skipped, not the whole list.
+                loaded = saved.compactMap(\.entry)
+                if loaded.count < saved.count { defaults.set(data, forKey: Self.key + ".unreadable-\(Int(Date().timeIntervalSince1970))") }
             } else {
-                // Unreadable: keep a copy rather than lose it, and start afresh.
-                defaults.set(data, forKey: Self.key + ".unreadable")
+                // Unreadable: keep a copy (one per time, never written over) rather than lose it.
+                defaults.set(data, forKey: Self.key + ".unreadable-\(Int(Date().timeIntervalSince1970))")
                 loaded = []
             }
         } else {
@@ -72,6 +75,12 @@ final class Vocabulary: ObservableObject {
         }
         matcher = Self.matcher(for: loaded)
         entries = loaded
+    }
+
+    /// An entry, or nothing if it can't be read.
+    private struct Lenient: Decodable {
+        let entry: VocabularyEntry?
+        init(from decoder: Decoder) throws { entry = try? VocabularyEntry(from: decoder) }
     }
 
     private static func matcher(for entries: [VocabularyEntry]) -> VocabularyMatcher {
@@ -96,14 +105,22 @@ final class Vocabulary: ObservableObject {
         word.contains(where: { $0.isLetter || $0.isNumber }) && word.count <= 60
     }
 
+    /// As typed or pasted: å/ä/ö in one form (a PDF or Finder may give "a" + ring),
+    /// any run of spaces, tabs or no-break spaces as one space, curly apostrophes straight.
+    static func tidy(_ word: String) -> String {
+        word.precomposedStringWithCanonicalMapping
+            .replacingOccurrences(of: "’", with: "'")
+            .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
     /// Adds a word, or more "heard as" variants to the same word. `heardAs` is comma-separated.
     /// Returns the entry's id (to highlight it).
     @discardableResult
     func add(word: String, heardAs: String) -> UUID? {
-        let word = word.trimmingCharacters(in: .whitespacesAndNewlines)
+        let word = Self.tidy(word)
         guard Self.isValidWord(word) else { return nil }
         let variants = heardAs.split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { Self.tidy(String($0)) }
             .filter { Self.isValidWord($0) && Self.key($0) != Self.key(word) }
         // The word itself is no longer a mishearing of another entry ("Mathilda" heard as
         // "Matilda", then the other way round, would swap the two in every text).
@@ -124,7 +141,7 @@ final class Vocabulary: ObservableObject {
     }
 
     func addVariant(_ variant: String, to entry: VocabularyEntry) {
-        let v = variant.trimmingCharacters(in: .whitespacesAndNewlines)
+        let v = Self.tidy(variant)
         guard Self.isValidWord(v), let i = entries.firstIndex(where: { $0.id == entry.id }),
               Self.key(v) != Self.key(entries[i].word),
               !entries[i].heardAs.contains(where: { Self.key($0) == Self.key(v) }) else { return }
@@ -133,7 +150,7 @@ final class Vocabulary: ObservableObject {
 
     /// Fixes a typo in a word, keeping its variants and count.
     func rename(_ entry: VocabularyEntry, to word: String) {
-        let word = word.trimmingCharacters(in: .whitespacesAndNewlines)
+        let word = Self.tidy(word)
         guard Self.isValidWord(word), let i = entries.firstIndex(where: { $0.id == entry.id }) else { return }
         // Renaming onto another entry merges the two.
         if let j = entries.firstIndex(where: { $0.id != entry.id && Self.key($0.word) == Self.key(word) }) {
@@ -197,7 +214,29 @@ final class Vocabulary: ObservableObject {
     /// of need — never during a dictation.
     func prepareListener() {
         guard Self.hasOwnWords(entries) else { return }
+        // 100 MB: fetched when you said yes (or already here) — never on its own.
+        guard VocabularyBoost.isInstalled || Settings.listenerAllowed else { return }
         Task { await VocabularyBoost.shared.prepare() }
+    }
+
+    /// "Ladda ned" on the word list.
+    func allowListener() {
+        Settings.listenerAllowed = true
+        prepareListener()
+    }
+
+    var hasOwnWords: Bool { Self.hasOwnWords(entries) }
+
+    /// The polish may split a name ("Mindact" → "Mind act") in a way the list can't
+    /// join again: then the text before the polish is kept. True if every word on the
+    /// list that was in `before` is still whole in `after`.
+    func keepsWords(of before: String, in after: String) -> Bool {
+        func count(_ word: String, in text: String) -> Int {
+            let pattern = "(?<![\\p{L}\\p{N}])" + NSRegularExpression.escapedPattern(for: word) + "(?![\\p{L}\\p{N}])"
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return 0 }
+            return regex.numberOfMatches(in: text, range: NSRange(location: 0, length: (text as NSString).length))
+        }
+        return entries.allSatisfy { count($0.word, in: after) >= count($0.word, in: before) }
     }
 
     /// Fixes the text and counts what it fixed.

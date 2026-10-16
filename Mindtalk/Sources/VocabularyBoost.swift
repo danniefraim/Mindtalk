@@ -96,7 +96,9 @@ actor VocabularyBoost {
             let evidence = rescorer.ctcTokenEvaluateCandidates(transcript: text, tokenTimings: timings,
                                                                 logProbs: spot.logProbs, frameDuration: spot.frameDuration)
             let edits = Self.gate(evidence)
-            if !edits.isEmpty { Self.log.info("ordlistan hörd: \(edits.count) byten") }
+            // Nothing to change: the text as it was, its spacing too.
+            guard !edits.isEmpty else { return (text, []) }
+            Self.log.info("ordlistan hörd: \(edits.count) byten")
             var words = evidence.baseWords
             for edit in edits.sorted(by: { $0.range.lowerBound > $1.range.lowerBound }) {
                 words.replaceSubrange(edit.range, with: [edit.text])

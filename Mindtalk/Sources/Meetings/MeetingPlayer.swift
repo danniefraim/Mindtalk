@@ -1,3 +1,4 @@
+import AppKit
 import AVFoundation
 import Combine
 
@@ -18,6 +19,8 @@ final class MeetingPlayer: ObservableObject {
 
     /// Plays `id`'s recording from a little before `seconds`.
     func play(_ id: UUID, from seconds: Double) {
+        // A meeting being recorded has the microphone: nothing plays into it.
+        guard !MeetingSession.shared.isRecording else { return NSSound.beep() }
         if meeting != id || player == nil {
             stop()
             guard let p = try? AVAudioPlayer(contentsOf: MeetingStore.audioURL(for: id)) else { return }
@@ -38,7 +41,14 @@ final class MeetingPlayer: ObservableObject {
 
     func toggle() {
         guard let player else { return }
-        if player.isPlaying { player.pause() } else { player.play() }
+        if player.isPlaying {
+            player.pause()
+            ticker = nil          // paused: nothing to follow
+        } else {
+            guard !MeetingSession.shared.isRecording else { return NSSound.beep() }
+            player.play()
+            ticker = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect().sink { [weak self] _ in self?.tick() }
+        }
         tick()
     }
 

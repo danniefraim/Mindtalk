@@ -12,6 +12,15 @@ import SwiftUI
 // sentence to read out, and a note in the meeting that you did.
 
 extension MeetingRecord.Mark.Kind {
+    /// For VoiceOver: "Markera ett beslut".
+    var markLabel: String {
+        switch self {
+        case .decision: return String(localized: "Markera ett beslut")
+        case .task: return String(localized: "Markera något att göra")
+        case .important: return String(localized: "Markera något viktigt")
+        }
+    }
+
     var title: String {
         switch self {
         // Its own key: one marked decision ("Decision"), not the summary's "Beslut" heading
@@ -251,8 +260,8 @@ private struct MarkIcons: View {
                     }
                 }
                 .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: [.command, .option])
-                .accessibilityLabel("Markera \(kind.title.lowercased())")
-                .accessibilityHint("Markerar det som sägs just nu. ⌥⌘\(i + 1)")
+                .accessibilityLabel(kind.markLabel)
+                .accessibilityHint("Markerar det som sägs just nu (⌥⌘\(i + 1))")
             }
         }
         .disabled(paused)
@@ -349,7 +358,7 @@ struct SavedNotes: View {
                     .padding(6)
                     .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(DS.Colors.field))
                     .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
-                Text("Välj Sammanfatta igen i menyn ⋯ så kommer ändringarna med.")
+                Text("Välj Sammanfatta igen i menyn ⋯ så kommer ändringarna med i sammanfattningen.")
                     .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
             } else {
                 VStack(alignment: .leading, spacing: 6) {

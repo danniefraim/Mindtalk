@@ -531,7 +531,7 @@ private struct DonePanel: View {
                     .padding(.top, 10)
                     if case .meeting(let id, _) = done {
                         Button { AppDelegate.continueMeeting(id) } label: {
-                            Label("Fortsätt mötet", systemImage: "record.circle")
+                            Label("Spela in mer", systemImage: "record.circle")
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(DS.Colors.ink)
                                 .padding(.horizontal, 16)

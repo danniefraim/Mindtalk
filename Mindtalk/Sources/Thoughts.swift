@@ -302,8 +302,14 @@ final class Thoughts: ObservableObject {
         guard let samples, !samples.isEmpty else { return failWriting(id) }
         do {
             let terms = VocabularyBoost.terms(from: Vocabulary.shared.entries.map(\.word))
-            let (raw, _) = try await SpeechEngine.shared.transcribe(samples: samples, with: language, listeningFor: terms)
-            let text = Vocabulary.shared.apply(TextCleanup.apply(raw, fillers: Settings.removeFillers, commands: Settings.voiceCommands))
+            let (raw, heard) = try await SpeechEngine.shared.transcribe(samples: samples, with: language, listeningFor: terms)
+            Vocabulary.shared.noteHeard(heard)
+            var text = Vocabulary.shared.apply(TextCleanup.apply(raw, fillers: Settings.removeFillers, commands: Settings.voiceCommands))
+            // As when said: polished if that's on, unless the polish split a listed word.
+            if Settings.aiPolish, let polished = await Polisher.shared.polish(text) {
+                let fixed = Vocabulary.shared.reapply(polished)
+                if Vocabulary.shared.keepsWords(of: text, in: fixed) { text = fixed }
+            }
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return failWriting(id) }
             Stats.shared.record(text: text, seconds: Double(samples.count) / 16_000)
             fill(id, text: text)

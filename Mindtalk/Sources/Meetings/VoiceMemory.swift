@@ -219,9 +219,17 @@ final class VoiceMemory: ObservableObject {
 
     func forgetAll() {
         people = []
-        try? FileManager.default.removeItem(at: Self.peopleURL)
-        // Switched on again later, it may learn from the meetings once more.
-        UserDefaults.standard.set(false, forKey: "voiceMemoryLearnedPast")
+        let fm = FileManager.default
+        try? fm.removeItem(at: Self.peopleURL)
+        // Copies kept aside when the file couldn't be read hold voices too.
+        let dir = Self.peopleURL.deletingLastPathComponent()
+        for url in (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+        where url.lastPathComponent.hasPrefix("People-unreadable-") {
+            try? fm.removeItem(at: url)
+        }
+        // Forgotten means forgotten: not learned again from the meetings at the next
+        // launch. (Names you give from now on are remembered as usual.)
+        UserDefaults.standard.set(true, forKey: "voiceMemoryLearnedPast")
     }
 
     private static func key(_ name: String) -> String {

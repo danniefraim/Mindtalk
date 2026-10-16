@@ -25,7 +25,7 @@ struct VocabularyPage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             PageHeader(title: "Ordlista",
-                       subtitle: "Namn och ord som Mindtalk ska stava som du vill. Delade eller felskrivna varianter – som ”Mind Talk” – rättas automatiskt.")
+                       subtitle: "Namn och ord som Mindtalk ska stava som du vill – i diktering, tankar och möten. Isärskrivna eller felhörda varianter, som ”Mind Talk”, rättas av sig själva.")
                 .padding(.bottom, 12)
                 .staggered(0)
 
@@ -34,7 +34,7 @@ struct VocabularyPage: View {
             HStack(alignment: .bottom, spacing: 12) {
                 field("Ord", placeholder: "t.ex. Mindtalk", text: $word)
                     .focused($wordFocused)
-                field("Hörs ofta som (valfritt)", placeholder: "t.ex. mind talk, min tal", text: $heardAs)
+                field("Hörs ofta som (valfritt)", placeholder: "t.ex. mind talk, mintalk", text: $heardAs)
                 Button("Lägg till", action: add)
                     .buttonStyle(.ink)
                     .disabled(!canAdd)
@@ -54,14 +54,14 @@ struct VocabularyPage: View {
             }
             VStack(spacing: 0) {
                 if vocabulary.entries.isEmpty {
-                    Text("Inga ord än. Lägg till namn och begrepp du ofta säger.")
+                    Text("Inga ord än. Lägg till namn och ord du ofta säger.")
                         .font(.system(size: 13))
                         .foregroundStyle(DS.Colors.muted)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 22)
                         .padding(.vertical, 18)
                 } else if shown.isEmpty {
-                    Text("Inget ord matchar ”\(search)”.")
+                    Text("Inga ord matchar ”\(search)”.")
                         .font(.system(size: 13))
                         .foregroundStyle(DS.Colors.muted)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -81,7 +81,7 @@ struct VocabularyPage: View {
             SectionTitle("Prova ordlistan")
             .staggered(1)
             VStack(alignment: .leading, spacing: 12) {
-                TextField("Skriv en mening som Mindtalk kunde ha hört, t.ex. ”jag använder mind talk”", text: $sample)
+                TextField("Skriv en mening som Mindtalk kan ha hört, t.ex. ”jag använder mind talk”", text: $sample)
                     .textFieldStyle(.plain)
                     .font(.system(size: 14))
                     .padding(.horizontal, 12)
@@ -105,7 +105,7 @@ struct VocabularyPage: View {
                     .staggered(1)
             }
 
-            Text("Varianter rättas alltid – lägg bara till sådant du inte också säger på riktigt. Skilj flera varianter med komma. Vanliga ord (som ”per” eller ”test”) och text i versaler lämnas orörda.")
+            Text("Varianter rättas alltid, så lägg bara till sådant du inte också säger på riktigt. Skriv flera med komma emellan. Vanliga ord (som ”per” eller ”test”), text i versaler och e-post- och webbadresser lämnas orörda. Det går också att ersätta förkortningar: lägg ”btw” som variant till ”förresten”.")
                 .font(.system(size: 12))
                 .foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -198,7 +198,7 @@ private struct VocabularyRow: View {
                         }
                     }
                     if addingVariant {
-                        TextField("variant", text: $newVariant)
+                        TextField("hörs som", text: $newVariant)
                             .textFieldStyle(.roundedBorder)
                             .font(.system(size: 12))
                             .frame(width: 150)
@@ -211,12 +211,12 @@ private struct VocabularyRow: View {
                             addingVariant = true
                             focus = .variant
                         } label: {
-                            Label("Variant", systemImage: "plus").font(.system(size: 12, weight: .medium))
+                            Label("Hörs som", systemImage: "plus").font(.system(size: 12, weight: .medium))
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(DS.Colors.muted)
                         .opacity(hovering || entry.heardAs.isEmpty ? 1 : 0.6)
-                        .help("Lägg till något Mindtalk ofta hör i stället")
+                        .help("Lägg till något Mindtalk brukar höra fel")
                     }
                 }
             }
@@ -366,7 +366,9 @@ private struct ListenerRow: View {
             }
             Spacer()
             if case .failed = status.state {
-                Button("Försök igen") { Vocabulary.shared.prepareListener() }.buttonStyle(.soft)
+                Button("Försök igen") { Vocabulary.shared.allowListener() }.buttonStyle(.soft)
+            } else if status.state == .missing, Vocabulary.shared.hasOwnWords {
+                Button("Ladda ned \(VocabularyBoost.sizeText)") { Vocabulary.shared.allowListener() }.buttonStyle(.soft)
             }
         }
         .padding(18)
@@ -385,13 +387,15 @@ private struct ListenerRow: View {
     private var detail: String {
         switch status.state {
         case .ready:
-            return String(localized: "När något du dikterar liknar ett ord i listan lyssnar Mindtalk en gång till efter just det ordet, så att namn stavas rätt redan från början.")
+            return String(localized: "Liknar något du dikterar ett ord i listan lyssnar Mindtalk en gång till på just det stället, så att namnet stavas rätt.")
         case .downloading:
-            return String(localized: "Laddar ned lyssnaren (\(VocabularyBoost.sizeText)) – en gång, sedan fungerar den offline.")
+            return String(localized: "Laddar ned lyssnaren (\(VocabularyBoost.sizeText)). Det sker bara en gång – sedan fungerar den utan internet.")
         case .missing:
-            return String(localized: "En liten lyssnare (\(VocabularyBoost.sizeText)) laddas ned när du lägger till ett eget ord, så att namn stavas rätt redan från början.")
-        case .failed(let why):
-            return String(localized: "Lyssnaren kunde inte laddas ned: \(why) Dina ord rättas i texten som vanligt.")
+            return Vocabulary.shared.hasOwnWords
+                ? String(localized: "Med en liten lyssnare (\(VocabularyBoost.sizeText)) stavas namnen rätt redan när du pratar. Den laddas ned en gång och fungerar sedan utan internet. Utan den rättas dina ord ändå i texten.")
+                : String(localized: "Lägger du till ett eget ord kan du ladda ned en liten lyssnare (\(VocabularyBoost.sizeText)), så att namn stavas rätt redan när du pratar.")
+        case .failed:
+            return String(localized: "Lyssnaren kunde inte laddas ned. Dina ord rättas ändå i texten som vanligt.")
         }
     }
 }

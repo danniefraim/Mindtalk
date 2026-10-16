@@ -779,6 +779,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
         // `Mindtalk --guard-test`: what the AI polish may and may not do to a dictation,
         // and the rules for what the speech model gets wrong.
+        // `Mindtalk --matcher-test`: the word list's matching, on made-up words.
+        if args.contains("--matcher-test") {
+            let m = VocabularyMatcher(entries: [
+                (word: "Mindtalk", heardAs: []), (word: "Mindact", heardAs: ["min dakt"]), (word: "AI", heardAs: []),
+                (word: "npm", heardAs: []), (word: "Hansen", heardAs: []), (word: "förresten", heardAs: ["btw"]),
+            ])
+            let known: Set<String> = ["per", "test", "han", "sen", "ai"]
+            let cases: [(String, String)] = [
+                ("jag använder mind talk varje dag", "jag använder Mindtalk varje dag"),
+                ("mindtalken är bra", "Mindtalken är bra"),
+                ("skriv till mathias@mindact.ai i dag", "skriv till mathias@mindact.ai i dag"),
+                ("gå till mindact.ai/pris", "gå till mindact.ai/pris"),
+                ("vi jobbar på mindact.", "vi jobbar på Mindact."),
+                ("vi jobbar på min dakt", "vi jobbar på Mindact"),
+                ("vad kan ai:n göra", "vad kan AI:n göra"),
+                ("kör Npm install", "kör npm install"),
+                ("Npm är snabbt.", "Npm är snabbt."),
+                ("han sen kom", "han sen kom"),
+                ("det är MINDTALK", "det är MINDTALK"),
+                ("btw kommer jag sent", "förresten kommer jag sent"),
+            ]
+            var failed = 0
+            for (input, want) in cases {
+                let got = m.apply(to: input, isWord: { known.contains($0) }).text
+                if got != want { failed += 1; print("FEL  \(input) → \(got) (väntat: \(want))") } else { print("OK   \(input) → \(got)") }
+            }
+            print(failed == 0 ? "Matcher self-test passed." : "\(failed) fel")
+            exit(failed == 0 ? 0 : 1)
+        }
         if args.contains("--guard-test") {
             let guardCases: [(String, String, Bool)] = [
                 ("Jag tryck på att ladda ner gemma", "Jag trycker på att ladda ner gemma", true),
@@ -952,7 +981,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // The voice models, ready before the first meeting (after an update macOS can
         // take a minute to prepare them — better now, quietly, than when you press start).
         DispatchQueue.main.asyncAfter(deadline: .now() + 8) { VoiceModels.warmUp() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { ModelHousekeeping.tidy() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
+            ModelHousekeeping.tidy()
+            Task.detached(priority: .background) { MeetingImport.sweepCopies() }
+        }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         // Left or right click: the panel — one menu, nothing hidden.
         statusItem.button?.target = self
@@ -1144,7 +1176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         NSApp.activate()
         let alert = NSAlert()
         alert.messageText = String(localized: "Ett möte spelas in")
-        alert.informativeText = String(localized: "Mindtalk gör klart mötet innan det avslutas, så att texten blir färdig.")
+        alert.informativeText = String(localized: "Mindtalk gör klart mötet innan programmet avslutas, så att texten blir färdig.")
         alert.addButton(withTitle: String(localized: "Avsluta mötet och Mindtalk"))
         alert.addButton(withTitle: String(localized: "Fortsätt spela in"))
         guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }

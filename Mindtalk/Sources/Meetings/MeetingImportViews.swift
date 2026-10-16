@@ -74,7 +74,7 @@ struct DropSign: View {
     }
 
     private var subtitle: String {
-        if missing { return String(localized: "Ladda ned talmodellen och Nemotron 3 först – på sidan Möten.") }
+        if missing { return String(localized: "Ladda ned talmodellen och Nemotron 3 först, under Inställningar → Modeller.") }
         if later { return String(localized: "Ljud eller video – filen skrivs ned när mötet är slut.") }
         if let folder { return String(localized: "Ljud eller video – mötet hamnar i \(folder).") }
         return String(localized: "Ljud eller video. Du ser vem som sa vad, får en sammanfattning och kan ställa frågor om innehållet.")
@@ -246,7 +246,7 @@ struct MeetingDateSheet: View {
                 .datePickerStyle(.graphical)
                 .labelsHidden()
             if let source = record.source {
-                Text("Importerad \(MeetingRecord.when(source.importedAt)) från \(source.file)")
+                Text("Importerad \(MeetingRecord.when(source.importedAt).prefix(1).lowercased() + MeetingRecord.when(source.importedAt).dropFirst()) från \(source.file)")
                     .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
             }
             HStack {

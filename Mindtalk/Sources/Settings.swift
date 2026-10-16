@@ -131,6 +131,12 @@ extension Settings {
     }
 
     /// Drop hesitation sounds (eh, öh, um).
+    /// You said yes to the word list's listener (100 MB).
+    static var listenerAllowed: Bool {
+        get { UserDefaults.standard.bool(forKey: "listenerAllowed") }
+        set { UserDefaults.standard.set(newValue, forKey: "listenerAllowed") }
+    }
+
     static var removeFillers: Bool {
         get { UserDefaults.standard.object(forKey: "removeFillers") as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: "removeFillers") }
@@ -187,7 +193,7 @@ final class AppPrefs: ObservableObject {
         didSet { Settings.mediaMode = mediaMode }
     }
     @Published var removeFillers = Settings.removeFillers {
-        didSet { Settings.removeFillers = removeFillers }
+        didSet { Settings.removeFillers = removeFillers; MeetingText.forget() }
     }
     @Published var voiceCommands = Settings.voiceCommands {
         didSet { Settings.voiceCommands = voiceCommands }

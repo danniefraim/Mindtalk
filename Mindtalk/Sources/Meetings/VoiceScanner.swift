@@ -136,7 +136,7 @@ struct VoiceScanner: View {
                 // Right after someone was added, thanked first: "Tack, Anna! Nästa person…"
                 case .ready, .listening where round.progress == 0:
                     if let last = round.captures.last, let at = round.thankedAt, Date().timeIntervalSince(at) < 2.5 {
-                        return (String(localized: "Person \(round.turn)"), String(localized: "Tack, \(last.name)."),
+                        return (String(localized: "Person \(round.turn)"), String(localized: "Tack, \(last.name)"),
                                 String(localized: "Nästa person – säg hej och ditt namn."))
                     }
                     return round.turn == 1
@@ -147,7 +147,7 @@ struct VoiceScanner: View {
                         ? (String(localized: "Hör ingen"), String(localized: "Prata lite närmare"), String(localized: "Mikrofonen hör dig inte riktigt."))
                         : (String(localized: "Person \(round.turn)"), String(localized: "Jag lyssnar…"), String(localized: "Prata på en stund."))
                 case .known(let name):
-                    return (String(localized: "Känd röst"), String(localized: "Tack, \(name)."), String(localized: "Välkommen tillbaka."))
+                    return (String(localized: "Känd röst"), String(localized: "Tack, \(name)"), String(localized: "Välkommen tillbaka."))
                 case .new:
                     let name = round.draft.trimmingCharacters(in: .whitespaces)
                     return (String(localized: "Ny röst"), name.isEmpty ? String(localized: "Vad heter du?") : name,

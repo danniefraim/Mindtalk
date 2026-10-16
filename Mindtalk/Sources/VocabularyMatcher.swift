@@ -35,7 +35,7 @@ struct VocabularyMatcher {
     private let words: [String]
     private let rules: [Rule]
 
-    static let endings = "(s|en|et|ens|ets)?"
+    static let endings = "(s|en|et|ens|ets|:n|:s|:en|:et|:ens|:ets)?"
 
     init(entries: [(word: String, heardAs: [String])]) {
         words = entries.map(\.word)
@@ -59,16 +59,28 @@ struct VocabularyMatcher {
                 }
             }
             let letterCount = entry.word.filter { $0.isLetter || $0.isNumber }.count
-            if letterCount >= 3, let regex = Self.regex(forms.joined(separator: "|"), endings: Self.endings) {
+            // Two letters only in capitals or mixed ("AI", "5G", "iO") — "bo" and "ni" are words.
+            let shortButMarked = letterCount == 2 && entry.word != entry.word.lowercased()
+            if letterCount >= 3 || shortButMarked, let regex = Self.regex(forms.joined(separator: "|"), endings: Self.endings) {
                 rules.append(Rule(entry: i, regex: regex, isVariant: false))
             }
         }
         self.rules = rules
     }
 
+    /// Not inside a word — nor inside an address: "@" or "/" or "." right before, or
+    /// "@", "/" or a dot and a letter right after ("mathias@mindact.ai" stays as written).
     private static func regex(_ core: String, endings: String) -> NSRegularExpression? {
-        try? NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}])(?:\(core))\(endings)(?![\\p{L}\\p{N}])",
+        try? NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}@/.])(?:\(core))\(endings)(?![\\p{L}\\p{N}@/]|\\.[\\p{L}\\p{N}])",
                                  options: [.caseInsensitive])
+    }
+
+    /// At the start of the text, or after ". ", "! ", "? " or a line break.
+    private static func startsSentence(_ ns: NSString, at location: Int) -> Bool {
+        var i = location - 1
+        while i >= 0, let c = Character(ns.substring(with: NSRange(location: i, length: 1))) as Character?, c == " " || c == "\t" { i -= 1 }
+        guard i >= 0 else { return true }
+        return ".!?\n".contains(Character(ns.substring(with: NSRange(location: i, length: 1))))
     }
 
     /// Every fix for `text`, non-overlapping, in order.
@@ -95,8 +107,9 @@ struct VocabularyMatcher {
                     let oneWord = !matched.contains(where: { $0 == " " || $0 == "\t" || $0 == "-" })
                     if !split, oneWord, hasEnding || word.filter(\.isLetter).count <= 4, isWord(matched.lowercased()) { continue }
                 }
-                // A lowercase entry at the start of a sentence keeps the capital.
-                if word == word.lowercased(), let m = matched.first, m.isUppercase {
+                // A lowercase entry keeps a capital only where a sentence starts ("Npm" mid-
+                // sentence becomes "npm").
+                if word == word.lowercased(), let m = matched.first, m.isUppercase, Self.startsSentence(ns, at: match.range.location) {
                     replacement = replacement.prefix(1).uppercased() + replacement.dropFirst()
                 }
                 guard replacement != matched else { continue }

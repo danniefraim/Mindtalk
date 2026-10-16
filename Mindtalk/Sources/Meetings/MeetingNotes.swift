@@ -255,7 +255,7 @@ final class MeetingNotes: ObservableObject {
             default: break
             }
         }
-        return String(localized: "Apple Intelligence kunde inte göra klart just nu. Försök igen om en stund.")
+        return String(localized: "Sammanfattningen kunde inte skrivas klart just nu. Försök igen om en stund.")
     }
 
     // MARK: Writing notes
