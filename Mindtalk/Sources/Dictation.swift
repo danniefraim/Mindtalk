@@ -184,8 +184,8 @@ final class Dictation: ObservableObject {
             switch self {
             case .accessibility: return String(localized: "Slå på Hjälpmedel för Mindtalk")
             case .microphone: return String(localized: "Tillåt mikrofonen")
-            case .modelMissing: return String(localized: "Ladda ned språkmodellen (\(model))")
-            case .modelDownloading(let p): return String(localized: "Laddar ned språkmodellen – \(Int(p * 100)) %")
+            case .modelMissing: return String(localized: "Ladda ned talmodellen (\(model))")
+            case .modelDownloading(let p): return String(localized: "Laddar ned talmodellen – \(Int(p * 100)) %")
             case .modelFailed: return String(localized: "Talmodellen startade inte – försök igen")
             }
         }
