@@ -785,8 +785,9 @@ final class Dictation: ObservableObject {
         pressedAt = Date()
         recordingStarted = pressedAt
         // Show the HUD once the press is clearly a hold (or it got locked) — a
-        // quick tap or a shortcut like ⌥2 → @ shouldn't flash it.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+        // quick tap or a shortcut like ⌥2 → @ shouldn't flash it. A thought waits a
+        // little longer: its key is ⌘, held a moment before ⌘C more often than ⌥.
+        DispatchQueue.main.asyncAfter(deadline: .now() + (forThought ? 0.4 : 0.2)) { [weak self] in
             guard let self, self.phase == .recording, self.keyIsDown || self.handsFree || self.mode == .toggle else { return }
             self.confirmStart()
         }

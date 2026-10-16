@@ -95,6 +95,38 @@
         }
       }
     },
+    "%@ används redan för Tankar – välj en annan tangent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is already used for Thoughts – choose another key."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ används redan för Tankar – välj en annan tangent."
+          }
+        }
+      }
+    },
+    "%@ används redan för diktering – välj en annan tangent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is already used for dictation – choose another key."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ används redan för diktering – välj en annan tangent."
+          }
+        }
+      }
+    },
     "%@ av %@ · %@": {
       "localizations": {
         "en": {
@@ -8188,6 +8220,22 @@
         }
       }
     },
+    "Håll in %@ – och prata medan du håller den.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold %@ – and talk while you hold it."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in %@ – och prata medan du håller den."
+          }
+        }
+      }
+    },
     "Håll in alla valda modifierartangenter samtidigt. Kortkommandon fungerar som vanligt.": {
       "extractionState": "stale",
       "localizations": {
@@ -8317,6 +8365,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in en eller flera modifieringstangenter tillsammans och släpp för att spara. Esc avbryter."
+          }
+        }
+      }
+    },
+    "Håll in en tangent ensam, som höger ⌘, och släpp – eller tryck på en kombination som ⌃⌥T. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold a key on its own, like right ⌘, and let go – or press a combination like ⌃⌥T. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in en tangent ensam, som höger ⌘, och släpp – eller tryck på en kombination som ⌃⌥T. Esc avbryter."
           }
         }
       }
@@ -10382,6 +10446,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klicka i rutan, håll in %@ och säg något."
+          }
+        }
+      }
+    },
+    "Klicka och håll in en tangent ensam, som höger ⌘, och släpp – eller tryck på en kombination. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click and hold a key on its own, like right ⌘, and let go – or press a combination. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klicka och håll in en tangent ensam, som höger ⌘, och släpp – eller tryck på en kombination. Esc avbryter."
           }
         }
       }
@@ -21900,6 +21980,22 @@
         }
       }
     },
+    "Tryck på genvägen…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press the shortcut…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck på genvägen…"
+          }
+        }
+      }
+    },
     "Tryck på knappen och säg det du kommer på. Genvägen ställer du in under Inställningar.": {
       "extractionState": "stale",
       "localizations": {
@@ -23780,6 +23876,22 @@
         }
       }
     },
+    "höger %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "right %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "höger %@"
+          }
+        }
+      }
+    },
     "hördes som ”%@”": {
       "localizations": {
         "en": {
@@ -24637,6 +24749,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "välj fil"
+          }
+        }
+      }
+    },
+    "vänster %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "left %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vänster %@"
           }
         }
       }
