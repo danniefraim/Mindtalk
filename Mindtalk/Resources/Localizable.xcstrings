@@ -4334,6 +4334,38 @@
         }
       }
     },
+    "Den större %@ passar också din Mac men behöver %@ ledigt – den finns under Inställningar → Modeller.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The larger %1$@ also suits your Mac but needs %2$@ free – it's under Settings → Models."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den större %@ passar också din Mac men behöver %@ ledigt – den finns under Inställningar → Modeller."
+          }
+        }
+      }
+    },
+    "Den större %@ passar också din Mac men behöver %@ ledigt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The larger %1$@ also suits your Mac but needs %2$@ free."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den större %@ passar också din Mac men behöver %@ ledigt."
+          }
+        }
+      }
+    },
     "Det behövs drygt %@ ledigt på disken – du har %lld GB.": {
       "extractionState": "stale",
       "localizations": {

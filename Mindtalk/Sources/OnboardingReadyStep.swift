@@ -75,6 +75,13 @@ struct ReadyStep: View {
         NotesModel.allCases.reversed().first { $0.supported && $0.hasRoom }
     }
 
+    /// A larger Gemma this Mac runs, but that doesn't fit on the disk now — said, so you
+    /// know it's there (Inställningar → Modeller).
+    private var larger: NotesModel? {
+        guard let best = NotesModel.recommended, best != gemma, !best.hasRoom else { return nil }
+        return best
+    }
+
     @ViewBuilder private var summariesRow: some View {
         if let active = notes.active {
             ReadyRow(icon: "sparkle", state: .ready, title: "Sammanfattningar", keys: nil,
@@ -85,11 +92,12 @@ struct ReadyStep: View {
         } else {
             let apple = MeetingNotes.isAvailable
             ReadyRow(icon: "sparkle", state: apple ? .ready : .optional, title: "Sammanfattningar", keys: nil,
-                     detail: gemma.map { m in
+                     detail: (gemma.map { m in
                          apple ? String(localized: "Skrivs av Apple Intelligence. Vill du ha mer träffsäkra? \(m.name) från Google hittar fler beslut och uppgifter (\(m.sizeText)).")
                                : String(localized: "\(m.name) från Google skriver dem på din Mac (\(m.sizeText)).")
                      } ?? (apple ? String(localized: "Skrivs av Apple Intelligence.")
-                                 : String(localized: "Kräver Apple Intelligence – eller Gemma när det finns plats på disken."))) {
+                                 : String(localized: "Kräver Apple Intelligence – eller Gemma när det finns plats på disken.")))
+                     + (larger.map { " " + String(localized: "Den större \($0.name) passar också din Mac men behöver \(BetterNotes.gigabytes($0.remainingBytes + 2_000_000_000)) ledigt – den finns under Inställningar → Modeller.") } ?? "")) {
                 if let m = gemma {
                     Button("Ladda ned") { notes.download(m) }
                         .buttonStyle(SoftButtonStyle(small: true))
