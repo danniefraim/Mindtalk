@@ -16,7 +16,11 @@ struct VocabularyStep: View {
     /// The word just added (or merged into) — lit up in the list for a moment.
     @State private var highlighted: UUID?
     /// Added in this step: the card says so, instead of asking again.
-    @State private var added: String?
+    @State private var added: AddResult?
+
+    /// A word typed but not yet added — "Öppna Mindtalk" adds it rather than lose it.
+    /// Set while the card holds a word that can be added; nil otherwise.
+    @MainActor static var commitPending: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 22) {
@@ -26,7 +30,8 @@ struct VocabularyStep: View {
             CorrectionDemo()
                 .staggered(1)
             HStack(alignment: .top, spacing: 14) {
-                FirstWordCard(vocabulary: vocabulary, added: $added, highlighted: $highlighted, done: $done)
+                FirstWordCard(vocabulary: vocabulary, hasOwnWords: hasOwnWords,
+                              added: $added, highlighted: $highlighted, done: $done)
                 MiniWordList(entries: entries, highlighted: highlighted, showsSlot: added == nil)
             }
             .frame(height: 174)
@@ -44,7 +49,7 @@ struct VocabularyStep: View {
             .staggered(3)
         }
         #if DEBUG
-        .onAppear { if VocabularyStepRender.added { added = "Kubernetes"; done = true } }
+        .onAppear { if VocabularyStepRender.added { added = .added("Kubernetes"); done = true } }
         #endif
     }
 
@@ -54,6 +59,20 @@ struct VocabularyStep: View {
         #endif
         return vocabulary.entries
     }
+
+    private var hasOwnWords: Bool {
+        #if DEBUG
+        if VocabularyStepRender.on { return VocabularyStepRender.added }
+        #endif
+        return vocabulary.hasOwnWords
+    }
+}
+
+/// What "Lägg till" did: a new word, or one that was already on the list.
+private enum AddResult: Equatable {
+    case added(String)
+    /// Already there — with the "hörs som" variants that were new, if any.
+    case existing(String, newVariants: [String])
 }
 
 #if DEBUG
@@ -292,7 +311,8 @@ private struct FromListChip: View {
 
 private struct FirstWordCard: View {
     @ObservedObject var vocabulary: Vocabulary
-    @Binding var added: String?
+    let hasOwnWords: Bool
+    @Binding var added: AddResult?
     @Binding var highlighted: UUID?
     @Binding var done: Bool
     @State private var word = ""
@@ -300,7 +320,25 @@ private struct FirstWordCard: View {
     @FocusState private var wordFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var canAdd: Bool { Vocabulary.isValidWord(Vocabulary.tidy(word)) }
+    private var canAdd: Bool { Vocabulary.isValidWord(Vocabulary.tidy(word)) && problem == nil }
+
+    /// Why "Lägg till" can't be pressed — shown in place of the line under the title.
+    private var problem: String? {
+        let word = Vocabulary.tidy(word)
+        if word.count > 60 { return String(localized: "Ordet är för långt – högst 60 tecken.") }
+        if !word.isEmpty, !Vocabulary.isValidWord(word) { return String(localized: "Skriv ett ord med bokstäver eller siffror.") }
+        let variants = heardAs.split(separator: ",").map { Vocabulary.tidy(String($0)) }.filter { !$0.isEmpty }
+        if variants.contains(where: { $0.count > 60 }) { return String(localized: "”Hörs som” är för långt – högst 60 tecken.") }
+        if !word.isEmpty, variants.contains(where: { Self.key($0) == Self.key(word) }) {
+            return String(localized: "Skriv hur det brukar bli fel – inte samma ord en gång till.")
+        }
+        return nil
+    }
+
+    /// As the list compares words: "Mind Talk" and "mindtalk" are the same.
+    private static func key(_ word: String) -> String {
+        word.lowercased().filter { $0.isLetter || $0.isNumber }
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -315,6 +353,15 @@ private struct FirstWordCard: View {
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .raised(cornerRadius: 18)
+        // "Öppna Mindtalk" adds what you typed rather than lose it.
+        .onChange(of: [word, heardAs]) { registerPending() }
+        .onDisappear { VocabularyStep.commitPending = nil }
+    }
+
+    private func registerPending() {
+        guard canAdd else { VocabularyStep.commitPending = nil; return }
+        let (word, heardAs) = (word, heardAs)
+        VocabularyStep.commitPending = { Vocabulary.shared.add(word: word, heardAs: heardAs) }
     }
 
     private var swap: AnyTransition {
@@ -323,12 +370,22 @@ private struct FirstWordCard: View {
 
     private var form: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(vocabulary.hasOwnWords ? "Lägg till ett ord" : "Lägg till ditt första ord")
+            Text(hasOwnWords ? "Lägg till ett ord" : "Lägg till ditt första ord")
                 .font(.system(size: 15, weight: .semibold))
-            Text("Ett företag, en produkt eller ett ord från jobbet.")
-                .font(.system(size: 12.5))
-                .foregroundStyle(DS.Colors.muted)
-                .padding(.top, 3)
+            Group {
+                if let problem {
+                    Label(problem, systemImage: "exclamationmark.circle.fill")
+                        .foregroundStyle(DS.Colors.warning)
+                } else {
+                    Text("Ett företag, en produkt eller ett ord från jobbet.")
+                        .foregroundStyle(DS.Colors.muted)
+                }
+            }
+            .font(.system(size: 12.5))
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 3)
+            .animation(.smooth(duration: 0.25), value: problem)
             Spacer(minLength: 10)
             field(String(localized: "t.ex. ett företagsnamn"), text: $word)
                 .focused($wordFocused)
@@ -343,22 +400,39 @@ private struct FirstWordCard: View {
         }
     }
 
-    private func confirmation(_ word: String) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Image(systemName: "checkmark")
+    private func confirmation(_ result: AddResult) -> some View {
+        let new = isNew(result)
+        return VStack(alignment: .leading, spacing: 0) {
+            Image(systemName: new ? "checkmark" : "text.book.closed.fill")
                 .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(DS.Colors.onInk)
+                .foregroundStyle(new ? DS.Colors.onInk : DS.Colors.accent)
                 .frame(width: 38, height: 38)
-                .background(Circle().fill(DS.Colors.ink))
-                .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
-            Text("Tillagt!")
-                .font(.system(size: 17, weight: .semibold))
-                .padding(.top, 14)
-            Text("Från och med nu stavas ”\(word)” så i allt du dikterar.")
-                .font(.system(size: 12.5))
-                .foregroundStyle(DS.Colors.muted)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 3)
+                .background(Circle().fill(new ? AnyShapeStyle(DS.Colors.ink) : AnyShapeStyle(DS.Colors.chip)))
+                .shadow(color: .black.opacity(new ? 0.18 : 0), radius: 10, y: 4)
+            Group {
+                switch result {
+                case .added: Text("Tillagt!")
+                case .existing(_, let variants): Text(variants.isEmpty ? "Finns redan" : "Fanns redan")
+                }
+            }
+            .font(.system(size: 17, weight: .semibold))
+            .padding(.top, 14)
+            Group {
+                switch result {
+                case .added(let word):
+                    Text("Från och med nu stavas ”\(word)” så i allt du dikterar.")
+                case .existing(let word, let variants) where variants.isEmpty:
+                    Text("”\(word)” finns redan i din ordlista.")
+                case .existing(let word, let variants):
+                    // "”mind talk” och ”mintalk”" — the "och" in the app's language.
+                    Text("Nu rättas också \(variants.map { "”\($0)”" }.formatted(.list(type: .and))) till ”\(word)”.")
+                }
+            }
+            .font(.system(size: 12.5))
+            .foregroundStyle(DS.Colors.muted)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 3)
             Spacer(minLength: 10)
             Button("Lägg till fler") {
                 withAnimation(.smooth(duration: 0.35)) { added = nil }
@@ -366,6 +440,11 @@ private struct FirstWordCard: View {
             }
             .buttonStyle(SoftButtonStyle(small: true))
         }
+    }
+
+    private func isNew(_ result: AddResult) -> Bool {
+        if case .added = result { return true }
+        return false
     }
 
     private func field(_ placeholder: String, text: Binding<String>) -> some View {
@@ -381,22 +460,34 @@ private struct FirstWordCard: View {
     }
 
     private func add() {
-        guard canAdd else { return }
+        guard canAdd else {
+            if !word.isEmpty || problem != nil { NSSound.beep() }
+            return
+        }
         let first = !done
+        // What was there before tells a new word from one already on the list.
+        let before = Dictionary(vocabulary.entries.map { ($0.id, $0.heardAs) }, uniquingKeysWith: { a, _ in a })
+        var result: AddResult?
         var id: UUID?
         withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .smooth(duration: 0.5)) {
             id = vocabulary.add(word: word, heardAs: heardAs)
-            guard id != nil else { return }
-            added = Vocabulary.tidy(word)
+            guard let id, let entry = vocabulary.entries.first(where: { $0.id == id }) else { return }
+            if let old = before[id] {
+                result = .existing(entry.word, newVariants: entry.heardAs.filter { !old.contains($0) })
+            } else {
+                result = .added(entry.word)
+            }
+            added = result
             highlighted = id
         }
-        guard let id else { NSSound.beep(); return }
+        guard let id, let result else { NSSound.beep(); return }
         word = ""
         heardAs = ""
         wordFocused = false
+        VocabularyStep.commitPending = nil
         done = true
-        if first { Cue.celebrate() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+        if first, isNew(result) { Cue.celebrate() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
             if highlighted == id { withAnimation(.smooth(duration: 0.6)) { highlighted = nil } }
         }
     }

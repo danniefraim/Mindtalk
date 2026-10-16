@@ -137,6 +137,7 @@ struct OnboardingView: View {
             for m in order where !m.isInstalled { dictation.downloadModel(m) }
             go(1)
         case .vocabulary:
+            VocabularyStep.commitPending?()   // a word typed but not added
             done()
         default:
             go(1)
