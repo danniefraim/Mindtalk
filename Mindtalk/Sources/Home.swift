@@ -440,7 +440,7 @@ struct HomeShelves: View {
 
     var body: some View {
         let meetings = Array(store.meetings.filter { $0.id != live }.prefix(3))
-        let open = thoughts.all.filter { !$0.done }
+        let open = thoughts.forHome
         VStack(alignment: .leading, spacing: 30) {
             shelf("Senaste möten", more: "Alla möten", label: "Alla möten", action: { MeetingsPage.lastOpen = nil; page = .meetings }) {
                 VStack(alignment: .leading, spacing: 12) {

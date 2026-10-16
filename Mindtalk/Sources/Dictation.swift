@@ -744,6 +744,9 @@ final class Dictation: ObservableObject {
         let language = recordingEngine ?? engine
         let heard = peakLevel
         let thought = forThought
+        // A thought is on the page at once, its sound kept until the text is there —
+        // a failed transcription is "Försök igen", not a lost thought.
+        let pending = thought && !TextInserter.dryRun ? Thoughts.shared.hold(samples, language: language) : nil
         // Where you are when you stop talking is where the text goes — or nowhere,
         // if you switch app while it's being written.
         let target = NSWorkspace.shared.frontmostApplication?.processIdentifier
@@ -764,12 +767,13 @@ final class Dictation: ObservableObject {
                     text = Vocabulary.shared.reapply(polished)
                 }
                 guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    if let pending { Thoughts.shared.discard(pending) }
                     return heard < 0.03 ? fail(String(localized: "Hörde inget – kontrollera mikrofonen.")) : reset()
                 }
                 // A thought: kept in Tankar — nothing typed anywhere.
                 if thought {
                     if !selfTest { Stats.shared.record(text: text, seconds: Double(samples.count) / 16_000) }
-                    Thoughts.shared.add(text)
+                    if let pending { Thoughts.shared.fill(pending, text: text) } else { Thoughts.shared.add(text) }
                     Cue.done()
                     return saved()
                 }
@@ -795,6 +799,10 @@ final class Dictation: ObservableObject {
                 Cue.done()
                 reset()
             } catch {
+                if let pending {
+                    Thoughts.shared.failWriting(pending)
+                    return fail(String(localized: "Tanken kunde inte skrivas ned – den finns under Tankar, där du kan försöka igen."))
+                }
                 fail(error.localizedDescription)
             }
         }

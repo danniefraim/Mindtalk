@@ -439,20 +439,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --thoughts-test`: moving, merging, pinning, removing and undo in
+        // Tankar, in memory only — nothing written.
+        if args.contains("--thoughts-test") {
+            Task { @MainActor in
+                let store = Thoughts.shared
+                let now = Date()
+                func t(_ text: String, _ minutesAgo: Double) -> Thought { Thought(text: text, date: now.addingTimeInterval(-minutesAgo * 60)) }
+                let a = t("A", 1), b = t("B", 2), c = t("C", 3), d = t("D", 4)
+                store.preview([a, b, c, d])
+                var failed = 0
+                @MainActor func check(_ what: String, _ ok: Bool) { print((ok ? "OK   " : "FEL  ") + what); if !ok { failed += 1 } }
+                @MainActor func order() -> String { store.days.first?.items.map(\.text).joined() ?? "" }
+                let today = Calendar.current.startOfDay(for: now)
+                check("ny ordning överst först: ABCD", order() == "ABCD")
+                store.move([d.id], to: 0, in: .day(today));          check("D överst: DABC", order() == "DABC")
+                store.move([d.id], to: 4, in: .day(today));          check("D nederst: ABCD", order() == "ABCD")
+                store.move([a.id], to: 2, in: .day(today));          check("A mellan B och C: BACD", order() == "BACD")
+                store.move([c.id, d.id], to: 0, in: .day(today));    check("C och D överst: CDBA", order() == "CDBA")
+                store.nudge(a.id, by: -1);                           check("⌥⌘↑ på A: CDAB", order() == "CDAB")
+                store.undo();                                        check("ångra: CDBA", order() == "CDBA")
+                store.redo();                                        check("gör om: CDAB", order() == "CDAB")
+                store.add("E");                                      check("ny tanke överst: ECDAB", order() == "ECDAB")
+                store.setPinned([b.id], true);                       check("B fäst", store.pinned.map(\.text) == ["B"] && order() == "ECDA")
+                store.merge([d.id, a.id], into: d.id)
+                let merged = store.all.first { $0.id == d.id }?.text ?? "-"
+                check("A in i D, D kvar på sin plats", merged == "D\nA" && store.days.first?.items.map(\.text) == ["E", "C", "D\nA"])
+                store.undo();                                        check("ångra ihopslagning", order() == "ECDA")
+                store.remove([c.id]);                                check("C till Nyligen raderade", order() == "EDA" && store.removed.map(\.text) == ["C"])
+                store.restore([c.id]);                               check("C tillbaka på sin plats", order() == "ECDA")
+                store.setDone([e(store).id], true);                  check("E klar räknas inte som öppen", store.openCount == 4)
+                store.edit(c.id, text: "  c ändrad ");               check("ändra: versal och trimmat", store.all.first { $0.id == c.id }?.text == "C ändrad")
+                print(failed == 0 ? "Tankar self-test passed." : "\(failed) fel")
+                exit(failed == 0 ? 0 : 1)
+                @MainActor func e(_ s: Thoughts) -> Thought { s.days.first!.items.first { $0.text == "E" }! }
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --render-thoughts out.png [--dark]`: the Tankar page with made-up thoughts.
         if let i = args.firstIndex(of: "--render-thoughts"), i + 1 < args.count {
             Task { @MainActor in
                 let dark = args.contains("--dark")
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-                func t(_ text: String, _ hoursAgo: Double, done: Bool = false) -> Thought {
-                    var x = Thought(text: text); x.date = Date().addingTimeInterval(-hoursAgo * 3600); x.done = done; return x
+                func t(_ text: String, _ hoursAgo: Double, done: Bool = false, pinned: Bool = false) -> Thought {
+                    var x = Thought(text: text, date: Date().addingTimeInterval(-hoursAgo * 3600)); x.done = done
+                    x.pinned = pinned; x.pinOrder = pinned ? 1 : 0; return x
                 }
+                var failed = Thought(text: "", date: Date().addingTimeInterval(-0.1 * 3600)); failed.writing = .failed
                 Thoughts.shared.preview([
-                    t("Ring tillbaka Eva om offerten och kolla budgeten för Q2.", 0.2),
-                    t("Idé: visa vem som pratar mest i ett möte.", 3),
-                    t("Boka lokal till kickoffen i november.", 26),
-                    t("Fråga Kim om styrelsens datum.", 30, done: true),
+                    t("Ring tillbaka om offerten och kolla budgeten för Q2.", 0.2),
+                    t("Idé: visa vem som pratar mest i ett möte.", 1.5),
+                    t("Boka lokal till kickoffen i november.", 2.5, done: true),
+                    t("Skriv till styrelsen om datumet.", 3),
+                    t("Rabattkod till kunden – tio procent, gäller året ut.", 50, pinned: true),
+                    t("Köp ny laddare till datorn.", 26),
+                    t("Fråga om styrelsens datum.", 30, done: true),
+                    failed,
                 ])
+                ThoughtsPage.still = true
                 let view = ThoughtsPage(dictation: .shared, scrolls: false).frame(width: 760).background(DS.Colors.paper)
                     .environment(\.colorScheme, dark ? .dark : .light)
                 let renderer = ImageRenderer(content: view)
@@ -492,7 +536,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                 MeetingStore.shared.loadNow()
                 if Thoughts.shared.all.isEmpty {
-                    var a = Thought(text: "Ring tillbaka Eva om offerten och kolla budgeten för Q2."); a.date = Date()
+                    let a = Thought(text: "Ring tillbaka om offerten och kolla budgeten för Q2.")
                     Thoughts.shared.preview([a])
                 }
                 let view = VStack(alignment: .leading, spacing: 30) {

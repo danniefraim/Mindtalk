@@ -1,20 +1,47 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - Tankar
 //
-// Something you think of in the middle of something else: hold ⌃⌥T and say it.
-// It's written down by the same speech model as a dictation, but kept here, on its
-// own page — never typed into the app you're in. Each thought is new until you
-// tick it off. Only the text is kept, on this Mac; never the sound.
+// Something you think of in the middle of something else: hold the thought key and
+// say it. It's written down by the same speech model as a dictation, but kept here,
+// on its own page — never typed into the app you're in. Only the text is kept, on
+// this Mac; the sound only until the text is there, so a thought is never lost to
+// a failed transcription.
+//
+// The page (ThoughtsPage.swift): pinned on top, then one section per day, newest
+// first. Within a day you set the order by dragging; a new thought lands on top.
+// Done ones fold away at the bottom of their day. Removed ones wait thirty days in
+// "Nyligen raderade". Every change can be undone, several steps back.
 
 struct Thought: Codable, Identifiable, Equatable {
+    /// Still being written down, or the writing failed (the sound is kept for "Försök igen").
+    enum Writing: String, Codable { case writing, failed }
+
     var id = UUID()
     var text: String
+    /// When you said it. Never changes — the day it belongs to.
     var date = Date()
     var done = false
+    /// Its place within its day: higher is higher up. A new thought gets the time,
+    /// so it lands on top; dragging puts it between its neighbours.
+    var order: Double
+    var pinned = false
+    /// Its place among the pinned.
+    var pinOrder: Double = 0
+    /// In "Nyligen raderade" since then; gone for good thirty days later.
+    var deleted: Date?
+    var updated = Date()
+    var writing: Writing?
+    /// The language it was said in — for "Försök igen".
+    var language: SpeechModel?
 
-    init(text: String) { self.text = text }
+    init(text: String, date: Date = Date()) {
+        self.text = text
+        self.date = date
+        order = date.timeIntervalSince1970
+    }
 
     // Lenient, like the meetings: a thought missing a field still opens.
     init(from decoder: Decoder) throws {
@@ -23,38 +50,128 @@ struct Thought: Codable, Identifiable, Equatable {
         text = (try? c.decode(String.self, forKey: .text)) ?? ""
         date = (try? c.decode(Date.self, forKey: .date)) ?? Date()
         done = (try? c.decode(Bool.self, forKey: .done)) ?? false
+        order = (try? c.decode(Double.self, forKey: .order)) ?? date.timeIntervalSince1970
+        pinned = (try? c.decode(Bool.self, forKey: .pinned)) ?? false
+        pinOrder = (try? c.decode(Double.self, forKey: .pinOrder)) ?? 0
+        deleted = try? c.decode(Date.self, forKey: .deleted)
+        updated = (try? c.decode(Date.self, forKey: .updated)) ?? date
+        writing = try? c.decode(Writing.self, forKey: .writing)
+        language = try? c.decode(SpeechModel.self, forKey: .language)
     }
+
+    var isLive: Bool { deleted == nil }
+    /// Open: not done, not removed, written down.
+    var isOpen: Bool { deleted == nil && !done && writing == nil }
+}
+
+extension UTType {
+    static let mindtalkThought = UTType(exportedAs: "ai.mindact.mindtalk.thought")
+}
+
+/// One section of the page: the pinned, or a day.
+enum ThoughtSection: Hashable {
+    case pinned
+    case day(Date)
 }
 
 @MainActor
 final class Thoughts: ObservableObject {
     static let shared = Thoughts()
 
-    /// Newest first.
-    @Published private(set) var all: [Thought] = []
+    /// Everything, removed ones too. The page reads the sections below.
+    @Published private(set) var all: [Thought] = [] {
+        didSet { reindex() }
+    }
     /// Just saved — the page lights it up for a moment.
     @Published private(set) var fresh: UUID?
-    /// Taken away a moment ago: "Ångra" brings it back.
-    @Published private(set) var removed: Thought?
+    /// The last change you can undo, said in a few words ("Tanken togs bort") —
+    /// shown with "Ångra" for a few seconds.
+    @Published private(set) var toast: String?
+
+    // Kept from `all`, so the page and the tab bar don't sort on every redraw.
+    private(set) var pinned: [Thought] = []
+    /// Day (start of day) → its live, unpinned thoughts, top first.
+    private(set) var days: [(day: Date, items: [Thought])] = []
+    private(set) var removed: [Thought] = []
+    private(set) var openCount = 0
+    /// For Hem: open thoughts, pinned first, then newest.
+    private(set) var forHome: [Thought] = []
+
+    private struct Step { let label: String?; let before: [Thought] }
+    private var undoSteps: [Step] = []
+    private var redoSteps: [Step] = []
+    private var saveTask: Task<Void, Never>?
+    private var toastTask: Task<Void, Never>?
+
+    /// How long removed thoughts wait in "Nyligen raderade".
+    static let keepRemovedDays = 30
 
     nonisolated private static var url: URL {
         MeetingStore.root.deletingLastPathComponent().appendingPathComponent("Thoughts.json")
     }
+    /// The sound of a thought being written down, until its text is there.
+    nonisolated private static var pendingFolder: URL {
+        MeetingStore.root.deletingLastPathComponent().appendingPathComponent("Thoughts-pending", isDirectory: true)
+    }
+    nonisolated private static func soundURL(_ id: UUID) -> URL { pendingFolder.appendingPathComponent(id.uuidString + ".f32") }
 
     private init() {
-        guard let data = try? Data(contentsOf: Self.url) else { return }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        if let read = try? decoder.decode([Thought].self, from: data) {
-            all = read.sorted { $0.date > $1.date }
-        } else {
-            // Kept aside, never written over.
-            try? FileManager.default.moveItem(at: Self.url, to: Self.url.deletingLastPathComponent()
-                .appendingPathComponent("Thoughts-unreadable-\(Int(Date().timeIntervalSince1970)).json"))
+        if let data = try? Data(contentsOf: Self.url) {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            if let read = try? decoder.decode([Thought].self, from: data) {
+                var kept = read
+                // Thirty days in "Nyligen raderade", then gone.
+                let limit = Date().addingTimeInterval(-Double(Self.keepRemovedDays) * 86_400)
+                for t in kept where (t.deleted ?? .distantFuture) < limit { try? FileManager.default.removeItem(at: Self.soundURL(t.id)) }
+                kept.removeAll { ($0.deleted ?? .distantFuture) < limit }
+                // Being written when Mindtalk quit: "Försök igen" if the sound is there.
+                for i in kept.indices where kept[i].writing == .writing {
+                    kept[i].writing = FileManager.default.fileExists(atPath: Self.soundURL(kept[i].id).path) ? .failed : nil
+                }
+                kept.removeAll { $0.writing == nil && $0.text.isEmpty }
+                all = kept
+            } else {
+                // Kept aside, never written over.
+                try? FileManager.default.moveItem(at: Self.url, to: Self.url.deletingLastPathComponent()
+                    .appendingPathComponent("Thoughts-unreadable-\(Int(Date().timeIntervalSince1970)).json"))
+            }
+        }
+        reindex()
+        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { Thoughts.shared.saveNow() }
         }
     }
 
+    private func reindex() {
+        let calendar = Calendar.current
+        let live = all.filter(\.isLive)
+        pinned = live.filter(\.pinned).sorted { $0.pinOrder > $1.pinOrder }
+        var byDay: [Date: [Thought]] = [:]
+        for t in live where !t.pinned { byDay[calendar.startOfDay(for: t.date), default: []].append(t) }
+        days = byDay.keys.sorted(by: >).map { day in (day, byDay[day]!.sorted { $0.order > $1.order }) }
+        removed = all.filter { !$0.isLive }.sorted { ($0.deleted ?? .distantPast) > ($1.deleted ?? .distantPast) }
+        openCount = live.filter(\.isOpen).count
+        forHome = pinned.filter(\.isOpen) + live.filter { $0.isOpen && !$0.pinned }.sorted { $0.date > $1.date }
+    }
+
+    // MARK: Saving — a moment after the last change, and on quit
+
     private func save() {
+        saveTask?.cancel()
+        saveTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            self?.saveNow()
+        }
+    }
+
+    func saveNow() {
+        saveTask?.cancel()
+        saveTask = nil
+        #if DEBUG
+        if previewing { return }
+        #endif
         let snapshot = all
         Self.writer.async {
             do {
@@ -72,362 +189,306 @@ final class Thoughts: ObservableObject {
     }
     nonisolated private static let writer = DispatchQueue(label: "ai.mindact.mindtalk.thoughts", qos: .utility)
 
-    func add(_ text: String) {
-        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        let thought = Thought(text: text.prefix(1).uppercased() + text.dropFirst())
-        all.insert(thought, at: 0)
-        fresh = thought.id
+    // MARK: Undo, several steps back
+
+    /// Every change goes through here: what it was before, so ⌘Z brings it back.
+    private func change(_ label: String? = nil, _ body: (inout [Thought]) -> Void) {
+        var next = all
+        body(&next)
+        guard next != all else { return }
+        undoSteps.append(Step(label: label, before: all))
+        if undoSteps.count > 30 { undoSteps.removeFirst() }
+        redoSteps.removeAll()
+        all = next
         save()
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(4))
-            if self?.fresh == thought.id { self?.fresh = nil }
+        if let label { say(label) }
+    }
+
+    var canUndo: Bool { !undoSteps.isEmpty }
+    var canRedo: Bool { !redoSteps.isEmpty }
+
+    func undo() {
+        guard let step = undoSteps.popLast() else { return }
+        redoSteps.append(Step(label: step.label, before: all))
+        all = step.before
+        toast = nil
+        save()
+    }
+
+    func redo() {
+        guard let step = redoSteps.popLast() else { return }
+        undoSteps.append(Step(label: step.label, before: all))
+        all = step.before
+        save()
+    }
+
+    private func say(_ label: String) {
+        toast = label
+        toastTask?.cancel()
+        toastTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(6))
+            guard !Task.isCancelled else { return }
+            self?.toast = nil
         }
     }
 
-    func setDone(_ id: UUID, _ done: Bool) {
-        guard let i = all.firstIndex(where: { $0.id == id }) else { return }
-        all[i].done = done
+    // MARK: Adding
+
+    func add(_ text: String) {
+        let text = Self.tidy(text)
+        guard !text.isEmpty else { return }
+        let thought = Thought(text: text)
+        change { $0.append(thought) }
+        light(thought.id)
+    }
+
+    /// A thought just said: on the page at once ("Skriver ned…"), its sound kept
+    /// until the text is there.
+    func hold(_ samples: [Float], language: SpeechModel) -> UUID {
+        var thought = Thought(text: "")
+        thought.writing = .writing
+        thought.language = language
+        all.append(thought)          // not an undo step: it's the app writing, not you
+        let id = thought.id
+        Self.writer.async {
+            let url = Self.soundURL(id)
+            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true,
+                                                     attributes: [.posixPermissions: 0o700])
+            let data = samples.withUnsafeBufferPointer { Data(buffer: $0) }
+            try? data.write(to: url, options: [.atomic])
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        }
         save()
+        return id
+    }
+
+    /// Written down: the text in, the sound gone.
+    func fill(_ id: UUID, text: String) {
+        guard let i = all.firstIndex(where: { $0.id == id }) else { return add(text) }
+        let text = Self.tidy(text)
+        if text.isEmpty { return discard(id) }
+        all[i].text = text
+        all[i].writing = nil
+        all[i].updated = Date()
+        dropSound(id)
+        save()
+        light(id)
+    }
+
+    /// The writing failed: kept, with its sound, for "Försök igen".
+    func failWriting(_ id: UUID) {
+        guard let i = all.firstIndex(where: { $0.id == id }) else { return }
+        all[i].writing = .failed
+        save()
+    }
+
+    /// Nothing to keep (not a word heard): as if it was never said.
+    func discard(_ id: UUID) {
+        all.removeAll { $0.id == id }
+        dropSound(id)
+        save()
+    }
+
+    /// "Försök igen": the kept sound, written down once more.
+    func retry(_ id: UUID) async {
+        guard let i = all.firstIndex(where: { $0.id == id }), all[i].writing == .failed else { return }
+        let language = all[i].language ?? Dictation.shared.engine
+        all[i].writing = .writing
+        let url = Self.soundURL(id)
+        let samples: [Float]? = await Task.detached(priority: .userInitiated) {
+            guard let data = try? Data(contentsOf: url) else { return nil }
+            return data.withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
+        }.value
+        guard let samples, !samples.isEmpty else { return failWriting(id) }
+        do {
+            let terms = VocabularyBoost.terms(from: Vocabulary.shared.entries.map(\.word))
+            let (raw, _) = try await SpeechEngine.shared.transcribe(samples: samples, with: language, listeningFor: terms)
+            let text = Vocabulary.shared.apply(TextCleanup.apply(raw, fillers: Settings.removeFillers, commands: Settings.voiceCommands))
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return failWriting(id) }
+            Stats.shared.record(text: text, seconds: Double(samples.count) / 16_000)
+            fill(id, text: text)
+        } catch {
+            failWriting(id)
+        }
+    }
+
+    private func dropSound(_ id: UUID) {
+        let url = Self.soundURL(id)
+        Self.writer.async { try? FileManager.default.removeItem(at: url) }
+    }
+
+    private func light(_ id: UUID) {
+        fresh = id
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(4))
+            if self?.fresh == id { self?.fresh = nil }
+        }
+    }
+
+    /// Trimmed, with a capital first letter.
+    private static func tidy(_ text: String) -> String {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.prefix(1).uppercased() + t.dropFirst()
+    }
+
+    // MARK: Changing
+
+    func setDone(_ ids: [UUID], _ done: Bool) {
+        change(ids.count > 1 ? (done ? String(localized: "\(ids.count) tankar är klara") : nil) : nil) { all in
+            for i in all.indices where ids.contains(all[i].id) { all[i].done = done; all[i].updated = Date() }
+        }
     }
 
     func edit(_ id: UUID, text: String) {
-        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let i = all.firstIndex(where: { $0.id == id }) else { return }
-        if text.isEmpty { remove(id); return }
-        guard all[i].text != text else { return }
-        all[i].text = text
-        save()
-    }
-
-    func remove(_ id: UUID) {
-        guard let i = all.firstIndex(where: { $0.id == id }) else { return }
-        removed = all.remove(at: i)
-        save()
-        let gone = removed?.id
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(6))
-            if self?.removed?.id == gone { self?.removed = nil }
+        let text = Self.tidy(text)
+        if text.isEmpty { return remove([id]) }
+        change { all in
+            guard let i = all.firstIndex(where: { $0.id == id }), all[i].text != text else { return }
+            all[i].text = text
+            all[i].updated = Date()
         }
     }
 
-    func undoRemove() {
-        guard let thought = removed else { return }
-        removed = nil
-        all.append(thought)
-        all.sort { $0.date > $1.date }
-        save()
+    func setPinned(_ ids: [UUID], _ pinned: Bool) {
+        let top = (self.pinned.first?.pinOrder ?? 0) + 1
+        change { all in
+            var n = 0.0
+            for i in all.indices where ids.contains(all[i].id) && all[i].pinned != pinned {
+                all[i].pinned = pinned
+                all[i].pinOrder = pinned ? top + Double(ids.count) - n : 0
+                n += 1
+            }
+        }
     }
 
-    func removeDone() {
-        all.removeAll(where: \.done)
-        save()
+    /// To "Nyligen raderade".
+    func remove(_ ids: [UUID]) {
+        let label = ids.count == 1 ? String(localized: "Tanken togs bort") : String(localized: "\(ids.count) tankar togs bort")
+        change(label) { all in
+            for i in all.indices where ids.contains(all[i].id) { all[i].deleted = Date() }
+        }
     }
 
-    var openCount: Int { all.filter { !$0.done }.count }
+    /// Back from "Nyligen raderade", where it was.
+    func restore(_ ids: [UUID]) {
+        change { all in
+            for i in all.indices where ids.contains(all[i].id) { all[i].deleted = nil }
+        }
+    }
+
+    /// Gone for good — only from "Nyligen raderade", after you said yes.
+    func purge(_ ids: [UUID]) {
+        for id in ids { dropSound(id) }
+        change { $0.removeAll { ids.contains($0.id) && $0.deleted != nil } }
+        // Not undoable once it's gone for good.
+        undoSteps.removeAll()
+        redoSteps.removeAll()
+    }
+
+    /// Into one: the first keeps its place and time, the others' words follow it,
+    /// a line each.
+    func merge(_ ids: [UUID], into target: UUID) {
+        let others = ids.filter { $0 != target }
+        guard !others.isEmpty else { return }
+        change(String(localized: "Tankarna slogs ihop")) { all in
+            guard let t = all.firstIndex(where: { $0.id == target }) else { return }
+            let texts = all.filter { others.contains($0.id) && $0.writing == nil }.sorted { $0.order > $1.order }.map(\.text)
+            guard !texts.isEmpty else { return }
+            all[t].text = ([all[t].text] + texts).joined(separator: "\n")
+            all[t].updated = Date()
+            all.removeAll { others.contains($0.id) && $0.writing == nil }
+        }
+    }
+
+    /// Dragged to a place in a section — only thoughts already in it move (a thought
+    /// stays on the day you said it); a pinned one dragged to a day is unpinned there.
+    func move(_ ids: [UUID], to index: Int, in section: ThoughtSection) {
+        let calendar = Calendar.current
+        let list: [Thought]
+        switch section {
+        case .pinned: list = pinned
+        case .day(let day): list = days.first { $0.day == day }?.items ?? []
+        }
+        let moving: [UUID] = {
+            switch section {
+            case .pinned: return ids.filter { id in all.contains { $0.id == id && $0.pinned } }
+            case .day(let day): return ids.filter { id in all.contains { $0.id == id && calendar.isDate($0.date, inSameDayAs: day) } }
+            }
+        }()
+        guard !moving.isEmpty else { return }
+        let rest = list.filter { !moving.contains($0.id) }
+        let before = list.prefix(min(index, list.count)).filter { !moving.contains($0.id) }.count
+        let value: (Thought) -> Double = { section == .pinned ? $0.pinOrder : $0.order }
+        // Between the neighbours: above has the higher number.
+        let above = before > 0 ? value(rest[before - 1]) : nil
+        let below = before < rest.count ? value(rest[before]) : nil
+        let hi = above ?? ((below ?? Date().timeIntervalSince1970) + Double(moving.count + 1))
+        let lo = below ?? (hi - Double(moving.count + 1))
+        let step = (hi - lo) / Double(moving.count + 1)
+        let ordered = list.filter { moving.contains($0.id) }.map(\.id)
+        change { all in
+            for (n, id) in ordered.enumerated() {
+                guard let i = all.firstIndex(where: { $0.id == id }) else { continue }
+                let v = hi - step * Double(n + 1)
+                if section == .pinned { all[i].pinOrder = v } else { all[i].order = v }
+            }
+        }
+    }
+
+    /// ⌥⌘↑ / ⌥⌘↓: one place up or down in its section.
+    func nudge(_ id: UUID, by delta: Int) {
+        guard let t = all.first(where: { $0.id == id }) else { return }
+        let section: ThoughtSection = t.pinned ? .pinned : .day(Calendar.current.startOfDay(for: t.date))
+        let list: [Thought] = t.pinned ? pinned : (days.first { $0.day == Calendar.current.startOfDay(for: t.date) }?.items ?? [])
+        guard let i = list.firstIndex(where: { $0.id == id }) else { return }
+        let target = i + delta
+        guard target >= 0, target < list.count else { return }
+        move([id], to: delta > 0 ? target + 1 : target, in: section)
+    }
+
+    // MARK: Out
+
+    /// All of them, by day, as Markdown — for "Exportera…".
+    func markdown() -> String {
+        let time = Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale)
+        var lines = ["# " + String(localized: "Tankar"), ""]
+        if !pinned.isEmpty {
+            lines += ["## " + String(localized: "Fäst"), ""]
+            lines += pinned.filter { $0.writing == nil }.map { "- " + $0.text.replacingOccurrences(of: "\n", with: "\n  ") }
+            lines.append("")
+        }
+        for day in days {
+            let title = day.day.formatted(Date.FormatStyle().weekday(.wide).day().month(.wide).year().locale(AppLanguage.locale))
+            lines += ["## " + title.prefix(1).uppercased() + title.dropFirst(), ""]
+            for t in day.items where t.writing == nil {
+                lines.append("- " + t.date.formatted(time) + " – " + t.text.replacingOccurrences(of: "\n", with: "\n  ")
+                             + (t.done ? " " + String(localized: "(klar)") : ""))
+            }
+            lines.append("")
+        }
+        return lines.joined(separator: "\n")
+    }
 
     #if DEBUG
+    private var previewing = false
     /// Screenshots: thoughts in memory only — nothing written.
-    func preview(_ items: [Thought]) { all = items }
+    func preview(_ items: [Thought]) { previewing = true; all = items }
     #endif
 }
 
-// MARK: - The page
+/// A thought dragged: its id for drops in Tankar (and Hem), its words for other apps.
+enum ThoughtDragging {
+    /// The thoughts being dragged right now — set as a drag starts in Tankar.
+    @MainActor static var ids: [UUID] = []
 
-struct ThoughtsPage: View {
-    @ObservedObject var dictation: Dictation
-    /// Screenshots: drawn without the scroll view.
-    var scrolls = true
-    @ObservedObject private var thoughts = Thoughts.shared
-    @State private var query = ""
-    @State private var typed = ""
-    @State private var showDone = false
-    @State private var confirmClear = false
-    @FocusState private var typing: Bool
-
-    private var chord: String { Settings.thoughtShortcut?.chip ?? "" }
-
-    var body: some View {
-        let shown = thoughts.all.filter { query.isEmpty || $0.text.localizedCaseInsensitiveContains(query) }
-        let open = shown.filter { !$0.done }
-        let done = shown.filter(\.done)
-        VStack(alignment: .leading, spacing: 20) {
-            PageHeader(title: "Tankar",
-                       subtitle: "Det du kommer på mitt i något annat. Håll in genvägen och säg det – det hamnar här, inte i appen du står i.")
-                .staggered(0)
-            speakCard.staggered(1)
-            if thoughts.all.isEmpty {
-                empty.staggered(2)
-            } else {
-                searchField.staggered(2)
-                if open.isEmpty, done.isEmpty {
-                    Text("Inga tankar innehåller det.").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                }
-                ForEach(groups(open), id: \.title) { group in
-                    VStack(alignment: .leading, spacing: 10) {
-                        SectionTitle(group.title)
-                        VStack(spacing: 0) {
-                            ForEach(Array(group.items.enumerated()), id: \.element.id) { i, thought in
-                                if i > 0 { CardDivider() }
-                                ThoughtRow(thought: thought, fresh: thoughts.fresh == thought.id)
-                            }
-                        }
-                        .padding(4)
-                        .card()
-                    }
-                }
-                if !done.isEmpty { doneSection(done) }
-            }
+    @MainActor static func provider(ids: [UUID], text: String) -> NSItemProvider {
+        Self.ids = ids
+        let provider = NSItemProvider(object: text as NSString)
+        let data = ids.map(\.uuidString).joined(separator: "\n").data(using: .utf8) ?? Data()
+        provider.registerDataRepresentation(forTypeIdentifier: UTType.mindtalkThought.identifier, visibility: .ownProcess) { done in
+            done(data, nil)
+            return nil
         }
-        .modifier(PageScroll(on: scrolls))
-        .overlay(alignment: .bottom) { undoToast }
-        .animation(.spring(duration: 0.35, bounce: 0.15), value: thoughts.all)
-        .animation(.spring(duration: 0.35, bounce: 0.15), value: thoughts.removed)
-        .confirmationDialog("Ta bort alla klara tankar?", isPresented: $confirmClear) {
-            Button("Ta bort", role: .destructive) { withAnimation(.snappy) { thoughts.removeDone() } }
-            Button("Avbryt", role: .cancel) {}
-        } message: {
-            Text("De klara tankarna tas bort från din Mac och går inte att få tillbaka.")
-        }
-    }
-
-    /// How to add one: the shortcut, the button, or typing.
-    private var speakCard: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .center, spacing: 16) {
-                ZStack {
-                    Circle().fill(DS.Colors.chip)
-                    Image(systemName: "lightbulb")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(DS.Colors.ink)
-                }
-                .frame(width: 44, height: 44)
-                .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Fånga en tanke").font(.system(size: 15, weight: .semibold))
-                    Text(chord.isEmpty ? "Tryck på knappen och säg det du kommer på. Genvägen ställer du in under Inställningar."
-                                       : "Håll in \(chord) var du än är, eller tryck snabbt för att prata längre.")
-                        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 12)
-                Button {
-                    dictation.startThought()
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "mic.fill").font(.system(size: 11, weight: .semibold))
-                        Text("Säg en tanke")
-                    }
-                }
-                .buttonStyle(.ink)
-                .disabled(dictation.phase == .recording || dictation.phase == .transcribing)
-                .help("Börja lyssna – tryck på ✓ i bubblan när du är klar")
-            }
-            .padding(20)
-            // Or typed, here.
-            HStack(spacing: 10) {
-                Image(systemName: "pencil").font(.system(size: 12)).foregroundStyle(DS.Colors.faint)
-                TextField("Eller skriv en tanke och tryck på retur", text: $typed)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13.5))
-                    .focused($typing)
-                    .onSubmit {
-                        withAnimation(.snappy) { thoughts.add(typed) }
-                        typed = ""
-                    }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(UnevenRoundedRectangle(bottomLeadingRadius: 20, bottomTrailingRadius: 20, style: .continuous)
-                .fill(DS.Colors.chip.opacity(0.25)))
-            .overlay(alignment: .top) { Rectangle().fill(DS.Colors.divider).frame(height: 0.5) }
-        }
-        .raised(cornerRadius: 20)
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 9) {
-            Image(systemName: "magnifyingglass").font(.system(size: 13, weight: .semibold)).foregroundStyle(DS.Colors.muted)
-            TextField("Sök i tankarna", text: $query)
-                .textFieldStyle(.plain)
-                .font(.system(size: 14))
-                .onExitCommand { query = "" }
-        }
-        .padding(.horizontal, 14)
-        .frame(height: 40)
-        .background(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous).fill(DS.Colors.field))
-        .overlay(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous).strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
-    }
-
-    private var empty: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "lightbulb").font(.system(size: 28, weight: .light)).foregroundStyle(DS.Colors.faint)
-            Text("Inga tankar än").font(.system(size: 14, weight: .semibold))
-            Text(chord.isEmpty ? "Prova: tryck på Säg en tanke och säg ”Ring Eva om offerten”."
-                               : "Prova: håll in \(chord) och säg ”Ring Eva om offerten”.")
-                .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 36)
-    }
-
-    @ViewBuilder private func doneSection(_ done: [Thought]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Button {
-                    withAnimation(.spring(duration: 0.35, bounce: 0.1)) { showDone.toggle() }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10.5, weight: .bold))
-                            .rotationEffect(.degrees(showDone ? 90 : 0))
-                        Text("Klara").font(.system(size: 15, weight: .semibold))
-                        Text("\(done.count)").font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                Spacer()
-                if showDone {
-                    Button("Ta bort klara…") { confirmClear = true }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 12.5, weight: .medium))
-                        .foregroundStyle(DS.Colors.muted)
-                }
-            }
-            .padding(.top, 8)
-            if showDone {
-                VStack(spacing: 0) {
-                    ForEach(Array(done.enumerated()), id: \.element.id) { i, thought in
-                        if i > 0 { CardDivider() }
-                        ThoughtRow(thought: thought, fresh: false)
-                    }
-                }
-                .padding(4)
-                .card()
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-    }
-
-    @ViewBuilder private var undoToast: some View {
-        if let removed = thoughts.removed {
-            HStack(spacing: 12) {
-                Text("Tanken togs bort").font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
-                Button("Ångra") { withAnimation(.snappy) { thoughts.undoRemove() } }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .keyboardShortcut("z", modifiers: .command)
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 38)
-            .background(Capsule().fill(Color(white: 0.1)))
-            .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.25), radius: 10, y: 4)
-            .padding(.bottom, 24)
-            .transition(.opacity.combined(with: .move(edge: .bottom)))
-            .id(removed.id)
-        }
-    }
-
-    /// "I dag", "I går", then the day.
-    private func groups(_ items: [Thought]) -> [(title: String, items: [Thought])] {
-        let calendar = Calendar.current
-        var out: [(title: String, items: [Thought])] = []
-        for t in items {
-            let title: String
-            if calendar.isDateInToday(t.date) { title = String(localized: "I dag") }
-            else if calendar.isDateInYesterday(t.date) { title = String(localized: "I går") }
-            else {
-                let day = t.date.formatted(Date.FormatStyle().weekday(.wide).day().month(.wide).locale(AppLanguage.locale))
-                title = day.prefix(1).uppercased() + day.dropFirst()
-            }
-            if let i = out.firstIndex(where: { $0.title == title }) { out[i].items.append(t) } else { out.append((title, [t])) }
-        }
-        return out
-    }
-}
-
-/// A thought: tick it off, click the text to change it.
-private struct ThoughtRow: View {
-    let thought: Thought
-    let fresh: Bool
-    @State private var editing = false
-    @State private var text = ""
-    @State private var hovering = false
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Button {
-                withAnimation(.spring(duration: 0.35, bounce: 0.2)) { Thoughts.shared.setDone(thought.id, !thought.done) }
-            } label: {
-                Image(systemName: thought.done ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 16))
-                    .foregroundStyle(thought.done ? DS.Colors.good : DS.Colors.faint)
-                    .contentTransition(.symbolEffect(.replace))
-            }
-            .buttonStyle(.plain)
-            .help(thought.done ? "Markera som ny" : "Klar")
-            .accessibilityLabel(thought.done ? "Markera som ny" : "Markera som klar")
-            if editing {
-                TextField("", text: $text, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 14))
-                    .focused($focused)
-                    .onSubmit(commit)
-                    .onExitCommand { editing = false }
-                    .onChange(of: focused) { _, now in if !now { commit() } }
-            } else {
-                Text(thought.text)
-                    .font(.system(size: 14))
-                    .foregroundStyle(thought.done ? DS.Colors.muted : Color.primary)
-                    .strikethrough(thought.done, color: DS.Colors.faint)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .onTapGesture(count: 2) { startEditing() }
-            }
-            Text(thought.date.formatted(date: .omitted, time: .shortened))
-                .font(.system(size: 12)).foregroundStyle(DS.Colors.faint).monospacedDigit()
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(fresh ? DS.Colors.chip : DS.Colors.chip.opacity(hovering ? 0.5 : 0)))
-        .animation(.easeOut(duration: 0.6), value: fresh)
-        .onHover { hovering = $0 }
-        .contextMenu {
-            Button("Ändra") { startEditing() }
-            Button("Kopiera") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(thought.text, forType: .string)
-            }
-            Button(thought.done ? "Markera som ny" : "Markera som klar") { Thoughts.shared.setDone(thought.id, !thought.done) }
-            Divider()
-            Button("Ta bort", role: .destructive) { withAnimation(.snappy) { Thoughts.shared.remove(thought.id) } }
-        }
-    }
-
-    private func startEditing() {
-        text = thought.text
-        editing = true
-        DispatchQueue.main.async { focused = true }
-    }
-
-    private func commit() {
-        guard editing else { return }
-        editing = false
-        Thoughts.shared.edit(thought.id, text: text)
-    }
-}
-
-private struct PageScroll: ViewModifier {
-    let on: Bool
-    func body(content: Content) -> some View {
-        if on { content.pageLayout() } else { content.padding(28) }
+        return provider
     }
 }

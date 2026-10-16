@@ -949,6 +949,22 @@
         }
       }
     },
+    "%lld klara": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld done"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld klara"
+          }
+        }
+      }
+    },
     "%lld minuter": {
       "localizations": {
         "en": {
@@ -1129,6 +1145,54 @@
         }
       }
     },
+    "%lld tankar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld tankar"
+          }
+        }
+      }
+    },
+    "%lld tankar togs bort": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld thoughts removed"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld tankar togs bort"
+          }
+        }
+      }
+    },
+    "%lld tankar är klara": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld thoughts done"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld tankar är klara"
+          }
+        }
+      }
+    },
     "%lld till den här veckan": {
       "extractionState": "stale",
       "localizations": {
@@ -1158,6 +1222,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld timmar"
+          }
+        }
+      }
+    },
+    "%lld träffar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld matches"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld träffar"
+          }
+        }
+      }
+    },
+    "%lld valda": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld selected"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld valda"
           }
         }
       }
@@ -1192,6 +1288,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld · från 1 möte"
+          }
+        }
+      }
+    },
+    "(klar)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(done)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(klar)"
+          }
+        }
+      }
+    },
+    "(utan text)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(no text)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(utan text)"
           }
         }
       }
@@ -1275,6 +1403,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "1 inspelning är äldre än så"
+          }
+        }
+      }
+    },
+    "1 klar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 done"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 klar"
           }
         }
       }
@@ -1460,6 +1604,22 @@
         }
       }
     },
+    "1 tanke": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 thought"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 tanke"
+          }
+        }
+      }
+    },
     "1 till den här veckan": {
       "extractionState": "stale",
       "localizations": {
@@ -1489,6 +1649,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "1 timme"
+          }
+        }
+      }
+    },
+    "1 träff": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 match"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 träff"
           }
         }
       }
@@ -3174,7 +3350,24 @@
         }
       }
     },
+    "De går inte att få tillbaka.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "They can't be brought back."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De går inte att få tillbaka."
+          }
+        }
+      }
+    },
     "De klara tankarna tas bort från din Mac och går inte att få tillbaka.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3236,6 +3429,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "De tas bort från din Mac och kan inte återställas. ⌃⌥V har då inget att klistra in."
+          }
+        }
+      }
+    },
+    "Dela…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dela…"
           }
         }
       }
@@ -4148,6 +4357,7 @@
       }
     },
     "Eller skriv en tanke och tryck på retur": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4389,6 +4599,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Exportera"
+          }
+        }
+      }
+    },
+    "Exportera alla som Markdown…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export all as Markdown…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportera alla som Markdown…"
           }
         }
       }
@@ -5026,7 +5252,24 @@
         }
       }
     },
+    "Fäst": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pinned"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fäst"
+          }
+        }
+      }
+    },
     "Fånga en tanke": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6282,6 +6525,7 @@
       }
     },
     "Håll in %@ var du än är, eller tryck snabbt för att prata längre.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7181,6 +7425,22 @@
         }
       }
     },
+    "Inget här.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing here."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inget här."
+          }
+        }
+      }
+    },
     "Inget hördes": {
       "localizations": {
         "en": {
@@ -7769,6 +8029,7 @@
       }
     },
     "Klara": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9109,6 +9370,22 @@
         }
       }
     },
+    "Lossa": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unpin"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lossa"
+          }
+        }
+      }
+    },
     "Lyssna": {
       "localizations": {
         "en": {
@@ -9928,6 +10205,7 @@
       }
     },
     "Markera som ny": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11364,6 +11642,38 @@
         }
       }
     },
+    "Nyligen raderade": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recently deleted"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nyligen raderade"
+          }
+        }
+      }
+    },
+    "Nyligen raderade (%lld)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recently deleted (%lld)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nyligen raderade (%lld)"
+          }
+        }
+      }
+    },
     "Nytt": {
       "extractionState": "stale",
       "localizations": {
@@ -12151,6 +12461,7 @@
       }
     },
     "Prova: håll in %@ och säg ”Ring Eva om offerten”.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12166,7 +12477,24 @@
         }
       }
     },
+    "Prova: håll in %@ var du än är och säg ”Ring tillbaka om offerten”.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try it: hold %@ anywhere and say “Call back about the quote”."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prova: håll in %@ var du än är och säg ”Ring tillbaka om offerten”."
+          }
+        }
+      }
+    },
     "Prova: tryck på Säg en tanke och säg ”Ring Eva om offerten”.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12178,6 +12506,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Prova: tryck på Säg en tanke och säg ”Ring Eva om offerten”."
+          }
+        }
+      }
+    },
+    "Prova: tryck på Säg en tanke och säg ”Ring tillbaka om offerten”.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try it: press Say a thought and say “Call back about the quote”."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prova: tryck på Säg en tanke och säg ”Ring tillbaka om offerten”."
           }
         }
       }
@@ -13214,6 +13558,38 @@
         }
       }
     },
+    "Skriv en tanke och tryck på retur": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type a thought and press Return"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriv en tanke och tryck på retur"
+          }
+        }
+      }
+    },
+    "Skriv en tanke – eller håll in %@ och säg den": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type a thought – or hold %@ and say it"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriv en tanke – eller håll in %@ och säg den"
+          }
+        }
+      }
+    },
     "Skriv in": {
       "extractionState": "stale",
       "localizations": {
@@ -13361,6 +13737,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skriver ned"
+          }
+        }
+      }
+    },
+    "Skriver ned tanken…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Writing down the thought…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriver ned tanken…"
           }
         }
       }
@@ -13626,6 +14018,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Släpp så skrivs den ned"
+          }
+        }
+      }
+    },
+    "Slå ihop": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slå ihop"
           }
         }
       }
@@ -14713,6 +15121,22 @@
         }
       }
     },
+    "Stängd": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Closed"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stängd"
+          }
+        }
+      }
+    },
     "Står Mindtalk redan i listan i Systeminställningar? Slå av och på den – macOS kräver det efter en uppdatering ibland.": {
       "extractionState": "stale",
       "localizations": {
@@ -15221,6 +15645,22 @@
         }
       }
     },
+    "Ta bort %lld tankar för gott?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete %lld thoughts for good?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort %lld tankar för gott?"
+          }
+        }
+      }
+    },
     "Ta bort Gemma 4?": {
       "localizations": {
         "en": {
@@ -15238,6 +15678,7 @@
       }
     },
     "Ta bort alla klara tankar?": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15265,6 +15706,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ta bort frågan"
+          }
+        }
+      }
+    },
+    "Ta bort för gott": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete for good"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort för gott"
           }
         }
       }
@@ -15302,6 +15759,7 @@
       }
     },
     "Ta bort klara…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15442,6 +15900,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ta bort svaret"
+          }
+        }
+      }
+    },
+    "Ta bort tanken för gott?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete the thought for good?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort tanken för gott?"
           }
         }
       }
@@ -15797,6 +16271,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tankar du säger också – det du kommer på mitt i något annat."
+          }
+        }
+      }
+    },
+    "Tankar du tar bort ligger här i %lld dagar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thoughts you remove stay here for %lld days."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tankar du tar bort ligger här i %lld dagar."
+          }
+        }
+      }
+    },
+    "Tankarna slogs ihop": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The thoughts were merged"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tankarna slogs ihop"
+          }
+        }
+      }
+    },
+    "Tanken kunde inte skrivas ned – den finns under Tankar, där du kan försöka igen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The thought couldn't be written down – it's in Thoughts, where you can try again."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tanken kunde inte skrivas ned – den finns under Tankar, där du kan försöka igen."
+          }
+        }
+      }
+    },
+    "Tanken kunde inte skrivas ned.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The thought couldn't be written down."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tanken kunde inte skrivas ned."
           }
         }
       }
@@ -16228,6 +16766,22 @@
         }
       }
     },
+    "Tillbaka till tankarna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to the thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tillbaka till tankarna"
+          }
+        }
+      }
+    },
     "Tillåt": {
       "localizations": {
         "en": {
@@ -16575,6 +17129,7 @@
       }
     },
     "Tryck på knappen och säg det du kommer på. Genvägen ställer du in under Inställningar.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -16686,6 +17241,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Två snabba behörigheter"
+          }
+        }
+      }
+    },
+    "Töm…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empty…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Töm…"
           }
         }
       }
@@ -18078,6 +18649,22 @@
         }
       }
     },
+    "fäst": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "pinned"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "fäst"
+          }
+        }
+      }
+    },
     "för att diktera": {
       "localizations": {
         "en": {
@@ -18271,6 +18858,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "justerade 1 talarbyte"
+          }
+        }
+      }
+    },
+    "klar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "done"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "klar"
           }
         }
       }
@@ -18784,7 +19387,6 @@
       }
     },
     "Återställ": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -18796,6 +19398,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Återställ"
+          }
+        }
+      }
+    },
+    "Öppen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppen"
           }
         }
       }
