@@ -947,6 +947,8 @@ final class MeetingSession: ObservableObject {
         guard var latest = record else { return }
         let (old, guessed) = latest.setName(name.trimmingCharacters(in: .whitespacesAndNewlines), for: speaker)
         if let old, !guessed { VoiceMemory.shared.corrected(from: old, to: name, meeting: latest.id.uuidString) }
+        // An unusual name ("Klang") is worth suggesting for the word list.
+        if old == nil || guessed { Vocabulary.shared.suggest(name, from: latest.title) }
         record = latest
         MeetingStore.shared.save(latest)
     }

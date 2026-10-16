@@ -154,6 +154,10 @@ private struct MeetingList: View {
                 .staggered(0)
             StartCard(session: session, voices: voices, dictation: dictation).staggered(1)
             ImportCards { id in open(id, nil) }
+            if !searching, folders.selected == nil {
+                WeekRecap(meetings: store.meetings.filter { $0.id != session.record?.id }, all: store.meetings)
+                    .staggered(2)
+            }
             if store.meetings.isEmpty {
                 EmptyArchive().staggered(2)
             } else {
@@ -173,8 +177,17 @@ private struct MeetingList: View {
                     }
                 } header: {
                     VStack(alignment: .leading, spacing: 10) {
-                        LibrarySearchField(query: $query, folder: folders.folder(folders.selected)?.name)
-                        FolderBar(folders: folders, store: store, live: session.record?.id)
+                        HStack(spacing: 14) {
+                            LibrarySearchField(query: $query, folder: folders.folder(folders.selected)?.name)
+                                .frame(width: showsFolders ? 260 : nil)
+                                .frame(maxWidth: showsFolders ? nil : .infinity)
+                            if showsFolders {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    FolderBar(folders: folders, store: store, live: session.record?.id, oneRow: true)
+                                        .padding(.vertical, 2)
+                                }
+                            }
+                        }
                         if !selection.isEmpty { selectionBar }
                         if let problem = folders.problem {
                             Label(problem, systemImage: "exclamationmark.triangle.fill")
@@ -229,11 +242,11 @@ private struct MeetingList: View {
 
     /// One meeting in the list: click opens it; ⌘-click adds it to a selection, ⇧-click
     /// a run of them — to drag, or move with "Flytta till", together.
-    private func row(_ record: MeetingRecord, order: [UUID], compact: Bool = false) -> some View {
+    private func row(_ record: MeetingRecord, order: [UUID], compact: Bool = false, timeOnly: Bool = false) -> some View {
         let ids = selection.contains(record.id) ? Array(selection) : [record.id]
         return MeetingRow(record: record, writing: notes.writing.contains(record.id),
                           folder: folders.selected == nil ? folders.folder(of: record)?.name : nil,
-                          selected: selection.contains(record.id), compact: compact) {
+                          selected: selection.contains(record.id), compact: compact, timeOnly: timeOnly) {
             let keys = NSEvent.modifierFlags
             if keys.contains(.command) {
                 if selection.contains(record.id) { selection.remove(record.id) } else { selection.insert(record.id) }
@@ -271,7 +284,7 @@ private struct MeetingList: View {
         case .recent:
             VStack(alignment: .leading, spacing: 10) {
                 SectionTitle(section.title)
-                rows(section.meetings, order: order, compact: false)
+                rows(section.meetings, order: order, compact: false, timeOnly: section.day)
             }
         case .month:
             VStack(alignment: .leading, spacing: 8) {
@@ -305,11 +318,11 @@ private struct MeetingList: View {
         }
     }
 
-    private func rows(_ meetings: [MeetingRecord], order: [UUID], compact: Bool) -> some View {
+    private func rows(_ meetings: [MeetingRecord], order: [UUID], compact: Bool, timeOnly: Bool = false) -> some View {
         VStack(spacing: 0) {
             ForEach(Array(meetings.enumerated()), id: \.element.id) { i, record in
                 if i > 0 { CardDivider() }
-                row(record, order: order, compact: compact)
+                row(record, order: order, compact: compact, timeOnly: timeOnly)
             }
         }
         .padding(4)
@@ -375,6 +388,10 @@ private struct MeetingList: View {
         .transition(.opacity)
     }
 
+    /// Folders once there's something to sort: a folder made, or six meetings. (Before
+    /// that, "Ny mapp…" is in a meeting's "Flytta till".)
+    private var showsFolders: Bool { !folders.folders.isEmpty || store.meetings.count >= 6 }
+
     /// The meetings of the folder chosen — all of them under "Alla".
     private var shown: [MeetingRecord] {
         guard let folder = folders.selected else { return store.meetings }
@@ -403,25 +420,11 @@ struct StartCard: View {
     private var ready: Bool { voices.state == .ready && dictation.engine.isInstalled }
 
     var body: some View {
-        VStack(spacing: 0) {
+        Group {
             if ready {
-                // Two ways in: record now | a recording you have. Side by side, stacked
-                // when the window is narrow.
-                Group {
-                    if wide {
-                        HStack(alignment: .center, spacing: 0) {
-                            room.padding(.leading, 10).padding(.vertical, 10).frame(maxWidth: .infinity)
-                            ImportZone(folder: folders.selected).padding(12).frame(maxWidth: .infinity)
-                        }
-                        .frame(height: 250)
-                    } else {
-                        VStack(alignment: .leading, spacing: 0) {
-                            room.frame(height: 210).padding(.horizontal, 10).padding(.top, 10)
-                            ImportZone(folder: folders.selected, compact: true).padding(.horizontal, 12).padding(.vertical, 12)
-                        }
-                    }
-                }
-                .onGeometryChange(for: Bool.self) { $0.size.width >= 560 } action: { wide = $0 }
+                // One night tile, like Hem: record now on the left, a recording you have
+                // on the right (stacked when the window is narrow).
+                tile
             } else {
                 // Getting ready: one door — both ways need the same models.
                 HStack(alignment: .center, spacing: 18) {
@@ -440,10 +443,9 @@ struct StartCard: View {
                     control
                 }
                 .padding(24)
+                .raised(cornerRadius: 20)
             }
-            if ready { footer }
         }
-        .raised(cornerRadius: 20)
         .animation(.spring(duration: 0.3, bounce: 0.15), value: importer.dropping)
         // Whether it's on screen: a file dragged over the page then lights this card's
         // zone, rather than covering the page.
@@ -457,42 +459,70 @@ struct StartCard: View {
         }
     }
 
-    /// Record a meeting, now: a dark room with the listening sphere — the same one
-    /// that falls into each voice's figure once the meeting is going — and the way in.
-    private var room: some View {
-        ZStack {
+    /// The night tile: the listening sphere breathing in its corner — the same one
+    /// that falls into each voice's figure once the meeting is going.
+    private var tile: some View {
+        let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 18)) : AnyLayout(VStackLayout(alignment: .leading, spacing: 18))
+        return layout {
+            room.frame(maxWidth: .infinity, alignment: .topLeading)
+            ImportZone(folder: folders.selected, compact: !wide, onNight: true)
+                .frame(width: wide ? 280 : nil)
+                .frame(maxWidth: wide ? nil : .infinity)
+        }
+        .padding(24)
+        .frame(minHeight: wide ? 230 : nil)
+        .background(alignment: .bottomLeading) {
             Constellation(figure: nil, color: .white, level: 0.3, paused: !onScreen || !windowVisible || importer.dropping)
-                .scaleEffect(starting ? 2.4 : 1.5)
-                .offset(x: 130, y: 82)
+                .frame(width: 330, height: 330)
+                .scaleEffect(starting ? 1.8 : 1)
+                .offset(x: wide ? 250 : 180, y: 120)
+                .opacity(0.6)
                 .animation(.easeIn(duration: 0.7), value: starting)
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Spela in ett möte").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white)
-                Text("Mindtalk hör vem som säger vad och skriver ned det medan ni pratar.")
-                    .font(.system(size: 12.5)).foregroundStyle(.white.opacity(0.7))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 5)
-                    .frame(maxWidth: 215, alignment: .leading)
-                if let error = session.lastError {
-                    Text(error).font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
-                        .fixedSize(horizontal: false, vertical: true).padding(.top, 6)
-                }
-                Spacer(minLength: 0)
-                HStack(spacing: 10) {
-                    roomControl
-                    if dictation.micGranted {
-                        Text(verbatim: "⇧⌘R").font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.6))
-                    }
+                .allowsHitTesting(false)
+        }
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(DS.Colors.night))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
+        .shadow(color: .black.opacity(0.10), radius: 14, y: 6)
+        .onGeometryChange(for: Bool.self) { $0.size.width >= 600 } action: { wide = $0 }
+    }
+
+    /// Record a meeting, now: the words, the way in, and what it runs on.
+    private var room: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Spela in ett möte").font(.system(size: 28, weight: .regular, design: .serif)).foregroundStyle(.white)
+            Text("Mindtalk hör vem som säger vad och skriver ned det medan ni pratar.")
+                .font(.system(size: 13.5)).foregroundStyle(.white.opacity(0.72))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+                .frame(maxWidth: 300, alignment: .leading)
+            if let error = session.lastError {
+                Text(error).font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
+                    .fixedSize(horizontal: false, vertical: true).padding(.top, 6)
+            }
+            Spacer(minLength: 20)
+            HStack(spacing: 10) {
+                roomControl
+                if dictation.micGranted {
+                    Text(verbatim: "⇧⌘R").font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.6))
                 }
             }
-            .padding(22)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .opacity(starting ? 0 : 1)
-            .animation(.easeOut(duration: 0.3), value: starting)
+            // What it runs on, and where a new one goes — quietly, at the foot.
+            if let caption {
+                Text(verbatim: caption).font(.system(size: 11.5)).foregroundStyle(.white.opacity(0.5))
+                    .lineLimit(1).padding(.top, 14)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.night))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .opacity(starting ? 0 : 1)
+        .animation(.easeOut(duration: 0.3), value: starting)
         .opacity(importer.dropping ? 0.4 : 1)
+    }
+
+    private var caption: String? {
+        var parts: [String] = []
+        if let note { parts.append(note) }
+        if let folder = folders.folder(folders.selected) { parts.append(String(localized: "Sparas i \(folder.name)")) }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     /// The way in, white on the night.
@@ -515,39 +545,15 @@ struct StartCard: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if dot { Circle().fill(DS.Colors.recording).frame(width: 8, height: 8).accessibilityHidden(true) }
-                Text(title).font(.system(size: 13, weight: .semibold))
+                Text(title).font(.system(size: 14, weight: .semibold))
             }
-            .padding(.horizontal, 14).padding(.vertical, 9)
-            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(.white))
+            .padding(.horizontal, 18).padding(.vertical, 11)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white))
             .foregroundStyle(.black)
             .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         }
         .buttonStyle(.plain)
         .help(help)
-    }
-
-    /// What both ways use, and where a new one goes.
-    private var footer: some View {
-        HStack(spacing: 6) {
-            if let note {
-                Image(systemName: "cpu").font(.system(size: 11))
-                Text(note)
-            }
-            if let folder = folders.folder(folders.selected) {
-                if note != nil { Text(verbatim: "·") }
-                Image(systemName: "folder").font(.system(size: 11))
-                Text("Sparas i \(folder.name)")
-            }
-            Spacer(minLength: 0)
-        }
-        .font(.system(size: 11.5))
-        .foregroundStyle(DS.Colors.faint)
-        .lineLimit(1)
-        .padding(.horizontal, 22)
-        .padding(.vertical, 12)
-        .background(UnevenRoundedRectangle(bottomLeadingRadius: 20, bottomTrailingRadius: 20, style: .continuous)
-            .fill(DS.Colors.chip.opacity(0.25)))
-        .overlay(alignment: .top) { Rectangle().fill(DS.Colors.divider).frame(height: 0.5) }
     }
 
     private var detail: String {
@@ -617,6 +623,52 @@ struct StartCard: View {
     }
 }
 
+/// The last seven days in one card: how many meetings, how long, with whom most often —
+/// and a way to have them summed up. Only with two or more.
+private struct WeekRecap: View {
+    let meetings: [MeetingRecord]
+    let all: [MeetingRecord]
+    @ObservedObject private var library = MeetingLibrary.shared
+
+    var body: some View {
+        let since = Date().addingTimeInterval(-7 * 86_400)
+        let week = meetings.filter { $0.date > since }
+        if week.count >= 2 {
+            let time = week.reduce(0) { $0 + $1.duration }
+            let people = ArchiveSection(id: "week", title: "", kind: .recent, meetings: week).people(among: all)
+            HStack(alignment: .center, spacing: 18) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Den här veckan").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(verbatim: String(localized: "\(week.count) möten"))
+                            .font(.system(size: 30, weight: .regular, design: .serif)).monospacedDigit()
+                        Text(verbatim: Stats.duration(time)).font(.system(size: 15)).foregroundStyle(DS.Colors.muted).monospacedDigit()
+                    }
+                    if !people.isEmpty {
+                        Text(verbatim: String(localized: "Oftast med \(ListFormatter.localizedString(byJoining: people))"))
+                            .font(.system(size: 13)).foregroundStyle(DS.Colors.muted).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 12)
+                if MeetingNotes.isAvailable {
+                    Button {
+                        withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
+                            library.ask(String(localized: "Vad hände i mina möten den här veckan?"))
+                        }
+                    } label: {
+                        Label("Sammanfatta veckan", systemImage: "text.alignleft")
+                    }
+                    .buttonStyle(.soft)
+                    .disabled(library.asking)
+                }
+            }
+            .padding(.horizontal, 22).padding(.vertical, 18)
+            .card()
+            .accessibilityElement(children: .contain)
+        }
+    }
+}
+
 /// No meetings yet: a glimpse of what one looks like.
 private struct EmptyArchive: View {
     var body: some View {
@@ -653,6 +705,8 @@ struct MeetingRow: View {
     var selected = false
     /// In an older month: a line, not three.
     var compact = false
+    /// Under a day's heading ("I går"): the time, not the day again.
+    var timeOnly = false
     let open: () -> Void
     @State private var hovering = false
 
@@ -684,9 +738,9 @@ struct MeetingRow: View {
             Text(record.date.formatted(Date.FormatStyle().day().month(.abbreviated).locale(AppLanguage.locale)))
                 .font(.system(size: 12)).foregroundStyle(DS.Colors.muted).monospacedDigit()
                 .frame(minWidth: 52, alignment: .trailing)
-            Text(MeetingView.duration(record.duration))
+            Text(Stats.duration(record.duration))
                 .font(.system(size: 12)).foregroundStyle(DS.Colors.faint).monospacedDigit()
-                .frame(minWidth: 40, alignment: .trailing)
+                .frame(minWidth: 48, alignment: .trailing)
             Image(systemName: "chevron.right")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(DS.Colors.faint)
@@ -758,7 +812,18 @@ struct MeetingRow: View {
     }
 
     private var meta: String {
-        [MeetingRecord.when(record.date), MeetingView.duration(record.duration)].joined(separator: " · ")
+        let time = timeOnly ? record.date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale))
+                            : MeetingRecord.when(record.date)
+        return ([time, Stats.duration(record.duration)] + (people.map { [$0] } ?? [])).joined(separator: " · ")
+    }
+
+    /// "Anna, Erik +2" — the people named in it, in the order they first spoke.
+    private var people: String? {
+        let cast = record.cast
+        let named = cast.order.compactMap { cast.names[String($0)] }.filter { !$0.isEmpty }
+        guard !named.isEmpty else { return nil }
+        let shown = named.prefix(2).joined(separator: ", ")
+        return named.count > 2 ? shown + " +\(named.count - 2)" : shown
     }
 }
 
@@ -1240,21 +1305,6 @@ struct MeetingView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Mötet fortsätter i en liten panel bredvid det du gör")
-            }
-            // Back in the room after a break: on with the same meeting (from today — an
-            // older one has it in the ⋯ menu).
-            if !live, record.finished, record.hasAudio, Calendar.current.isDateInToday(record.date) {
-                Button { AppDelegate.continueMeeting(record.id) } label: {
-                    Label("Spela in mer", systemImage: "record.circle")
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .padding(.horizontal, 12)
-                        .frame(height: 30)
-                        .background(Capsule().fill(DS.Colors.chip))
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .disabled(recorder.phase != .idle)
-                .help("Spela in mer i samma möte – texten fortsätter där den slutade, och sammanfattningen skrivs om för hela mötet")
             }
             if !live { ExportMenu(record: record) }
             Button(action: copy) {
@@ -1824,6 +1874,16 @@ private struct SummaryView: View {
         }
     }
 
+    /// "3 beslut · 2 uppgifter · 41 min" — under the summary, what it holds.
+    static func contents(_ summary: MeetingSummary, duration: Double) -> String {
+        var parts: [String] = []
+        let d = summary.decisions.count, t = summary.tasks.count
+        if d > 0 { parts.append(d == 1 ? String(localized: "1 beslut") : String(localized: "\(d) beslut")) }
+        if t > 0 { parts.append(t == 1 ? String(localized: "1 uppgift") : String(localized: "\(t) uppgifter")) }
+        parts.append(Stats.duration(duration))
+        return parts.joined(separator: " · ")
+    }
+
     @ViewBuilder private var notesSection: some View {
         if !MeetingNotes.isAvailable {
             unavailable
@@ -1835,12 +1895,16 @@ private struct SummaryView: View {
             // The old notes stay while the new ones are written — faded, so it's
             // clear they're about to change.
             VStack(alignment: .leading, spacing: 32) {
-                Text(summary.overview)
-                    .font(.system(size: 20, weight: .regular, design: .serif))
-                    .lineSpacing(6)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: 620, alignment: .leading)
-                    .staggered(0)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(summary.overview)
+                        .font(.system(size: 20, weight: .regular, design: .serif))
+                        .lineSpacing(7)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: 620, alignment: .leading)
+                    Text(verbatim: Self.contents(summary, duration: record.duration))
+                        .font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted).monospacedDigit()
+                }
+                .staggered(0)
                 if !summary.decisions.isEmpty {
                     NotesList(title: "Beslut", kind: .decision, items: summary.decisions, record: record, cast: cast,
                               turns: turns, showInText: showInText).staggered(1)
@@ -2517,6 +2581,16 @@ private struct RewriteBanner: View {
 
 #if DEBUG
 /// Screenshots (`--render-archive`): folded months and years, an opened old month.
+/// Screenshots: the top of Möten — the night tile and the week — with your meetings.
+struct MeetingsTopPreview: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            StartCard(session: .shared, voices: .shared, dictation: .shared)
+            WeekRecap(meetings: MeetingStore.shared.meetings, all: MeetingStore.shared.meetings)
+        }
+    }
+}
+
 struct ArchivePreview: View {
     let records: [MeetingRecord]
 
@@ -2528,7 +2602,7 @@ struct ArchivePreview: View {
                 case .recent:
                     SectionTitle(section.title)
                     VStack(spacing: 0) {
-                        ForEach(section.meetings) { MeetingRow(record: $0, writing: false) {} }
+                        ForEach(section.meetings) { MeetingRow(record: $0, writing: false, timeOnly: section.day) {} }
                     }.padding(4).card()
                 case .month:
                     ArchiveHeader(section: section, open: section.openByDefault,

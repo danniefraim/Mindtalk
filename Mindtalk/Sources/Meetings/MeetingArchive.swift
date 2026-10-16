@@ -18,6 +18,8 @@ struct ArchiveSection: Identifiable {
     var months: [ArchiveSection] = []
     /// Open unless you've closed it: the recent ones and last month.
     var openByDefault = false
+    /// One day ("I går", "Onsdag 14 oktober"): its rows say the time, not the day.
+    var day = false
 
     var count: Int { kind == .year ? months.reduce(0) { $0 + $1.count } : meetings.count }
 
@@ -29,9 +31,9 @@ struct ArchiveSection: Identifiable {
         let lastMonthDate = calendar.date(byAdding: .month, value: -1, to: now) ?? now
         let lastMonth = calendar.dateComponents([.year, .month], from: lastMonthDate)
         var out: [ArchiveSection] = []
-        func append(_ id: String, _ title: String, _ kind: Kind, _ record: MeetingRecord, open: Bool) {
+        func append(_ id: String, _ title: String, _ kind: Kind, _ record: MeetingRecord, open: Bool, day: Bool = false) {
             if let i = out.lastIndex(where: { $0.id == id }) { out[i].meetings.append(record) }
-            else { out.append(ArchiveSection(id: id, title: title, kind: kind, meetings: [record], openByDefault: open)) }
+            else { out.append(ArchiveSection(id: id, title: title, kind: kind, meetings: [record], openByDefault: open, day: day)) }
         }
         var years: [Int: [String: ArchiveSection]] = [:]
         var yearOrder: [Int] = []
@@ -39,11 +41,15 @@ struct ArchiveSection: Identifiable {
             let parts = calendar.dateComponents([.year, .month], from: record.date)
             let monthID = String(format: "%04d-%02d", parts.year ?? 0, parts.month ?? 0)
             if calendar.isDateInToday(record.date) {
-                append("today", String(localized: "I dag"), .recent, record, open: true)
+                append("today", String(localized: "I dag"), .recent, record, open: true, day: true)
             } else if calendar.isDateInYesterday(record.date) {
-                append("yesterday", String(localized: "I går"), .recent, record, open: true)
+                append("yesterday", String(localized: "I går"), .recent, record, open: true, day: true)
             } else if let days = calendar.dateComponents([.day], from: record.date, to: now).day, days < 7, record.date < now {
-                append("week", String(localized: "Tidigare i veckan"), .recent, record, open: true)
+                // The rest of the week: a heading per day — "Onsdag 14 oktober".
+                let start = calendar.startOfDay(for: record.date)
+                let name = record.date.formatted(Date.FormatStyle().weekday(.wide).day().month(.wide).locale(AppLanguage.locale))
+                append("day-\(Int(start.timeIntervalSince1970))", name.prefix(1).uppercased() + name.dropFirst(), .recent, record,
+                       open: true, day: true)
             } else if parts.year == thisMonth.year, parts.month == thisMonth.month {
                 append("month-now", String(localized: "Tidigare i \(monthName(record.date, year: false))"), .recent, record, open: true)
             } else if parts.year == thisMonth.year || (parts.year == lastMonth.year && parts.month == lastMonth.month) {

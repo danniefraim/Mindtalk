@@ -14,13 +14,31 @@ struct FolderBar: View {
     @ObservedObject var store: MeetingStore
     /// The meeting being recorded: in the store, not in the list — not counted.
     var live: UUID?
+    /// Beside the search field: in one row that scrolls, not wrapped.
+    var oneRow = false
     @State private var removing: MeetingFolder?
 
     var body: some View {
         let counted = store.meetings.filter { $0.id != live }
         var counts: [UUID: Int] = [:]
         for m in counted { if let f = m.folder { counts[f, default: 0] += 1 } }
-        return FlowLayout(spacing: 8) {
+        return Group {
+            if oneRow { HStack(spacing: 8) { chips(counted: counted, counts: counts) } }
+            else { FlowLayout(spacing: 8) { chips(counted: counted, counts: counts) } }
+        }
+        .animation(.spring(duration: 0.3, bounce: 0.15), value: folders.folders)
+        .confirmationDialog(Text("Ta bort mappen ”\(removing?.name ?? "")”?"),
+                            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
+            Button("Ta bort mappen", role: .destructive) {
+                if let id = removing?.id { withAnimation(.snappy) { folders.remove(id) } }
+            }
+            Button("Avbryt", role: .cancel) {}
+        } message: {
+            Text("Mötena tas inte bort – de finns kvar under Alla.")
+        }
+    }
+
+    @ViewBuilder private func chips(counted: [MeetingRecord], counts: [UUID: Int]) -> some View {
             // "Alla" alone would be a choice of one: it comes with the first folder.
             if !folders.folders.isEmpty {
                 FolderChip(title: String(localized: "Alla"), count: counted.count,
@@ -51,17 +69,6 @@ struct FolderBar: View {
             }
             .buttonStyle(.plain)
             .help("Skapa en mapp att sortera mötena i")
-        }
-        .animation(.spring(duration: 0.3, bounce: 0.15), value: folders.folders)
-        .confirmationDialog(Text("Ta bort mappen ”\(removing?.name ?? "")”?"),
-                            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
-            Button("Ta bort mappen", role: .destructive) {
-                if let id = removing?.id { withAnimation(.snappy) { folders.remove(id) } }
-            }
-            Button("Avbryt", role: .cancel) {}
-        } message: {
-            Text("Mötena tas inte bort – de finns kvar under Alla.")
-        }
     }
 
     private func select(_ id: UUID?) {
@@ -94,9 +101,11 @@ private struct FolderChip: View {
                     .truncationMode(.middle)
                     .frame(maxWidth: 170, alignment: .leading)
                     .fixedSize(horizontal: true, vertical: false)
-                Text("\(count)").font(.system(size: 11.5, weight: .medium)).monospacedDigit()
-                    .foregroundStyle(DS.Colors.muted)
-                    .contentTransition(.numericText())
+                if count > 0 {
+                    Text("\(count)").font(.system(size: 11.5, weight: .medium)).monospacedDigit()
+                        .foregroundStyle(DS.Colors.muted)
+                        .contentTransition(.numericText())
+                }
             }
             .foregroundStyle(selected ? AnyShapeStyle(.primary) : AnyShapeStyle(DS.Colors.muted))
             .padding(.horizontal, 12)

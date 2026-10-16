@@ -738,6 +738,8 @@ final class MeetingStore: ObservableObject {
         // guess of Mindtalk's replaced: it was someone else — that voice stays as it is.
         let (old, guessed) = record.setName(name, for: speaker)
         if let old, !guessed { VoiceMemory.shared.corrected(from: old, to: name, meeting: id.uuidString) }
+        // An unusual name ("Klang") is worth suggesting for the word list.
+        if old == nil || guessed { Vocabulary.shared.suggest(name, from: record.title) }
         save(record)
         // Remembered for the next meeting (when you've switched that on).
         guard !name.isEmpty, record.hasAudio else { return }

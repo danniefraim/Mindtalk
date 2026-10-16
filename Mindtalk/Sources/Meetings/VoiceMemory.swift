@@ -249,7 +249,9 @@ final class VoiceMemory: ObservableObject {
         // over a word the list already has as its own.
         if alike, !old.contains(where: \.isNumber),
            !Vocabulary.shared.entries.contains(where: { Self.key($0.word) == Self.key(old) }) {
-            Vocabulary.shared.add(word: new, heardAs: old)
+            // Asked, not added: "Lägg till ”Mathilda”?" on the word list.
+            let title = MeetingStore.shared.meetings.first { $0.id.uuidString == meeting }?.title
+            Vocabulary.shared.suggest(new, heardAs: old, from: title)
         }
         if let figure = reserved.removeValue(forKey: Self.key(old)) { reserved[Self.key(new)] = figure }
         guard isOn, let i = people.firstIndex(where: { Self.key($0.name) == Self.key(old) }) else { return }

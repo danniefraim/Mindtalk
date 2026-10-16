@@ -265,6 +265,8 @@ struct LibraryAskBar: View {
 
     /// The pointer over the suggestions: they stay while you reach for one.
     @State private var overSuggestions = false
+    /// Which suggestion the empty field shows — a new one each time the page opens.
+    @State private var hint = Int.random(in: 0..<3)
 
     var body: some View {
         VStack(spacing: 10) {
@@ -296,13 +298,17 @@ struct LibraryAskBar: View {
             }
             HStack(spacing: 10) {
                 TextField(folders.folder(folders.selected).map { String(localized: "Fråga något om mötena i \($0.name)…") }
-                          ?? String(localized: "Fråga något om dina möten…"), text: $question)
+                          ?? String(localized: "Fråga: \(String(localized: Self.suggestions[hint % Self.suggestions.count]))"), text: $question)
                     .textFieldStyle(.plain)
                     .font(.system(size: 14))
                     .focused($focused)
                     .onSubmit { ask(question) }
                     .accessibilityLabel(folders.folder(folders.selected).map { String(localized: "Fråga om mötena i \($0.name)") }
                                         ?? String(localized: "Fråga om alla dina möten"))
+                if !focused, empty, !library.asking {
+                    Text(verbatim: "⌘K").font(.system(size: 11, weight: .medium)).foregroundStyle(DS.Colors.faint)
+                        .accessibilityHidden(true)
+                }
                 if library.asking {
                     SettlingLine(color: DS.Colors.ink).scaleEffect(0.7).frame(width: 40)
                 } else {
@@ -323,8 +329,10 @@ struct LibraryAskBar: View {
             .padding(.trailing, 8)
             .frame(height: 46)
             .background(Capsule().fill(DS.Colors.field).shadow(color: .black.opacity(0.08), radius: 12, y: 4))
-            .overlay(Capsule().strokeBorder(focused ? AnyShapeStyle(DS.Gradients.accent) : AnyShapeStyle(DS.Colors.fieldStroke),
-                                            lineWidth: focused ? 1.5 : 1))
+            .overlay(Capsule().strokeBorder(focused ? DS.Colors.ink : DS.Colors.fieldStroke, lineWidth: focused ? 1.5 : 1))
+            .background {
+                Button("") { focused = true }.keyboardShortcut("k", modifiers: .command).opacity(0).allowsHitTesting(false)
+            }
         }
         .frame(maxWidth: 620)
         .padding(.horizontal, 24)

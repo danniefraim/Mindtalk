@@ -31,6 +31,20 @@ final class MeetingPanel: ObservableObject {
 
     @Published private(set) var isVisible = false
     @Published private(set) var done: Done?
+    /// Over every window (the pin in the panel), or a window like any other that others
+    /// can cover — it records just the same. Remembered.
+    @Published var onTop = UserDefaults.standard.bool(forKey: "meetingPanelOnTop") {
+        didSet {
+            UserDefaults.standard.set(onTop, forKey: "meetingPanelOnTop")
+            if let panel { Self.applyLevel(panel, onTop: onTop) }
+        }
+    }
+
+    private static func applyLevel(_ panel: NSPanel, onTop: Bool) {
+        panel.isFloatingPanel = onTop
+        panel.level = onTop ? .floating : .normal
+        if onTop { panel.orderFrontRegardless() }
+    }
 
     private var panel: NSPanel?
     private var watching: AnyCancellable?
@@ -182,8 +196,7 @@ final class MeetingPanel: ObservableObject {
         for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
             panel.standardWindowButton(button)?.isHidden = true
         }
-        panel.isFloatingPanel = true
-        panel.level = .floating
+        Self.applyLevel(panel, onTop: onTop)
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = true
         panel.isMovableByWindowBackground = true
@@ -285,9 +298,45 @@ struct MeetingPanelView: View {
     }
 }
 
+/// The meeting's title, under the time — click to change it while you talk.
+private struct PanelTitle: View {
+    @ObservedObject var session: MeetingSession
+    let title: String
+    @State private var draft = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            TextField("Mötets titel", text: $draft)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13.5, weight: .semibold))
+                .focused($focused)
+                .onSubmit(commit)
+                .onExitCommand { draft = title; focused = false }
+                .onChange(of: focused) { _, now in if !now { commit() } }
+                .accessibilityLabel("Mötets titel")
+            if !focused {
+                Image(systemName: "pencil").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(DS.Colors.faint)
+                    .accessibilityHidden(true)
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.bottom, 10)
+        .onAppear { draft = title }
+        .onChange(of: title) { _, new in if !focused { draft = new } }
+        .help("Klicka för att ändra mötets titel")
+    }
+
+    private func commit() {
+        let t = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.isEmpty { draft = title } else if t != title { session.rename(to: t) }
+    }
+}
+
 /// The meeting as it's recorded: recording, how long, the room heard, the text, stop.
 private struct LivePanel: View {
     @ObservedObject var session: MeetingSession
+    @ObservedObject private var panel = MeetingPanel.shared
     let expand: () -> Void
     let close: () -> Void
     @State private var atBottom = true
@@ -302,6 +351,7 @@ private struct LivePanel: View {
         let turns = MeetingText.turns(record?.words ?? [], pending: session.pending, paragraphs: true)
         VStack(spacing: 0) {
             header
+            if session.isRecording, let record { PanelTitle(session: session, title: record.title) }
             Rectangle().fill(DS.Colors.divider).frame(height: 0.5)
             transcript(turns, cast)
             footer
@@ -331,6 +381,12 @@ private struct LivePanel: View {
                 Text(session.record?.title ?? "").font(.system(size: 13.5, weight: .semibold)).lineLimit(1)
             }
             Spacer(minLength: 8)
+            PanelIconButton(symbol: panel.onTop ? "pin.fill" : "pin",
+                            help: panel.onTop ? "Ligger överst – klicka så kan andra fönster lägga sig över panelen"
+                                              : "Håll panelen överst, över alla fönster") {
+                panel.onTop.toggle()
+            }
+            .accessibilityAddTraits(panel.onTop ? .isSelected : [])
             PanelIconButton(symbol: "pip.exit", help: "Visa i Mindtalks fönster", action: expand)
             PanelIconButton(symbol: "xmark", help: "Stäng panelen – inspelningen fortsätter", action: close)
         }

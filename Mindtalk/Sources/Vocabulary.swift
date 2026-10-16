@@ -11,12 +11,18 @@ struct VocabularyEntry: Codable, Identifiable, Equatable {
     var heardAs: [String] = []
     /// How many times it has corrected something.
     var fixes = 0
+    /// Added from a suggestion — the meeting it came from ("Veckomöte").
+    var source: String?
+    /// When it was added — for sorting by the newest.
+    var added: Date?
 
-    init(id: UUID = UUID(), word: String, heardAs: [String] = [], fixes: Int = 0) {
+    init(id: UUID = UUID(), word: String, heardAs: [String] = [], fixes: Int = 0, source: String? = nil) {
         self.id = id
         self.word = word
         self.heardAs = heardAs
         self.fixes = fixes
+        self.source = source
+        added = Date()
     }
 
     // Every field but the word may be missing — so adding a field later never
@@ -27,7 +33,19 @@ struct VocabularyEntry: Codable, Identifiable, Equatable {
         word = try c.decode(String.self, forKey: .word)
         heardAs = try c.decodeIfPresent([String].self, forKey: .heardAs) ?? []
         fixes = try c.decodeIfPresent(Int.self, forKey: .fixes) ?? 0
+        source = try? c.decodeIfPresent(String.self, forKey: .source)
+        added = try? c.decodeIfPresent(Date.self, forKey: .added)
     }
+}
+
+/// A word Mindtalk thinks you'd want on the list — a name you gave a speaker, or one
+/// you corrected. Never added on its own: a wrong word would be spelled wrong everywhere.
+struct VocabularySuggestion: Codable, Identifiable, Equatable {
+    var id = UUID()
+    let word: String
+    var heardAs: [String] = []
+    /// The meeting it came from.
+    let source: String?
 }
 
 @MainActor
@@ -46,6 +64,23 @@ final class Vocabulary: ObservableObject {
     }
     /// Built once per change of the list, not per dictation.
     private var matcher: VocabularyMatcher
+
+    /// Words to say yes or no to, newest first.
+    @Published private(set) var suggestions: [VocabularySuggestion] = Vocabulary.loadSuggestions() {
+        didSet { UserDefaults.standard.set(try? JSONEncoder().encode(suggestions), forKey: "vocabularySuggestions") }
+    }
+    /// Said no to: not suggested again.
+    private var declined = Set(UserDefaults.standard.stringArray(forKey: "vocabularyDeclined") ?? [])
+
+    /// The last change you can take back ("Tog bort ”Mindact”") — with "Ångra" for a few seconds.
+    @Published private(set) var toast: String?
+    private var undoSnapshot: [VocabularyEntry]?
+    private var toastTask: Task<Void, Never>?
+
+    private static func loadSuggestions() -> [VocabularySuggestion] {
+        UserDefaults.standard.data(forKey: "vocabularySuggestions")
+            .flatMap { try? JSONDecoder().decode([VocabularySuggestion].self, from: $0) } ?? []
+    }
 
     private static let key = "vocabulary"
 
@@ -152,6 +187,7 @@ final class Vocabulary: ObservableObject {
     func rename(_ entry: VocabularyEntry, to word: String) {
         let word = Self.tidy(word)
         guard Self.isValidWord(word), let i = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+        offerUndo(String(localized: "Ändrade till ”\(word)”"), before: entries)
         // Renaming onto another entry merges the two.
         if let j = entries.firstIndex(where: { $0.id != entry.id && Self.key($0.word) == Self.key(word) }) {
             for v in entries[i].heardAs where !entries[j].heardAs.contains(where: { Self.key($0) == Self.key(v) }) {
@@ -165,9 +201,81 @@ final class Vocabulary: ObservableObject {
         }
     }
 
-    /// Removes an entry; ⌘Z puts it back where it was.
+    /// Something just changed that "Ångra" (or ⌘Z) can take back.
+    private func offerUndo(_ label: String, before: [VocabularyEntry]) {
+        undoSnapshot = before
+        toast = label
+        toastTask?.cancel()
+        toastTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(6))
+            guard !Task.isCancelled else { return }
+            self?.toast = nil
+            self?.undoSnapshot = nil
+        }
+    }
+
+    /// "Ångra" on the toast.
+    func undoLast() {
+        guard let before = undoSnapshot else { return }
+        entries = before
+        undoSnapshot = nil
+        toast = nil
+    }
+
+    // MARK: Suggestions
+
+    /// A word worth suggesting: not on the list, not said no to, not an ordinary word.
+    func suggest(_ word: String, heardAs: String? = nil, from source: String?) {
+        let word = Self.tidy(word)
+        guard Self.isValidWord(word), word.filter(\.isLetter).count >= 3,
+              !word.contains(where: \.isNumber),
+              !entries.contains(where: { Self.key($0.word) == Self.key(word) }),
+              !suggestions.contains(where: { Self.key($0.word) == Self.key(word) }),
+              !declined.contains(Self.key(word)),
+              !Self.isDictionaryWord(word.lowercased()) || heardAs != nil else { return }
+        let variants = heardAs.map { [Self.tidy($0)] }?.filter { Self.key($0) != Self.key(word) } ?? []
+        suggestions.insert(VocabularySuggestion(word: word, heardAs: variants, source: source), at: 0)
+        if suggestions.count > 20 { suggestions.removeLast(suggestions.count - 20) }
+    }
+
+    func accept(_ suggestion: VocabularySuggestion) {
+        suggestions.removeAll { $0.id == suggestion.id }
+        if let id = add(word: suggestion.word, heardAs: suggestion.heardAs.joined(separator: ", ")),
+           let i = entries.firstIndex(where: { $0.id == id }) {
+            entries[i].source = suggestion.source
+        }
+    }
+
+    func decline(_ suggestion: VocabularySuggestion) {
+        suggestions.removeAll { $0.id == suggestion.id }
+        declined.insert(Self.key(suggestion.word))
+        UserDefaults.standard.set(Array(declined), forKey: "vocabularyDeclined")
+    }
+
+    // MARK: Import and export
+
+    /// One word a line: "Mindact; min dakt, mind act".
+    func exportText() -> String {
+        entries.map { e in e.heardAs.isEmpty ? e.word : e.word + "; " + e.heardAs.joined(separator: ", ") }
+            .joined(separator: "\n") + "\n"
+    }
+
+    /// The same format back in; returns how many words were added or got new variants.
+    @discardableResult
+    func importText(_ text: String) -> Int {
+        var n = 0
+        for line in text.split(whereSeparator: \.isNewline) {
+            let parts = line.split(separator: ";", maxSplits: 1).map { String($0) }
+            guard let word = parts.first, Self.isValidWord(Self.tidy(word)) else { continue }
+            if add(word: word, heardAs: parts.count > 1 ? parts[1] : "") != nil { n += 1 }
+        }
+        return n
+    }
+
+    /// Removes an entry; "Ångra" or ⌘Z puts it back where it was.
     func remove(_ entry: VocabularyEntry, undo: UndoManager?) {
         guard let i = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+        offerUndo(String(localized: "Tog bort ”\(entry.word)”"), before: entries)
         let removed = entries.remove(at: i)
         undo?.registerUndo(withTarget: self) { vocabulary in
             MainActor.assumeIsolated {
@@ -181,6 +289,7 @@ final class Vocabulary: ObservableObject {
     func removeVariant(_ variant: String, from entry: VocabularyEntry, undo: UndoManager?) {
         guard let i = entries.firstIndex(where: { $0.id == entry.id }),
               let v = entries[i].heardAs.firstIndex(of: variant) else { return }
+        offerUndo(String(localized: "Tog bort ”\(variant)”"), before: entries)
         entries[i].heardAs.remove(at: v)
         let id = entry.id
         undo?.registerUndo(withTarget: self) { vocabulary in

@@ -410,20 +410,26 @@ struct ImportZone: View {
     let folder: UUID?
     /// Stacked under the record half in a narrow window: one row.
     var compact = false
+    /// On the night tile of "Nytt möte": white on dark, a dashed white edge.
+    var onNight = false
     @ObservedObject private var importer = MeetingImport.shared
     @State private var hovering = false
     @State private var targeted = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let dropping = importer.dropping
         ZStack {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(DS.Colors.chip.opacity(dropping ? 0.55 : hovering ? 0.3 : 0.12))
+                .fill(onNight ? Color.white.opacity(dropping ? 0.14 : hovering ? 0.07 : 0)
+                              : DS.Colors.chip.opacity(dropping ? 0.55 : hovering ? 0.3 : 0.12))
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(dropping ? DS.Colors.ink : DS.Colors.muted.opacity(hovering ? 0.7 : 0.45),
-                              style: dropping ? StrokeStyle(lineWidth: 1.5) : StrokeStyle(lineWidth: 1.2, dash: [6, 5]))
+                .strokeBorder(onNight ? Color.white.opacity(dropping ? 0.9 : hovering ? 0.45 : 0.28)
+                                      : (dropping ? DS.Colors.ink : DS.Colors.muted.opacity(hovering ? 0.7 : 0.45)),
+                              style: dropping ? StrokeStyle(lineWidth: 1.5) : StrokeStyle(lineWidth: 1, dash: [6, 5]))
             content(dropping)
                 .padding(compact ? 12 : 18)
+                .foregroundStyle(onNight ? Color.white : Color.primary)
         }
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onTapGesture { importer.choose(folder: folder) }
@@ -454,7 +460,8 @@ struct ImportZone: View {
                 } else {
                     VStack(spacing: 3) {
                         Text("Dra hit en inspelning").font(.system(size: 15, weight: .semibold))
-                        Text("Ljud eller video, till exempel mp3, m4a eller mp4").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                        Text("Ljud eller video, till exempel mp3, m4a eller mp4").font(.system(size: 13))
+                            .foregroundStyle(onNight ? Color.white.opacity(0.6) : DS.Colors.muted)
                     }
                     chooseButton.padding(.top, 4)
                 }
@@ -465,11 +472,11 @@ struct ImportZone: View {
 
     private var glyph: some View {
         ZStack {
-            Circle().fill(DS.Colors.chip)
+            Circle().fill(onNight ? Color.white.opacity(0.1) : DS.Colors.chip)
             Image(systemName: "waveform.badge.plus")
                 .font(.system(size: 18, weight: .medium))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(DS.Colors.ink)
+                .foregroundStyle(onNight ? Color.white : DS.Colors.ink)
         }
         .frame(width: 44, height: 44)
         .accessibilityHidden(true)
@@ -479,8 +486,13 @@ struct ImportZone: View {
         HStack(spacing: 10) {
             Button("Välj fil…") { importer.choose(folder: folder) }
                 .buttonStyle(.soft)
+                .environment(\.colorScheme, onNight ? .dark : colorScheme)
                 .help("Välj en ljud- eller videofil (⌘O)")
-            KeyCap(keys: "⌘O")
+            if onNight {
+                Text(verbatim: "⌘O").font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.55))
+            } else {
+                KeyCap(keys: "⌘O")
+            }
         }
     }
 }

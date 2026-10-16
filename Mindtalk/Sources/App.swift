@@ -532,6 +532,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --render-moten-top out.png [--dark]` and `--render-vocabulary out.png [--dark]`.
+        for flag in ["--render-moten-top", "--render-vocabulary"] {
+            guard let i = args.firstIndex(of: flag), i + 1 < args.count else { continue }
+            Task { @MainActor in
+                let dark = args.contains("--dark")
+                NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                MeetingStore.shared.loadNow()
+                let page: AnyView = flag == "--render-moten-top" ? AnyView(MeetingsTopPreview()) : AnyView(VocabularyPage(vocabulary: .shared, plain: true))
+                let view = page.padding(28).frame(width: 820).background(DS.Colors.paper)
+                    .environment(\.colorScheme, dark ? .dark : .light)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --render-dictation out.png [--dark]`: the Diktering page with your history.
         if let i = args.firstIndex(of: "--render-dictation"), i + 1 < args.count {
             Task { @MainActor in
