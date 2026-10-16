@@ -19,7 +19,7 @@ struct MeetingsStep: View {
     private static let height: CGFloat = 352
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 24) {
             // A summary is promised only where one can be written.
             StepHeader(title: "Spela in ett möte i rummet",
                        subtitle: MeetingNotes.isAvailable
@@ -34,48 +34,6 @@ struct MeetingsStep: View {
                     .frame(width: Self.cardWidth, height: Self.height)
                     .staggered(2)
             }
-            GemmaOfferLine()
-                .frame(width: Self.tileWidth + DS.Layout.stepGap + Self.cardWidth, alignment: .leading)
-                .staggered(3)
-        }
-    }
-}
-
-/// Better summaries, offered where the demo has just shown one: the Gemma this Mac
-/// runs best that also fits — unticked, it's a big download and Apple Intelligence
-/// writes them without it. Ticking starts it in the background; unticking stops it.
-private struct GemmaOfferLine: View {
-    @ObservedObject private var notes = BetterNotes.shared
-
-    private var model: NotesModel? {
-        NotesModel.allCases.reversed().first { $0.supported && $0.hasRoom }
-    }
-
-    var body: some View {
-        if let m = model, notes.active == nil || notes.downloading == m {
-            HStack(spacing: 10) {
-                switch notes.state(m) {
-                case .downloading(let p):
-                    ProgressView(value: p).tint(DS.Colors.ink).frame(width: 90)
-                    Text("Laddar ned \(m.name) i bakgrunden – \(Int(p * 100)) %")
-                        .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted).monospacedDigit()
-                    Button("Avbryt") { notes.cancel() }
-                        .buttonStyle(.plain).font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
-                default:
-                    Toggle(isOn: Binding(get: { false }, set: { on in if on { notes.download(m) } })) {
-                        (Text("Bättre sammanfattningar").fontWeight(.semibold)
-                         + Text(verbatim: " – ")
-                         + Text("\(m.name) från Google · \(m.sizeText), laddas ned i bakgrunden"))
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(DS.Colors.muted)
-                    }
-                    .toggleStyle(.checkbox)
-                    .lineLimit(1)
-                    .help("Hittar fler beslut och uppgifter än Apple Intelligence – och skriver dem på din Mac")
-                }
-            }
-            .padding(.horizontal, 4)
-            .transition(.opacity)
         }
     }
 }

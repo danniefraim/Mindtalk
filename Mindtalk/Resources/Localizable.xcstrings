@@ -159,7 +159,24 @@
         }
       }
     },
+    "%@ från Google skriver dem på din Mac (%@).": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ from Google writes them on your Mac (%2$@)."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ från Google skriver dem på din Mac (%@)."
+          }
+        }
+      }
+    },
     "%@ från Google · %@, laddas ned i bakgrunden": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -286,6 +303,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ laddas ned – %lld %%. Du kan prova när den är klar."
+          }
+        }
+      }
+    },
+    "%@ laddas ned – %lld %%. Till dess skriver Apple Intelligence.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ downloading – %2$lld %%. Until then, Apple Intelligence writes them."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ laddas ned – %lld %%. Till dess skriver Apple Intelligence."
           }
         }
       }
@@ -3482,6 +3515,22 @@
         }
       }
     },
+    "Behöver röstmodellen för att hålla isär vem som pratar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs the voice model to tell who's talking apart."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Behöver röstmodellen för att hålla isär vem som pratar."
+          }
+        }
+      }
+    },
     "Behövs för att höra vad du säger.": {
       "localizations": {
         "en": {
@@ -3796,6 +3845,7 @@
       }
     },
     "Bättre sammanfattningar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4367,6 +4417,22 @@
         }
       }
     },
+    "Det du kommer på hamnar i Tankar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What comes to mind lands in Thoughts."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det du kommer på hamnar i Tankar."
+          }
+        }
+      }
+    },
     "Det du kommer på mitt i något annat – håll in %@ och säg det, så ligger det här.": {
       "localizations": {
         "en": {
@@ -4527,6 +4593,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Det går bra att släppa"
+          }
+        }
+      }
+    },
+    "Det här fungerar nu – i vilken app som helst.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This works now – in any app."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det här fungerar nu – i vilken app som helst."
           }
         }
       }
@@ -7625,22 +7708,6 @@
         }
       }
     },
-    "Hittar fler beslut och uppgifter än Apple Intelligence – och skriver dem på din Mac": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Finds more decisions and tasks than Apple Intelligence – and writes them on your Mac"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hittar fler beslut och uppgifter än Apple Intelligence – och skriver dem på din Mac"
-          }
-        }
-      }
-    },
     "Hittar ingen fungerande mikrofon.": {
       "localizations": {
         "en": {
@@ -8346,6 +8413,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in och säg det du kommer på – det hamnar i Tankar. Tryck snabbt, så lyssnar Mindtalk tills du trycker igen."
+          }
+        }
+      }
+    },
+    "Håll in tangenten och prata – texten hamnar där markören står.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold the key and talk – the text lands where the cursor is."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in tangenten och prata – texten hamnar där markören står."
           }
         }
       }
@@ -10695,6 +10778,22 @@
         }
       }
     },
+    "Kräver Apple Intelligence – eller Gemma när det finns plats på disken.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs Apple Intelligence – or Gemma when there's room on the disk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kräver Apple Intelligence – eller Gemma när det finns plats på disken."
+          }
+        }
+      }
+    },
     "Kräver Apple Intelligence, som inte finns på den här Macen.": {
       "localizations": {
         "en": {
@@ -11317,6 +11416,7 @@
       }
     },
     "Laddar ned %@ i bakgrunden – %lld %%": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13587,6 +13687,22 @@
         }
       }
     },
+    "Mindtalk finns i menyraden och fortsätter när du stänger fönstret. Den startar när du loggar in – ändra under Inställningar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk is in the menu bar and keeps going when you close the window. It starts when you log in – change that in Settings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk finns i menyraden och fortsätter när du stänger fönstret. Den startar när du loggar in – ändra under Inställningar."
+          }
+        }
+      }
+    },
     "Mindtalk finns kvar här": {
       "localizations": {
         "en": {
@@ -14825,6 +14941,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Noteras i mötet, så att det syns i efterhand att de andra visste"
+          }
+        }
+      }
+    },
+    "Nu kör vi": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let's go"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nu kör vi"
           }
         }
       }
@@ -16648,6 +16781,22 @@
         }
       }
     },
+    "Röstmodellen laddas ned – %lld %%. Du kan börja under tiden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The voice model is downloading – %lld %%. You can start meanwhile."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Röstmodellen laddas ned – %lld %%. Du kan börja under tiden."
+          }
+        }
+      }
+    },
     "Samma person som…": {
       "localizations": {
         "en": {
@@ -17617,6 +17766,54 @@
         }
       }
     },
+    "Skrivs av %@ på din Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Written by %@ on your Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skrivs av %@ på din Mac."
+          }
+        }
+      }
+    },
+    "Skrivs av Apple Intelligence.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Written by Apple Intelligence."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skrivs av Apple Intelligence."
+          }
+        }
+      }
+    },
+    "Skrivs av Apple Intelligence. Vill du ha mer träffsäkra? %@ från Google hittar fler beslut och uppgifter (%@).": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Written by Apple Intelligence. Want more accurate ones? %1$@ from Google finds more decisions and tasks (%2$@)."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skrivs av Apple Intelligence. Vill du ha mer träffsäkra? %@ från Google hittar fler beslut och uppgifter (%@)."
+          }
+        }
+      }
+    },
     "Skrivs ut med %@ medan ni pratar. Upp till åtta personer hålls isär.": {
       "extractionState": "stale",
       "localizations": {
@@ -18482,6 +18679,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Spelar in"
+          }
+        }
+      }
+    },
+    "Spelar in ett möte i rummet och håller isär vem som säger vad.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Records a meeting in the room and tells who says what."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spelar in ett möte i rummet och håller isär vem som säger vad."
           }
         }
       }
@@ -21634,6 +21847,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tryck på kombinationen…"
+          }
+        }
+      }
+    },
+    "Tryck på tangenten och prata – texten hamnar där markören står.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press the key and talk – the text lands where the cursor is."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck på tangenten och prata – texten hamnar där markören står."
           }
         }
       }

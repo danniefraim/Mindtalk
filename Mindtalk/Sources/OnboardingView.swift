@@ -2,11 +2,11 @@ import SwiftUI
 
 // MARK: - First run
 //
-// Seven steps — welcome → language (starts the download) → permissions (while it
+// Eight steps — welcome → language (starts the download) → permissions (while it
 // downloads) → try it for real, with your key → a thought, for real → meetings (and
-// the voice model, if you want it) → the word list — and then Hem. Each feature gets
-// its own step that says what to do and when (OnboardingThoughts/Meetings/
-// VocabularyStep.swift). Gemma never here. With Reduce Motion on, it's all calm and still.
+// the voice model, if you want it) → the word list → what you have now, with Gemma
+// offered if it fits (OnboardingReadyStep.swift) — and then Hem. Each feature gets its
+// own step that says what to do and when. With Reduce Motion on, it's all calm and still.
 
 struct OnboardingView: View {
     @ObservedObject var dictation: Dictation
@@ -16,7 +16,7 @@ struct OnboardingView: View {
     /// (closing earlier brings it back at the next launch).
     static var pastTry = false
 
-    enum Step: Int, CaseIterable { case welcome, language, permissions, tryIt, thoughts, meetings, vocabulary }
+    enum Step: Int, CaseIterable { case welcome, language, permissions, tryIt, thoughts, meetings, vocabulary, ready }
 
     @State private var step: Step = OnboardingView.firstStep
 
@@ -24,7 +24,8 @@ struct OnboardingView: View {
         #if DEBUG
         let names: [String: Step] = ["welcome": .welcome, "language": .language, "permissions": .permissions, "key": .tryIt,
                                      "tryIt": .tryIt, "more": .thoughts,
-                                     "thoughts": .thoughts, "meetings": .meetings, "vocabulary": .vocabulary]
+                                     "thoughts": .thoughts, "meetings": .meetings, "vocabulary": .vocabulary,
+                                     "ready": .ready]
         if let name = Demo.onboardingStep, let step = names[name] { return step }
         #endif
         return .welcome
@@ -98,6 +99,7 @@ struct OnboardingView: View {
         case .thoughts: ThoughtsStep(dictation: dictation, done: tried(.thoughts))
         case .meetings: MeetingsStep(done: tried(.meetings))
         case .vocabulary: VocabularyStep(dictation: dictation, done: tried(.vocabulary))
+        case .ready: ReadyStep(dictation: dictation)
         }
     }
 
@@ -136,7 +138,7 @@ struct OnboardingView: View {
                 DownloadStatus(dictation: dictation, compact: step.rawValue >= Step.tryIt.rawValue)
             }
             Spacer(minLength: 8)
-            if step.rawValue >= Step.thoughts.rawValue, step != .vocabulary {
+            if step.rawValue >= Step.thoughts.rawValue, step != .ready {
                 Button { done() } label: {
                     Text("Avsluta introduktionen")
                         .font(.system(size: 13, weight: .medium))
@@ -157,7 +159,7 @@ struct OnboardingView: View {
             } else {
                 // Return only where there's nothing to type or say into.
                 GlowButton(title: primaryTitle, action: primary)
-                    .keyboardShortcut(step.rawValue <= Step.permissions.rawValue ? .defaultAction : nil)
+                    .keyboardShortcut(step.rawValue <= Step.permissions.rawValue || step == .ready ? .defaultAction : nil)
                     .transition(.opacity)
             }
         }
@@ -176,7 +178,7 @@ struct OnboardingView: View {
             if missing.isEmpty { return String(localized: "Fortsätt") }
             let bytes = missing.reduce(Int64(0)) { $0 + $1.downloadBytes }
             return String(localized: "Ladda ned \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) och fortsätt")
-        case .vocabulary: return String(localized: "Sätt igång")
+        case .ready: return String(localized: "Sätt igång")
         default: return String(localized: "Fortsätt")
         }
     }
@@ -192,6 +194,8 @@ struct OnboardingView: View {
             go(1)
         case .vocabulary:
             VocabularyStep.commitPending?()   // a word typed but not added
+            go(1)
+        case .ready:
             done()
         default:
             go(1)
