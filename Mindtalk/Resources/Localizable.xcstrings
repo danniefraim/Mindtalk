@@ -5606,22 +5606,6 @@
         }
       }
     },
-    "Ett ögonblick…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "One moment …"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ett ögonblick…"
-          }
-        }
-      }
-    },
     "Exempel": {
       "localizations": {
         "en": {
@@ -9553,22 +9537,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inspelningen är igång, inget går förlorat."
-          }
-        }
-      }
-    },
-    "Inspelningen är igång. Efter en macOS-uppdatering kan det ta några minuter.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recording is on. After a macOS update this can take a few minutes."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inspelningen är igång. Efter en macOS-uppdatering kan det ta några minuter."
           }
         }
       }
@@ -16345,6 +16313,22 @@
         }
       }
     },
+    "Röstmodellen görs redo, bara första gången. Inspelningen är igång och inget går förlorat.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The voice model is getting ready, only the first time. Recording is on and nothing is lost."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Röstmodellen görs redo, bara första gången. Inspelningen är igång och inget går förlorat."
+          }
+        }
+      }
+    },
     "Röstmodellen kunde inte laddas ned. Försök igen.": {
       "localizations": {
         "en": {
@@ -18666,6 +18650,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Steg %lld av %lld"
+          }
+        }
+      }
+    },
+    "Strax klart": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Almost ready"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strax klart"
           }
         }
       }

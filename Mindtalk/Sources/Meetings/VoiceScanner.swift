@@ -131,8 +131,8 @@ struct VoiceScanner: View {
                 // The speech model still loading (it can take a minute after a macOS
                 // update): recording already, but nothing to listen with yet.
                 if scanner.session.phase == .starting {
-                    return (String(localized: "Förbereder"), String(localized: "Ett ögonblick…"),
-                            String(localized: "Inspelningen är igång. Efter en macOS-uppdatering kan det ta några minuter."))
+                    return (String(localized: "Förbereder"), String(localized: "Strax klart"),
+                            String(localized: "Röstmodellen görs redo, bara första gången. Inspelningen är igång och inget går förlorat."))
                 }
                 switch round.phase {
                 // Asked until someone starts talking — not only for the moment the turn opens.

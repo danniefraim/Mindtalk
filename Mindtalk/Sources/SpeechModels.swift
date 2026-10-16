@@ -432,6 +432,15 @@ actor SpeechEngine {
         upgrading?.cancel()
         let version = model.asrVersion
         upgrading = Task {
+            // macOS prepares one model at a time: let the voice models go first (a
+            // meeting needs them the moment it starts), and never crowd a meeting
+            // that's running. Waits up to twenty minutes, then goes ahead anyway.
+            for _ in 0..<600 {
+                let clear = await MainActor.run { (!VoiceModels.isInstalled || VoiceModels.warm) && !MeetingSession.shared.isBusy }
+                if clear { break }
+                try? await Task.sleep(for: .seconds(2))
+                if Task.isCancelled { return }
+            }
             let started = Date()
             let ready: AsrManager
             do {

@@ -71,6 +71,8 @@ final class VoiceModels: ObservableObject {
                         })
                 }
                 state = Self.isInstalled ? .ready : .failed(String(localized: "Nedladdningen blev inte komplett."))
+                // Prepared for this Mac right away, so the first meeting doesn't wait for it.
+                if state == .ready { Self.warmUp() }
             } catch {
                 state = .failed(Self.plainWords(for: error))
             }
@@ -99,12 +101,18 @@ final class VoiceModels: ObservableObject {
         try await ModelCache.shared.models(for: config).models
     }
 
-    /// At launch, quietly: so the first meeting starts at once, also after an update.
+    /// Loaded and prepared for this Mac, this launch: a meeting starts at once.
+    @MainActor static private(set) var warm = false
+
+    /// At launch (and right after the download), quietly: so the first meeting starts
+    /// at once, also after an update. The speech model's own Neural Engine preparation
+    /// waits for this (SpeechEngine): macOS prepares one model at a time.
     static func warmUp() {
         guard isInstalled else { return }
         let configs = [live, final]
         Task.detached(priority: .utility) {
             for config in configs { _ = try? await load(config) }
+            await MainActor.run { warm = true }
         }
     }
 }
