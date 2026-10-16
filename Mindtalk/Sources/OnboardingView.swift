@@ -385,12 +385,14 @@ extension LanguageStep {
     private func gemmaOption(_ m: NotesModel, largest: Bool) -> some View {
         let picked = gemmaPick == m
         let fits = m.hasRoom
+        // Not ticked: the sizes wait, greyed — nothing here is on its way.
+        let active = gemma
         return Button {
             withAnimation(.snappy(duration: 0.2)) { gemmaPick = m; gemma = true }
         } label: {
             HStack(spacing: 7) {
                 Image(systemName: picked ? "largecircle.fill.circle" : "circle")
-                    .font(.system(size: 13)).foregroundStyle(picked ? DS.Colors.ink : DS.Colors.muted)
+                    .font(.system(size: 13)).foregroundStyle(picked && active ? DS.Colors.ink : DS.Colors.muted)
                 Text(verbatim: m.name.replacingOccurrences(of: "Gemma 4 ", with: ""))
                     .font(.system(size: 12.5, weight: .semibold))
                 Text(verbatim: "· \(m.sizeText) ·").font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted).monospacedDigit()
@@ -415,7 +417,7 @@ extension LanguageStep {
         }
         .buttonStyle(.plain)
         .disabled(!fits)
-        .opacity(fits ? 1 : 0.55)
+        .opacity(!fits ? 0.4 : active ? 1 : 0.5)
         .accessibilityAddTraits(picked ? .isSelected : [])
     }
 }
