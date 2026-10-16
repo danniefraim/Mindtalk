@@ -6182,6 +6182,22 @@
         }
       }
     },
+    "Håll in %@ för att diktera": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold %@ to dictate"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in %@ för att diktera"
+          }
+        }
+      }
+    },
     "Håll in %@ och prata": {
       "localizations": {
         "en": {
@@ -18326,6 +18342,7 @@
       }
     },
     "och prata": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

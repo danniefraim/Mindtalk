@@ -246,11 +246,11 @@ struct HomeHero: View {
                 .padding(.horizontal, 6).padding(.vertical, 2)
                 .background(RoundedRectangle(cornerRadius: 5).fill(onInk.opacity(0.16)))
                 .foregroundStyle(onInk)
-            Text("och prata").foregroundStyle(onInk.opacity(0.65))
+            Text("för att diktera").foregroundStyle(onInk.opacity(0.65))
         }
         .font(.system(size: 12.5)).padding(.top, 6)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Håll in \(dictation.hotkey.inlineName) och prata"))
+        .accessibilityLabel(Text("Håll in \(dictation.hotkey.inlineName) för att diktera"))
     }
 
     // MARK: The meeting going on
