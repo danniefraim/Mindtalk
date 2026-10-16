@@ -4,6 +4,8 @@ import Combine
 import UserNotifications
 import ServiceManagement
 import SwiftUI
+import FluidAudio
+import CoreML
 
 @main
 @MainActor
@@ -68,6 +70,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+
+        #if DEBUG
+        // `Mindtalk --asr-units gpu|ane file.wav [--model swedish]`: how long the speech model
+        // takes to load with its encoder on the GPU or the Neural Engine, and to transcribe.
+        if let i = args.firstIndex(of: "--asr-units"), i + 2 < args.count {
+            let units: MLComputeUnits = args[i + 1] == "gpu" ? .cpuAndGPU : .cpuAndNeuralEngine
+            let model = args.firstIndex(of: "--model").flatMap { j in j + 1 < args.count ? SpeechModel(rawValue: args[j + 1]) : nil } ?? .swedish
+            Task {
+                do {
+                    guard let dir = model.directory else { print("Modellen finns inte"); exit(1) }
+                    let samples = try Recorder.load(URL(fileURLWithPath: args[i + 2]))
+                    let t0 = Date()
+                    let models = try AsrModels.loadLocal(from: dir, version: model.asrVersion, encoderComputeUnits: units)
+                    let asr = AsrManager(config: ASRConfig(parallelChunkConcurrency: 1))
+                    try await asr.loadModels(models)
+                    var warm = TdtDecoderState.make(decoderLayers: 2)
+                    _ = try? await asr.transcribe([Float](repeating: 0, count: 16_000), decoderState: &warm)
+                    let loaded = Date().timeIntervalSince(t0)
+                    var state = TdtDecoderState.make(decoderLayers: 2)
+                    let t1 = Date()
+                    let result = try await asr.transcribe(samples, decoderState: &state)
+                    let took = Date().timeIntervalSince(t1)
+                    print(String(format: "%@: laddad på %.1f s · %.1f s ljud skrivet på %.2f s", args[i + 1], loaded, Double(samples.count) / 16_000, took))
+                    print(result.text)
+                    exit(0)
+                } catch {
+                    print("Fel: \(error.localizedDescription)")
+                    exit(1)
+                }
+            }
+            RunLoop.main.run()
+        }
+        #endif
 
         #if DEBUG
         // Self-test: `Mindtalk --meeting file.wav [--model …] [--speed 2]` plays a recording

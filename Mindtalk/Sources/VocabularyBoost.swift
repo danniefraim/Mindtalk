@@ -58,7 +58,21 @@ actor VocabularyBoost {
     enum ListenerError: Error { case busy, notLoaded }
 
     /// Makes sure the listener is on disk and loaded — called when the list has words.
+    /// The speech model first: both are prepared for the Neural Engine by the same
+    /// one-at-a-time service in macOS, and nothing can be dictated before the speech
+    /// model is ready (the first time on a Mac that takes minutes).
     func prepare() async {
+        if !Self.isInstalled { await VocabularyBoostStatus.shared.set(.downloading) }
+        for _ in 0..<1800 {
+            let busy = await MainActor.run { () -> Bool in
+                switch Dictation.shared.model {
+                case .loading, .downloading: return true
+                default: return false
+                }
+            }
+            guard busy else { break }
+            try? await Task.sleep(for: .seconds(1))
+        }
         _ = try? await load()
     }
 
