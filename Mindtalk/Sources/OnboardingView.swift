@@ -173,11 +173,17 @@ private struct WelcomeStep: View {
                 .shadow(color: .black.opacity(0.22), radius: 22, y: 10)
                 .staggered(0)
                 .accessibilityHidden(true)
+            // Dictation, thoughts, meetings — one line each, back to where it began.
             Typewriter(text: String(localized: "Prata. Vi skriver."),
-                       font: .system(size: 54, weight: .regular, design: .serif),
-                       delay: 0.7)
-            Text("Allt stannar på din Mac. Också ljudet.")
+                       font: .system(size: 50, weight: .regular, design: .serif),
+                       delay: 0.7,
+                       then: [String(localized: "Prata. Vi sparar tanken."),
+                              String(localized: "Prata. Vi vet vem som sa vad."),
+                              String(localized: "Prata. Vi skriver.")],
+                       cursorHeight: 44)
+            Text("Diktera i alla appar, spara tankar och spela in möten. Allt stannar på din Mac.")
                 .font(.system(size: 16)).foregroundStyle(DS.Colors.muted)
+                .multilineTextAlignment(.center)
                 .staggered(2)
         }
         .padding(.bottom, 20)
@@ -722,35 +728,62 @@ struct Typewriter: View {
     let text: String
     let font: Font
     var delay: Double = 0
+    /// Lines it rewrites itself into, one after another: the end is erased back to
+    /// what they share ("Prata. Vi ") and the new end typed — the last one stays.
+    var then: [String] = []
+    var cursorHeight: CGFloat = 46
+    @State private var line: String?
     @State private var shown = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    private var current: String { line ?? text }
+
     var body: some View {
         ZStack(alignment: .leading) {
-            // The full line, invisible, keeps the layout still while typing.
-            Text(text).font(font).opacity(0)
+            // The whole line, invisible, keeps the layout still while typing — and
+            // widens smoothly when the next line is longer.
+            Text(current).font(font).opacity(0)
             HStack(spacing: 3) {
-                Text(String(text.prefix(shown))).font(font)
+                Text(String(current.prefix(shown))).font(font)
                 TimelineView(.periodic(from: .now, by: 0.5)) { context in
-                    let on = shown < text.count || Int(context.date.timeIntervalSinceReferenceDate * 2) % 2 == 0
+                    let on = shown < current.count || Int(context.date.timeIntervalSinceReferenceDate * 2) % 2 == 0
                     RoundedRectangle(cornerRadius: 1.5)
                         .fill(DS.Gradients.accent)
-                        .frame(width: 3, height: 46)
+                        .frame(width: 3, height: cursorHeight)
                         .opacity(on ? 1 : 0)
                 }
             }
         }
+        .lineLimit(1)
+        .animation(.smooth(duration: 0.45), value: line)
         .accessibilityElement()
         .accessibilityLabel(text)
         .task {
             if reduceMotion { shown = text.count; return }
             try? await Task.sleep(for: .seconds(delay))
-            let chars = Array(text)
-            for i in chars.indices {
-                shown = i + 1
-                // A small pause after a full stop, like someone speaking.
-                try? await Task.sleep(for: .milliseconds(chars[i] == "." ? 260 : Int.random(in: 45...85)))
+            await type(text, from: 0)
+            for next in then {
+                guard !Task.isCancelled else { return }
+                try? await Task.sleep(for: .seconds(1.6))
+                let keep = zip(current, next).prefix { $0 == $1 }.count
+                while shown > keep, !Task.isCancelled {
+                    shown -= 1
+                    try? await Task.sleep(for: .milliseconds(32))
+                }
+                line = next
+                try? await Task.sleep(for: .milliseconds(320))   // the line makes room first
+                await type(next, from: keep)
             }
+        }
+    }
+
+    private func type(_ line: String, from start: Int) async {
+        let chars = Array(line)
+        for i in start..<chars.count {
+            guard !Task.isCancelled else { return }
+            shown = i + 1
+            // A small pause after a full stop, like someone speaking.
+            try? await Task.sleep(for: .milliseconds(chars[i] == "." ? 260 : Int.random(in: 45...85)))
         }
     }
 }

@@ -2304,22 +2304,6 @@
         }
       }
     },
-    "Allt stannar på din Mac. Också ljudet.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Everything stays on your Mac. The sound too."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Allt stannar på din Mac. Också ljudet."
-          }
-        }
-      }
-    },
     "Alltid": {
       "localizations": {
         "en": {
@@ -4449,6 +4433,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diktera"
+          }
+        }
+      }
+    },
+    "Diktera i alla appar, spara tankar och spela in möten. Allt stannar på din Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dictate in any app, save thoughts and record meetings. Everything stays on your Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diktera i alla appar, spara tankar och spela in möten. Allt stannar på din Mac."
           }
         }
       }
@@ -14913,6 +14913,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Prata. Vi skriver."
+          }
+        }
+      }
+    },
+    "Prata. Vi sparar tanken.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talk. We keep the thought."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prata. Vi sparar tanken."
+          }
+        }
+      }
+    },
+    "Prata. Vi vet vem som sa vad.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talk. We know who said what."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prata. Vi vet vem som sa vad."
           }
         }
       }
