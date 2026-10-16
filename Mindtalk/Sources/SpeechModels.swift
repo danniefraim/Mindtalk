@@ -1,4 +1,5 @@
 import Foundation
+import os
 import CoreML
 import CryptoKit
 import FluidAudio
@@ -365,6 +366,8 @@ actor SpeechEngine {
     private var inFlight = 0
 
     func loadedModel() -> SpeechModel? { loaded?.model }
+    /// The loaded model runs on the Neural Engine (false: still on the GPU, or none).
+    private(set) var onNeuralEngine = false
 
     /// Loads `model` (unloading any other) and runs one silent pass, so Core ML has
     /// built its Neural Engine plan before the first real dictation.
@@ -378,32 +381,89 @@ actor SpeechEngine {
         guard let dir = model.directory else { throw ModelError.notInstalled }
         if let old = loaded {
             while inFlight > 0 { try await Task.sleep(for: .milliseconds(50)) }
+            upgrading?.cancel(); upgrading = nil
             await old.asr.cleanup()
             loaded = nil
         }
-        let version = model.asrVersion
+        // The first time on a Mac, preparing the encoder for the Neural Engine takes
+        // minutes (measured: 316 s); on the GPU it's ready in about half a minute and
+        // writes just as fast and the same words. So: the GPU first, the Neural Engine
+        // prepared meanwhile and switched to between two dictations (it draws less power
+        // over a long meeting). After that, the Neural Engine from the start.
+        let onEngine = Self.engineReady(model)
         let task = Task { () async throws -> AsrManager in
-            let models = try AsrModels.loadLocal(from: dir, version: version)
-            // One reading at a time, also for long audio. FluidAudio would otherwise read
-            // audio over 15 s four chunks at once — and when macOS has cleared its cache of
-            // prepared models while Mindtalk was running, each extra reader has the model
-            // prepared for the Neural Engine again, about a minute apiece (measured: 1 min
-            // 43 s against 2 s). In sequence a chunk takes a tenth of a second.
-            let asr = AsrManager(config: ASRConfig(parallelChunkConcurrency: 1))
-            try await asr.loadModels(models)
-            var warm = TdtDecoderState.make(decoderLayers: 2)
-            _ = try? await asr.transcribe([Float](repeating: 0, count: 16_000), decoderState: &warm)
-            return asr
+            try await Self.make(dir: dir, version: model.asrVersion, units: onEngine ? nil : .cpuAndGPU)
         }
         loading = (model, task)
         defer { if loading?.model == model { loading = nil } }
         let asr = try await task.value
         loaded = (model, asr)
+        onNeuralEngine = onEngine
+        if !onEngine { upgrade(model, dir: dir) }
         return asr
     }
 
+    /// One AsrManager, loaded and warmed with a silent pass (Core ML builds its plan
+    /// before the first real dictation). `units` nil: as FluidAudio chooses — the Neural Engine.
+    private static func make(dir: URL, version: AsrModelVersion, units: MLComputeUnits?) async throws -> AsrManager {
+        let models = try AsrModels.loadLocal(from: dir, version: version, encoderComputeUnits: units)
+        // One reading at a time, also for long audio. FluidAudio would otherwise read
+        // audio over 15 s four chunks at once — and when macOS has cleared its cache of
+        // prepared models while Mindtalk was running, each extra reader has the model
+        // prepared for the Neural Engine again, about a minute apiece (measured: 1 min
+        // 43 s against 2 s). In sequence a chunk takes a tenth of a second.
+        let asr = AsrManager(config: ASRConfig(parallelChunkConcurrency: 1))
+        try await asr.loadModels(models)
+        var warm = TdtDecoderState.make(decoderLayers: 2)
+        _ = try? await asr.transcribe([Float](repeating: 0, count: 16_000), decoderState: &warm)
+        return asr
+    }
+
+    /// Prepared for the Neural Engine on this Mac before (macOS keeps it) — kept per model.
+    nonisolated static func engineReady(_ model: SpeechModel) -> Bool {
+        UserDefaults.standard.bool(forKey: "neuralEngineReady.\(model.rawValue)")
+    }
+
+    /// The Neural Engine version, prepared in the background while the GPU one writes;
+    /// put in its place when nothing is being transcribed.
+    private var upgrading: Task<Void, Never>?
+
+    private func upgrade(_ model: SpeechModel, dir: URL) {
+        upgrading?.cancel()
+        let version = model.asrVersion
+        upgrading = Task {
+            let started = Date()
+            let ready: AsrManager
+            do {
+                ready = try await Self.make(dir: dir, version: version, units: nil)
+            } catch {
+                Self.log.error("neural engine not ready: \(error.localizedDescription, privacy: .public) — staying on the GPU")
+                return
+            }
+            await self.swapIn(ready, for: model, after: Date().timeIntervalSince(started))
+        }
+    }
+
+    private func swapIn(_ asr: AsrManager, for model: SpeechModel, after seconds: Double) async {
+        guard !Task.isCancelled, let current = loaded, current.model == model else {
+            await asr.cleanup()
+            return
+        }
+        UserDefaults.standard.set(true, forKey: "neuralEngineReady.\(model.rawValue)")
+        while inFlight > 0 { try? await Task.sleep(for: .milliseconds(50)) }
+        guard let still = loaded, still.model == model else { await asr.cleanup(); return }
+        loaded = (model, asr)
+        onNeuralEngine = true
+        upgrading = nil
+        await still.asr.cleanup()
+        Self.log.info("speech model on the Neural Engine after \(Int(seconds)) s in the background")
+    }
+
+    private static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "Speech")
+
     func unload(_ model: SpeechModel) async {
         while inFlight > 0 { try? await Task.sleep(for: .milliseconds(50)) }
+        if loaded?.model == model { upgrading?.cancel(); upgrading = nil }
         guard let current = loaded, current.model == model else { return }
         await current.asr.cleanup()
         loaded = nil

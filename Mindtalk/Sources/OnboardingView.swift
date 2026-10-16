@@ -815,11 +815,11 @@ struct ModelState: View {
                 case .loading:
                     ProgressView().controlSize(.regular)
                     Text("Talmodellen görs redo för din Mac").font(.system(size: 16, weight: .semibold))
-                    // The first time on a Mac the Neural Engine compiles the model — measured
-                    // at about six minutes; after that it starts in seconds.
+                    // The first time on a Mac it starts on the GPU — about half a minute
+                    // (measured 29 s); the Neural Engine is prepared later, unseen.
                     let minutes = Int(Date().timeIntervalSince(dictation.loadingSince) / 60)
-                    Text(minutes < 1 ? String(localized: "Bara första gången – det kan ta några minuter.")
-                                     : String(localized: "Bara första gången – det kan ta några minuter. \(minutes) min hittills."))
+                    Text(minutes < 1 ? String(localized: "Bara första gången – det tar ungefär en halv minut.")
+                                     : String(localized: "Bara första gången – det tar en liten stund. \(minutes) min hittills."))
                         .font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
                     // Wait here: the next steps try things out, and they need it too.
                     Text("Vänta gärna här – sedan provar du direkt.")

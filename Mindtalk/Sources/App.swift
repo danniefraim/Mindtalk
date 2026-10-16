@@ -72,6 +72,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
 
         #if DEBUG
+        // `Mindtalk --engine-switch-test file.wav`: the speech model as on a first start — on
+        // the GPU at once, the Neural Engine prepared meanwhile and switched to — with the
+        // same words before and after. Clears the "prepared" mark for the Swedish model.
+        if let i = args.firstIndex(of: "--engine-switch-test"), i + 1 < args.count {
+            Task {
+                do {
+                    UserDefaults.standard.removeObject(forKey: "neuralEngineReady.swedish")
+                    let samples = try Recorder.load(URL(fileURLWithPath: args[i + 1]))
+                    let t0 = Date()
+                    let gpu = try await SpeechEngine.shared.transcribe(samples: samples, with: .swedish)
+                    let first = Date().timeIntervalSince(t0)
+                    print(String(format: "GPU: första texten efter %.1f s (Neural Engine: %@)", first,
+                                 await SpeechEngine.shared.onNeuralEngine ? "ja" : "nej"))
+                    var waited = 0
+                    while !(await SpeechEngine.shared.onNeuralEngine), waited < 900 {
+                        try await Task.sleep(for: .seconds(1)); waited += 1
+                    }
+                    let ane = try await SpeechEngine.shared.transcribe(samples: samples, with: .swedish)
+                    let same = gpu == ane
+                    print(String(format: "Neural Engine efter %d s till · samma text: %@", waited, same ? "ja" : "nej"))
+                    print(same && waited < 900 ? "Engine switch self-test passed." : "Engine switch self-test FAILED")
+                    exit(same ? 0 : 1)
+                } catch {
+                    print("Fel: \(error.localizedDescription)"); exit(1)
+                }
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --asr-units gpu|ane file.wav [--model swedish]`: how long the speech model
         // takes to load with its encoder on the GPU or the Neural Engine, and to transcribe.
         if let i = args.firstIndex(of: "--asr-units"), i + 2 < args.count {

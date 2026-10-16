@@ -87,12 +87,12 @@ struct HomeHero: View {
                             .font(.system(size: 14)).foregroundStyle(onInk.opacity(0.75)).padding(.top, 10)
                     }
                 } else if let since = slowStart {
-                    // The first start on a Mac compiles the model for the Neural Engine —
-                    // minutes, once. Said plainly rather than "Håll in … och prata".
+                    // The first start on a Mac takes about half a minute (on the GPU while the
+                    // Neural Engine is prepared). Said plainly rather than "Håll in … och prata".
                     Text("Nästan klart").font(.system(size: 44, weight: .regular, design: .serif)).foregroundStyle(onInk)
                     TimelineView(.periodic(from: since, by: 30)) { context in
                         let minutes = Int(context.date.timeIntervalSince(since) / 60)
-                        let text = String(localized: "Talmodellen görs redo för din Mac – första gången tar det några minuter. Du kan stänga fönstret under tiden.")
+                        let text = String(localized: "Talmodellen görs redo för din Mac – bara första gången, ungefär en halv minut.")
                         Text(verbatim: minutes < 1 ? text : text + " " + String(localized: "\(minutes) min hittills."))
                             .font(.system(size: 15)).foregroundStyle(onInk.opacity(0.75)).monospacedDigit()
                             .fixedSize(horizontal: false, vertical: true)

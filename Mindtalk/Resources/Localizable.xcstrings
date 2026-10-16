@@ -3401,34 +3401,34 @@
         }
       }
     },
-    "Bara första gången – det kan ta några minuter.": {
+    "Bara första gången – det tar en liten stund. %lld min hittills.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Only the first time – it can take a few minutes."
+            "value": "Only the first time – it takes a little while. %lld min so far."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bara första gången – det kan ta några minuter."
+            "value": "Bara första gången – det tar en liten stund. %lld min hittills."
           }
         }
       }
     },
-    "Bara första gången – det kan ta några minuter. %lld min hittills.": {
+    "Bara första gången – det tar ungefär en halv minut.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Only the first time – it can take a few minutes. %lld min so far."
+            "value": "Only the first time – it takes about half a minute."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bara första gången – det kan ta några minuter. %lld min hittills."
+            "value": "Bara första gången – det tar ungefär en halv minut."
           }
         }
       }
@@ -19178,18 +19178,18 @@
         }
       }
     },
-    "Startar – första gången kan det ta några minuter.": {
+    "Startar – första gången tar det ungefär en halv minut.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Starting – the first time it can take a few minutes."
+            "value": "Starting – the first time takes about half a minute."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Startar – första gången kan det ta några minuter."
+            "value": "Startar – första gången tar det ungefär en halv minut."
           }
         }
       }
@@ -20626,6 +20626,22 @@
         }
       }
     },
+    "Talmodellen görs redo för din Mac – bara första gången, ungefär en halv minut.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The speech model is getting ready for your Mac – only the first time, about half a minute."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellen görs redo för din Mac – bara första gången, ungefär en halv minut."
+          }
+        }
+      }
+    },
     "Talmodellen görs redo för din Mac – bara första gången.": {
       "localizations": {
         "en": {
@@ -20642,34 +20658,18 @@
         }
       }
     },
-    "Talmodellen görs redo för din Mac – första gången tar det några minuter. Du kan stänga fönstret under tiden.": {
+    "Talmodellen görs redo – strax klar.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The speech model is getting ready for your Mac – the first time takes a few minutes. You can close the window meanwhile."
+            "value": "The speech model is getting ready – almost there."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Talmodellen görs redo för din Mac – första gången tar det några minuter. Du kan stänga fönstret under tiden."
-          }
-        }
-      }
-    },
-    "Talmodellen görs redo – första gången tar det några minuter.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The speech model is getting ready – the first time takes a few minutes."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Talmodellen görs redo – första gången tar det några minuter."
+            "value": "Talmodellen görs redo – strax klar."
           }
         }
       }

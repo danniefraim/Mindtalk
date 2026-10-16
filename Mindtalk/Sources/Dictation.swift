@@ -702,7 +702,7 @@ final class Dictation: ObservableObject {
             // minutes — said the same way as in the introduction.
             let long = firstPreparation && Date().timeIntervalSince(loadingSince) > 5
             return report {
-                $0.fail(long ? String(localized: "Talmodellen görs redo – första gången tar det några minuter.")
+                $0.fail(long ? String(localized: "Talmodellen görs redo – strax klar.")
                              : String(localized: "Talmodellen startar – ett ögonblick…"))
             }
         case .downloading: return report { $0.fail(String(localized: "Talmodellen laddas fortfarande ned…")) }
