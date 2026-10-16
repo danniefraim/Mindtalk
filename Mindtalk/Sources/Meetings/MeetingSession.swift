@@ -746,6 +746,7 @@ final class MeetingSession: ObservableObject {
         introChecked = []
         introFigures = [:]
         roundLeft = []
+        roundMeeting = record?.id
         // The guided round: one person at a time (IntroRound).
         let round = IntroRound(session: self)
         self.round = round
@@ -761,6 +762,8 @@ final class MeetingSession: ObservableObject {
     @Published private(set) var round: IntroRound?
     /// Turns not yet placed on a voice (their words were still settling).
     private var roundLeft: [IntroRound.Capture] = []
+    /// The meeting those turns belong to — a later meeting never gets its names.
+    private var roundMeeting: UUID?
 
     var openingCountForRound: Int { intake?.openingCount ?? 0 }
     func keepRoundAudio() { intake?.keepOpening(seconds: 180) }
@@ -1534,6 +1537,15 @@ final class MeetingSession: ObservableObject {
             // Voices merged while this pass ran (in the text's numbering).
             if !aliases.isEmpty {
                 for i in words.indices { if let s = words[i].speaker, let to = aliases[s] { words[i].speaker = to } }
+            }
+            // Names from the round that still had no voice when the meeting ended (the live
+            // voices lag a few seconds behind; a short meeting can end before they catch
+            // up): placed on the final pass's voices, which cover every word.
+            if !roundLeft.isEmpty, roundMeeting == updated.id {
+                let before = roundLeft.count
+                roundLeft = IntroRound.bind(roundLeft, into: &updated, words: words)
+                Self.log.notice("round: \(before - self.roundLeft.count) of \(before) turns placed on the final voices")
+                roundLeft = []
             }
             updated.words = words
             updated.refined = true
