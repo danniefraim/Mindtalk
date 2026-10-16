@@ -206,7 +206,15 @@ struct OnboardingView: View {
     private func go(_ delta: Int) {
         guard let next = Step(rawValue: step.rawValue + delta) else { return }
         // On from "Prova": closing the window now counts as done.
-        if step == .tryIt, delta > 0 { OnboardingView.pastTry = true }
+        // Past "Prova": done, even if Mindtalk is quit before the last step — and the
+        // day the first-day card on Hem counts from.
+        if step == .tryIt, delta > 0 {
+            OnboardingView.pastTry = true
+            Settings.didOnboard = true
+            if UserDefaults.standard.object(forKey: "introFinishedAt") == nil {
+                UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "introFinishedAt")
+            }
+        }
         forward = delta > 0
         withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.55, bounce: 0.12)) { step = next }
     }
@@ -662,8 +670,11 @@ struct ModelState: View {
                     Text(dictation.engine.isInstalled ? String(localized: "Talmodellen startade inte")
                                                       : String(localized: "Talmodellen laddades inte ned"))
                         .font(.system(size: 16, weight: .semibold))
-                    Text(message).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                        .multilineTextAlignment(.center).lineLimit(2)
+                    // A model that wouldn't start gets no system error text — just a retry.
+                    if !dictation.engine.isInstalled {
+                        Text(message).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                            .multilineTextAlignment(.center).lineLimit(2)
+                    }
                     Button("Försök igen") { dictation.retryModel() }.buttonStyle(.ink)
                 case .missing:
                     Text("Talmodellen är inte nedladdad").font(.system(size: 16, weight: .semibold))

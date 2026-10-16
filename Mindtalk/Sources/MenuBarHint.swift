@@ -16,7 +16,9 @@ enum MenuBarHint {
 
     /// Shows the bubble under the status item, the first time only.
     static func showOnce(from button: NSStatusBarButton?) {
-        guard !UserDefaults.standard.bool(forKey: shownKey), panel == nil,
+        // New users only: someone updating from an earlier version knows where Mindtalk is.
+        guard UserDefaults.standard.object(forKey: "introFinishedAt") != nil,
+              !UserDefaults.standard.bool(forKey: shownKey), panel == nil,
               let button, let buttonWindow = button.window, let screen = buttonWindow.screen ?? NSScreen.main else { return }
         UserDefaults.standard.set(true, forKey: shownKey)
 

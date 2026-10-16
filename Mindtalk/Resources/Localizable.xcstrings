@@ -5414,6 +5414,23 @@
         }
       }
     },
+    "En gång räcker – samma tillåtelse gäller diktering, tankar och möten.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once is enough – the same permission covers dictation, thoughts and meetings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En gång räcker – samma tillåtelse gäller diktering, tankar och möten."
+          }
+        }
+      }
+    },
     "En liten lyssnare (%@) laddas ned när du lägger till ett eget ord, så att namn stavas rätt redan från början.": {
       "extractionState": "stale",
       "localizations": {
@@ -8526,6 +8543,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hör dig bara när du dikterar eller spelar in ett möte."
+          }
+        }
+      }
+    },
+    "Hör dig bara när du dikterar, sparar en tanke eller spelar in ett möte. Ljudet lämnar aldrig din Mac.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only hears you when you dictate, save a thought or record a meeting. The audio never leaves your Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hör dig bara när du dikterar, sparar en tanke eller spelar in ett möte. Ljudet lämnar aldrig din Mac."
           }
         }
       }
@@ -12349,6 +12383,23 @@
         }
       }
     },
+    "Lär Mindtalk dina ord": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teach Mindtalk your words"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lär Mindtalk dina ord"
+          }
+        }
+      }
+    },
     "Lär sig dina ord": {
       "extractionState": "stale",
       "localizations": {
@@ -13494,6 +13545,40 @@
         }
       }
     },
+    "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar. Sammanfattningar kräver Apple Intelligence.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hears who says what and writes it down while you talk. Summaries need Apple Intelligence."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar. Sammanfattningar kräver Apple Intelligence."
+          }
+        }
+      }
+    },
+    "Mindtalk hör vem som säger vad, skriver ned det medan ni pratar och sammanfattar efteråt.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hears who says what, writes it down while you talk and summarises afterwards."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hör vem som säger vad, skriver ned det medan ni pratar och sammanfattar efteråt."
+          }
+        }
+      }
+    },
     "Mindtalk kunde inte flyttas": {
       "localizations": {
         "en": {
@@ -14314,13 +14399,30 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Names you give the speakers in a meeting are suggested for the list. The whole list is under Word List."
+            "value": "Speaker names from meetings are suggested too. The full list is under Word List."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
             "value": "Namn du ger talarna i ett möte föreslås till listan. Hela listan finns under Ordlista."
+          }
+        }
+      }
+    },
+    "Namn och ord på listan stavas rätt i allt du dikterar – också i tankar och möten.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Names and words on the list are spelled right in everything you dictate – in thoughts and meetings too."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namn och ord på listan stavas rätt i allt du dikterar – också i tankar och möten."
           }
         }
       }
@@ -22592,19 +22694,19 @@
         }
       }
     },
-    "Välj ett eller båda. Modellen laddas ned en gång och fungerar sedan helt offline.": {
+    "Välj ett eller båda. Talmodellen hämtas en gång – sedan behövs inget internet.": {
       "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pick one or both. Each model downloads once and then works fully offline."
+            "value": "Choose one or both. The speech model is downloaded once – after that, no internet is needed."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Välj ett eller båda. Modellen laddas ned en gång och fungerar sedan helt offline."
+            "value": "Välj ett eller båda. Talmodellen hämtas en gång – sedan behövs inget internet."
           }
         }
       }
@@ -23530,6 +23632,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fortsätt mötet"
+          }
+        }
+      }
+    },
+    "prata utan att hålla": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "talk without holding"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "prata utan att hålla"
+          }
+        }
+      }
+    },
+    "prata, släpp – klart": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "talk, let go – done"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "prata, släpp – klart"
           }
         }
       }

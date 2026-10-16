@@ -105,7 +105,11 @@ private struct DemoMeeting: View {
     }
 
     /// The still picture: the render, and Reduce Motion.
+    #if DEBUG
     static let rendering = CommandLine.arguments.contains("--render-onboarding")
+    #else
+    static let rendering = false
+    #endif
 
     enum Phase { case waiting, recording, summing, done }
 

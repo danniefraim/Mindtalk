@@ -17,6 +17,7 @@ struct FirstDayCard: View {
     @ObservedObject private var store = MeetingStore.shared
     /// When the card first showed (seconds since 1970); 0 = not yet.
     @AppStorage("firstDayShownAt") private var shownAt: Double = 0
+    @AppStorage("firstDayCelebrated") private var celebrated = false
     /// Gone for good: closed with ✕, or everything done.
     @AppStorage("firstDayClosed") private var closed = false
     @State private var celebrating = false
@@ -38,16 +39,19 @@ struct FirstDayCard: View {
         if HomeDebug.firstDayDone { return Steps(dictated: true, thought: true, meeting: true) }
         if HomeDebug.firstDay { return Steps(dictated: true, thought: false, meeting: false) }
         #endif
-        return Steps(dictated: stats.totalWords > 0, thought: !thoughts.all.isEmpty, meeting: !store.meetings.isEmpty)
+        return Steps(dictated: stats.totalWords > 0, thought: thoughts.all.contains { $0.deleted == nil }, meeting: !store.meetings.isEmpty)
     }
 
-    /// Nothing of yours from before today: no dictated words, thoughts or meetings.
+    /// Went through the introduction (the day it was done is kept) and has nothing from
+    /// before that day: no dictated words, thoughts or meetings. Someone updating from an
+    /// earlier version never had the day saved — and never sees the card.
     private var isNewUser: Bool {
-        let today = Stats.key(for: Date())
-        let startOfToday = Calendar.current.startOfDay(for: Date())
-        return !stats.days.contains { $0.key < today && $0.value.words > 0 }
-            && !thoughts.all.contains { $0.date < startOfToday }
-            && !store.meetings.contains { $0.date < startOfToday }
+        guard let finished = UserDefaults.standard.object(forKey: "introFinishedAt") as? Double else { return false }
+        let start = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: finished))
+        let firstDay = Stats.key(for: start)
+        return !stats.days.contains { $0.key < firstDay && $0.value.words > 0 }
+            && !thoughts.all.contains { $0.date < start }
+            && !store.meetings.contains { $0.date < start }
     }
 
     private var visible: Bool {
@@ -58,6 +62,8 @@ struct FirstDayCard: View {
         // After the setup, with the speech model up — and the meetings read, so a
         // meeting from before doesn't flash as not done.
         guard !closed, !dictation.needsSetup, dictation.model == .ready, store.loaded else { return false }
+        // Celebrated once already (quit during "Allt klart"): not again.
+        if celebrated, !celebrating { return false }
         if shownAt > 0 { return celebrating || Date().timeIntervalSince1970 - shownAt < Self.lasts }
         return isNewUser && !steps.all
     }
@@ -91,6 +97,7 @@ struct FirstDayCard: View {
         if HomeDebug.firstDay || HomeDebug.firstDayDone { return }
         #endif
         guard steps.all, !celebrating, windowVisible else { return }
+        celebrated = true
         withAnimation(reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.15)) { celebrating = true }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(4))

@@ -170,9 +170,10 @@ struct HomeHero: View {
         .animation(reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.1), value: session.phase)
         // A start that takes more than a few seconds is the long first one; a language
         // switch is over before it would show.
-        .task(id: dictation.model == .loading) {
+        .task(id: "\(dictation.model == .loading)-\(dictation.loadingSince.timeIntervalSince1970)") {
             slowSince = nil
-            guard dictation.model == .loading else { return }
+            // Only the very first start on this Mac is long; a slow ordinary one isn't "Nästan klart".
+            guard dictation.model == .loading, dictation.firstPreparation else { return }
             let since = dictation.loadingSince
             let wait = 3 - Date().timeIntervalSince(since)
             if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }

@@ -89,6 +89,10 @@ final class Dictation: ObservableObject {
     /// When the speech model began getting ready — the first time on a Mac (the Neural
     /// Engine compiling it) can take several minutes; the waiting card counts them.
     @Published private(set) var loadingSince = Date()
+
+    /// The current language has never been made ready on this Mac — the long first
+    /// start (the Neural Engine compiling it). Later starts take seconds.
+    var firstPreparation: Bool { !UserDefaults.standard.bool(forKey: "modelPrepared.\(engine.rawValue)") }
     @Published private(set) var installed = Set(SpeechModel.allCases.filter(\.isInstalled))
     /// Models downloading right now, with progress 0…1.
     @Published private(set) var downloads: [SpeechModel: Double] = [:]
@@ -393,6 +397,7 @@ final class Dictation: ObservableObject {
             do {
                 try await SpeechEngine.shared.load(target)
                 Self.log.info("speech model ready in \(Int(Date().timeIntervalSince(self.loadingSince))) s")
+                UserDefaults.standard.set(true, forKey: "modelPrepared.\(target.rawValue)")
                 if generation == loadGeneration { model = .ready }
             } catch {
                 Self.log.error("speech model failed after \(Int(Date().timeIntervalSince(self.loadingSince))) s: \(error.localizedDescription, privacy: .public)")
@@ -695,7 +700,7 @@ final class Dictation: ObservableObject {
         case .loading:
             // Still not ready after a few seconds: the first time on this Mac, which takes
             // minutes — said the same way as in the introduction.
-            let long = Date().timeIntervalSince(loadingSince) > 5
+            let long = firstPreparation && Date().timeIntervalSince(loadingSince) > 5
             return report {
                 $0.fail(long ? String(localized: "Talmodellen görs redo – första gången tar det några minuter.")
                              : String(localized: "Talmodellen startar – ett ögonblick…"))
