@@ -1933,6 +1933,8 @@ private struct SummaryView: View {
                 .font(.system(size: 11.5))
                 .foregroundStyle(DS.Colors.muted)
                 .staggered(4)
+                // Written by Apple Intelligence: once, the Gemma that suits this Mac.
+                if summary.writer == nil, MeetingSession.shared.record?.id != record.id { NotesModelOffer().staggered(5) }
             }
             .id(summary.created)
             .opacity(writing ? 0.35 : 1)

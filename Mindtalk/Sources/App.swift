@@ -497,6 +497,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     t("Fråga om styrelsens datum.", 30, done: true),
                     failed,
                 ])
+                if args.contains("--empty") { Thoughts.shared.preview([]) }    // the page before the first thought
                 ThoughtsPage.still = true
                 let view = ThoughtsPage(dictation: .shared, scrolls: false).frame(width: 760).background(DS.Colors.paper)
                     .environment(\.colorScheme, dark ? .dark : .light)

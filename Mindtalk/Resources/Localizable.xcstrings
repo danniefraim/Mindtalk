@@ -127,6 +127,22 @@
         }
       }
     },
+    "%@ från Google hittar fler beslut och uppgifter och skriver dem på din Mac. Den laddas ned en gång (%@) och fungerar sedan utan internet. Du har %lld GB ledigt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ from Google finds more decisions and tasks and writes them on your Mac. It's downloaded once (%2$@) and then works without internet. You have %3$lld GB free."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ från Google hittar fler beslut och uppgifter och skriver dem på din Mac. Den laddas ned en gång (%@) och fungerar sedan utan internet. Du har %lld GB ledigt."
+          }
+        }
+      }
+    },
     "%@ igen": {
       "localizations": {
         "en": {
@@ -7332,6 +7348,22 @@
         }
       }
     },
+    "Håll in och säg det du kommer på": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold it and say what comes to mind"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in och säg det du kommer på"
+          }
+        }
+      }
+    },
     "Håll in och säg det du kommer på – det hamnar i Tankar. Ett snabbt tryck lyssnar tills du trycker igen.": {
       "extractionState": "stale",
       "localizations": {
@@ -10043,6 +10075,22 @@
         }
       }
     },
+    "Laddar ned %@…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading %@…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddar ned %@…"
+          }
+        }
+      }
+    },
     "Laddar ned %@… %lld %%": {
       "extractionState": "stale",
       "localizations": {
@@ -11712,6 +11760,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mer"
+          }
+        }
+      }
+    },
+    "Mer träffsäkra sammanfattningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More accurate summaries"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mer träffsäkra sammanfattningar"
           }
         }
       }

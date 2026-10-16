@@ -153,9 +153,19 @@ struct ThoughtsPage: View {
     }
 
     private var empty: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "lightbulb").font(.system(size: 28, weight: .light)).foregroundStyle(DS.Colors.muted)
-                .accessibilityHidden(true)
+        VStack(spacing: 14) {
+            if let keys = Settings.thoughtShortcut {
+                // The key you hold — big, and it sinks while you do.
+                Keycap(text: keys.chip, pressed: dictation.forThought && dictation.phase == .recording, isCombination: false)
+                    .scaleEffect(0.75)
+                    .frame(height: 80)
+                    .accessibilityHidden(true)
+                Text("Håll in och säg det du kommer på")
+                    .font(.system(size: 20, weight: .regular, design: .serif))
+            } else {
+                Image(systemName: "lightbulb").font(.system(size: 28, weight: .light)).foregroundStyle(DS.Colors.muted)
+                    .accessibilityHidden(true)
+            }
             Text("Inga tankar än").font(.system(size: 14, weight: .semibold))
             Text(chord.isEmpty ? "Prova: tryck på Säg en tanke och säg ”Ring tillbaka om offerten”."
                                : "Prova: håll in \(chord) var du än är och säg ”Ring tillbaka om offerten”.")

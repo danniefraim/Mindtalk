@@ -368,3 +368,56 @@ enum ModelHousekeeping {
         }
     }
 }
+
+/// Under a meeting's summary, once: the Gemma that suits this Mac, for summaries
+/// that catch more — its size said, nothing fetched until you say so. Not offered
+/// again once you've answered.
+struct NotesModelOffer: View {
+    @ObservedObject private var notes = BetterNotes.shared
+    @AppStorage("notesOfferAnswered") private var answered = false
+
+    var body: some View {
+        if let m = NotesModel.recommended, notes.active == nil {
+            switch notes.state(m) {
+            case .downloading(let p):
+                HStack(spacing: 12) {
+                    Image(systemName: "sparkle").font(.system(size: 13)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
+                    Text("Laddar ned \(m.name)…").font(.system(size: 13, weight: .medium))
+                    ProgressView(value: p).tint(DS.Colors.ink).frame(width: 140)
+                    Text(p, format: .percent.precision(.fractionLength(0))).font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.Colors.muted)
+                    Spacer(minLength: 0)
+                }
+                .padding(16)
+                .card()
+            case .missing where !answered && m.hasRoom:
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "sparkle").font(.system(size: 15)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Mer träffsäkra sammanfattningar").font(.system(size: 14, weight: .semibold))
+                            Text("\(m.name) från Google hittar fler beslut och uppgifter och skriver dem på din Mac. Den laddas ned en gång (\(m.sizeText)) och fungerar sedan utan internet. Du har \(BetterNotes.freeBytes / 1_000_000_000) GB ledigt.")
+                                .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    HStack(spacing: 10) {
+                        Spacer()
+                        Button("Inte nu") { withAnimation(.snappy) { answered = true } }
+                            .buttonStyle(.plain).font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
+                        Button("Ladda ned \(m.sizeText)") {
+                            answered = true
+                            notes.download(m)
+                        }
+                        .buttonStyle(.ink)
+                        .disabled(notes.downloading != nil)
+                    }
+                }
+                .padding(18)
+                .card()
+                .transition(.opacity)
+            default:
+                EmptyView()
+            }
+        }
+    }
+}
