@@ -403,6 +403,12 @@ final class Dictation: ObservableObject {
     /// Languages to switch to once their download is done (asked for from the menu bar).
     private var useWhenReady: Set<SpeechModel> = []
 
+    /// "Försök igen" on a speech model that failed: downloaded again if it isn't
+    /// here, started again if it is (the first Neural Engine compile can fail).
+    func retryModel() {
+        if engine.isInstalled { loadModel() } else { downloadModel() }
+    }
+
     func downloadModel(_ which: SpeechModel? = nil, thenUse: Bool = false) {
         let m = which ?? engine
         guard downloadTasks[m] == nil, !m.isInstalled else { return }

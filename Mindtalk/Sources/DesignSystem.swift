@@ -11,6 +11,8 @@ enum DS {
         static let card: CGFloat = 16
         static let control: CGFloat = 10
         static let chip: CGFloat = 7
+        /// The introduction's tiles and panels.
+        static let panel: CGFloat = 20
     }
 
     enum Layout {
@@ -19,6 +21,8 @@ enum DS {
         static let wideReadingWidth: CGFloat = 860
         static let pageHorizontal: CGFloat = 48
         static let pageTop: CGFloat = 44
+        /// Between the columns and blocks of an introduction step.
+        static let stepGap: CGFloat = 16
     }
 
     enum Colors {

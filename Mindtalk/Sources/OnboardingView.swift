@@ -12,6 +12,10 @@ struct OnboardingView: View {
     @ObservedObject var dictation: Dictation
     let finish: () -> Void
 
+    /// Past "Prova": the introduction counts as done even if its window is closed now
+    /// (closing earlier brings it back at the next launch).
+    static var pastTry = false
+
     enum Step: Int, CaseIterable { case welcome, language, permissions, tryIt, thoughts, meetings, vocabulary }
 
     @State private var step: Step = OnboardingView.firstStep
