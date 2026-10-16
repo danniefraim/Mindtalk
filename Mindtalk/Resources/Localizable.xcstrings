@@ -14201,22 +14201,6 @@
         }
       }
     },
-    "Prova: håll in %@ var du än är och säg ”Ring tillbaka om offerten”.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Try it: hold %@ anywhere and say “Call back about the quote”."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Prova: håll in %@ var du än är och säg ”Ring tillbaka om offerten”."
-          }
-        }
-      }
-    },
     "Prova: tryck på Säg en tanke och säg ”Ring Eva om offerten”.": {
       "extractionState": "stale",
       "localizations": {
@@ -21558,6 +21542,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "t.ex. mind talk, min tal"
+          }
+        }
+      }
+    },
+    "t.ex. ”Ring tillbaka om offerten”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g. “Call back about the quote”"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "t.ex. ”Ring tillbaka om offerten”"
           }
         }
       }

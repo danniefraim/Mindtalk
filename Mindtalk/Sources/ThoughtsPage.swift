@@ -162,15 +162,16 @@ struct ThoughtsPage: View {
                     .accessibilityHidden(true)
                 Text("Håll in och säg det du kommer på")
                     .font(.system(size: 20, weight: .regular, design: .serif))
+                Text("t.ex. ”Ring tillbaka om offerten”")
+                    .font(.system(size: 13)).italic().foregroundStyle(DS.Colors.muted)
             } else {
                 Image(systemName: "lightbulb").font(.system(size: 28, weight: .light)).foregroundStyle(DS.Colors.muted)
                     .accessibilityHidden(true)
+                Text("Inga tankar än").font(.system(size: 14, weight: .semibold))
+                Text("Prova: tryck på Säg en tanke och säg ”Ring tillbaka om offerten”.")
+                    .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                    .multilineTextAlignment(.center)
             }
-            Text("Inga tankar än").font(.system(size: 14, weight: .semibold))
-            Text(chord.isEmpty ? "Prova: tryck på Säg en tanke och säg ”Ring tillbaka om offerten”."
-                               : "Prova: håll in \(chord) var du än är och säg ”Ring tillbaka om offerten”.")
-                .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 36)
