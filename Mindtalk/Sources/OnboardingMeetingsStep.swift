@@ -1,10 +1,769 @@
 import SwiftUI
 
 // MARK: - Step 6: Meetings
+//
+// Shows a meeting instead of describing one. On a night tile three speakers plan a
+// launch: each line is written as it's said, each new voice is first "Känner igen
+// rösten…" and then gets its number and colour — the sphere falling into that voice's
+// figure, as in a real meeting — and afterwards the summary writes itself. Beside it,
+// the voice model, benefit first: why it's needed, what it is, how big, where it runs,
+// and what waiting means. Played once ("Spela igen" to see it again); with Reduce
+// Motion, and in the DEBUG render, the finished meeting stands still.
 
 struct MeetingsStep: View {
     @Binding var done: Bool
+
+    private static let tileWidth: CGFloat = 360
+    private static let cardWidth: CGFloat = 264
+    private static let height: CGFloat = 322
+
     var body: some View {
-        StepHeader(title: "Möten", subtitle: "")
+        VStack(spacing: 20) {
+            StepHeader(title: "Spela in ett möte i rummet",
+                       subtitle: "Mindtalk hör vem som säger vad, skriver ned det medan ni pratar och sammanfattar efteråt.")
+                .staggered(0)
+            HStack(alignment: .top, spacing: 16) {
+                DemoMeeting()
+                    .frame(width: Self.tileWidth, height: Self.height)
+                    .staggered(1)
+                VoiceModelCard(done: $done)
+                    .frame(width: Self.cardWidth, height: Self.height)
+                    .staggered(2)
+            }
+            HStack(alignment: .top, spacing: 16) {
+                note(icon: "person.wave.2") {
+                    Text("Mötet börjar med att alla säger sitt namn – det går att hoppa över.")
+                }
+                .frame(width: Self.tileWidth, alignment: .leading)
+                shortcut
+                    .frame(width: Self.cardWidth, alignment: .leading)
+            }
+            .staggered(3)
+        }
+    }
+
+    /// How to start one later: the shortcut that works in every app — or, when it's
+    /// turned off, where the button is.
+    @ViewBuilder private var shortcut: some View {
+        if let chord = Settings.meetingShortcut {
+            HStack(alignment: .center, spacing: 8) {
+                KeyChip(text: chord.chip.replacingOccurrences(of: " ", with: ""))
+                    .accessibilityHidden(true)
+                Text("startar ett möte, var du än är.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(Text("\(chord.chip.replacingOccurrences(of: " ", with: "")) startar ett möte, var du än är."))
+        } else {
+            note(icon: "record.circle") { Text("Starta ett möte under Möten.") }
+        }
+    }
+
+    private func note(icon: String, @ViewBuilder text: () -> Text) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(DS.Colors.muted)
+                .accessibilityHidden(true)
+            text()
+                .font(.system(size: 12))
+                .foregroundStyle(DS.Colors.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+// MARK: - The demo meeting
+
+/// A pre-written meeting, played on a night tile: no audio, no real pipeline.
+private struct DemoMeeting: View {
+    struct Turn {
+        let speaker: Int
+        let text: String
+        var words: [String] { text.split(separator: " ").map(String.init) }
+    }
+
+    static let turns: [Turn] = [
+        Turn(speaker: 0, text: String(localized: "Håller vi lanseringen den fjärde november?")),
+        Turn(speaker: 1, text: String(localized: "Ja, om testerna är klara på fredag. Annars blir det veckan efter.")),
+        Turn(speaker: 2, text: String(localized: "Jag tar testerna och ger besked på torsdag.")),
+        Turn(speaker: 0, text: String(localized: "Bra. Då säger vi fjärde november.")),
+    ]
+    static let decision = String(localized: "Lanseringen blir den fjärde november.")
+    static let task = String(localized: "Kör klart testerna och ge besked på torsdag.")
+    /// Who the task is for — the third voice.
+    static let owner = 2
+
+    /// Each voice's own figure, as the sphere draws it once it knows who's speaking.
+    static let figures = [
+        VoiceFigure(a: 3, b: 2, phase: 0.7, depth: 0.35),
+        VoiceFigure(a: 5, b: 4, phase: 1.9, depth: -0.3),
+        VoiceFigure(a: 2, b: 3, phase: 0.3, depth: 0.45),
+    ]
+
+    /// A speaker's colour, as the meeting's text shows it on a dark page — the night
+    /// tile is dark in light mode too. (The sphere makes it vivid itself.)
+    static func tint(_ speaker: Int) -> Color {
+        var dark = EnvironmentValues()
+        dark.colorScheme = .dark
+        return Color(SpeakerMark.fill(speaker).resolve(in: dark))
+    }
+
+    /// The still picture: the render, and Reduce Motion.
+    static let rendering = CommandLine.arguments.contains("--render-onboarding")
+
+    enum Phase { case waiting, recording, summing, done }
+
+    @State private var phase: Phase = .waiting
+    @State private var turnsShown = 0
+    /// Words written so far in the newest turn.
+    @State private var words = 0
+    @State private var known: Set<Int> = []
+    /// The voice the sphere shows; nil while it listens.
+    @State private var speaking: Int?
+    @State private var level = 0.2
+    @State private var starts: [Int] = []
+    @State private var started: Date?
+    @State private var length = 0
+    @State private var summaryShown = false
+    @State private var summaryWords = [0, 0]
+    @State private var run = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var still: Bool { reduceMotion || Self.rendering }
+    private var seconds: Int { started.map { Int(Date.now.timeIntervalSince($0)) } ?? 0 }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            VStack(alignment: .leading, spacing: 18) {
+                statusBar
+                transcript
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .opacity(summaryShown ? 0.4 : 1)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text("Exempel på ett möte: vem som säger vad, och en sammanfattning efteråt."))
+
+            if summaryShown {
+                summary
+                    .padding(10)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .background(alignment: .topTrailing) { sphere }
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(DS.Colors.night))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
+        .shadow(color: .black.opacity(0.16), radius: 20, y: 10)
+        .environment(\.colorScheme, .dark)
+        // Cancelled when the step goes away: nothing keeps running behind the next one.
+        .task(id: run) { await play() }
+    }
+
+    // MARK: Pieces
+
+    /// The listening sphere in the corner: it turns faster while it compares voices,
+    /// and falls into the speaker's figure once it knows them.
+    private var sphere: some View {
+        Constellation(figure: speaking.map { Self.figures[$0] },
+                      color: speaking.map(Self.tint) ?? .white,
+                      level: level,
+                      searching: (phase == .recording && speaking == nil) || phase == .summing)
+            .frame(width: 112, height: 112)
+            .offset(x: 10, y: -8)
+            .opacity(0.8)
+            .allowsHitTesting(false)
+    }
+
+    private var statusBar: some View {
+        HStack(spacing: 10) {
+            Text("Exempel")
+                .font(.system(size: 10.5, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.72))
+                .padding(.horizontal, 7).padding(.vertical, 2.5)
+                .background(Capsule().fill(.white.opacity(0.12)))
+            HStack(spacing: 6) {
+                glyph
+                Text(statusText)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .contentTransition(.opacity)
+                if phase == .recording {
+                    TimelineView(.periodic(from: .now, by: 1)) { _ in
+                        Text(verbatim: Self.clock(seconds))
+                    }
+                    .font(.system(size: 12, weight: .medium)).monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.45))
+                } else if phase == .done {
+                    Text(verbatim: Self.clock(length))
+                        .font(.system(size: 12, weight: .medium)).monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+            }
+        }
+        .frame(height: 20)
+    }
+
+    @ViewBuilder private var glyph: some View {
+        switch phase {
+        case .waiting:
+            Circle().fill(.white.opacity(0.35)).frame(width: 7, height: 7)
+        case .recording:
+            RecordingPulse()
+        case .summing:
+            Image(systemName: "text.line.first.and.arrowtriangle.forward")
+                .font(.system(size: 10.5, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.75))
+                .symbolEffect(.pulse, options: .repeating)
+        case .done:
+            Image(systemName: "checkmark")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white.opacity(0.75))
+        }
+    }
+
+    private var statusText: String {
+        switch phase {
+        case .waiting: return String(localized: "Lyssnar…")
+        case .recording: return String(localized: "Spelar in")
+        case .summing: return String(localized: "Skriver sammanfattningen…")
+        case .done: return String(localized: "Mötet är slut")
+        }
+    }
+
+    private var transcript: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            ForEach(0..<turnsShown, id: \.self) { i in
+                let turn = Self.turns[i]
+                DemoTurnRow(turn: turn,
+                            known: known.contains(turn.speaker),
+                            words: i == turnsShown - 1 ? words : turn.words.count,
+                            live: i == turnsShown - 1 && phase == .recording,
+                            start: i < starts.count ? starts[i] : 0)
+                    .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 8)), removal: .opacity))
+            }
+        }
+    }
+
+    /// After the meeting: what was decided and who does what — written as you watch.
+    private var summary: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            HStack(alignment: .center) {
+                Text("Sammanfattning")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                Spacer(minLength: 8)
+                if phase == .done, !still {
+                    Button { run += 1 } label: {
+                        Label("Spela igen", systemImage: "arrow.counterclockwise")
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.75))
+                            .padding(.horizontal, 9).padding(.vertical, 4)
+                            .background(Capsule().fill(.white.opacity(0.1)))
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Visa exemplet en gång till")
+                    .transition(.opacity)
+                }
+            }
+            .frame(height: 22)
+            item(icon: "checkmark.circle", label: "Beslut", text: Self.decision, shown: summaryWords[0], owner: nil)
+            item(icon: "circle", label: "Att göra", text: Self.task, shown: summaryWords[1], owner: Self.owner)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(white: 0.11)))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
+        .shadow(color: .black.opacity(0.5), radius: 18, y: -2)
+    }
+
+    private func item(icon: String, label: LocalizedStringKey, text: String, shown: Int, owner: Int?) -> some View {
+        let all = text.split(separator: " ").map(String.init)
+        return HStack(alignment: .firstTextBaseline, spacing: 9) {
+            Image(systemName: icon)
+                .font(.system(size: 12.5))
+                .foregroundStyle(.white.opacity(0.55))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.5))
+                ZStack(alignment: .topLeading) {
+                    Text(verbatim: text).opacity(0)
+                    Text(verbatim: all.prefix(shown).joined(separator: " "))
+                        .contentTransition(.interpolate)
+                }
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(0.92))
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if let owner {
+                HStack(spacing: 5) {
+                    Circle().fill(Self.tint(owner)).frame(width: 7, height: 7)
+                    Text("Talare \(owner + 1)")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.75))
+                        .fixedSize()
+                }
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(Capsule().fill(.white.opacity(0.08)))
+                .opacity(shown > 0 ? 1 : 0)
+                .alignmentGuide(.firstTextBaseline) { $0[.firstTextBaseline] }
+            }
+        }
+    }
+
+    static func clock(_ seconds: Int) -> String { String(format: "%d:%02d", seconds / 60, seconds % 60) }
+
+    // MARK: The play
+
+    private func play() async {
+        #if DEBUG
+        // `--onboarding-demo live`: the render stops mid-meeting, the third voice talking.
+        if Self.rendering, let i = CommandLine.arguments.firstIndex(of: "--onboarding-demo"),
+           CommandLine.arguments.dropFirst(i + 1).first == "live" { midway(); return }
+        #endif
+        if still { finish(); return }
+        if run > 0 {
+            withAnimation(.smooth(duration: 0.35)) { reset() }
+            guard await wait(0.6) else { return }
+        } else {
+            reset()
+            // Let the step come into place first.
+            guard await wait(1.0) else { return }
+        }
+        started = .now
+        withAnimation(.smooth(duration: 0.3)) { phase = .recording }
+
+        for (i, turn) in Self.turns.enumerated() {
+            let new = !known.contains(turn.speaker)
+            starts.append(seconds)
+            withAnimation(.smooth(duration: 0.45)) {
+                turnsShown = i + 1
+                words = 0
+                if new { speaking = nil }
+            }
+            if new {
+                // Someone it hasn't heard: a moment comparing, then their number and colour.
+                level = 0.55
+                guard await wait(0.85) else { return }
+                withAnimation(.smooth(duration: 0.4)) { known.insert(turn.speaker) }
+            }
+            speaking = turn.speaker
+            for (k, word) in turn.words.enumerated() {
+                withAnimation(.smooth(duration: 0.22)) { words = k + 1 }
+                level = .random(in: 0.5...1)
+                // A breath after a full stop or a question, as people speak.
+                let pause = word.last.map { ".?!,".contains($0) } == true ? 0.3 : 0.12
+                guard await wait(pause) else { return }
+            }
+            level = 0.15
+            guard await wait(0.55) else { return }
+        }
+
+        length = seconds
+        withAnimation(.smooth(duration: 0.4)) { phase = .summing; speaking = nil }
+        level = 0.3
+        guard await wait(1.2) else { return }
+        withAnimation(.smooth(duration: 0.55)) { summaryShown = true }
+        guard await wait(0.45) else { return }
+        for (k, text) in [Self.decision, Self.task].enumerated() {
+            let count = text.split(separator: " ").count
+            for w in 0..<count {
+                withAnimation(.smooth(duration: 0.2)) { summaryWords[k] = w + 1 }
+                guard await wait(0.08) else { return }
+            }
+            guard await wait(0.3) else { return }
+        }
+        withAnimation(.smooth(duration: 0.4)) { phase = .done }
+        level = 0.2
+    }
+
+    private func reset() {
+        phase = .waiting
+        turnsShown = 0
+        words = 0
+        known = []
+        speaking = nil
+        starts = []
+        started = nil
+        summaryShown = false
+        summaryWords = [0, 0]
+        level = 0.2
+    }
+
+    /// The whole meeting, at once.
+    private func finish() {
+        turnsShown = Self.turns.count
+        words = Self.turns.last?.words.count ?? 0
+        known = Set(Self.turns.map(\.speaker))
+        starts = [0, 3, 8, 11]
+        length = 14
+        speaking = nil
+        phase = .done
+        summaryShown = true
+        summaryWords = [Self.decision, Self.task].map { $0.split(separator: " ").count }
+    }
+
+    #if DEBUG
+    private func midway() {
+        turnsShown = 3
+        words = 5
+        known = [0, 1, 2]
+        starts = [0, 3, 8]
+        started = Date.now.addingTimeInterval(-9)
+        speaking = 2
+        level = 0.8
+        phase = .recording
+    }
+    #endif
+
+    private func wait(_ seconds: Double) async -> Bool {
+        try? await Task.sleep(for: .seconds(seconds))
+        return !Task.isCancelled
+    }
+}
+
+/// One turn, as the meeting's text shows it: a thin line in the speaker's colour, their
+/// mark and name above what they said — "Känner igen rösten…" until it knows them.
+private struct DemoTurnRow: View {
+    let turn: DemoMeeting.Turn
+    let known: Bool
+    let words: Int
+    let live: Bool
+    let start: Int
+
+    private var tint: Color { DemoMeeting.tint(turn.speaker) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                mark
+                Text(known ? String(localized: "Talare \(turn.speaker + 1)") : String(localized: "Känner igen rösten…"))
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(known ? tint : .white.opacity(0.45))
+                    .contentTransition(.opacity)
+                Text(verbatim: DemoMeeting.clock(start))
+                    .font(.system(size: 11, weight: .medium)).monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.32))
+            }
+            // The whole line, invisible, holds the row's size while it's being written.
+            ZStack(alignment: .topLeading) {
+                Text(verbatim: turn.text).opacity(0)
+                line.contentTransition(.interpolate)
+            }
+            .font(.system(size: 13.5))
+            .lineSpacing(2)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.leading, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(alignment: .leading) {
+            Capsule().fill(known ? tint : .white.opacity(0.22)).frame(width: 2.5)
+        }
+    }
+
+    /// The speaker's number in their colour — or a dashed ring while it listens.
+    private var mark: some View {
+        ZStack {
+            if known {
+                Circle().fill(tint)
+                Text(verbatim: "\(turn.speaker + 1)")
+                    .font(.system(size: 8.5, weight: .bold, design: .rounded))
+                    .foregroundStyle(.black.opacity(0.8))
+            } else {
+                Circle().strokeBorder(.white.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+            }
+        }
+        .frame(width: 14, height: 14)
+        .accessibilityHidden(true)
+    }
+
+    /// Said so far in white; the newest word still settling, in grey.
+    private var line: Text {
+        let all = turn.words
+        let n = min(words, all.count)
+        guard n > 0 else { return Text(verbatim: "") }
+        let settled = all.prefix(live ? n - 1 : n).joined(separator: " ")
+        let base = Text(verbatim: settled).foregroundStyle(.white.opacity(0.92))
+        guard live else { return base }
+        let newest = Text(verbatim: (n > 1 ? " " : "") + all[n - 1]).foregroundStyle(.white.opacity(0.5))
+        let cursor = Text(verbatim: " ▏").foregroundStyle(.white.opacity(0.55))
+        return Text("\(base)\(newest)\(cursor)")
+    }
+}
+
+/// The red dot of a recording, breathing.
+private struct RecordingPulse: View {
+    @State private var on = false
+
+    var body: some View {
+        Circle()
+            .fill(DS.Colors.recording)
+            .frame(width: 7, height: 7)
+            .opacity(on ? 1 : 0.45)
+            .onAppear { withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { on = true } }
+    }
+}
+
+// MARK: - The voice model
+
+/// Why it's needed, what it is, how big and where it runs — then one button, and what
+/// waiting means. While it downloads: how far, and that you can go on. Then: done.
+private struct VoiceModelCard: View {
+    @Binding var done: Bool
+    @ObservedObject private var voices = VoiceModels.shared
+    /// The download finished while you watched: the check comes in with a bounce.
+    @State private var celebrate = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private enum Kind: Equatable { case offer, downloading, ready }
+
+    private var state: VoiceModels.State {
+        #if DEBUG
+        if let preview = Self.preview { return preview }
+        #endif
+        return voices.state
+    }
+
+    private var kind: Kind {
+        switch state {
+        case .missing, .failed: return .offer
+        case .downloading: return .downloading
+        case .ready: return .ready
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            switch state {
+            case .missing: offer(failure: nil)
+            case .failed(let message): offer(failure: message)
+            case .downloading(let p): downloading(p)
+            case .ready: ready
+            }
+        }
+        .padding(.horizontal, 20).padding(.vertical, 18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .raised()
+        .animation(.smooth(duration: 0.4), value: kind)
+        .onAppear { if kind != .offer { done = true } }
+        .onChange(of: voices.state) { old, new in
+            if case .downloading = new { done = true }
+            if new == .ready {
+                done = true
+                if case .downloading = old { celebrate = !reduceMotion }
+            }
+        }
+    }
+
+    private var eyebrow: some View {
+        Text("Röstmodell")
+            .font(.system(size: 11, weight: .semibold))
+            .textCase(.uppercase)
+            .tracking(1.2)
+            .foregroundStyle(DS.Colors.muted)
+    }
+
+    // MARK: Not here yet
+
+    private func offer(failure: String?) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            eyebrow
+            Text(failure == nil ? String(localized: "För att veta vem som säger vad behöver Mindtalk en röstmodell.")
+                                : String(localized: "Röstmodellen laddades inte ned"))
+                .font(.system(size: 15.5, weight: .semibold))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
+            if let failure {
+                Text(failure)
+                    .font(.system(size: 12))
+                    .foregroundStyle(DS.Colors.warning)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 6)
+            }
+            VStack(alignment: .leading, spacing: 7) {
+                // After a failed download the reason takes its place.
+                if failure == nil { fact("cpu", Text("Nemotron 3 från NVIDIA")) }
+                fact("arrow.down.circle", Text("\(VoiceModels.sizeText), laddas ned en gång"))
+                fact("lock", Text("Körs på din Mac – ljudet lämnar den aldrig"))
+                fact("internaldrive", Text("Du har \(BetterNotes.gigabytes(BetterNotes.freeBytes)) ledigt"),
+                     warn: BetterNotes.freeBytes < 2_000_000_000)
+            }
+            .padding(.top, 12)
+            Spacer(minLength: 10)
+            Button { start() } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: failure == nil ? "arrow.down" : "arrow.clockwise")
+                        .font(.system(size: 11.5, weight: .bold))
+                    Text(failure == nil ? String(localized: "Ladda ned \(VoiceModels.sizeText)") : String(localized: "Försök igen"))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 22)
+            }
+            .buttonStyle(.ink)
+            .help("Laddas ned i bakgrunden – du kan fortsätta under tiden")
+            Text("**Senare?** Utan röstmodellen kan du inte spela in möten än – du laddar ned den under Möten när du vill.")
+                .font(.system(size: 11.5))
+                .foregroundStyle(DS.Colors.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 10)
+        }
+        .transition(.opacity)
+    }
+
+    private func fact(_ icon: String, _ text: Text, warn: Bool = false) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11.5))
+                .frame(width: 15)
+                .foregroundStyle(warn ? DS.Colors.warning : DS.Colors.muted)
+                .accessibilityHidden(true)
+            text
+                .font(.system(size: 12.5))
+                .foregroundStyle(warn ? DS.Colors.warning : DS.Colors.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func start() {
+        #if DEBUG
+        if Self.preview != nil { return }
+        #endif
+        voices.download()
+        done = true
+    }
+
+    // MARK: On its way
+
+    private func downloading(_ p: Double) -> some View {
+        let total = Int(VoiceModels.sizeText.prefix { $0.isNumber }) ?? 400
+        return VStack(alignment: .leading, spacing: 0) {
+            eyebrow
+            Text("Laddar ned Nemotron 3")
+                .font(.system(size: 15.5, weight: .semibold))
+                .padding(.top, 8)
+            Spacer(minLength: 12)
+            Text(p, format: .percent.precision(.fractionLength(0)))
+                .font(.system(size: 40, weight: .light, design: .rounded))
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .animation(.smooth(duration: 0.3), value: Int(p * 100))
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(DS.Colors.chip)
+                    Capsule().fill(DS.Colors.ink)
+                        .frame(width: max(6, geo.size.width * min(1, max(0, p))))
+                        .animation(.smooth(duration: 0.4), value: p)
+                }
+            }
+            .frame(height: 6)
+            .padding(.top, 8)
+            .accessibilityElement()
+            .accessibilityLabel(Text("Laddar ned röstmodellen"))
+            .accessibilityValue(Text(p, format: .percent.precision(.fractionLength(0))))
+            Text("\(Int((p * Double(total)).rounded())) av \(VoiceModels.sizeText)")
+                .font(.system(size: 12)).monospacedDigit()
+                .foregroundStyle(DS.Colors.muted)
+                .padding(.top, 8)
+            Spacer(minLength: 12)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: "arrow.right.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(DS.Colors.ink)
+                    .accessibilityHidden(true)
+                Text("Du kan fortsätta – den laddas ned i bakgrunden.")
+                    .font(.system(size: 13, weight: .medium))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(DS.Colors.card))
+        }
+        .transition(.opacity)
+    }
+
+    // MARK: Here
+
+    private var ready: some View {
+        VStack(spacing: 0) {
+            eyebrow.frame(maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 0)
+            DoneCheck(animate: celebrate)
+            Text("Klart – möten fungerar.")
+                .font(.system(size: 17, weight: .semibold))
+                .multilineTextAlignment(.center)
+                .padding(.top, 18)
+            Text("Nemotron 3 finns på din Mac och känner igen vem som pratar.")
+                .font(.system(size: 12.5))
+                .foregroundStyle(DS.Colors.muted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+            Spacer(minLength: 0)
+            // Balances the eyebrow, so the check sits in the middle.
+            eyebrow.hidden()
+        }
+        .frame(maxWidth: .infinity)
+        .transition(.opacity)
+    }
+
+    #if DEBUG
+    /// `--voices-state missing|downloading|failed|ready`: how the card looks in each, for
+    /// the render — never downloads.
+    static let preview: VoiceModels.State? = {
+        let args = CommandLine.arguments
+        guard let i = args.firstIndex(of: "--voices-state"), i + 1 < args.count else { return nil }
+        switch args[i + 1] {
+        case "missing": return .missing
+        case "downloading": return .downloading(0.42)
+        case "failed": return .failed("Internetanslutningen verkar vara bruten.")
+        case "ready": return .ready
+        default: return nil
+        }
+    }()
+    #endif
+}
+
+/// The check when the model is in place: the disc springs in (the step's one bounce)
+/// and the tick draws itself. Already there when you arrive: simply there.
+private struct DoneCheck: View {
+    let animate: Bool
+    @State private var disc = false
+    @State private var tick = false
+
+    var body: some View {
+        ZStack {
+            Circle().fill(DS.Colors.ink)
+            CheckShape()
+                .trim(from: 0, to: tick ? 1 : 0)
+                .stroke(DS.Colors.onInk, style: StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round))
+                .padding(21)
+        }
+        .frame(width: 66, height: 66)
+        .scaleEffect(disc ? 1 : 0.5)
+        .opacity(disc ? 1 : 0)
+        .shadow(color: .black.opacity(0.18), radius: 14, y: 6)
+        .accessibilityHidden(true)
+        .onAppear {
+            guard animate else { disc = true; tick = true; return }
+            withAnimation(.spring(duration: 0.6, bounce: 0.4)) { disc = true }
+            withAnimation(.smooth(duration: 0.45).delay(0.2)) { tick = true }
+        }
+    }
+}
+
+private struct CheckShape: Shape {
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX, y: r.midY + r.height * 0.02))
+        p.addLine(to: CGPoint(x: r.minX + r.width * 0.36, y: r.maxY - r.height * 0.12))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.minY + r.height * 0.1))
+        return p
     }
 }
