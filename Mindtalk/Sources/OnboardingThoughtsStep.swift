@@ -163,10 +163,11 @@ struct ThoughtsStep: View {
         return l.ready && l.micGranted && progress == 0 && !l.held && !l.locked && !l.writing && arrivals.isEmpty && incoming == nil
     }
 
-    /// "⌃⌥T"
-    private var keysInline: String {
-        (shortcut?.chip ?? "").replacingOccurrences(of: " ", with: "")
-    }
+    /// "höger ⌘", "⌃⌥T"
+    private var keysInline: String { shortcut?.inlineName ?? "" }
+
+    /// One key held on its own (right ⌘), not keys pressed together.
+    private var oneKey: Bool { shortcut?.isModifier == true }
 
     private enum Note: Equatable {
         case noWords, tooShort, failed(String)
@@ -188,7 +189,7 @@ struct ThoughtsStep: View {
     }
 
     private var keys: some View {
-        let parts = (shortcut?.chip ?? "").split(separator: " ").map(String.init)
+        let parts = shortcut?.keycaps ?? []
         let gap: CGFloat = 10
         let n = CGFloat(max(1, parts.count))
         let width = min(112, (Self.columnWidth - gap * (n - 1)) / n)
@@ -196,11 +197,12 @@ struct ThoughtsStep: View {
         return HStack(spacing: gap) {
             ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
                 VStack(spacing: 7) {
-                    Keycap(text: part, pressed: live.held, isCombination: false)
+                    Keycap(text: part.symbol, pressed: live.held, isCombination: false)
                         .scaleEffect(scale)
                         .frame(width: width, height: 96 * scale)
-                    // What's printed on the key, for those who don't know ⌃ from ⌥.
-                    Text(verbatim: Self.keyName(part))
+                    // What's printed on the key, for those who don't know ⌃ from ⌥ — and
+                    // which side, for a key held on its own ("höger command").
+                    Text(verbatim: part.caption)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(DS.Colors.muted)
                         .frame(height: 13)
@@ -212,16 +214,6 @@ struct ThoughtsStep: View {
         .background { WaitingHalo(active: waiting, strong: nudge) }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(localized: "Håll in \(keysInline)"))
-    }
-
-    private static func keyName(_ symbol: String) -> String {
-        switch symbol {
-        case "⌃": return "control"
-        case "⌥": return "option"
-        case "⇧": return "shift"
-        case "⌘": return "command"
-        default: return ""
-        }
     }
 
     private var holdButton: some View {
@@ -292,8 +284,10 @@ struct ThoughtsStep: View {
         let l = live
         return VStack(spacing: 2) {
             ChecklistRow(number: 1,
-                         // The keys are right above: no need to spell them out again.
-                         text: l.useButton ? String(localized: "Håll in knappen") : String(localized: "Håll in tangenterna"),
+                         // The keys are right above: no need to spell them out again. One
+                         // key is said by name — "tangenten" alone wouldn't say which side.
+                         text: l.useButton ? String(localized: "Håll in knappen")
+                             : oneKey ? String(localized: "Håll in \(keysInline)") : String(localized: "Håll in tangenterna"),
                          state: state(0)) { EmptyView() }
             ChecklistRow(number: 2, text: String(localized: "Säg det du vill komma ihåg"), state: state(1)) {
                 if l.held || l.locked {
@@ -324,7 +318,7 @@ struct ThoughtsStep: View {
     /// The shortcut works in every app, not only here — said once, under the list.
     @ViewBuilder private var anywhere: some View {
         if let shortcut {
-            let keys = shortcut.chip.replacingOccurrences(of: " ", with: "")
+            let keys = shortcut.chip
             HStack(alignment: .center, spacing: 8) {
                 KeyChip(text: keys)
                     .accessibilityHidden(true)
@@ -482,7 +476,8 @@ struct ThoughtsStep: View {
         if !landed.isEmpty, incoming == nil { return .saved }
         if nudge {
             return .info(l.useButton ? String(localized: "Håll in knappen – och prata medan du håller den.")
-                                     : String(localized: "Håll in tangenterna samtidigt – och prata medan du håller dem."))
+                         : oneKey ? String(localized: "Håll in \(keysInline) – och prata medan du håller den.")
+                         : String(localized: "Håll in tangenterna samtidigt – och prata medan du håller dem."))
         }
         return nil
     }

@@ -187,7 +187,7 @@ struct StatusPanelView: View {
             // A thought, from wherever you are — kept in Tankar.
             if !meeting.isRecording, dictation.engine.isInstalled {
                 PanelRow(title: "Säg en tanke", icon: "lightbulb",
-                         shortcut: Settings.thoughtShortcut.map { $0.chip.replacingOccurrences(of: " ", with: "") }) {
+                         shortcut: Settings.thoughtShortcut?.chip) {
                     (NSApp.delegate as? AppDelegate)?.closeStatusPanel(immediately: true)
                     Dictation.shared.startThought()
                 }

@@ -638,6 +638,9 @@ private struct TryStep: View {
                             Text("Vi hör dig!").foregroundStyle(DS.Colors.ink)
                         } else if dictation.phase == .transcribing {
                             Text("Skriver…")
+                        } else if let refusal = dictation.keyRefusal {
+                            // The thought key's: said for a moment, then the link is back.
+                            Text(verbatim: refusal).foregroundStyle(DS.Colors.ink)
                         } else {
                             Button(dictation.pickingKey ? String(localized: "Tryck på en tangent…") : String(localized: "Välj en annan genväg")) {
                                 dictation.pickKey()

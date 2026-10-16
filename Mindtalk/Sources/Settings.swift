@@ -27,17 +27,39 @@ enum Settings {
     }
 
     /// Say a thought (Tankar): held, it listens until you let go; tapped, until you
-    /// tap again. ⌃⌥T by default — T for tanke.
-    static var thoughtShortcut: KeyChord? {
-        get {
-            if defaults.bool(forKey: "thoughtShortcutOff") { return nil }
-            guard let data = defaults.data(forKey: "thoughtShortcut"),
-                  let chord = try? JSONDecoder().decode(KeyChord.self, from: data), chord.isValid else { return .thoughtDefault }
-            return chord
+    /// tap again. Right ⌘ held on its own by default; a chord you chose (⌃⌥T was the
+    /// default before) is kept.
+    static var thoughtShortcut: ThoughtShortcut? {
+        get { thoughtShortcut(in: defaults, besides: hotkey) }
+        set { setThoughtShortcut(newValue, in: defaults) }
+    }
+
+    /// A key held alone is under "thoughtKey", a chord under "thoughtShortcut" (where
+    /// it always was). Neither saved: the default — right ⌘, unless dictation has it.
+    static func thoughtShortcut(in defaults: UserDefaults, besides dictation: Hotkey) -> ThoughtShortcut? {
+        if defaults.bool(forKey: "thoughtShortcutOff") { return nil }
+        if let data = defaults.data(forKey: "thoughtKey"),
+           let key = try? JSONDecoder().decode(Hotkey.self, from: data), key.modifierKeys.count == 1 {
+            return .key(key)
         }
-        set {
-            defaults.set(newValue == nil, forKey: "thoughtShortcutOff")
-            if let newValue { defaults.set(try? JSONEncoder().encode(newValue), forKey: "thoughtShortcut") }
+        if let data = defaults.data(forKey: "thoughtShortcut"),
+           let chord = try? JSONDecoder().decode(KeyChord.self, from: data), chord.isValid {
+            return .chord(chord)
+        }
+        return .standard(besides: dictation)
+    }
+
+    static func setThoughtShortcut(_ shortcut: ThoughtShortcut?, in defaults: UserDefaults) {
+        defaults.set(shortcut == nil, forKey: "thoughtShortcutOff")
+        switch shortcut {
+        case .key(let key)?:
+            defaults.set(try? JSONEncoder().encode(key), forKey: "thoughtKey")
+            defaults.removeObject(forKey: "thoughtShortcut")
+        case .chord(let chord)?:
+            defaults.set(try? JSONEncoder().encode(chord), forKey: "thoughtShortcut")
+            defaults.removeObject(forKey: "thoughtKey")
+        case nil:
+            break
         }
     }
 

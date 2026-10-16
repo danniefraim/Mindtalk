@@ -25,7 +25,7 @@ struct ReadyStep: View {
                                                            : String(localized: "Håll in tangenten och prata – texten hamnar där markören står."))
                 CardDivider()
                 ReadyRow(icon: "lightbulb", state: dictation.model == .ready ? .ready : .waiting,
-                         title: "Tankar", keys: Settings.thoughtShortcut?.chip.replacingOccurrences(of: " ", with: ""),
+                         title: "Tankar", keys: Settings.thoughtShortcut?.chip,
                          detail: Settings.thoughtShortcut == nil ? String(localized: "Säg en tanke på sidan Tankar.")
                                                                   : String(localized: "Det du kommer på hamnar i Tankar."))
                 CardDivider()

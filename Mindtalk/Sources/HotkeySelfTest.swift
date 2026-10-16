@@ -25,7 +25,10 @@ enum HotkeySelfTest {
             try await fnCombination()
             try await meetingChord()
             try await thoughtChord()
-            print("Hotkey self-test passed (model, modifier combinations, shortcuts, capture, reset, fn, meeting and thought shortcuts).")
+            try await thoughtKeyAlone()
+            try thoughtKeyConflicts()
+            try await thoughtSettings()
+            print("Hotkey self-test passed (model, modifier combinations, shortcuts, capture, reset, fn, meeting and thought shortcuts, thought key held alone).")
             return 0
         } catch {
             print("Hotkey self-test failed: \(error.localizedDescription)")
@@ -401,7 +404,7 @@ enum HotkeySelfTest {
         let t = UInt16(kVK_ANSI_T)
         let chord: CGEventFlags = [.maskControl, .maskAlternate]
         let probe = Probe(hotkey: .default)
-        probe.listener.thoughtChord = .thoughtDefault
+        probe.listener.thoughtShortcut = .chord(.thoughtDefault)
         probe.listener.onThoughtPress = { [weak probe] in probe?.calls.append("thought") }
         probe.listener.onThoughtRelease = { [weak probe] in probe?.calls.append("kept") }
 
@@ -416,20 +419,183 @@ enum HotkeySelfTest {
         try require(try probe.send(.keyDown, t, []), "T on its own was taken")
         try require(try probe.send(.keyUp, t, []), "T's release on its own was taken")
         try require(try probe.send(.keyDown, t, [.maskCommand]), "⌘T was taken")
-        probe.listener.thoughtChord = nil
+        probe.listener.thoughtShortcut = nil
         try require(try probe.send(.keyDown, t, chord), "The thought shortcut was taken while turned off")
         await drainCallbacks()
         try require(probe.calls.isEmpty, "Other keys began a thought: \(probe.calls)")
 
         // The dictation key (right ⌥) held as part of it: no dictation, a thought.
         let held = Probe(hotkey: .default)
-        held.listener.thoughtChord = .thoughtDefault
+        held.listener.thoughtShortcut = .chord(.thoughtDefault)
         held.listener.onThoughtPress = { [weak held] in held?.calls.append("thought") }
         _ = try held.send(.flagsChanged, UInt16(kVK_RightOption), flags(0x40, [.maskAlternate]))
         _ = try held.send(.keyDown, t, flags(0x40, chord))
         await drainCallbacks()
         try require(held.calls == ["press", "chord", "thought"], "Right ⌥ in the thought shortcut: \(held.calls)")
         print("Passed thought shortcut: held, repeats, release after the modifiers, off")
+    }
+
+    /// Right ⌘ held on its own: a thought — and nothing is ever swallowed. With another
+    /// key (⌘C, ⌘Tab), another modifier or a click, it's a shortcut: the thought is
+    /// called off before it's let go, and a modifier held first means no thought at all.
+    private static func thoughtKeyAlone() async throws {
+        let c = UInt16(kVK_ANSI_C)
+        func thoughtProbe() -> Probe {
+            let probe = Probe(hotkey: .default)
+            probe.listener.thoughtShortcut = .rightCommand
+            probe.listener.onThoughtPress = { [weak probe] in probe?.calls.append("thought") }
+            probe.listener.onThoughtRelease = { [weak probe] in probe?.calls.append("kept") }
+            probe.listener.onThoughtChord = { [weak probe] in probe?.calls.append("shortcut") }
+            return probe
+        }
+
+        let alone = thoughtProbe()
+        try require(try alone.send(.flagsChanged, command, commandFlags), "Right ⌘ going down was swallowed")
+        _ = try alone.send(.flagsChanged, command, commandFlags)       // the same state again: no second press
+        try require(try alone.send(.flagsChanged, command, []), "Right ⌘ going up was swallowed")
+        await drainCallbacks()
+        try require(alone.calls == ["thought", "kept"], "Right ⌘ held alone: \(alone.calls)")
+
+        let copy = thoughtProbe()
+        _ = try copy.send(.flagsChanged, command, commandFlags)
+        try require(try copy.send(.keyDown, c, commandFlags), "⌘C was swallowed")
+        try require(try copy.send(.keyUp, c, commandFlags), "⌘C's release was swallowed")
+        try require(try copy.send(.keyDown, c, commandFlags), "A second ⌘C was swallowed")
+        _ = try copy.send(.keyUp, c, commandFlags)
+        _ = try copy.send(.flagsChanged, command, [])
+        await drainCallbacks()
+        try require(copy.calls == ["thought", "shortcut", "kept"], "Right ⌘ + C was not called off once: \(copy.calls)")
+
+        let tab = thoughtProbe()
+        _ = try tab.send(.flagsChanged, command, commandFlags)
+        try require(try tab.send(.keyDown, UInt16(kVK_Tab), commandFlags), "⌘Tab was swallowed")
+        _ = try tab.send(.keyDown, UInt16(kVK_Tab), commandFlags)
+        _ = try tab.send(.flagsChanged, command, [])
+        await drainCallbacks()
+        try require(tab.calls == ["thought", "shortcut", "kept"], "⌘Tab: \(tab.calls)")
+
+        let shift = thoughtProbe()
+        _ = try shift.send(.flagsChanged, command, commandFlags)
+        _ = try shift.send(.flagsChanged, UInt16(kVK_Shift), flags(0x12, [.maskCommand, .maskShift]))
+        _ = try shift.send(.flagsChanged, UInt16(kVK_Shift), commandFlags)
+        _ = try shift.send(.flagsChanged, command, [])
+        await drainCallbacks()
+        try require(shift.calls == ["thought", "shortcut", "kept"], "⇧ joining right ⌘: \(shift.calls)")
+
+        let click = thoughtProbe()
+        _ = try click.send(.flagsChanged, command, commandFlags)
+        click.listener.clicked()
+        click.listener.clicked()
+        _ = try click.send(.flagsChanged, command, [])
+        await drainCallbacks()
+        try require(click.calls == ["thought", "shortcut", "kept"], "⌘-click: \(click.calls)")
+
+        // ⇧ first, then right ⌘: ⇧⌘-something on its way — never a thought, also after ⇧ is let go.
+        let shiftFirst = thoughtProbe()
+        _ = try shiftFirst.send(.flagsChanged, UInt16(kVK_Shift), flags(0x02, [.maskShift]))
+        _ = try shiftFirst.send(.flagsChanged, command, flags(0x12, [.maskCommand, .maskShift]))
+        _ = try shiftFirst.send(.flagsChanged, UInt16(kVK_Shift), commandFlags)
+        try require(try shiftFirst.send(.keyDown, UInt16(kVK_ANSI_Z), commandFlags), "⌘Z after ⇧ was swallowed")
+        _ = try shiftFirst.send(.flagsChanged, command, [])
+        await drainCallbacks()
+        try require(shiftFirst.calls.isEmpty, "Right ⌘ after ⇧ began a thought: \(shiftFirst.calls)")
+        // Let go of everything: right ⌘ alone works again.
+        _ = try shiftFirst.send(.flagsChanged, command, commandFlags)
+        _ = try shiftFirst.send(.flagsChanged, command, [])
+        await drainCallbacks()
+        try require(shiftFirst.calls == ["thought", "kept"], "Right ⌘ alone after a shortcut: \(shiftFirst.calls)")
+
+        // Left ⌘ is left ⌘: not the thought key.
+        let left = thoughtProbe()
+        _ = try left.send(.flagsChanged, UInt16(kVK_Command), flags(0x08, [.maskCommand]))
+        _ = try left.send(.flagsChanged, UInt16(kVK_Command), [])
+        await drainCallbacks()
+        try require(left.calls.isEmpty, "Left ⌘ began a thought: \(left.calls)")
+
+        // The dictation key (right ⌥) down first: right ⌘ joins a dictation, no thought.
+        let dictating = thoughtProbe()
+        _ = try dictating.send(.flagsChanged, option, optionFlags)
+        _ = try dictating.send(.flagsChanged, command, comboFlags)
+        _ = try dictating.send(.flagsChanged, command, optionFlags)
+        _ = try dictating.send(.flagsChanged, option, [])
+        await drainCallbacks()
+        try require(!dictating.calls.contains("thought"), "Right ⌘ during a dictation began a thought: \(dictating.calls)")
+
+        // Picking a shortcut: the keys are the picker's.
+        let picking = thoughtProbe()
+        picking.listener.pickingChord = true
+        _ = try picking.send(.flagsChanged, command, commandFlags)
+        _ = try picking.send(.flagsChanged, command, [])
+        _ = try picking.send(.flagsChanged, option, optionFlags)
+        _ = try picking.send(.flagsChanged, option, [])
+        await drainCallbacks()
+        try require(picking.calls.isEmpty, "A key held while picking a shortcut began something: \(picking.calls)")
+        print("Passed thought key held alone: right ⌘ alone, ⌘C, ⌘Tab, ⇧⌘, ⌘-click, left ⌘, picking")
+    }
+
+    /// The thought key and the dictation key never share a key — whichever is picked second is refused.
+    private static func thoughtKeyConflicts() throws {
+        let rightCommand = Hotkey(keyCode: command, modifierMask: 0x10)
+        let leftCommand = ThoughtShortcut.key(Hotkey(keyCode: UInt16(kVK_Command), modifierMask: 0x08))
+        try require(ThoughtShortcut.rightCommand.refusal(besides: rightCommand) != nil,
+                    "Right ⌘ as thought key was taken while dictation has it")
+        try require(ThoughtShortcut.refusal(dictation: rightCommand, besides: .rightCommand) != nil,
+                    "Right ⌘ as dictation key was taken while thoughts have it")
+        try require(ThoughtShortcut.refusal(dictation: try combination(comboMask), besides: .rightCommand) != nil,
+                    "A dictation combination with right ⌘ was taken while thoughts have it")
+        try require(ThoughtShortcut.rightCommand.refusal(besides: .default) == nil, "Right ⌘ refused next to right ⌥")
+        try require(ThoughtShortcut.refusal(dictation: .default, besides: .rightCommand) == nil, "Right ⌥ refused next to right ⌘")
+        try require(leftCommand.refusal(besides: rightCommand) == nil, "Left ⌘ refused next to right ⌘")
+        try require(ThoughtShortcut.chord(.thoughtDefault).refusal(besides: rightCommand) == nil, "⌃⌥T refused next to right ⌘")
+        try require(ThoughtShortcut.refusal(dictation: rightCommand, besides: nil) == nil, "Refused with thoughts off")
+        // Dictation already on right ⌘ (from before): the default steps aside to ⌃⌥T.
+        try require(ThoughtShortcut.standard(besides: rightCommand) == .chord(.thoughtDefault), "Default collided with dictation")
+        try require(ThoughtShortcut.standard(besides: .default) == .rightCommand, "Default is not right ⌘")
+
+        let one = ThoughtShortcut.rightCommand
+        try require(one.chip == Hotkey(keyCode: command, modifierMask: 0x10).chip, "Right ⌘ chip: \(one.chip)")
+        try require(one.inlineName.contains("⌘") && !one.inlineName.contains("Cmd"), "Right ⌘ mid-sentence: \(one.inlineName)")
+        try require(one.keycaps.count == 1 && one.keycaps[0].symbol == "⌘", "Right ⌘ keycaps: \(one.keycaps)")
+        let chord = ThoughtShortcut.chord(.thoughtDefault)
+        try require(chord.chip == "⌃⌥T" && chord.inlineName == "⌃⌥T", "⌃⌥T chip: \(chord.chip)")
+        try require(chord.keycaps.map(\.symbol) == ["⌃", "⌥", "T"], "⌃⌥T keycaps: \(chord.keycaps)")
+        print("Passed thought key and dictation key conflicts, default and labels")
+    }
+
+    /// Saved settings, in a scratch domain (never the app's): an old chord is kept,
+    /// nothing saved means right ⌘, off stays off.
+    private static func thoughtSettings() async throws {
+        let name = "ai.mindact.mindtalk.hotkey-self-test"
+        guard let defaults = UserDefaults(suiteName: name) else { throw Failure("No scratch settings") }
+        defaults.removePersistentDomain(forName: name)
+        defer { defaults.removePersistentDomain(forName: name) }
+
+        try require(Settings.thoughtShortcut(in: defaults, besides: .default) == .rightCommand, "Nothing saved is not right ⌘")
+        // ⌃⌥T saved by an earlier version — the bytes it wrote.
+        defaults.set(Data(#"{"keyCode":17,"modifiers":786432}"#.utf8), forKey: "thoughtShortcut")
+        try require(Settings.thoughtShortcut(in: defaults, besides: .default) == .chord(.thoughtDefault), "A saved ⌃⌥T was lost")
+        let custom = KeyChord(keyCode: UInt16(kVK_ANSI_J), modifiers: CGEventFlags([.maskControl, .maskCommand]).rawValue)
+        defaults.set(try JSONEncoder().encode(custom), forKey: "thoughtShortcut")
+        try require(Settings.thoughtShortcut(in: defaults, besides: .default) == .chord(custom), "A saved chord was lost")
+
+        // …and that chord still works in the listener.
+        let probe = Probe(hotkey: .default)
+        probe.listener.thoughtShortcut = Settings.thoughtShortcut(in: defaults, besides: .default)
+        var calls: [String] = []
+        probe.listener.onThoughtPress = { calls.append("thought") }
+        try require(!(try probe.send(.keyDown, UInt16(kVK_ANSI_J), [.maskControl, .maskCommand])), "The saved chord reached the app")
+        try require(try probe.send(.flagsChanged, command, commandFlags), "Right ⌘ was swallowed with a chord saved")
+        _ = try probe.send(.flagsChanged, command, [])
+        await drainCallbacks()
+        try require(calls == ["thought"], "The saved chord, or right ⌘ beside it: \(calls)")
+
+        Settings.setThoughtShortcut(.rightCommand, in: defaults)
+        try require(Settings.thoughtShortcut(in: defaults, besides: .default) == .rightCommand, "A saved key did not come back")
+        Settings.setThoughtShortcut(.chord(.thoughtDefault), in: defaults)
+        try require(Settings.thoughtShortcut(in: defaults, besides: .default) == .chord(.thoughtDefault), "A chord after a key did not come back")
+        Settings.setThoughtShortcut(nil, in: defaults)
+        try require(Settings.thoughtShortcut(in: defaults, besides: .default) == nil, "Off did not stay off")
+        print("Passed thought settings: old chord kept, default right ⌘, key and chord saved, off")
     }
 
     private static func combination(_ mask: UInt64) throws -> Hotkey {
@@ -467,6 +633,7 @@ enum HotkeySelfTest {
         init(hotkey: Hotkey) {
             listener.modifiersHeldNow = { 0 }      // not the real keyboard's state
             listener.hotkey = hotkey
+            listener.thoughtShortcut = nil         // not this Mac's setting; the thought tests set their own
             listener.onPress = { [weak self] in self?.calls.append("press") }
             listener.onRelease = { [weak self] in self?.calls.append("release") }
             listener.onChord = { [weak self] in self?.calls.append("chord") }

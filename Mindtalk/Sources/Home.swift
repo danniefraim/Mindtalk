@@ -311,7 +311,7 @@ struct HomeHero: View {
             }
         }
         inkButton("Säg en tanke", icon: "lightbulb", filled: false,
-                  keys: Settings.thoughtShortcut?.chip.replacingOccurrences(of: " ", with: ""),
+                  keys: Settings.thoughtShortcut?.chip,
                   help: micBusy ? "Går när dikteringen är klar" : "Säg det du kommer på – det sparas i Tankar") { dictation.startThought() }
             .disabled(micBusy || !dictation.engine.isInstalled)
         HStack(spacing: 5) {
@@ -543,7 +543,7 @@ struct HomeShelves: View {
             }
             shelf("Tankar", more: open.count > 4 ? "Alla \(open.count) tankar" : "Alla tankar", label: "Alla tankar", action: { page = .thoughts }) {
                 if open.isEmpty {
-                    if let keys = Settings.thoughtShortcut?.chip.replacingOccurrences(of: " ", with: "") {
+                    if let keys = Settings.thoughtShortcut?.inlineName {
                         hint("lightbulb", "Det du kommer på mitt i något annat – håll in \(keys) och säg det, så ligger det här.")
                     } else {
                         hint("lightbulb", "Det du kommer på mitt i något annat – säg det, så ligger det här.")

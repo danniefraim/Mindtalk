@@ -33,7 +33,7 @@ struct ThoughtsPage: View {
     @FocusState private var searching: Bool
     @FocusState private var listFocused: Bool
 
-    private var chord: String { Settings.thoughtShortcut?.chip.replacingOccurrences(of: " ", with: "") ?? "" }
+    private var chord: String { Settings.thoughtShortcut?.inlineName ?? "" }
     private var live: Int { thoughts.pinned.count + thoughts.days.reduce(0) { $0 + $1.items.count } }
     /// Keys go to the list, not to a field being typed in.
     private var listKeys: Bool { editing == nil && !typing && !searching }
@@ -156,7 +156,7 @@ struct ThoughtsPage: View {
         VStack(spacing: 14) {
             if let keys = Settings.thoughtShortcut {
                 // The key you hold — big, and it sinks while you do.
-                Keycap(text: keys.chip, pressed: dictation.forThought && dictation.phase == .recording, isCombination: false)
+                Keycap(text: keys.keycap, pressed: dictation.forThought && dictation.phase == .recording, isCombination: false)
                     .scaleEffect(0.75)
                     .frame(height: 80)
                     .accessibilityHidden(true)

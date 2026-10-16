@@ -243,6 +243,9 @@ final class Dictation: ObservableObject {
     private let hud = HUD()
     private var pressedAt: Date?
     private var ignoreNextRelease = false
+    /// The thought key (held alone) went down during a hands-free thought: it ends the
+    /// thought when it's let go — unless it turns out to be ⌘C.
+    private var thoughtStopPending = false
     private var permissionPoll: Timer?
     /// The language a recording was started in — it's transcribed in that one,
     /// even if you switch meanwhile (the switch waits until it's done).
@@ -288,6 +291,7 @@ final class Dictation: ObservableObject {
         keys.onSpaceWhileHeld = { [weak self] in self?.spaceWhileHeld() ?? false }
         keys.onThoughtPress = { [weak self] in self?.thoughtPressed() }
         keys.onThoughtRelease = { [weak self] in self?.thoughtReleased() }
+        keys.onThoughtChord = { [weak self] in self?.thoughtJoined() }
         keys.onPasteLast = { [weak self] in self?.pasteLast() }
         keys.onEscape = { [weak self] in
             guard let self else { return false }
@@ -513,9 +517,14 @@ final class Dictation: ObservableObject {
 
     func pickKey() {
         pickingKey = true
+        keyRefusal = nil
         KeyListener.shared.capture = { [weak self] key in
             guard let self else { return }
             self.pickingKey = false
+            // The thought key's: one press can't be both. The old key stays.
+            if let why = ThoughtShortcut.refusal(dictation: key, besides: Settings.thoughtShortcut) {
+                return self.refuse(why)
+            }
             self.hotkey = key
             Settings.hotkey = key
             KeyListener.shared.hotkey = key
@@ -526,6 +535,17 @@ final class Dictation: ObservableObject {
     func stopPickingKey() {
         pickingKey = false
         KeyListener.shared.capture = nil
+    }
+
+    /// Why the key just picked wasn't taken — said where you picked it, for a while.
+    @Published private(set) var keyRefusal: String?
+
+    private func refuse(_ why: String) {
+        keyRefusal = why
+        NSSound.beep()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
+            if self?.keyRefusal == why { self?.keyRefusal = nil }
+        }
     }
 
     // MARK: Key handling
@@ -604,6 +624,12 @@ final class Dictation: ObservableObject {
     private func thoughtPressed() {
         switch phase {
         case .recording where forThought && handsFree:
+            // A key held alone (right ⌘) is also the start of ⌘C: it ends the thought
+            // when it's let go with nothing else pressed.
+            if KeyListener.shared.thoughtShortcut?.isModifier == true {
+                thoughtStopPending = true
+                return
+            }
             ignoreNextRelease = true
             finish()
         case .idle, .failed, .copied, .saved:
@@ -620,6 +646,11 @@ final class Dictation: ObservableObject {
     /// tap (or ✓ in the bubble).
     private func thoughtReleased() {
         keyIsDown = false
+        if thoughtStopPending {
+            thoughtStopPending = false
+            if phase == .recording, forThought, handsFree { finish() }
+            return
+        }
         if let problem = pendingProblem {
             pendingProblem = nil
             forThought = false
@@ -628,6 +659,17 @@ final class Dictation: ObservableObject {
         if ignoreNextRelease { ignoreNextRelease = false; return }
         guard phase == .recording, forThought, !handsFree, let pressedAt else { return }
         if Date().timeIntervalSince(pressedAt) < tapThreshold { lock() } else { finish() }
+    }
+
+    /// Another key (or a click) joined the thought key held alone: ⌘C, ⌘Tab, a ⌘-click.
+    /// A shortcut, not a thought — dropped silently, like the dictation key's ⌥2 → @.
+    private func thoughtJoined() {
+        thoughtStopPending = false
+        // A problem waiting to be said (the model starting) — it was never a thought.
+        if pendingProblem != nil, phase != .recording, phase != .transcribing { forThought = false }
+        pendingProblem = nil
+        guard phase == .recording, forThought, !handsFree else { return }
+        cancel()
     }
 
     /// "Säg en tanke" (the Tankar page, the menu bar): listening hands-free until ✓.
@@ -779,7 +821,8 @@ final class Dictation: ObservableObject {
                 // A mic that went quiet without saying so (unplugged, Bluetooth dropped):
                 // finish with what was heard instead of recording nothing.
                 if d.recorder.silentFor > Self.deadMic { return d.finish() }
-                if d.keyIsDown, !d.handsFree, d.mode != .toggle { KeyListener.shared.resync() }
+                // A thought is held whatever the dictation mode.
+                if d.keyIsDown, !d.handsFree, d.mode != .toggle || d.forThought { KeyListener.shared.resync() }
             }
         }
     }
@@ -888,6 +931,7 @@ final class Dictation: ObservableObject {
         }
         handsFree = false
         forThought = false
+        thoughtStopPending = false
         startCuePlayed = false
         awaitingSecondTap = false
         secondTapDown = false

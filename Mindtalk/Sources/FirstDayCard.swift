@@ -160,7 +160,7 @@ struct FirstDayCard: View {
     }
 
     private var thoughtDetail: String {
-        guard let keys = Settings.thoughtShortcut?.chip.replacingOccurrences(of: " ", with: "") else {
+        guard let keys = Settings.thoughtShortcut?.inlineName else {
             return String(localized: "Säg en tanke på sidan Tankar.")
         }
         return String(localized: "Håll in \(keys) och prata – tanken hamnar i Tankar.")
