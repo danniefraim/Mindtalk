@@ -77,7 +77,7 @@ struct HomeHero: View {
                         // Only the download left: nothing for you to do but wait.
                         Text("Nästan klart").font(.system(size: 44, weight: .regular, design: .serif)).foregroundStyle(onInk)
                         Text(verbatim: SpeechModel.isPreparing(p)
-                             ? String(localized: "Talmodellen görs redo för din Mac – bara första gången.")
+                             ? String(localized: "Talmodellen görs redo för din Mac, bara första gången.")
                              : String(localized: "Laddar ned talmodellen · \(dictation.engine.progressText(p, started: dictation.downloadStarted[dictation.engine]))"))
                             .font(.system(size: 14)).foregroundStyle(onInk.opacity(0.75)).monospacedDigit().padding(.top, 10)
                     } else {
@@ -92,7 +92,7 @@ struct HomeHero: View {
                     Text("Nästan klart").font(.system(size: 44, weight: .regular, design: .serif)).foregroundStyle(onInk)
                     TimelineView(.periodic(from: since, by: 30)) { context in
                         let minutes = Int(context.date.timeIntervalSince(since) / 60)
-                        let text = String(localized: "Talmodellen görs redo för din Mac – bara första gången, ungefär en halv minut.")
+                        let text = String(localized: "Talmodellen görs redo för din Mac. Bara första gången, ungefär en halv minut.")
                         Text(verbatim: minutes < 1 ? text : text + " " + String(localized: "\(minutes) min hittills."))
                             .font(.system(size: 15)).foregroundStyle(onInk.opacity(0.75)).monospacedDigit()
                             .fixedSize(horizontal: false, vertical: true)
@@ -246,9 +246,9 @@ struct HomeHero: View {
         } else if !fresh {
             // A new week (a Monday morning) — not a new user.
             parts.append(streak > 0 ? String(localized: "Du har dikterat \(streak) dagar i rad.")
-                                    : String(localized: "Texten skrivs där markören står – i vilken app som helst."))
+                                    : String(localized: "Texten skrivs där markören står, i vilken app som helst."))
         } else {
-            parts.append(String(localized: "Texten skrivs där markören står – i vilken app som helst."))
+            parts.append(String(localized: "Texten skrivs där markören står, i vilken app som helst."))
         }
         return parts.joined(separator: "\n")
     }
@@ -312,7 +312,7 @@ struct HomeHero: View {
         }
         inkButton("Säg en tanke", icon: "lightbulb", filled: false,
                   keys: Settings.thoughtShortcut?.chip,
-                  help: micBusy ? "Går när dikteringen är klar" : "Säg det du kommer på – det sparas i Tankar") { dictation.startThought() }
+                  help: micBusy ? "Går när dikteringen är klar" : "Säg det du kommer på, så sparas det i Tankar") { dictation.startThought() }
             .disabled(micBusy || !dictation.engine.isInstalled)
         HStack(spacing: 5) {
             Text(verbatim: pressVerb).foregroundStyle(onInk.opacity(0.65))
@@ -544,9 +544,9 @@ struct HomeShelves: View {
             shelf("Tankar", more: open.count > 4 ? "Alla \(open.count) tankar" : "Alla tankar", label: "Alla tankar", action: { page = .thoughts }) {
                 if open.isEmpty {
                     if let keys = Settings.thoughtShortcut?.inlineName {
-                        hint("lightbulb", "Det du kommer på mitt i något annat – håll in \(keys) och säg det, så ligger det här.")
+                        hint("lightbulb", "Det du kommer på mitt i något annat. Håll in \(keys) och säg det, så ligger det här.")
                     } else {
-                        hint("lightbulb", "Det du kommer på mitt i något annat – säg det, så ligger det här.")
+                        hint("lightbulb", "Det du kommer på mitt i något annat. Säg det, så ligger det här.")
                     }
                 } else {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: wide ? 2 : 1),

@@ -24,7 +24,7 @@ struct VocabularyPage: View {
         var title: LocalizedStringKey {
             switch self {
             case .newest: return "Senast tillagda"
-            case .alphabetical: return "A–Ö"
+            case .alphabetical: return "A till Ö"
             case .used: return "Mest använda"
             }
         }
@@ -79,7 +79,7 @@ struct VocabularyPage: View {
                         .frame(width: 180)
                 }
                 if vocabulary.entries.count > 1 {
-                    MenuPicker(options: Sort.allCases.map { ($0.rawValue, String(localized: String.LocalizationValue($0.rawValue == "newest" ? "Senast tillagda" : $0.rawValue == "alphabetical" ? "A–Ö" : "Mest använda"))) },
+                    MenuPicker(options: Sort.allCases.map { ($0.rawValue, String(localized: String.LocalizationValue($0.rawValue == "newest" ? "Senast tillagda" : $0.rawValue == "alphabetical" ? "A till Ö" : "Mest använda"))) },
                                selection: $sort)
                         .fixedSize()
                 }
@@ -194,7 +194,7 @@ struct VocabularyPage: View {
                         .font(.system(size: 18, design: .serif)).foregroundStyle(.white.opacity(0.75))
                 }
             }
-            Text("Namn och ord som Mindtalk ska stava som du vill – i diktering, tankar och möten. Isärskrivna eller felhörda varianter, som ”Mind Talk”, rättas av sig själva.")
+            Text("Namn och ord som Mindtalk ska stava som du vill i diktering, tankar och möten. Isärskrivna eller felhörda varianter, som ”Mind Talk”, rättas av sig själva.")
                 .font(.system(size: 13.5)).foregroundStyle(.white.opacity(0.75))
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 520, alignment: .leading)
@@ -557,7 +557,7 @@ private struct ListenerRow: View {
         case .ready:
             return String(localized: "Liknar något du dikterar ett ord i listan lyssnar Mindtalk en gång till på just det stället, så att namnet stavas rätt.")
         case .downloading:
-            return String(localized: "Laddar ned lyssnaren (\(VocabularyBoost.sizeText)). Det sker bara en gång – sedan fungerar den utan internet.")
+            return String(localized: "Laddar ned lyssnaren (\(VocabularyBoost.sizeText)). Det sker bara en gång, sedan fungerar den utan internet.")
         case .missing:
             return Vocabulary.shared.hasOwnWords
                 ? String(localized: "Med en liten lyssnare (\(VocabularyBoost.sizeText)) stavas namnen rätt redan när du pratar. Den laddas ned en gång och fungerar sedan utan internet. Utan den rättas dina ord ändå i texten.")

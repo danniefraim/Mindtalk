@@ -315,7 +315,7 @@ private struct LanguageStep: View {
     var body: some View {
         VStack(spacing: 18) {
             StepHeader(title: "Vilket språk pratar du?",
-                       subtitle: "Välj ett eller båda – du byter med ett klick i menyraden. Allt hämtas en gång och körs på din Mac.")
+                       subtitle: "Välj ett eller båda. Du byter med ett klick i menyraden. Allt hämtas en gång och körs på din Mac.")
                 .staggered(0)
             HStack(spacing: 16) {
                 ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
@@ -341,7 +341,7 @@ extension LanguageStep {
         let options = Self.gemmaOptions
         if showsVoices || showsListener || !options.isEmpty {
             VStack(alignment: .leading, spacing: 9) {
-                Text("Rekommenderas också – laddas ned medan du går vidare")
+                Text("Rekommenderas också. Laddas ned medan du går vidare")
                     .font(.system(size: 12, weight: .semibold)).foregroundStyle(DS.Colors.muted)
                 if showsVoices {
                     extra($voices, name: "Röstmodellen", gives: "vem som säger vad i möten", size: VoiceModels.sizeText)
@@ -499,7 +499,7 @@ private struct PermissionsStep: View {
     var body: some View {
         VStack(spacing: 26) {
             StepHeader(title: "Två behörigheter, en gång",
-                       subtitle: "En gång räcker – samma tillåtelse gäller diktering, tankar och möten.")
+                       subtitle: "En gång räcker. Samma tillåtelse gäller diktering, tankar och möten.")
                 .staggered(0)
             HStack(spacing: 16) {
                 PermissionCard(icon: "hand.point.up.left.fill", title: "Hjälpmedel",
@@ -513,7 +513,7 @@ private struct PermissionsStep: View {
             }
             Group {
                 if dictation.micGranted && dictation.accessibilityGranted {
-                    GrantedLabel(text: "Allt klart – fortsätt när du vill.")
+                    GrantedLabel(text: "Allt klart. Fortsätt när du vill.")
                         .transition(.scale(scale: 0.9).combined(with: .opacity))
                 } else if !dictation.accessibilityGranted {
                     Label("Slå på Mindtalk under Integritet och säkerhet → Hjälpmedel. Kortet bockas av när det är klart.",
@@ -521,7 +521,7 @@ private struct PermissionsStep: View {
                         .foregroundStyle(DS.Colors.muted)
                         .transition(.opacity)
                 } else {
-                    Label("Tillåt mikrofonen – annars hör Mindtalk dig inte.", systemImage: "info.circle")
+                    Label("Tillåt mikrofonen, annars hör Mindtalk dig inte.", systemImage: "info.circle")
                         .foregroundStyle(DS.Colors.muted)
                         .transition(.opacity)
                 }
@@ -590,7 +590,7 @@ private struct TryStep: View {
     @State private var practice = ""
     @State private var celebrated = false
     @State private var confetti = 0
-    /// "Klart – prova nu!" for a moment when the speech model becomes ready while you wait.
+    /// "Klart, prova nu!" for a moment when the speech model becomes ready while you wait.
     @State private var justReady = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -601,10 +601,10 @@ private struct TryStep: View {
     private var hearing: Bool { recording && (meter.levels.suffix(8).max() ?? 0) > 0.08 }
 
     private var subtitle: String {
-        if celebrated { return String(localized: "Din första text – utan att skriva ett ord. Det fungerar i alla appar.") }
-        if !permitted { return String(localized: "Snart kan du prova – först behövs din tillåtelse.") }
+        if celebrated { return String(localized: "Din första text, utan att skriva ett ord. Det fungerar i alla appar.") }
+        if !permitted { return String(localized: "Snart kan du prova. Först behövs din tillåtelse.") }
         if ready { return String(localized: "Klicka i rutan, håll in \(dictation.hotkey.inlineName) och säg något.") }
-        return String(localized: "Snart kan du prova – när talmodellen är klar.")
+        return String(localized: "Du kan prova så fort talmodellen är klar.")
     }
 
     var body: some View {
@@ -617,7 +617,7 @@ private struct TryStep: View {
                     .animation(.easeOut(duration: 0.3), value: celebrated)
                     .overlay(alignment: .bottom) {
                         if justReady {
-                            Label("Klart – prova nu!", systemImage: "checkmark.circle.fill")
+                            Label("Klart, prova nu!", systemImage: "checkmark.circle.fill")
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(DS.Colors.onInk)
                                 .padding(.horizontal, 14).padding(.vertical, 7)
@@ -701,7 +701,7 @@ private struct TryStep: View {
                 // After the first words: the rest of the key, as a reward rather than a lesson.
                 if celebrated {
                     HStack(spacing: 12) {
-                        KeyHint(icon: "hand.tap.fill", title: "Håll in", text: "prata, släpp – klart")
+                        KeyHint(icon: "hand.tap.fill", title: "Håll in", text: "prata, släpp, klart")
                         KeyHint(icon: "lock.fill", title: "Dubbeltryck", text: "prata utan att hålla")
                         KeyHint(icon: "escape", title: "Esc", text: "avbryter")
                     }
@@ -719,13 +719,13 @@ private struct TryStep: View {
             confetti += 1
             Cue.celebrate()
         }
-        // Waited for it: a sound and a moment's "Klart – prova nu!", so you notice even
+        // Waited for it: a sound and a moment's "Klart, prova nu!", so you notice even
         // if you looked away.
         .onChange(of: dictation.model) { old, new in
             guard new == .ready, old != .ready, !celebrated else { return }
             Cue.done()
             withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.45, bounce: 0.25)) { justReady = true }
-            AccessibilityNotification.Announcement(String(localized: "Klart – prova nu!")).post()
+            AccessibilityNotification.Announcement(String(localized: "Klart, prova nu!")).post()
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
                 withAnimation(.easeOut(duration: 0.3)) { justReady = false }
             }
@@ -821,11 +821,11 @@ struct ModelState: View {
                     // The first time on a Mac it starts on the GPU — about half a minute
                     // (measured 29 s); the Neural Engine is prepared later, unseen.
                     let minutes = Int(Date().timeIntervalSince(dictation.loadingSince) / 60)
-                    Text(minutes < 1 ? String(localized: "Bara första gången – det tar ungefär en halv minut.")
-                                     : String(localized: "Bara första gången – det tar en liten stund. \(minutes) min hittills."))
+                    Text(minutes < 1 ? String(localized: "Det tar ungefär en halv minut, bara första gången.")
+                                     : String(localized: "Det tar en liten stund, bara första gången. \(minutes) min hittills."))
                         .font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
                     // Wait here: the next steps try things out, and they need it too.
-                    Text("Vänta gärna här – sedan provar du direkt.")
+                    Text("Vänta gärna här. Sedan provar du direkt.")
                         .font(.system(size: 13, weight: .medium)).foregroundStyle(.primary)
                 case .failed(let message):
                     Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 22)).foregroundStyle(.orange)

@@ -532,7 +532,7 @@ struct StartCard: View {
         } else {
             // One start: the meeting begins with the round ("Vem är här?"), which
             // can be skipped.
-            roomButton("Starta möte", dot: true, help: "Starta möte (⇧⌘R) – börjar med en presentationsrunda som går att hoppa över") {
+            roomButton("Starta möte", dot: true, help: "Starta möte (⇧⌘R). Börjar med en presentationsrunda som går att hoppa över") {
                 starting = true
                 session.start(introducing: true, folder: MeetingFolders.shared.selected)
             }
@@ -600,7 +600,7 @@ struct StartCard: View {
                     }
                 }
                 .buttonStyle(.ink)
-                .help("Starta möte (⇧⌘R) – börjar med en presentationsrunda som går att hoppa över")
+                .help("Starta möte (⇧⌘R). Börjar med en presentationsrunda som går att hoppa över")
                 .accessibilityHint("Mötet börjar med en presentationsrunda som går att hoppa över")
                 .disabled(dictation.phase != .idle)
             }
@@ -962,7 +962,7 @@ struct SpeakerChip: View {
             }
         }
         .buttonStyle(.plain)
-        .help(recognized ? "Mindtalk kände igen rösten – klicka för att ändra" : "Ge talaren ett namn")
+        .help(recognized ? "Mindtalk kände igen rösten. Klicka för att ändra" : "Ge talaren ett namn")
         .accessibilityHint("Ge talaren ett namn")
         .popover(isPresented: $editing, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 12) {
@@ -1584,7 +1584,7 @@ private struct TranscriptView: View {
             Image(systemName: "waveform").font(.system(size: 26)).foregroundStyle(DS.Colors.faint)
             if session?.phase == .starting {
                 Text("Förbereder…").font(.system(size: 15, weight: .semibold))
-                Text("Inspelningen är redan igång – inget går förlorat.")
+                Text("Inspelningen är redan igång, så inget går förlorat.")
             } else if live {
                 Text("Lyssnar").font(.system(size: 15, weight: .semibold))
                 Text("Börja prata, så dyker texten upp här.")
@@ -1834,7 +1834,7 @@ private struct SummaryView: View {
                                 .foregroundStyle(DS.Colors.muted)
                         }
                         .buttonStyle(.plain)
-                        .help("Skriv det som var viktigt för dig – sammanfattningen bygger på det")
+                        .help("Skriv det som var viktigt för dig, så bygger sammanfattningen på det")
                     }
                     if let error = notes.failed[record.id] {
                         Label(error, systemImage: "exclamationmark.triangle")
@@ -1925,7 +1925,7 @@ private struct SummaryView: View {
                     // Who writes the summaries is chosen in Settings → Modeller: one click away.
                     Button("Byt modell") { SettingsPage.openModels() }
                         .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.ink)
-                        .help("Välj vem som skriver sammanfattningarna – i Inställningar → Modeller")
+                        .help("Välj vem som skriver sammanfattningarna i Inställningar → Modeller")
                     Text("Stämmer något inte? Klicka på en tid och lyssna själv.")
                     Spacer(minLength: 16)
                     Button {
@@ -1995,7 +1995,7 @@ private struct SummaryView: View {
         case .notReady: return String(localized: "Apple Intelligence laddas ned. Sammanfatta när den är klar.")
         default:
             return NotesModel.recommended != nil
-                ? String(localized: "Den här Macen kan inte köra Apple Intelligence – ladda ned Gemma 4 under Inställningar → Modeller. Texten finns under fliken Text.")
+                ? String(localized: "Den här Macen kan inte köra Apple Intelligence. Ladda ned Gemma 4 under Inställningar → Modeller. Texten finns under fliken Text.")
                 : String(localized: "Den här Macen kan inte köra Apple Intelligence. Texten finns under fliken Text.")
         }
     }
@@ -2310,7 +2310,7 @@ private struct LiveBar: View {
             return (session.isPaused ? String(localized: "Mötet avslutas om några sekunder.")
                                      : String(localized: "Spelar in tills nedräkningen är klar."), false)
         }
-        if session.isPaused { return (String(localized: "Pausat – mikrofonen är av. Det som sagts finns kvar."), false) }
+        if session.isPaused { return (String(localized: "Pausat. Mikrofonen är av och det som sagts finns kvar."), false) }
         if let w = session.warning { return (w, true) }
         if !panelTipSeen, session.isRecording {
             return (String(localized: "Stäng fönstret så fortsätter mötet i en liten panel."), false)
@@ -2374,7 +2374,7 @@ private struct LiveBar: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .help("Avsluta mötet – du kan ångra i några sekunder")
+        .help("Avsluta mötet. Du kan ångra i några sekunder")
         .accessibilityLabel("Avsluta mötet")
     }
 }
@@ -2651,11 +2651,11 @@ struct ArchivePreview: View {
             return r
         }
         return [
-            m("2026-10-15", "Veckomöte", ["Jag", "Anna"], 34), m("2026-10-14", "Kund Nordljus – uppstart", ["Jag", "Eva"], 52),
+            m("2026-10-15", "Veckomöte", ["Jag", "Anna"], 34), m("2026-10-14", "Kund Nordljus, uppstart", ["Jag", "Eva"], 52),
             m("2026-10-02", "Planering Q4", ["Jag", "Anna", "Erik"], 41),
             m("2026-09-24", "Styrelsemöte", ["Jag", "Kim"], 88), m("2026-09-10", "Intervju", ["Jag", "Olle"], 25),
             m("2026-08-28", "Budget", ["Jag", "Anna", "Erik"], 47), m("2026-08-12", "Avstämning", ["Jag", "Anna"], 18),
-            m("2026-08-05", "Kund Nordljus – status", ["Jag", "Eva"], 30),
+            m("2026-08-05", "Kund Nordljus, status", ["Jag", "Eva"], 30),
             m("2026-06-19", "Sommarplanering", ["Jag", "Erik"], 22),
             m("2025-12-11", "Julmöte", ["Jag", "Anna", "Kim"], 64), m("2025-12-03", "Uppföljning", ["Jag", "Olle"], 21),
             m("2025-11-20", "Offertgenomgång", ["Jag", "Eva"], 37), m("2025-03-04", "Kickoff", ["Jag", "Anna"], 55),

@@ -246,7 +246,7 @@ final class MeetingSession: ObservableObject {
         }
         var copy = original
         copy.id = UUID()
-        copy.title = "Självtest – " + original.title
+        copy.title = "Självtest: " + original.title
         do {
             try MeetingStore.prepareFolder(for: copy.id)
             try FileManager.default.copyItem(at: MeetingStore.audioURL(for: original.id), to: MeetingStore.audioURL(for: copy.id))
@@ -338,7 +338,7 @@ final class MeetingSession: ObservableObject {
     func showDemo(finished: Bool) {
         // `--demo-scanner`: the introduction round — Anna known, Erik just said his name.
         if CommandLine.arguments.contains("--demo-scanner") {
-            var new = MeetingRecord(title: "Veckomöte – lansering", date: Date().addingTimeInterval(-40), language: .swedish)
+            var new = MeetingRecord(title: "Veckomöte om lanseringen", date: Date().addingTimeInterval(-40), language: .swedish)
             var t = 1.0
             for (speaker, line) in [(0, "Hej allihop, det är Anna här."), (1, "Hej, jag heter Erik och jobbar med försäljningen."),
                                     (2, "Och så är det jag här också, hej.")] {
@@ -362,14 +362,14 @@ final class MeetingSession: ObservableObject {
             return
         }
         let script: [(Int, String)] = [
-            (0, "Då kör vi. Välkomna allihop – idag ska vi gå igenom lanseringen och bestämma vad som händer härnäst."),
+            (0, "Då kör vi. Välkomna allihop. Idag ska vi gå igenom lanseringen och bestämma vad som händer härnäst."),
             (1, "Siffrorna ser riktigt bra ut. Vi hade fler nedladdningar första dagen än hela förra månaden."),
             (0, "Vad kul! Vet vi var de flesta användarna kommer ifrån?"),
             (2, "Mest från Sverige, men vi ser en del från Norge och Danmark också. The feedback in English is great too."),
             (1, "Jag tycker att vi ska prioritera mötesfunktionen. Det är det folk frågar mest om."),
             (0, "Håller med. Kan du ta fram en plan till torsdag?"),
         ]
-        var new = MeetingRecord(title: "Veckomöte – lansering", date: Date().addingTimeInterval(-754), language: .swedish)
+        var new = MeetingRecord(title: "Veckomöte om lanseringen", date: Date().addingTimeInterval(-754), language: .swedish)
         var t = 3.0
         for (speaker, line) in script {
             for word in line.split(separator: " ") {
@@ -545,8 +545,8 @@ final class MeetingSession: ObservableObject {
         }
         guard saved.finished, saved.hasAudio else {
             lastError = saved.hasAudio
-                ? String(localized: "Gör klart mötet först – sedan kan du fortsätta det.")
-                : String(localized: "Inspelningen av mötet är borttagen – mötet går inte att fortsätta.")
+                ? String(localized: "Gör klart mötet först, sedan kan du fortsätta det.")
+                : String(localized: "Inspelningen av mötet är borttagen, så mötet går inte att fortsätta.")
             return
         }
         language = saved.language
@@ -563,11 +563,11 @@ final class MeetingSession: ObservableObject {
         // can't be done, nothing is touched (it is someone's recording).
         do { try MeetingStore.joinContinuation(for: id) } catch {
             Self.log.error("continued: an earlier part could not be joined: \(error.localizedDescription, privacy: .public)")
-            lastError = String(localized: "Inspelningen av mötet kunde inte läsas – mötet går inte att fortsätta.")
+            lastError = String(localized: "Inspelningen av mötet kunde inte läsas, så mötet går inte att fortsätta.")
             return
         }
         guard let file = try? AVAudioFile(forReading: url), file.processingFormat.sampleRate == Double(Self.rate) else {
-            lastError = String(localized: "Inspelningen av mötet kunde inte läsas – mötet går inte att fortsätta.")
+            lastError = String(localized: "Inspelningen av mötet kunde inte läsas, så mötet går inte att fortsätta.")
             return
         }
         // Where the new part begins: after the first, and the second of quiet put between.
@@ -691,11 +691,11 @@ final class MeetingSession: ObservableObject {
         pausedAt = Date()
         settledForPause = false
         LiveMeter.shared.reset()
-        if warning == String(localized: "Jag hör nästan ingenting – är rätt mikrofon vald?") { warning = nil }
+        if warning == String(localized: "Jag hör nästan ingenting. Är rätt mikrofon vald?") { warning = nil }
         // Nothing to keep the Mac awake for until it goes on.
         if let activity { ProcessInfo.processInfo.endActivity(activity) }
         activity = nil
-        AccessibilityNotification.Announcement(String(localized: "Pausat – mikrofonen är av")).post()
+        AccessibilityNotification.Announcement(String(localized: "Pausat. Mikrofonen är av")).post()
         Self.log.notice("meeting paused at \(Int(self.elapsed)) s")
     }
     /// The words before the pause are written out once, then the live loop rests.
@@ -707,11 +707,11 @@ final class MeetingSession: ObservableObject {
             try startMicrophone()
         } catch {
             // Said where you're looking: on the meeting, not on the start card.
-            warning = String(localized: "Mikrofonen kunde inte startas igen – är den ansluten?")
+            warning = String(localized: "Mikrofonen kunde inte startas igen. Är den ansluten?")
             Self.log.error("resume: \(error.localizedDescription, privacy: .public)")
             return
         }
-        if warning == String(localized: "Mikrofonen kunde inte startas igen – är den ansluten?") { warning = nil }
+        if warning == String(localized: "Mikrofonen kunde inte startas igen. Är den ansluten?") { warning = nil }
         activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated],
                                                          reason: "Recording a meeting")
         AccessibilityNotification.Announcement(String(localized: "Mötet fortsätter")).post()
@@ -872,7 +872,7 @@ final class MeetingSession: ObservableObject {
         }
         stopAt = Date().addingTimeInterval(Self.undoSeconds)
         // Said aloud too: there are a few seconds to change your mind.
-        AccessibilityNotification.Announcement(String(localized: "Mötet avslutas om \(Int(Self.undoSeconds)) sekunder – du kan ångra.")).post()
+        AccessibilityNotification.Announcement(String(localized: "Mötet avslutas om \(Int(Self.undoSeconds)) sekunder. Du kan ångra.")).post()
         stopCountdown?.cancel()
         stopCountdown = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(Self.undoSeconds))
@@ -1052,7 +1052,7 @@ final class MeetingSession: ObservableObject {
         } catch {
             Self.log.error("meeting models: \(error.localizedDescription, privacy: .public)")
             warning = tracker == nil && language.isInstalled
-                ? String(localized: "Nemotron 3 kunde inte startas – texten skrivs utan att visa vem som pratar.")
+                ? String(localized: "Nemotron 3 kunde inte startas, så texten skrivs utan att visa vem som pratar.")
                 : error.localizedDescription
         }
         if phase == .starting { phase = .recording }
@@ -1103,16 +1103,16 @@ final class MeetingSession: ObservableObject {
     }
 
     private static var noText: String {
-        String(localized: "Texten kan inte skrivas just nu – ljudet spelas in och skrivs ned efter mötet.")
+        String(localized: "Texten kan inte skrivas just nu. Ljudet spelas in och skrivs ned efter mötet.")
     }
 
     /// Says so when the recording can't be trusted.
     private func checkInput() {
         if intake?.writeFailed == true {
-            warning = String(localized: "Inspelningen kan inte sparas – är disken full? Texten skrivs ändå.")
+            warning = String(localized: "Inspelningen kan inte sparas. Är disken full? Texten skrivs ändå.")
         } else if !isPaused, Date().timeIntervalSince(lastHeard) > 20 {
-            warning = String(localized: "Jag hör nästan ingenting – är rätt mikrofon vald?")
-        } else if warning == String(localized: "Jag hör nästan ingenting – är rätt mikrofon vald?") {
+            warning = String(localized: "Jag hör nästan ingenting. Är rätt mikrofon vald?")
+        } else if warning == String(localized: "Jag hör nästan ingenting. Är rätt mikrofon vald?") {
             warning = nil
         }
     }
@@ -1218,7 +1218,7 @@ final class MeetingSession: ObservableObject {
         if CommandLine.arguments.contains("--trace-live") {
             print(String(format: "[steg] fönster %.1f–%.1f · nytt %.1f · hört %@ · skär %@", base, windowEnd, fresh,
                          heard.map { String(format: "%@ %.1f–%.1f", $0.text, $0.start, $0.end) }.joined(separator: ", "),
-                         cut.map(String.init) ?? "–"))
+                         cut.map(String.init) ?? "•"))
         }
         #endif
         if let cut {
@@ -1453,7 +1453,7 @@ final class MeetingSession: ObservableObject {
             let slow = Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(8))
                 guard !Task.isCancelled, let self, self.phase == .finishing(listening) else { return }
-                self.phase = .finishing(String(localized: "Talmodellen förbereds – det kan ta någon minut…"))
+                self.phase = .finishing(String(localized: "Talmodellen förbereds. Det kan ta någon minut…"))
             }
             defer { slow.cancel() }
             let timed = try await SpeechEngine.shared.transcribeFile(url, with: language)
@@ -1737,8 +1737,8 @@ final class MeetingSession: ObservableObject {
 
     /// When the microphone was last opened again after losing its signal.
     private var lastRestart: Date?
-    private static var restarting: String { String(localized: "Mikrofonen slutade ge ljud – startar om den…") }
-    private static var silent: String { String(localized: "Mikrofonen ger inget ljud – är den avstängd?") }
+    private static var restarting: String { String(localized: "Mikrofonen slutade ge ljud. Startar om den…") }
+    private static var silent: String { String(localized: "Mikrofonen ger inget ljud. Är den avstängd?") }
 
     /// Something you should know but needn't do anything about: said, then let go of
     /// after a while — it doesn't hang over the rest of the meeting.
@@ -1767,7 +1767,7 @@ final class MeetingSession: ObservableObject {
         }
         if bluetooth, let builtIn = Microphones.shared.devices.first(where: \.isBuiltIn)?.id,
            (try? recorder.start(device: builtIn)) != nil {
-            inform(String(localized: "Hörlurarnas mikrofon slutade fungera – inspelningen fortsätter med Macens mikrofon."))
+            inform(String(localized: "Hörlurarnas mikrofon slutade fungera. Inspelningen fortsätter med Macens mikrofon."))
             return
         }
         try? recorder.start(device: device)
@@ -1782,7 +1782,7 @@ final class MeetingSession: ObservableObject {
         _ = recorder.stop()
         do {
             try startMicrophone()
-            inform(String(localized: "Mikrofonen kopplades bort – inspelningen fortsätter med Macens mikrofon."))
+            inform(String(localized: "Mikrofonen kopplades bort. Inspelningen fortsätter med Macens mikrofon."))
         } catch {
             warning = error.localizedDescription
             retryMicrophone()
@@ -1799,7 +1799,7 @@ final class MeetingSession: ObservableObject {
                 guard let self, !Task.isCancelled, self.isRecording, !self.isPaused else { return }
                 if (try? self.startMicrophone()) != nil {
                     self.warning = nil
-                    self.inform(String(localized: "Mikrofonen är tillbaka – inspelningen fortsätter."))
+                    self.inform(String(localized: "Mikrofonen är tillbaka och inspelningen fortsätter."))
                     return
                 }
             }

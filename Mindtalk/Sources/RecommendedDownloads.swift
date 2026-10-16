@@ -120,7 +120,7 @@ struct ListenerOffer: View {
                         Image(systemName: "ear").font(.system(size: 15)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Stava rätt redan när du pratar").font(.system(size: 14, weight: .semibold))
-                            Text("I dag rättas dina ord i texten efteråt. Med lyssnaren hör Mindtalk dem direkt – också namn som låter som vanliga ord. Den laddas ned en gång (\(VocabularyBoost.sizeText)) och körs på din Mac.")
+                            Text("I dag rättas dina ord i texten efteråt. Med lyssnaren hör Mindtalk dem direkt, också namn som låter som vanliga ord. Den laddas ned en gång (\(VocabularyBoost.sizeText)) och körs på din Mac.")
                                 .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                                 .fixedSize(horizontal: false, vertical: true)
                         }

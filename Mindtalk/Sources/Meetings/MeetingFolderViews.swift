@@ -34,7 +34,7 @@ struct FolderBar: View {
             }
             Button("Avbryt", role: .cancel) {}
         } message: {
-            Text("Mötena tas inte bort – de finns kvar under Alla.")
+            Text("Mötena tas inte bort. De finns kvar under Alla.")
         }
     }
 
@@ -43,14 +43,14 @@ struct FolderBar: View {
             if !folders.folders.isEmpty {
                 FolderChip(title: String(localized: "Alla"), count: counted.count,
                            selected: folders.selected == nil, symbol: nil,
-                           help: "Alla möten – släpp ett möte här för att ta det ur sin mapp") {
+                           help: "Alla möten: släpp ett möte här för att ta det ur sin mapp") {
                     select(nil)
                 } drop: { ids in folders.move(ids, to: nil) }
             }
             ForEach(folders.sorted) { folder in
                 FolderChip(title: folder.name, count: counts[folder.id] ?? 0,
                            selected: folders.selected == folder.id, symbol: "folder",
-                           help: "\(folder.name) – släpp möten här för att lägga dem i mappen") {
+                           help: "\(folder.name): släpp möten här för att lägga dem i mappen") {
                     select(folder.id)
                 } drop: { ids in folders.move(ids, to: folder.id) }
                 .contextMenu {
@@ -167,7 +167,7 @@ struct FolderNamingHost: ViewModifier {
                 Button("Avbryt", role: .cancel) { naming.request = nil }
             } message: {
                 if folders.isTaken(name, except: renamingID) {
-                    Text("Det finns redan en mapp som heter så – den nya får en siffra efter namnet.")
+                    Text("Det finns redan en mapp som heter så. Den nya får en siffra efter namnet.")
                 }
             }
             .onChange(of: naming.request) { _, request in

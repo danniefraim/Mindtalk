@@ -80,9 +80,9 @@ final class VoiceModels: ObservableObject {
     /// A failed download in words anyone understands, not the system's.
     private static func plainWords(for error: Error) -> String {
         switch Dictation.DownloadTrouble(error) {
-        case .offline: return String(localized: "Ingen internetanslutning – försök igen när du är uppkopplad.")
+        case .offline: return String(localized: "Ingen internetanslutning. Försök igen när du är uppkopplad.")
         case .diskFull: return String(localized: "Det finns inte plats på disken.")
-        case .unreachable, .other: return String(localized: "Röstmodellen kunde inte laddas ned – försök igen.")
+        case .unreachable, .other: return String(localized: "Röstmodellen kunde inte laddas ned. Försök igen.")
         }
     }
 

@@ -115,7 +115,7 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
                 // it is the editor's padding, not the placeholder's — the caret then
                 // sits on the placeholder's line rather than above it.
                 if draft.text.isEmpty {
-                    Text("Anteckning – en rad per sak")
+                    Text("Anteckning: en rad per sak")
                         .font(.system(size: 13.5))
                         .foregroundStyle(.white.opacity(0.4))
                         .padding(.leading, 5)        // the text view's own line padding
@@ -162,13 +162,13 @@ struct MeetingControls: View {
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut("p", modifiers: [.command, .option])
-                .help("Sätt på mikrofonen igen – mötet fortsätter där det pausades (⌥⌘P)")
+                .help("Sätt på mikrofonen igen så fortsätter mötet där det pausades (⌥⌘P)")
                 .accessibilityLabel(String(localized: "pause|Fortsätt mötet"))
                 .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                round(symbol: "stop.fill", filled: false, help: "Avsluta mötet – du kan ångra i några sekunder",
+                round(symbol: "stop.fill", filled: false, help: "Avsluta mötet. Du kan ångra i några sekunder",
                       label: "Avsluta mötet") { _ = session.requestStop() }
             } else {
-                round(symbol: "pause.fill", filled: false, help: "Pausa – mikrofonen stängs av och mötet väntar (⌥⌘P)",
+                round(symbol: "pause.fill", filled: false, help: "Pausa: mikrofonen stängs av och mötet väntar (⌥⌘P)",
                       label: "Pausa mötet") { session.pause() }
                     .keyboardShortcut("p", modifiers: [.command, .option])
                 if labelledStop {
@@ -184,10 +184,10 @@ struct MeetingControls: View {
                         .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
-                    .help("Avsluta mötet – du kan ångra i några sekunder")
+                    .help("Avsluta mötet. Du kan ångra i några sekunder")
                     .accessibilityLabel("Avsluta mötet")
                 } else {
-                    round(symbol: "stop.fill", filled: true, help: "Avsluta mötet – du kan ångra i några sekunder",
+                    round(symbol: "stop.fill", filled: true, help: "Avsluta mötet. Du kan ångra i några sekunder",
                           label: "Avsluta mötet") { _ = session.requestStop() }
                 }
             }
@@ -365,7 +365,7 @@ struct SavedNotes: View {
                     ForEach(Array(record.notes.enumerated()), id: \.offset) { _, note in
                         if !note.text.trimmingCharacters(in: .whitespaces).isEmpty {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text("–").foregroundStyle(DS.Colors.faint)
+                                Text("•").foregroundStyle(DS.Colors.faint)
                                 Text(note.text).textSelection(.enabled)
                                     .fixedSize(horizontal: false, vertical: true)
                                 if let at = note.at, record.hasAudio {
@@ -537,7 +537,7 @@ struct StopCountdown: View {
             }
             .buttonStyle(.plain)
             .keyboardShortcut(.cancelAction)
-            .help("Ångra – mötet avslutas inte")
+            .help("Ångra, så fortsätter mötet")
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Mötet avslutas om några sekunder")

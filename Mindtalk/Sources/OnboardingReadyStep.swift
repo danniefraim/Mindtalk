@@ -16,13 +16,13 @@ struct ReadyStep: View {
     var body: some View {
         VStack(spacing: 18) {
             StepHeader(title: "Nu kör vi",
-                       subtitle: "Det här fungerar nu – i vilken app som helst.")
+                       subtitle: "Det här fungerar nu i vilken app som helst.")
                 .staggered(0)
             VStack(spacing: 0) {
                 ReadyRow(icon: "mic", state: dictation.model == .ready ? .ready : .waiting,
                          title: "Diktering", keys: dictation.hotkey.chip,
-                         detail: dictation.mode == .toggle ? String(localized: "Tryck på tangenten och prata – texten hamnar där markören står.")
-                                                           : String(localized: "Håll in tangenten och prata – texten hamnar där markören står."))
+                         detail: dictation.mode == .toggle ? String(localized: "Tryck på tangenten och prata, så hamnar texten där markören står.")
+                                                           : String(localized: "Håll in tangenten och prata, så hamnar texten där markören står."))
                 CardDivider()
                 ReadyRow(icon: "lightbulb", state: dictation.model == .ready ? .ready : .waiting,
                          title: "Tankar", keys: Settings.thoughtShortcut?.chip,
@@ -61,7 +61,7 @@ struct ReadyStep: View {
                      detail: String(localized: "Spelar in ett möte i rummet och håller isär vem som säger vad."))
         case .downloading(let p):
             ReadyRow(icon: "person.2.wave.2", state: .progress(p), title: "Möten", keys: keys,
-                     detail: String(localized: "Röstmodellen laddas ned – \(Int(p * 100)) %. Du kan börja under tiden."))
+                     detail: String(localized: "Röstmodellen laddas ned (\(Int(p * 100)) %). Du kan börja under tiden."))
         case .missing, .failed:
             ReadyRow(icon: "person.2.wave.2", state: .optional, title: "Möten", keys: nil,
                      detail: String(localized: "Behöver röstmodellen för att hålla isär vem som pratar.")) {
@@ -77,10 +77,10 @@ struct ReadyStep: View {
         switch listener.state {
         case .ready:
             ReadyRow(icon: "character.book.closed", state: .ready, title: "Ordlista", keys: nil,
-                     detail: String(localized: "Lyssnaren hör dina ord – de stavas rätt redan när du pratar."))
+                     detail: String(localized: "Lyssnaren hör dina ord, så de stavas rätt redan när du pratar."))
         case .downloading:
             ReadyRow(icon: "character.book.closed", state: .waiting, title: "Ordlista", keys: nil,
-                     detail: String(localized: "Lyssnaren laddas ned – sedan stavas dina ord rätt redan när du pratar."))
+                     detail: String(localized: "Lyssnaren laddas ned. Sedan stavas dina ord rätt redan när du pratar."))
         case .missing, .failed:
             ReadyRow(icon: "character.book.closed", state: .optional, title: "Ordlista", keys: nil,
                      detail: String(localized: "Med lyssnaren stavas namn och ord rätt redan när du pratar.")) {
@@ -110,7 +110,7 @@ struct ReadyStep: View {
                      detail: String(localized: "Skrivs av \(active.name) på din Mac."))
         } else if let m = notes.downloading, case .downloading(let p) = notes.state(m) {
             ReadyRow(icon: "sparkle", state: .progress(p), title: "Sammanfattningar", keys: nil,
-                     detail: String(localized: "\(m.name) laddas ned – \(Int(p * 100)) %. Till dess skriver Apple Intelligence."))
+                     detail: String(localized: "\(m.name) laddas ned (\(Int(p * 100)) %). Till dess skriver Apple Intelligence."))
         } else {
             let apple = MeetingNotes.isAvailable
             ReadyRow(icon: "sparkle", state: apple ? .ready : .optional, title: "Sammanfattningar", keys: nil,
@@ -118,8 +118,8 @@ struct ReadyStep: View {
                          apple ? String(localized: "Skrivs av Apple Intelligence. \(m.name) från Google hittar fler beslut och uppgifter (\(m.sizeText)).")
                                : String(localized: "\(m.name) från Google skriver dem på din Mac (\(m.sizeText)).")
                      } ?? (apple ? String(localized: "Skrivs av Apple Intelligence.")
-                                 : String(localized: "Kräver Apple Intelligence – eller Gemma när det finns plats på disken.")))
-                     + (larger.map { " " + String(localized: "Den större \($0.name) (\($0.sizeText)) passar också – frigör \(BetterNotes.gigabytes(max(100_000_000, $0.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes))) till.") } ?? "")) {
+                                 : String(localized: "Kräver Apple Intelligence, eller Gemma när det finns plats på disken.")))
+                     + (larger.map { " " + String(localized: "Den större \($0.name) (\($0.sizeText)) passar också om du frigör \(BetterNotes.gigabytes(max(100_000_000, $0.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes))) till.") } ?? "")) {
                 if let m = gemma {
                     Button("Ladda ned") { notes.download(m) }
                         .buttonStyle(SoftButtonStyle(small: true))

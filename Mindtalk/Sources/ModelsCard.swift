@@ -37,7 +37,7 @@ struct ModelsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             RecommendedDownloads()
-            group("Tal", "Skriver ned det du säger – när du dikterar, i möten och för tankar.") {
+            group("Tal", "Skriver ned det du säger när du dikterar, i möten och för tankar.") {
                 ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
                     if i > 0 { CardDivider() }
                     speechRow(m)
@@ -61,7 +61,7 @@ struct ModelsCard: View {
                 row(name: "Parakeet CTC",
                     detail: VocabularyBoost.isInstalled
                         ? String(localized: "Hör orden i din ordlista · \(size(VocabularyBoost.directory, fallback: VocabularyBoost.sizeText))")
-                        : String(localized: "Hör orden i din ordlista – de stavas rätt redan när du pratar · \(VocabularyBoost.sizeText)")) {
+                        : String(localized: "Hör orden i din ordlista, så de stavas rätt redan när du pratar · \(VocabularyBoost.sizeText)")) {
                     if VocabularyBoost.isInstalled {
                         finderMenu(VocabularyBoost.directory)
                     } else if listener.state == .downloading {
@@ -87,7 +87,7 @@ struct ModelsCard: View {
             Button("Ladda ned") { notes.download(m) }
             Button("Avbryt", role: .cancel) {}
         } message: { m in
-            Text("Den laddas ned i bakgrunden – du kan använda Mindtalk under tiden – och fungerar sedan utan internet. Du har \(BetterNotes.freeBytes / 1_000_000_000) GB ledigt.")
+            Text("Den laddas ned i bakgrunden medan du använder Mindtalk och fungerar sedan utan internet. Du har \(BetterNotes.freeBytes / 1_000_000_000) GB ledigt.")
                 + Text(verbatim: m.page.host.map { " " + String(localized: "Från \($0).") } ?? "")
         }
         .confirmationDialog(removalTitle, isPresented: Binding(get: { confirmRemove != nil }, set: { if !$0 { confirmRemove = nil } }),
@@ -146,7 +146,7 @@ struct ModelsCard: View {
                     }
                 } label: { moreLabel }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                .help(inUse ? "Den som används kan inte tas bort – byt språk under Inspelning först." : "Mer")
+                .help(inUse ? "Den som används kan inte tas bort. Byt språk under Inspelning först." : "Mer")
             } else {
                 Button("Ladda ned") { dictation.downloadModel(m) }.buttonStyle(.soft)
             }
@@ -234,7 +234,7 @@ struct ModelsCard: View {
                 .help("Mer")
             case .missing, .failed:
                 let partly = m.remainingBytes < m.bytes - 50_000_000
-                Button(partly ? String(localized: "Fortsätt – \(BetterNotes.gigabytes(m.remainingBytes)) kvar") : String(localized: "Ladda ned")) {
+                Button(partly ? String(localized: "Fortsätt (\(BetterNotes.gigabytes(m.remainingBytes)) kvar)") : String(localized: "Ladda ned")) {
                     if partly { notes.download(m) } else { confirmDownload = m }
                 }
                 .buttonStyle(.soft)
@@ -351,7 +351,7 @@ struct SummaryWriterRow: View {
         let ready = NotesModel.allCases.filter { notes.state($0) == .ready }
         CardRow(title: "Sammanfattningarna skrivs av",
                 detail: ready.isEmpty
-                    ? (NotesModel.recommended.map { String(localized: "Apple Intelligence. \($0.name) skriver mer träffsäkert – den laddar du ned under Modeller.") }
+                    ? (NotesModel.recommended.map { String(localized: "Apple Intelligence. \($0.name) skriver mer träffsäkert och laddas ned under Modeller.") }
                        ?? String(localized: "Apple Intelligence."))
                     : String(localized: "Fler val under Modeller.")) {
             if !ready.isEmpty {
@@ -443,7 +443,7 @@ struct NotesModelOffer: View {
                         Image(systemName: "sparkle").font(.system(size: 15)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Mer träffsäkra sammanfattningar").font(.system(size: 14, weight: .semibold))
-                            Text("\(m.name) från Google hittar fler beslut och uppgifter och skriver dem på din Mac. Den behöver \(BetterNotes.gigabytes(m.remainingBytes + 2_000_000_000)) ledigt – du har \(BetterNotes.gigabytes(BetterNotes.freeBytes)).")
+                            Text("\(m.name) från Google hittar fler beslut och uppgifter och skriver dem på din Mac. Den behöver \(BetterNotes.gigabytes(m.remainingBytes + 2_000_000_000)) ledigt. Du har \(BetterNotes.gigabytes(BetterNotes.freeBytes)).")
                                 .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                                 .fixedSize(horizontal: false, vertical: true)
                         }

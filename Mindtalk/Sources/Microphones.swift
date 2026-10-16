@@ -118,7 +118,7 @@ final class Microphones: ObservableObject {
         switch choice {
         case .builtIn: return builtIn == nil ? systemName : String(localized: "Inbyggd mikrofon")
         case .system: return systemName
-        case .device(let uid): return devices.first { $0.uid == uid }?.name ?? String(localized: "\(systemName) – vald mikrofon saknas")
+        case .device(let uid): return devices.first { $0.uid == uid }?.name ?? String(localized: "\(systemName): vald mikrofon saknas")
         }
     }
 
@@ -152,7 +152,7 @@ final class Microphones: ObservableObject {
     var hearing: (text: String, good: Bool?) {
         let peak = history.suffix(16).max() ?? 0
         if peak > 0.3 { return (String(localized: "Vi hör dig tydligt"), true) }
-        if peak > 0.07 { return (String(localized: "Lite svagt – prata närmare mikrofonen"), false) }
+        if peak > 0.07 { return (String(localized: "Lite svagt. Prata närmare mikrofonen"), false) }
         return (String(localized: "Säg något för att testa"), nil)
     }
 

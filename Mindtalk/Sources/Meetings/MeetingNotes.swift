@@ -224,7 +224,7 @@ final class MeetingNotes: ObservableObject {
             let local = BetterNotes.shared.isActive
             print("Modell: \(BetterNotes.shared.writerName)")
             let s = try await write(lines, local: local)
-            print(String(format: "\n(%.1f s)\nTitel: %@\nÖversikt: %@", Date().timeIntervalSince(t0), s.title ?? "–", s.overview))
+            print(String(format: "\n(%.1f s)\nTitel: %@\nÖversikt: %@", Date().timeIntervalSince(t0), s.title ?? "•", s.overview))
             let show = { (title: String, items: [MeetingSummary.Item]) in
                 print(title)
                 for i in items { print("  - \(i.marked == true ? "⚑ " : "")\(i.text)\(i.owner.map { " (\($0))" } ?? "")  [\(i.at.map { MeetingView.duration($0) } ?? "ingen källa")]") }

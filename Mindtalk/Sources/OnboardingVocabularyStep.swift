@@ -28,7 +28,7 @@ struct VocabularyStep: View {
     var body: some View {
         VStack(spacing: 24) {
             StepHeader(title: "Lär Mindtalk dina ord",
-                       subtitle: "Namn och ord på listan stavas rätt i allt du dikterar – också i tankar och möten.")
+                       subtitle: "Namn och ord på listan stavas rätt i allt du dikterar, också i tankar och möten.")
                 .staggered(0)
             VStack(spacing: DS.Layout.stepGap) {
                 CorrectionDemo(stopped: typing)
@@ -175,7 +175,7 @@ private struct CorrectionDemo: View {
                 .shadow(color: .black.opacity(0.18), radius: 18, y: 8))
         .overlay(RoundedRectangle(cornerRadius: DS.Radius.panel, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(localized: "Exempel: Mindtalk hörde ”\(example.heard)” och skrev ”\(example.fixed)” – från din ordlista."))
+        .accessibilityLabel(String(localized: "Exempel: Mindtalk hörde ”\(example.heard)” och skrev ”\(example.fixed)” enligt din ordlista."))
         // A new id cancels the play: stopping it is the same as having watched it.
         .task(id: stopped || ended) {
             if stopped || ended { settle() } else { await play() }
@@ -355,12 +355,12 @@ private struct FirstWordCard: View {
     /// Why "Lägg till" can't be pressed — shown in place of the line under the title.
     private var problem: String? {
         let word = Vocabulary.tidy(word)
-        if word.count > 60 { return String(localized: "Ordet är för långt – högst 60 tecken.") }
+        if word.count > 60 { return String(localized: "Ordet är för långt. Högst 60 tecken.") }
         if !word.isEmpty, !Vocabulary.isValidWord(word) { return String(localized: "Skriv ett ord med bokstäver eller siffror.") }
         let variants = heardAs.split(separator: ",").map { Vocabulary.tidy(String($0)) }.filter { !$0.isEmpty }
-        if variants.contains(where: { $0.count > 60 }) { return String(localized: "Det som brukar bli fel är för långt – högst 60 tecken.") }
+        if variants.contains(where: { $0.count > 60 }) { return String(localized: "Det som brukar bli fel är för långt. Högst 60 tecken.") }
         if !word.isEmpty, variants.contains(where: { Self.key($0) == Self.key(word) }) {
-            return String(localized: "Skriv hur det brukar bli fel – inte samma ord en gång till.")
+            return String(localized: "Skriv hur det brukar bli fel, inte samma ord en gång till.")
         }
         return nil
     }

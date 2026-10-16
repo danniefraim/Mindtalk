@@ -65,7 +65,7 @@ struct ThoughtsStep: View {
     var body: some View {
         VStack(spacing: 24) {
             StepHeader(title: String(localized: "Spara en tanke"),
-                       subtitle: String(localized: "Kom på något mitt i något annat? Säg det – det hamnar i Tankar, inte i texten."))
+                       subtitle: String(localized: "Kom på något mitt i något annat? Säg det, så hamnar det i Tankar, inte i texten."))
                 .staggered(0)
             HStack(alignment: .top, spacing: DS.Layout.stepGap) {
                 VStack(spacing: DS.Layout.stepGap) {
@@ -173,11 +173,11 @@ struct ThoughtsStep: View {
         case noWords, tooShort, failed(String)
     }
 
-    private static var micText: String { String(localized: "Mindtalk behöver mikrofonen – tillåt den i förra steget.") }
+    private static var micText: String { String(localized: "Mindtalk behöver mikrofonen. Tillåt den i förra steget.") }
 
     /// Why a press didn't start listening, in Dictation's own words where it has them.
     private var whyNotListening: String? {
-        if MeetingSession.shared.isRecording { return String(localized: "Ett möte spelas in – dikteringen är pausad.") }
+        if MeetingSession.shared.isRecording { return String(localized: "Ett möte spelas in, så dikteringen är pausad.") }
         if !dictation.micGranted { return Self.micText }
         return nil
     }
@@ -462,22 +462,22 @@ struct ThoughtsStep: View {
         if !l.micGranted { return .info(Self.micText) }
         if l.locked { return .locked }
         if l.otherDictation {
-            return .info(l.useButton ? String(localized: "Det är genvägen för diktering – för en tanke håller du in knappen.")
-                                     : String(localized: "Det är genvägen för diktering – för en tanke håller du in \(keysInline)."))
+            return .info(l.useButton ? String(localized: "Det är genvägen för diktering. För en tanke håller du in knappen.")
+                                     : String(localized: "Det är genvägen för diktering. För en tanke håller du in \(keysInline)."))
         }
         if l.held || l.writing { return nil }
         if let note {
             switch note {
-            case .noWords: return .info(String(localized: "Det blev inga ord den gången – prova igen."))
+            case .noWords: return .info(String(localized: "Det blev inga ord den gången. Prova igen."))
             case .tooShort: return .info(String(localized: "Håll in knappen medan du pratar."))
             case .failed(let message): return .info(message)
             }
         }
         if !landed.isEmpty, incoming == nil { return .saved }
         if nudge {
-            return .info(l.useButton ? String(localized: "Håll in knappen – och prata medan du håller den.")
-                         : oneKey ? String(localized: "Håll in \(keysInline) – och prata medan du håller den.")
-                         : String(localized: "Håll in tangenterna samtidigt – och prata medan du håller dem."))
+            return .info(l.useButton ? String(localized: "Håll in knappen och prata medan du håller den.")
+                         : oneKey ? String(localized: "Håll in \(keysInline) och prata medan du håller den.")
+                         : String(localized: "Håll in tangenterna samtidigt och prata medan du håller dem."))
         }
         return nil
     }

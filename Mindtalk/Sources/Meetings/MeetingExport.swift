@@ -29,8 +29,8 @@ enum MeetingExport {
         var suffix: String {
             switch self {
             case .all: return ""
-            case .notes: return " – " + String(localized: "sammanfattning")
-            case .text: return " – " + String(localized: "text")
+            case .notes: return " (" + String(localized: "sammanfattning") + ")"
+            case .text: return " (" + String(localized: "text") + ")"
             }
         }
     }
@@ -396,7 +396,7 @@ struct ExportMenu: View {
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help("Spara mötet som PDF, Word, Markdown eller text – eller ljudet och undertexterna")
+        .help("Spara mötet som PDF, Word, Markdown eller text, eller ljudet och undertexterna")
     }
 
     private func put(_ text: String) {

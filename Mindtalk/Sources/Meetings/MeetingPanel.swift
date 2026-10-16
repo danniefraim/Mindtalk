@@ -382,13 +382,13 @@ private struct LivePanel: View {
             }
             Spacer(minLength: 8)
             PanelIconButton(symbol: panel.onTop ? "pin.fill" : "pin",
-                            help: panel.onTop ? "Ligger överst – klicka så kan andra fönster lägga sig över panelen"
+                            help: panel.onTop ? "Ligger överst. Klicka så kan andra fönster lägga sig över panelen"
                                               : "Håll panelen överst, över alla fönster") {
                 panel.onTop.toggle()
             }
             .accessibilityAddTraits(panel.onTop ? .isSelected : [])
             PanelIconButton(symbol: "pip.exit", help: "Visa i Mindtalks fönster", action: expand)
-            PanelIconButton(symbol: "xmark", help: "Stäng panelen – inspelningen fortsätter", action: close)
+            PanelIconButton(symbol: "xmark", help: "Stäng panelen. Inspelningen fortsätter", action: close)
         }
         .padding(.leading, 18)
         .padding(.trailing, 12)
@@ -475,7 +475,7 @@ private struct LivePanel: View {
             Image(systemName: "waveform").font(.system(size: 22)).foregroundStyle(DS.Colors.faint)
             if session.phase == .starting {
                 Text("Förbereder…").font(.system(size: 14, weight: .semibold))
-                Text("Inspelningen är redan igång – inget går förlorat.")
+                Text("Inspelningen är redan igång, så inget går förlorat.")
             } else {
                 Text("Lyssnar").font(.system(size: 14, weight: .semibold))
                 Text("Börja prata, så dyker texten upp här.")
@@ -526,7 +526,7 @@ private struct LivePanel: View {
                     // As in the window: one island — your note, the marks, stop. (The
                     // time is at the top of the panel.)
                     if session.isPaused {
-                        Text("Pausat – mikrofonen är av. Det som sagts finns kvar.")
+                        Text("Pausat. Mikrofonen är av och det som sagts finns kvar.")
                             .font(.system(size: 12))
                             .foregroundStyle(DS.Colors.muted)
                             .frame(maxWidth: .infinity)
@@ -595,7 +595,7 @@ private struct DonePanel: View {
                                 .contentShape(Capsule())
                         }
                         .buttonStyle(.plain)
-                        .help("Spela in mer i samma möte – texten fortsätter och sammanfattningen skrivs om")
+                        .help("Spela in mer i samma möte. Texten fortsätter och sammanfattningen skrivs om")
                     }
                 case .nothingHeard:
                     Image(systemName: "waveform.slash").font(.system(size: 28)).foregroundStyle(DS.Colors.faint)

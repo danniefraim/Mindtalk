@@ -273,9 +273,9 @@ struct KeyChord: Codable, Equatable {
         guard isCommandOnly else { return nil }
         let f = CGEventFlags(rawValue: modifiers)
         if !f.contains(.maskShift), let meaning = Self.commonMeanings[Int(keyCode)] {
-            return String(localized: "\(chip.replacingOccurrences(of: " ", with: "")) betyder \(String(localized: String.LocalizationValue(meaning))) i de flesta appar. Mindtalk tar över den överallt medan appen är igång – ⌃⌥ och en bokstav är ett säkrare val.")
+            return String(localized: "\(chip.replacingOccurrences(of: " ", with: "")) betyder \(String(localized: String.LocalizationValue(meaning))) i de flesta appar. Mindtalk tar över den överallt medan appen är igång, så ⌃⌥ och en bokstav är ett säkrare val.")
         }
-        return String(localized: "En genväg med bara ⌘ krockar ofta med andra appars kortkommandon. Mindtalk tar över den överallt medan appen är igång – ⌃⌥ och en bokstav är ett säkrare val.")
+        return String(localized: "En genväg med bara ⌘ krockar ofta med andra appars kortkommandon. Mindtalk tar över den överallt medan appen är igång, så ⌃⌥ och en bokstav är ett säkrare val.")
     }
 
     func matches(_ keyCode: UInt16, _ flags: CGEventFlags) -> Bool {
@@ -359,13 +359,13 @@ enum ThoughtShortcut: Equatable {
     /// Why this can't be the thought key next to that dictation key — nil when it can.
     func refusal(besides dictation: Hotkey) -> String? {
         guard let key, collides(with: dictation) else { return nil }
-        return String(localized: "\(key.name) används redan för diktering – välj en annan tangent.")
+        return String(localized: "\(key.name) används redan för diktering. Välj en annan tangent.")
     }
 
     /// Why a newly picked dictation key can't be taken next to this thought key — nil when it can.
     static func refusal(dictation: Hotkey, besides thought: ThoughtShortcut?) -> String? {
         guard let thought, let key = thought.key, thought.collides(with: dictation) else { return nil }
-        return String(localized: "\(key.name) används redan för Tankar – välj en annan tangent.")
+        return String(localized: "\(key.name) används redan för Tankar. Välj en annan tangent.")
     }
 }
 

@@ -219,7 +219,7 @@ private struct DictationPage: View {
                     else { Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.ink) }
                 }
                 CardDivider()
-                CardRow(title: String(localized: "Talmodell – \(dictation.engine.title.lowercased())"), detail: modelDetail(dictation.model, dictation.engine)) {
+                CardRow(title: String(localized: "Talmodell: \(dictation.engine.title.lowercased())"), detail: modelDetail(dictation.model, dictation.engine)) {
                     ModelControl(dictation: dictation)
                 }
             }
@@ -232,8 +232,8 @@ private func modelDetail(_ model: Dictation.ModelState, _ engine: SpeechModel) -
     switch model {
     case .missing: return String(localized: "\(engine.modelName), \(engine.sizeText). Laddas ned en gång och fungerar sedan utan internet.")
     case .downloading(let p) where p >= 0.9: return String(localized: "Förbereder modellen för din Mac…")
-    case .downloading: return String(localized: "Laddar ned \(engine.modelName) – bara den här gången.")
-    case .loading: return String(localized: "Startar – första gången tar det ungefär en halv minut.")
+    case .downloading: return String(localized: "Laddar ned \(engine.modelName), bara den här gången.")
+    case .loading: return String(localized: "Startar. Första gången tar det ungefär en halv minut.")
     // Downloaded but wouldn't start: said plainly, not as the system's error.
     case .failed(let message): return engine.isInstalled ? String(localized: "Talmodellen startade inte.") : message
     case .ready: return String(localized: "Redo att diktera.")
@@ -295,7 +295,7 @@ struct SettingsPage: View {
     private var thoughtDetail: String {
         guard let thoughtShortcut else { return String(localized: "Av. Du kan fortfarande säga en tanke på sidan Tankar.") }
         if let warning = thoughtShortcut.chord?.warning { return warning }
-        let how = String(localized: "Håll in och säg det du kommer på – det hamnar i Tankar. Tryck snabbt, så lyssnar Mindtalk tills du trycker igen.")
+        let how = String(localized: "Håll in och säg det du kommer på, så hamnar det i Tankar. Tryck snabbt, så lyssnar Mindtalk tills du trycker igen.")
         return thoughtShortcut.key.map { how + " " + $0.note } ?? how
     }
 
@@ -320,7 +320,7 @@ struct SettingsPage: View {
             // Without Hjälpmedel no shortcut works anywhere: said first, not at the bottom.
             if !dictation.accessibilityGranted {
                 CardRow(title: "Slå på Hjälpmedel för Mindtalk",
-                        detail: "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på – ibland kräver macOS det efter en uppdatering.") {
+                        detail: "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på. Det kräver macOS ibland efter en uppdatering.") {
                     Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.ink)
                 }
                 .card()
@@ -349,7 +349,7 @@ struct SettingsPage: View {
             }
             .card()
             .staggered(1)
-            Text("Språket du pratar, när du dikterar och i möten. Byt snabbt i menyraden – eller med ⌘1 och ⌘2 när menyn är öppen.")
+            Text("Språket du pratar, när du dikterar och i möten. Byt snabbt i menyraden, eller med ⌘1 och ⌘2 när menyn är öppen.")
                 .font(.system(size: 12))
                 .foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -376,7 +376,7 @@ struct SettingsPage: View {
                     MenuPicker(options: MediaMode.allCases.map { ($0, $0.title) }, selection: $prefs.mediaMode)
                 }
                 CardDivider()
-                CardRow(title: "Klistra in igen", detail: "Om texten hamnade fel – ställ markören rätt och tryck.") {
+                CardRow(title: "Klistra in igen", detail: "Hamnade texten fel? Ställ markören rätt och tryck.") {
                     KeyChip(text: "⌃ ⌥ V")
                 }
             }
@@ -411,7 +411,7 @@ struct SettingsPage: View {
             SectionTitle("Tankar")
                 .staggered(4)
             CardRow(title: "Genväg", detail: pickingThoughtKey
-                    ? String(localized: "Håll in en tangent ensam, som höger ⌘, och släpp – eller tryck på en kombination som ⌃⌥T. Esc avbryter.")
+                    ? String(localized: "Håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.")
                     : thoughtRefusal ?? thoughtDetail) {
                 ThoughtShortcutField(shortcut: $thoughtShortcut, picking: $pickingThoughtKey,
                                      refusal: $thoughtRefusal, meeting: meetingShortcut)
@@ -462,8 +462,8 @@ struct SettingsPage: View {
                 CardDivider()
                 CardRow(title: "Appens språk",
                         detail: appLanguage.resolved == AppLanguage.running ? nil
-                            : meeting.isBusy ? "Mindtalk behöver startas om för att byta språk – det går när mötet är klart."
-                            : importer.busy ? "Mindtalk behöver startas om för att byta språk – det går när inspelningen är nedskriven."
+                            : meeting.isBusy ? "Mindtalk behöver startas om för att byta språk. Det går när mötet är klart."
+                            : importer.busy ? "Mindtalk behöver startas om för att byta språk. Det går när inspelningen är nedskriven."
                             : "Mindtalk behöver startas om för att byta språk.") {
                     HStack(spacing: 10) {
                         if appLanguage.resolved != AppLanguage.running {
@@ -686,7 +686,7 @@ private struct ThoughtShortcutField: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Klicka och håll in en tangent ensam, som höger ⌘, och släpp – eller tryck på en kombination. Esc avbryter.")
+            .help("Klicka och håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination. Esc avbryter.")
             if shortcut != nil, !picking {
                 Button { set(nil) } label: {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 15)).foregroundStyle(DS.Colors.faint)
@@ -1164,7 +1164,7 @@ private struct TextCleanupCard: View {
                 InkToggle(label: "Ta bort tvekljud", isOn: $prefs.removeFillers)
             }
             CardDivider()
-            CardRow(title: "Röstkommandon", detail: "Säg ”ny rad” eller ”nytt stycke” – på engelska ”new line” och ”new paragraph”.") {
+            CardRow(title: "Röstkommandon", detail: "Säg ”ny rad” eller ”nytt stycke”. På engelska ”new line” och ”new paragraph”.") {
                 InkToggle(label: "Röstkommandon", isOn: $prefs.voiceCommands)
             }
             CardDivider()

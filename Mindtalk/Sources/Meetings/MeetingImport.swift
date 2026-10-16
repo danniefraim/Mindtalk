@@ -378,7 +378,7 @@ final class MeetingImport: ObservableObject {
 
             // 4. The notes — written in the background, like a meeting's.
             MeetingNotes.shared.summarize(record.id)
-            AccessibilityNotification.Announcement(String(localized: "\(record.title) – klart att läsa")).post()
+            AccessibilityNotification.Announcement(String(localized: "\(record.title): klart att läsa")).post()
             Self.notifyIfAway(record)
             scheduleTidy(id)
         } catch {
@@ -428,7 +428,6 @@ final class MeetingImport: ObservableObject {
         for pattern in [#"\[[^\]]*\d{5,}[^\]]*\]"#, #"\((\d{3,4}p|4k|hd)\)"#, #"\b(2160p|1440p|1080p|720p|480p|4k|uhd)\b"#, #"\.{3,}"#] {
             n = n.replacingOccurrences(of: pattern, with: " ", options: [.regularExpression, .caseInsensitive])
         }
-        n = n.replacingOccurrences(of: #" - "#, with: " – ")
         n = n.replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
         let trimmed = n.trimmingCharacters(in: CharacterSet(charactersIn: " -–"))
         return trimmed.isEmpty ? name : trimmed
@@ -463,7 +462,7 @@ final class MeetingImport: ObservableObject {
             switch self {
             case .protected: return String(localized: "Filen är kopieringsskyddad och kan inte läsas.")
             case .noSound: return String(localized: "Filen har inget ljud.")
-            case .silent: return String(localized: "Filen är för kort – under en sekund.")
+            case .silent: return String(localized: "Filen är för kort, under en sekund.")
             case .noSpeech: return String(localized: "Inget tal hördes i filen.")
             }
         }

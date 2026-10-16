@@ -155,11 +155,11 @@ struct VoiceScanner: View {
                 case .ready, .listening where round.progress == 0:
                     if let last = round.captures.last, let at = round.thankedAt, Date().timeIntervalSince(at) < 2.5 {
                         return (String(localized: "Person \(round.turn)"), String(localized: "Tack, \(last.name)"),
-                                String(localized: "Nästa person – säg hej och ditt namn."))
+                                String(localized: "Nästa person: säg hej och ditt namn."))
                     }
                     return round.turn == 1
-                        ? (String(localized: "Person 1"), String(localized: "Säg ditt namn"), String(localized: "Börja med att säga hej – en i taget."))
-                        : (String(localized: "Person \(round.turn)"), String(localized: "Nästa – säg ditt namn"), String(localized: "Samma sak – en i taget."))
+                        ? (String(localized: "Person 1"), String(localized: "Säg ditt namn"), String(localized: "Börja med att säga hej, en i taget."))
+                        : (String(localized: "Person \(round.turn)"), String(localized: "Nästa: säg ditt namn"), String(localized: "Samma sak, en i taget."))
                 case .listening:
                     return round.quiet
                         ? (String(localized: "Hör ingen"), String(localized: "Prata lite närmare"), String(localized: "Mikrofonen hör dig inte riktigt."))
@@ -243,7 +243,7 @@ struct VoiceScanner: View {
         @ViewBuilder private var card: some View {
             if case .new = round.phase {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Ny röst – säg namnet, eller skriv det").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                    Text("Ny röst. Säg namnet, eller skriv det").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
                     // Not "Namn": macOS would offer your contacts in a box over the card.
                     TextField("Vem är det?", text: $round.draft)
                         .textFieldStyle(.plain)
@@ -254,7 +254,7 @@ struct VoiceScanner: View {
                         .onSubmit { round.save() }
                     if let at = round.autoSaveAt {
                         TimelineView(.periodic(from: .now, by: 0.25)) { _ in
-                            Text("Sparas om \(max(0, Int(ceil(at.timeIntervalSinceNow)))) s – skriv för att ändra")
+                            Text("Sparas om \(max(0, Int(ceil(at.timeIntervalSinceNow)))) s. Skriv för att ändra")
                                 .font(.system(size: 12)).foregroundStyle(.white.opacity(0.55))
                         }
                     }
@@ -285,7 +285,7 @@ struct VoiceScanner: View {
 
     func continueButton(_ round: IntroRound) -> some View {
         Button(action: leave) {
-            Text(round.captures.isEmpty ? "Hoppa över – börja mötet" : "Alla är här – fortsätt")
+            Text(round.captures.isEmpty ? "Hoppa över och börja mötet" : "Alla är här, fortsätt")
                 .font(.system(size: 14, weight: .semibold))
                 .padding(.horizontal, 10)
                 .frame(minHeight: 32)
@@ -398,7 +398,7 @@ struct RoundExplanation: View {
                 .buttonStyle(.glassProminent).controlSize(.large)
                 .keyboardShortcut(.defaultAction)
                 Button(action: skip) {
-                    Text("Hoppa över – namnge efteråt").font(.system(size: 13, weight: .semibold))
+                    Text("Hoppa över och namnge efteråt").font(.system(size: 13, weight: .semibold))
                 }
                 .buttonStyle(.plain).foregroundStyle(.white.opacity(0.7))
             }

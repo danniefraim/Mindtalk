@@ -75,8 +75,8 @@ struct DropSign: View {
 
     private var subtitle: String {
         if missing { return String(localized: "Ladda ned talmodellen och Nemotron 3 först, under Inställningar → Modeller.") }
-        if later { return String(localized: "Ljud eller video – filen skrivs ned när mötet är slut.") }
-        if let folder { return String(localized: "Ljud eller video – mötet hamnar i \(folder).") }
+        if later { return String(localized: "Ljud eller video. Filen skrivs ned när mötet är slut.") }
+        if let folder { return String(localized: "Ljud eller video. Mötet hamnar i \(folder).") }
         return String(localized: "Ljud eller video. Du ser vem som sa vad, får en sammanfattning och kan ställa frågor om innehållet.")
     }
 }
@@ -159,7 +159,7 @@ struct ImportCard: View {
                     .frame(width: 26, height: 26).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(job.active ? "Avbryt – filen skrivs inte ned" : job.stage == .waiting ? "Ta bort ur kön" : "Stäng")
+            .help(job.active ? "Avbryt så skrivs filen inte ned" : job.stage == .waiting ? "Ta bort ur kön" : "Stäng")
             .accessibilityLabel(job.active ? "Avbryt" : job.stage == .waiting ? "Ta bort ur kön" : "Stäng")
         }
         .padding(.horizontal, 16)
@@ -200,9 +200,9 @@ struct ImportCard: View {
 
     private var doneText: String {
         guard let id = job.meeting else { return String(localized: "Klar") }
-        if notes.writing.contains(id) { return String(localized: "Klar – sammanfattningen skrivs…") }
-        return MeetingNotes.isAvailable ? String(localized: "Klar – text, talare och sammanfattning")
-                                        : String(localized: "Klar – text och talare")
+        if notes.writing.contains(id) { return String(localized: "Klar. Sammanfattningen skrivs…") }
+        return MeetingNotes.isAvailable ? String(localized: "Klar: text, talare och sammanfattning")
+                                        : String(localized: "Klar: text och talare")
     }
 
     /// While it waits: the language it'll be heard in.
@@ -321,7 +321,7 @@ struct SourceLink: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .help(missing ? "Filen hittades inte – den kan ha tagits bort" : "Visa filen i Finder")
+        .help(missing ? "Filen hittades inte. Den kan ha tagits bort" : "Visa filen i Finder")
         .accessibilityLabel("Importerad från \(source.file). Visa filen i Finder")
     }
 

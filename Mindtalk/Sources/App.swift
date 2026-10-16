@@ -292,7 +292,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                                   ("Det här var Johan. Hej", false), ("Det här var Johan Hej hej", false), ("Hej, det är Karin.", false), ("Johan", true),
                                   ("Per", true), ("Bra", true), ("Tack", true), ("Stockholm", true), ("Johanna Berg här", true),
                                   ("This is John.", false), ("Sara", true), ("Nästa", true), ("Hallå", true), ("Nigg", true), ("Käll", true), ("Matilda", true), ("Karin här", true), ("Liam", true), ("Emma", true), ("Björn", true), ("Linda", true), ("Det är Volvo.", false), ("Jag heter Zylvana.", false), ("Man", true), ("Nu", true), ("My name’s Tom.", false)] {
-                print("\(text) → \(IntroRound.name(in: text, whole: whole) ?? "–")")
+                print("\(text) → \(IntroRound.name(in: text, whole: whole) ?? "•")")
             }
             for (a, b) in [("Matilda", "Mathilda"), ("Eric", "Erik"), ("Anna", "Erik"), ("Johan", "Johanna"), ("Sara", "Sarah"), ("Per", "Pelle"), ("Anna", "Anne"), ("Lisa", "Lina"), ("Johan", "Jonas"), ("Max", "Mia"), ("Emil", "Elin"), ("Karin", "Karl"), ("Philip", "Filip"), ("Zandra", "Sandra")] {
                 print("\(a) ~ \(b): \(VoiceMemory.spelledAlike(a, b))")
@@ -365,7 +365,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 guard let job = importer.jobs.first else { exit(1) }
                 print("Steg: \(job.stage.title) \(job.error ?? "") efter \(Int(Date().timeIntervalSince(t0))) s")
                 if let id = job.meeting, let r = MeetingStore.shared.meetings.first(where: { $0.id == id }) {
-                    print("Möte: \(r.title) · datum \(r.date) · \(Int(r.duration)) s · \(r.words.count) ord · talare \(Set(r.words.compactMap(\.speaker)).sorted()) · klart \(r.finished) · genomlyssnat \(r.refined) · källa \(r.source.map { "\($0.file), video \($0.video)" } ?? "–") · sammanfattning \(r.summary?.title ?? "–")")
+                    print("Möte: \(r.title) · datum \(r.date) · \(Int(r.duration)) s · \(r.words.count) ord · talare \(Set(r.words.compactMap(\.speaker)).sorted()) · klart \(r.finished) · genomlyssnat \(r.refined) · källa \(r.source.map { "\($0.file), video \($0.video)" } ?? "•") · sammanfattning \(r.summary?.title ?? "•")")
                     print(String(MeetingText.plain(r).prefix(400)))
                     print("MAPP: \(MeetingStore.folder(for: id).path)")
                 }
@@ -406,7 +406,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if let i = args.firstIndex(of: "--test-locate"), i + 1 < args.count {
             Task {
                 let url = await SourceLink.locate(MeetingRecord.Source(file: args[i + 1], video: false, importedAt: Date()))
-                print("Hittad: \(url?.path ?? "–")")
+                print("Hittad: \(url?.path ?? "•")")
                 exit(0)
             }
             RunLoop.main.run()
@@ -456,7 +456,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 ]
                 for (name, record, expected) in cases {
                     let got = folders.suggestion(for: record, among: library + [record])?.name
-                    print("\(got == expected ? "OK " : "FEL") \(name): \(got ?? "–") (väntat \(expected ?? "–"))")
+                    print("\(got == expected ? "OK " : "FEL") \(name): \(got ?? "•") (väntat \(expected ?? "•"))")
                 }
                 exit(0)
             }
@@ -577,7 +577,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     t("Idé: visa vem som pratar mest i ett möte.", 1.5),
                     t("Boka lokal till kickoffen i november.", 2.5, done: true),
                     t("Skriv till styrelsen om datumet.", 3),
-                    t("Rabattkod till kunden – tio procent, gäller året ut.", 50, pinned: true),
+                    t("Rabattkod till kunden: tio procent, gäller året ut.", 50, pinned: true),
                     t("Köp ny laddare till datorn.", 26),
                     t("Fråga om styrelsens datum.", 30, done: true),
                     failed,
@@ -742,7 +742,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 let folders = MeetingFolders.shared
                 folders.preview(["Kund Nordljus", "Styrelsen", "Veckomöten"])
                 folders.selected = folders.sorted.first?.id
-                var record = MeetingRecord(title: "Nordljus – uppstart", date: Date(), language: .swedish)
+                var record = MeetingRecord(title: "Nordljus, uppstart", date: Date(), language: .swedish)
                 record.folder = nil
                 var tagged = record
                 tagged.folder = folders.sorted.first?.id
@@ -964,7 +964,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             ]
             var failed = 0
             for (said, want) in nameCases where VoiceScanner.spokenName(in: said) != want {
-                failed += 1; print("FEL namn: \(said) → \(VoiceScanner.spokenName(in: said) ?? "–")")
+                failed += 1; print("FEL namn: \(said) → \(VoiceScanner.spokenName(in: said) ?? "•")")
             }
             for (before, after, want) in guardCases where PolishGuard.accepts(after, as: before) != want {
                 failed += 1; print("FEL spärr: \(before) → \(after)")
@@ -1181,7 +1181,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     let parts = SpeechModel.allCases.map { m -> String in
                         if let p = dictation.downloads[m] { return "\(m.rawValue) \(Int(p * 100))%" }
                         if let e = dictation.downloadErrors[m] { return "\(m.rawValue) FEL: \(e)" }
-                        return "\(m.rawValue) \(m.isInstalled ? "klar" : "–")"
+                        return "\(m.rawValue) \(m.isInstalled ? "klar" : "•")"
                     }
                     print("\(Int(Date().timeIntervalSince1970) % 100000) \(parts.joined(separator: " · ")) · aktiv: \(dictation.engine.rawValue) \(dictation.model)")
                 }
@@ -1301,7 +1301,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             NSApp.activate()
             let alert = NSAlert()
             alert.messageText = String(localized: "En fil skrivs ned")
-            alert.informativeText = String(localized: "Avslutar du nu blir den inte klar – du kan importera den igen sedan.")
+            alert.informativeText = String(localized: "Avslutar du nu blir den inte klar. Du kan importera den igen sedan.")
             alert.addButton(withTitle: String(localized: "Avsluta ändå"))
             alert.addButton(withTitle: String(localized: "Vänta"))
             return alert.runModal() == .alertFirstButtonReturn ? .terminateNow : .terminateCancel

@@ -467,7 +467,7 @@ final class Thoughts: ObservableObject {
             let title = day.day.formatted(Date.FormatStyle().weekday(.wide).day().month(.wide).year().locale(AppLanguage.locale))
             lines += ["## " + title.prefix(1).uppercased() + title.dropFirst(), ""]
             for t in day.items where t.writing == nil {
-                lines.append("- " + t.date.formatted(time) + " – " + t.text.replacingOccurrences(of: "\n", with: "\n  ")
+                lines.append("- " + t.date.formatted(time) + ": " + t.text.replacingOccurrences(of: "\n", with: "\n  ")
                              + (t.done ? " " + String(localized: "(klar)") : ""))
             }
             lines.append("")

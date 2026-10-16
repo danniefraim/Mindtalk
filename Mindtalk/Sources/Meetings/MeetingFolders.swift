@@ -114,7 +114,7 @@ final class MeetingFolders: ObservableObject {
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: Self.url.path)
         } catch {
             NSLog("Mindtalk: could not save Folders.json: \(error.localizedDescription)")
-            problem = String(localized: "Mapparna kunde inte sparas – är disken full?")
+            problem = String(localized: "Mapparna kunde inte sparas. Är disken full?")
             return false
         }
         folders = new

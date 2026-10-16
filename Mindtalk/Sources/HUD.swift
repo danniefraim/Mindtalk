@@ -121,7 +121,7 @@ private struct HUDView: View {
                     .frame(maxWidth: 220, alignment: .leading)
             case .copied:
                 Image(systemName: "doc.on.clipboard").foregroundStyle(.white.opacity(0.85))
-                Text("Kopierad – klistra in med ⌘V")
+                Text("Kopierad. Klistra in med ⌘V")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white)
             case .saved:

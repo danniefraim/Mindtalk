@@ -149,7 +149,7 @@ struct StatusPanelView: View {
             today
             PanelSeparator()
             if let version = updates.available {
-                PanelRow(title: String(localized: "Ny version \(version) – installera…"), icon: "arrow.down.circle") {
+                PanelRow(title: String(localized: "Installera ny version \(version)…"), icon: "arrow.down.circle") {
                     close()
                     updates.checkNow()
                 }
@@ -164,7 +164,7 @@ struct StatusPanelView: View {
                 }
                 if meeting.isRecording {
                     if meeting.stopping {
-                        PanelRow(title: String(localized: "Avslutas strax – ångra"), icon: "arrow.uturn.backward") { meeting.cancelStop() }
+                        PanelRow(title: String(localized: "Avslutas strax, ångra"), icon: "arrow.uturn.backward") { meeting.cancelStop() }
                     } else {
                         PanelRow(title: meeting.isPaused ? String(localized: "pause|Fortsätt mötet") : String(localized: "Pausa mötet"),
                                  icon: meeting.isPaused ? "play.fill" : "pause.fill") {
@@ -311,7 +311,7 @@ struct StatusPanelView: View {
             switch dictation.phase {
             case .recording:
                 Circle().fill(DS.Colors.recording).frame(width: 6, height: 6)
-                Text(dictation.handsFree ? "Lyssnar – låst" : "Lyssnar…")
+                Text(dictation.handsFree ? "Lyssnar (låst)" : "Lyssnar…")
             case .transcribing:
                 Text("Skriver…")
             default:

@@ -189,8 +189,8 @@ final class Dictation: ObservableObject {
             case .accessibility: return String(localized: "Slå på Hjälpmedel för Mindtalk")
             case .microphone: return String(localized: "Tillåt mikrofonen")
             case .modelMissing: return String(localized: "Ladda ned talmodellen (\(model))")
-            case .modelDownloading(let p): return String(localized: "Laddar ned talmodellen – \(Int(p * 100)) %")
-            case .modelFailed: return String(localized: "Talmodellen startade inte – försök igen")
+            case .modelDownloading(let p): return String(localized: "Laddar ned talmodellen (\(Int(p * 100)) %)")
+            case .modelFailed: return String(localized: "Talmodellen startade inte. Försök igen")
             }
         }
 
@@ -201,7 +201,7 @@ final class Dictation: ObservableObject {
                 return String(localized: "Behövs för att känna av tangenten och skriva in texten. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på.")
             case .microphone: return String(localized: "Behövs för att höra vad du säger.")
             case .modelMissing, .modelDownloading, .modelFailed:
-                return String(localized: "Taligenkänningen behöver talmodellen – den laddas ned en gång.")
+                return String(localized: "Taligenkänningen behöver talmodellen. Den laddas ned en gång.")
             }
         }
     }
@@ -735,7 +735,7 @@ final class Dictation: ObservableObject {
     private func begin() {
         // One microphone, one model: a meeting being recorded has both.
         if MeetingSession.shared.isRecording {
-            return report { $0.fail(String(localized: "Ett möte spelas in – dikteringen är pausad.")) }
+            return report { $0.fail(String(localized: "Ett möte spelas in, så dikteringen är pausad.")) }
         }
         switch model {
         case .ready: break
@@ -744,8 +744,8 @@ final class Dictation: ObservableObject {
             // minutes — said the same way as in the introduction.
             let long = firstPreparation && Date().timeIntervalSince(loadingSince) > 5
             return report {
-                $0.fail(long ? String(localized: "Talmodellen görs redo – strax klar.")
-                             : String(localized: "Talmodellen startar – ett ögonblick…"))
+                $0.fail(long ? String(localized: "Talmodellen görs redo, strax klar.")
+                             : String(localized: "Talmodellen startar, ett ögonblick…"))
             }
         case .downloading: return report { $0.fail(String(localized: "Talmodellen laddas fortfarande ned…")) }
         case .missing, .failed:
@@ -875,7 +875,7 @@ final class Dictation: ObservableObject {
                 }
                 guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     if let pending { Thoughts.shared.discard(pending) }
-                    return heard < 0.03 ? fail(String(localized: "Hörde inget – kontrollera mikrofonen.")) : reset()
+                    return heard < 0.03 ? fail(String(localized: "Hörde inget. Kontrollera mikrofonen.")) : reset()
                 }
                 // A thought: kept in Tankar — nothing typed anywhere.
                 if thought {
@@ -893,8 +893,8 @@ final class Dictation: ObservableObject {
                 // You switched app while it was being written: don't type into the
                 // wrong one. It's on Diktering, one ⌃⌥V away.
                 if !selfTest, let target, NSWorkspace.shared.frontmostApplication?.processIdentifier != target {
-                    return fail(secret ? String(localized: "Du bytte app – texten skrevs inte in.")
-                                       : String(localized: "Du bytte app – tryck ⌃⌥V för att klistra in texten."))
+                    return fail(secret ? String(localized: "Du bytte app, så texten skrevs inte in.")
+                                       : String(localized: "Du bytte app. Tryck ⌃⌥V för att klistra in texten."))
                 }
                 if !selfTest, !secret, let target, FocusedField.kind(in: target) == .none {
                     return copied(text)
@@ -908,7 +908,7 @@ final class Dictation: ObservableObject {
             } catch {
                 if let pending {
                     Thoughts.shared.failWriting(pending)
-                    return fail(String(localized: "Tanken kunde inte skrivas ned – den finns under Tankar, där du kan försöka igen."))
+                    return fail(String(localized: "Tanken kunde inte skrivas ned. Den finns under Tankar, där du kan försöka igen."))
                 }
                 fail(error.localizedDescription)
             }

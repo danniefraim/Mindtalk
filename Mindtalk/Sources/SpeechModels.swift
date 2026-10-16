@@ -49,7 +49,7 @@ enum SpeechModel: String, CaseIterable, Identifiable, Codable, Sendable {
 
     var pitch: String {
         switch self {
-        case .swedish: return String(localized: "Bäst på svenska – hänger med i engelska också.")
+        case .swedish: return String(localized: "Bäst på svenska, hänger med i engelska också.")
         case .multilingual: return String(localized: "25 språk, bland annat svenska, engelska, tyska och franska.")
         }
     }

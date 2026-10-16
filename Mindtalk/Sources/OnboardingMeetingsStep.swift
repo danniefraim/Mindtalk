@@ -252,7 +252,7 @@ private struct DemoMeeting: View {
                 Image(systemName: "person.wave.2")
                     .font(.system(size: 10.5, weight: .semibold))
                     .accessibilityHidden(true)
-                Text("Först säger alla sitt namn – det går att hoppa över.")
+                Text("Först säger alla sitt namn. Det går att hoppa över.")
                     .fixedSize(horizontal: false, vertical: true)
             }
             .font(.system(size: 11.5, weight: .medium))
@@ -639,7 +639,7 @@ private struct VoiceModelCard: View {
                 // After a failed download the reason takes its place.
                 if failure == nil { fact("cpu", Text("Nemotron 3 från NVIDIA")) }
                 fact("arrow.down.circle", Text("\(VoiceModels.sizeText), laddas ned en gång"))
-                fact("lock", Text("Körs på din Mac – ljudet lämnar den aldrig"))
+                fact("lock", Text("Körs på din Mac. Ljudet lämnar den aldrig"))
                 fact("internaldrive", Text("Du har \(BetterNotes.gigabytes(BetterNotes.freeBytes)) ledigt"),
                      warn: BetterNotes.freeBytes < 2_000_000_000)
             }
@@ -655,7 +655,7 @@ private struct VoiceModelCard: View {
                 .frame(height: 22)
             }
             .buttonStyle(.ink)
-            .help("Laddas ned i bakgrunden – du kan fortsätta under tiden")
+            .help("Laddas ned i bakgrunden medan du fortsätter")
             Text("**Senare?** Du hittar den under Möten. Utan den går det inte att spela in möten.")
                 .font(.system(size: 11.5))
                 .foregroundStyle(DS.Colors.muted)
@@ -726,7 +726,7 @@ private struct VoiceModelCard: View {
                     .font(.system(size: 13))
                     .foregroundStyle(DS.Colors.ink)
                     .accessibilityHidden(true)
-                Text("Du kan fortsätta – den laddas ned i bakgrunden.")
+                Text("Du kan fortsätta medan den laddas ned i bakgrunden.")
                     .font(.system(size: 13, weight: .medium))
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -744,7 +744,7 @@ private struct VoiceModelCard: View {
             eyebrow.frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 0)
             DoneCheck(animate: celebrate)
-            Text("Klart – möten fungerar.")
+            Text("Klart! Möten fungerar.")
                 .font(.system(size: 17, weight: .semibold))
                 .multilineTextAlignment(.center)
                 .padding(.top, 18)

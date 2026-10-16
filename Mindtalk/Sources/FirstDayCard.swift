@@ -109,7 +109,7 @@ struct FirstDayCard: View {
         let s = steps
         return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(celebrating ? "Allt klart – nu kör du." : "Din första dag")
+                Text(celebrating ? "Allt klart, nu kör du." : "Din första dag")
                     .font(.system(size: 24, weight: .regular, design: .serif))
                     .contentTransition(.opacity)
                     .accessibilityAddTraits(.isHeader)
@@ -137,7 +137,7 @@ struct FirstDayCard: View {
             HStack(alignment: .top, spacing: 10) {
                 MenuBarChip().padding(.top, -1)
                 Text(verbatim: String(localized: "Mindtalk bor i menyraden och fortsätter när du stänger fönstret.")
-                     + (startsAtLogin ? " " + String(localized: "Den startar när du loggar in – ändra under Inställningar.") : ""))
+                     + (startsAtLogin ? " " + String(localized: "Den startar när du loggar in. Ändra under Inställningar.") : ""))
                     .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
@@ -163,7 +163,7 @@ struct FirstDayCard: View {
         guard let keys = Settings.thoughtShortcut?.inlineName else {
             return String(localized: "Säg en tanke på sidan Tankar.")
         }
-        return String(localized: "Håll in \(keys) och prata – tanken hamnar i Tankar.")
+        return String(localized: "Håll in \(keys) och prata, så hamnar tanken i Tankar.")
     }
 
     private func row<A: View>(done: Bool, title: LocalizedStringKey, detail: String, @ViewBuilder action: () -> A) -> some View {

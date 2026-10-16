@@ -41,7 +41,7 @@ struct MicrophonePicker: View {
                            detail: "Följer ljudinställningarna på din Mac")
                     ForEach(others) { device in
                         option(.device(uid: device.uid), icon: device.icon, title: device.name,
-                               detail: device.isBluetooth ? "Bluetooth – ljudet blir sämre medan mikrofonen används" : nil)
+                               detail: device.isBluetooth ? "Bluetooth: ljudet blir sämre medan mikrofonen används" : nil)
                     }
                     if !virtual.isEmpty {
                         Button {

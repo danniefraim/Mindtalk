@@ -80,7 +80,7 @@ struct ThoughtsPage: View {
     private var header: some View {
         HStack(alignment: .top) {
             PageHeader(title: "Tankar",
-                       subtitle: live < 5 ? "Det du kommer på mitt i något annat. Håll in genvägen och säg det – det hamnar här, inte i appen du står i." : nil)
+                       subtitle: live < 5 ? "Det du kommer på mitt i något annat. Håll in genvägen och säg det, så hamnar det här, inte i appen du står i." : nil)
             Spacer(minLength: 16)
             Menu {
                 Button("Exportera alla som Markdown…", action: export).disabled(live == 0)
@@ -103,7 +103,7 @@ struct ThoughtsPage: View {
     private var captureBar: some View {
         HStack(spacing: 10) {
             Image(systemName: "pencil").font(.system(size: 12)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
-            TextField(chord.isEmpty ? "Skriv en tanke och tryck på retur" : "Skriv en tanke – eller håll in \(chord) och säg den", text: $typed)
+            TextField(chord.isEmpty ? "Skriv en tanke och tryck på retur" : "Skriv en tanke, eller håll in \(chord) och säg den", text: $typed)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
                 .focused($typing)
@@ -121,7 +121,7 @@ struct ThoughtsPage: View {
             }
             .buttonStyle(.ink)
             .disabled(dictation.phase == .recording || dictation.phase == .transcribing || !dictation.engine.isInstalled)
-            .help("Börja lyssna – tryck på ✓ i bubblan när du är klar")
+            .help("Börja lyssna. Tryck på ✓ i bubblan när du är klar")
         }
         .padding(.leading, 16).padding(.trailing, 7).padding(.vertical, 7)
         .raised(cornerRadius: 16)
