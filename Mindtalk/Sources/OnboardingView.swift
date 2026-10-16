@@ -271,6 +271,7 @@ private struct WelcomeStep: View {
                        then: [String(localized: "Prata. Vi sparar tanken."),
                               String(localized: "Prata. Vi vet vem som sa vad."),
                               String(localized: "Prata. Vi skriver.")],
+                       repeats: true,
                        cursorHeight: 44)
             Text("Diktera i alla appar, spara tankar och spela in möten. Allt stannar på din Mac.")
                 .font(.system(size: 16)).foregroundStyle(DS.Colors.muted)
@@ -1031,6 +1032,8 @@ struct Typewriter: View {
     /// Lines it rewrites itself into, one after another: the end is erased back to
     /// what they share ("Prata. Vi ") and the new end typed — the last one stays.
     var then: [String] = []
+    /// Goes round again after the last line, for as long as it's on screen.
+    var repeats = false
     var cursorHeight: CGFloat = 46
     @State private var line: String?
     @State private var shown = 0
@@ -1079,19 +1082,28 @@ struct Typewriter: View {
         .task {
             try? await Task.sleep(for: .seconds(delay))
             await type(text, from: 0)
-            for next in then {
-                guard !Task.isCancelled else { return }
-                try? await Task.sleep(for: .seconds(1.6))
-                let keep = zip(current, next).prefix { $0 == $1 }.count
-                while shown > keep, !Task.isCancelled {
-                    shown -= 1
-                    try? await Task.sleep(for: .milliseconds(32))
+            repeat {
+                for next in then {
+                    guard !Task.isCancelled else { return }
+                    await rewrite(to: next)
                 }
-                line = next
-                try? await Task.sleep(for: .milliseconds(320))   // the line makes room first
-                await type(next, from: keep)
-            }
+            } while repeats && !Task.isCancelled
         }
+    }
+
+    /// Erases back to the last whole word the lines share ("Prata. Vi "), then types the rest.
+    private func rewrite(to next: String) async {
+        try? await Task.sleep(for: .seconds(2.2))
+        guard !Task.isCancelled else { return }
+        var keep = zip(current, next).prefix { $0 == $1 }.count
+        while keep > 0, Array(current)[keep - 1] != " " { keep -= 1 }
+        while shown > keep, !Task.isCancelled {
+            shown -= 1
+            try? await Task.sleep(for: .milliseconds(32))
+        }
+        line = next
+        try? await Task.sleep(for: .milliseconds(320))   // the line makes room first
+        await type(next, from: keep)
     }
 
     private func type(_ line: String, from start: Int) async {
