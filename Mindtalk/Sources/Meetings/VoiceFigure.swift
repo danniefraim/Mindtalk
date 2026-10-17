@@ -151,10 +151,30 @@ struct Constellation: View {
     var searching = false
     /// Off screen: no frames drawn.
     var paused = false
-    @State private var morph = Morph()
+    /// On a light surface (the Hem card): the points are the colour itself, drawn
+    /// plainly — light added to light would vanish.
+    var onLight = false
+    /// The colour as given, for the listening sphere on a light surface (the sphere
+    /// is white otherwise; only a voice's figure takes a colour).
+    private let plain: SIMD3<Double>
+    @State private var morph: Morph
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     static let count = 900
+
+    init(figure: VoiceFigure?, color: Color, level: Double, searching: Bool = false, paused: Bool = false, onLight: Bool = false) {
+        self.figure = figure
+        self.color = color
+        self.level = level
+        self.searching = searching
+        self.paused = paused
+        self.onLight = onLight
+        self.plain = Self.rgb(color, vivid: false)
+        // In its colour from the first frame, also in a still picture (no onAppear there).
+        var first = Morph()
+        first.set(figure, rgb: Self.rgb(color, vivid: !onLight), now: Date.timeIntervalSinceReferenceDate, instant: true)
+        _morph = State(initialValue: first)
+    }
 
     var body: some View {
         // Sixty frames a second is plenty for drifting light, also on a 120 Hz screen.
@@ -162,8 +182,8 @@ struct Constellation: View {
             let now = context.date.timeIntervalSinceReferenceDate
             Canvas { ctx, size in draw(&ctx, size: size, now: now) }
         }
-        .onAppear { morph.set(figure, rgb: Self.rgb(color), now: Date.timeIntervalSinceReferenceDate, instant: reduceMotion) }
-        .onChange(of: figure) { _, f in morph.set(f, rgb: Self.rgb(color), now: Date.timeIntervalSinceReferenceDate, instant: reduceMotion) }
+        .onAppear { morph.set(figure, rgb: Self.rgb(color, vivid: !onLight), now: Date.timeIntervalSinceReferenceDate, instant: reduceMotion) }
+        .onChange(of: figure) { _, f in morph.set(f, rgb: Self.rgb(color, vivid: !onLight), now: Date.timeIntervalSinceReferenceDate, instant: reduceMotion) }
         .onChange(of: Self.rgb(color)) { _, c in morph.recolour(c) }
         .accessibilityHidden(true)
     }
@@ -172,7 +192,8 @@ struct Constellation: View {
         let state = morph.state(now: now, instant: reduceMotion)
         let angle = morph.turn(now: now, speed: reduceMotion ? 0 : (searching ? 0.6 : 0.25))
         let cx = size.width / 2, cy = size.height * 0.42, R = min(size.width, size.height) * 0.28
-        let k = state.k, rgb = state.rgb
+        let k = state.k
+        let rgb = onLight && state.figure == nil ? plain : state.rgb
         let tint = Color(red: rgb.x, green: rgb.y, blue: rgb.z)
 
         // The voice's colour, faintly, behind the cloud.
@@ -196,7 +217,7 @@ struct Constellation: View {
             xs[i] = cx + x2 * R * f; ys[i] = cy + q.y * R * f; zs[i] = z2; es[i] = e
         }
 
-        ctx.blendMode = .plusLighter
+        ctx.blendMode = onLight ? .normal : .plusLighter
         // Where the cloud has become the figure, its points join into a line.
         if k > 0.3 {
             var line = Path()
@@ -222,7 +243,7 @@ struct Constellation: View {
         }
         for hue in 0..<hues {
             let m = (Double(hue) + 0.5) / Double(hues)
-            let c = SIMD3<Double>(1, 1, 1) + (rgb - SIMD3<Double>(1, 1, 1)) * m
+            let c = onLight ? rgb : SIMD3<Double>(1, 1, 1) + (rgb - SIMD3<Double>(1, 1, 1)) * m
             for shade in 0..<shades {
                 let alpha = 0.3 + 0.45 * (Double(shade) + 0.5) / Double(shades)
                 ctx.fill(batches[hue * shades + shade], with: .color(Color(red: c.x, green: c.y, blue: c.z).opacity(alpha)))
@@ -230,9 +251,10 @@ struct Constellation: View {
         }
     }
 
-    /// A speaker's colour, made vivid for a dark room.
-    static func rgb(_ color: Color) -> SIMD3<Double> {
+    /// A speaker's colour, made vivid for a dark room; as it is (`vivid: false`) on a light one.
+    static func rgb(_ color: Color, vivid: Bool = true) -> SIMD3<Double> {
         let c = NSColor(color).usingColorSpace(.sRGB) ?? .white
+        if !vivid { return SIMD3(Double(c.redComponent), Double(c.greenComponent), Double(c.blueComponent)) }
         var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         c.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
         let vivid = NSColor(hue: h, saturation: max(s, 0.55), brightness: 0.95, alpha: 1).usingColorSpace(.sRGB) ?? c

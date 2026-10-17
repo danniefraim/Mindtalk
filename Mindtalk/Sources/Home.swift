@@ -43,8 +43,8 @@ struct HomeHero: View {
     @ObservedObject private var stats = Stats.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// The tile is night in both modes, like the room on Möten: text is white on it.
-    private var onInk: Color { .white }
+    /// The tile is a light card now (the night tile lives on Möten): text is the page's own.
+    private var onInk: Color { .primary }
     private var meetingKeys: String? { Settings.meetingShortcut.map { $0.chip.replacingOccurrences(of: " ", with: "") } }
 
     var body: some View {
@@ -53,16 +53,10 @@ struct HomeHero: View {
         let weekWords = week.reduce(0) { $0 + $1.stat.words }
         let fresh = stats.totalWords == 0
         let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 24)) : AnyLayout(VStackLayout(alignment: .leading, spacing: 22))
+        VStack(alignment: .leading, spacing: 18) {
+        header
         layout {
             VStack(alignment: .leading, spacing: 0) {
-                TimelineView(.periodic(from: .now, by: 60)) { context in
-                    let hello = HomeGreeting.greeting(context.date) + (HomeGreeting.firstName.map { ", " + $0 } ?? "")
-                    (Text(verbatim: hello).foregroundStyle(onInk.opacity(0.92))
-                     + Text(verbatim: " · " + HomeGreeting.day(context.date)).foregroundStyle(onInk.opacity(0.6)))
-                        .font(.system(size: 15, weight: .medium))
-                        .accessibilityAddTraits(.isHeader)
-                }
-                Spacer(minLength: 18)
                 if session.isRecording {
                     LiveMeeting(session: session, onInk: onInk)
                 } else if case .finishing(let what) = session.phase {
@@ -157,16 +151,15 @@ struct HomeHero: View {
         .background(alignment: .bottomTrailing) {
             // The sphere of light from Möten, breathing in the corner — with your voice
             // while you dictate.
-            HeroSphere(meter: dictation.meter, listening: dictation.phase == .recording)
+            HeroSphere(meter: dictation.meter, listening: dictation.phase == .recording,
+                       color: Settings.accent == .plum ? DS.Colors.accent : DS.Colors.ink)
                 .frame(width: 340, height: 340)
                 .offset(x: 70, y: 120)
-                .opacity(0.55)
                 .allowsHitTesting(false)
         }
-        .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(DS.Colors.night))
+        .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(DS.Colors.card))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
-        .shadow(color: .black.opacity(0.10), radius: 14, y: 6)
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(DS.Colors.divider, lineWidth: 1))
         .animation(reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.1), value: session.phase)
         // A start that takes more than a few seconds is the long first one; a language
         // switch is over before it would show.
@@ -178,6 +171,20 @@ struct HomeHero: View {
             let wait = 3 - Date().timeIntervalSince(since)
             if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
             if !Task.isCancelled, dictation.model == .loading { slowSince = since }
+        }
+        }
+    }
+
+    /// The day in small capitals, then the greeting as the page's title.
+    private var header: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            VStack(alignment: .leading, spacing: 6) {
+                Text(verbatim: HomeGreeting.day(context.date).uppercased())
+                    .font(.system(size: 12, weight: .semibold)).tracking(1.6).foregroundStyle(DS.Colors.muted)
+                Text(verbatim: HomeGreeting.greeting(context.date) + (HomeGreeting.firstName.map { ", " + $0 } ?? ""))
+                    .font(DS.pageTitle)
+                    .accessibilityAddTraits(.isHeader)
+            }
         }
     }
 
@@ -318,10 +325,7 @@ struct HomeHero: View {
             .disabled(micBusy || !dictation.engine.isInstalled)
         HStack(spacing: 5) {
             Text(verbatim: pressVerb).foregroundStyle(onInk.opacity(0.65))
-            Text(verbatim: dictation.hotkey.chip).font(.system(size: 11.5, weight: .semibold))
-                .padding(.horizontal, 6).padding(.vertical, 2)
-                .background(RoundedRectangle(cornerRadius: 5).fill(onInk.opacity(0.16)))
-                .foregroundStyle(onInk)
+            KeyChip(text: dictation.hotkey.chip)
             Text("för att diktera").foregroundStyle(onInk.opacity(0.65))
         }
         .font(.system(size: 12.5)).padding(.top, 6)
@@ -464,11 +468,17 @@ private struct DayFigure: View {
 private struct HeroSphere: View {
     @ObservedObject var meter: LevelMeter
     let listening: Bool
+    /// Ink on the light card, or the accent.
+    let color: Color
     @State private var visible = true
 
     var body: some View {
         let level = listening ? Double(min(1, (meter.levels.suffix(3).max() ?? 0) * 1.6)) : 0.22
-        Constellation(figure: nil, color: .white, level: level, searching: listening, paused: !visible)
+        // Plain ink or accent points on the light card; light added to the dark one. (The
+        // app's appearance, not the view's colour scheme: a still picture has none.)
+        let light = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) != .darkAqua
+        Constellation(figure: nil, color: color, level: level, searching: listening, paused: !visible, onLight: light)
+            .opacity(light ? 0.8 : 0.38)
             .onAppear { visible = AppDelegate.mainWindowVisible }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)) { note in
                 guard let window = note.object as? NSWindow, window.contentViewController is NSHostingController<MainView> else { return }
