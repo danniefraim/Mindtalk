@@ -423,11 +423,10 @@ private struct StartCue: View {
     var body: some View {
         VStack(spacing: 10) {
             Text("Nu spelar vi in").font(.system(size: 44, weight: .regular, design: .serif))
-                .foregroundStyle(.white)
-            Text("Mötet har börjat.").font(.system(size: 16)).foregroundStyle(.white.opacity(0.7))
+            Text("Mötet har börjat.").font(.system(size: 16)).foregroundStyle(DS.Colors.muted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(DS.Colors.night)
+        .background(DS.Colors.paper)
         .allowsHitTesting(false)
         .accessibilityElement(children: .combine)
     }
@@ -461,8 +460,8 @@ struct StartCard: View {
     var body: some View {
         Group {
             if ready {
-                // One night tile, like Hem: record now on the left, a recording you have
-                // on the right (stacked when the window is narrow).
+                // One light tile, like Hem: the ways in with the sphere beside them,
+                // and under a line, a recording you already have.
                 tile
             } else {
                 // Getting ready: one door — both ways need the same models.
@@ -482,7 +481,7 @@ struct StartCard: View {
                     control
                 }
                 .padding(24)
-                .raised(cornerRadius: 20)
+                .tile()
             }
         }
         .animation(.spring(duration: 0.3, bounce: 0.15), value: importer.dropping)
@@ -506,44 +505,38 @@ struct StartCard: View {
         }
     }
 
-    /// The night tile: the listening sphere breathing in its corner — the same one
-    /// that falls into each voice's figure once the meeting is going.
+    /// The light tile: the words and the ways in on the left, the listening sphere in
+    /// a column of its own on the right — the same one that falls into each voice's
+    /// figure once the meeting is going — and under a line, the drop zone as one row.
     private var tile: some View {
-        let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 18)) : AnyLayout(VStackLayout(alignment: .leading, spacing: 18))
-        return layout {
-            room.frame(maxWidth: .infinity, alignment: .topLeading)
-            ImportZone(folder: folders.selected, compact: !wide, onNight: true)
-                .frame(width: wide ? 280 : nil)
-                .frame(maxWidth: wide ? nil : .infinity)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 28) {
+                room.frame(maxWidth: .infinity, alignment: .topLeading)
+                // (The cloud is about two thirds of its frame: the rest is let go.)
+                InkSphere(meter: dictation.meter, listening: false, paused: !onScreen || importer.dropping)
+                    .frame(width: DS.Layout.sphere, height: DS.Layout.sphere)
+                    .scaleEffect(starting ? 1.8 : 1)
+                    .padding(.vertical, -34).padding(.trailing, -14)
+                    .animation(.easeIn(duration: 0.7), value: starting)
+                    .allowsHitTesting(false)
+            }
+            Rectangle().fill(DS.Colors.divider).frame(height: 1).padding(.top, 22).padding(.bottom, 16)
+            ImportZone(folder: folders.selected, compact: true)
         }
-        .padding(24)
-        .frame(minHeight: wide ? 230 : nil)
-        .background(alignment: .bottomLeading) {
-            // Low in the seam between the words and the drop zone, clear of the text.
-            Constellation(figure: nil, color: .white, level: 0.3, paused: !onScreen || !windowVisible || importer.dropping)
-                .frame(width: 330, height: 330)
-                .scaleEffect(starting ? 1.8 : 1)
-                .offset(x: wide ? 340 : 180, y: wide ? 170 : 120)
-                .opacity(0.5)
-                .animation(.easeIn(duration: 0.7), value: starting)
-                .allowsHitTesting(false)
-        }
-        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(DS.Colors.night))
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
-        .shadow(color: .black.opacity(0.10), radius: 14, y: 6)
+        .padding(28)
+        .tile()
         .onGeometryChange(for: Bool.self) { $0.size.width >= 600 } action: { wide = $0 }
     }
 
     /// A new meeting: the choice, the two ways in, the voices, and what it runs on.
     private var room: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Nytt möte").font(.system(size: 28, weight: .regular, design: .serif)).foregroundStyle(.white)
+            Text("Nytt möte").font(.system(size: 28, weight: .regular, design: .serif))
             VStack(alignment: .leading, spacing: 3) {
                 Text("Är ni flera? Ta en namnrunda, så står rätt namn i texten.")
                 Text("Du kan också namnge talarna under mötet genom att klicka på dem.")
             }
-            .font(.system(size: 13.5)).foregroundStyle(.white.opacity(0.72))
+            .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.top, 6)
             .frame(maxWidth: 440, alignment: .leading)
@@ -551,31 +544,29 @@ struct StartCard: View {
                 Text(error).font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
                     .fixedSize(horizontal: false, vertical: true).padding(.top, 6)
             }
-            Spacer(minLength: 22)
-            roomControl
+            roomControl.padding(.top, 22)
             if dictation.micGranted {
                 // A choice, made here and not by default: the voices are other people's.
                 Toggle(isOn: $memory.enabled) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Kom ihåg rösterna till nästa möte").font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
+                        Text("Kom ihåg rösterna till nästa möte").font(.system(size: 13, weight: .medium))
                         Text("Bara ett röstavtryck sparas på din Mac, inget ljud. Berätta för de andra i rummet.")
-                            .font(.system(size: 11.5)).foregroundStyle(.white.opacity(0.55))
+                            .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.leading, 2)
                 }
                 .toggleStyle(.checkbox)
-                .environment(\.colorScheme, .dark)
-                .padding(.top, 18)
+                .padding(.top, 20)
             }
             // The shortcut, what it runs on, and where a new one goes — quietly, at the foot.
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 if dictation.micGranted {
-                    Text(verbatim: "⇧⌘R").font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.6))
+                    KeyChip(text: "⇧⌘R", small: true)
                         .help("Starta möte (⇧⌘R). Du väljer om ni tar en namnrunda eller startar direkt.")
                 }
                 if let caption {
-                    Text(verbatim: caption).font(.system(size: 11.5)).foregroundStyle(.white.opacity(0.5)).lineLimit(1)
+                    Text(verbatim: caption).font(.system(size: 12)).foregroundStyle(DS.Colors.faint).lineLimit(1)
                 }
             }
             .padding(.top, 16)
@@ -592,12 +583,12 @@ struct StartCard: View {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    /// The ways in, on the night: the round of names, or straight into the meeting.
+    /// The ways in: the round of names, or straight into the meeting.
     @ViewBuilder private var roomControl: some View {
         if !dictation.micGranted {
             roomButton("Tillåt mikrofonen", filled: true, help: "Mindtalk behöver få använda mikrofonen") { dictation.fix(.microphone) }
         } else {
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: 16) {
                 choice(.round, "Starta med namnrunda", caption: "Alla säger hej och sitt namn. En halv minut.")
                 choice(.direct, "Starta direkt", caption: "Namnge talarna under mötet om du vill.")
             }
@@ -605,8 +596,8 @@ struct StartCard: View {
         }
     }
 
-    /// One way in, with a line under it. The one you took last time is filled white
-    /// and on Return while the card waits for you; the other is soft.
+    /// One way in, with a line under it. The one you took last time is ink and on
+    /// Return while the card waits for you; the other is soft.
     private func choice(_ mode: MeetingSession.StartMode, _ title: LocalizedStringKey, caption: LocalizedStringKey) -> some View {
         let filled = remembered == mode
         return VStack(alignment: .leading, spacing: 8) {
@@ -614,30 +605,32 @@ struct StartCard: View {
                 .focused($focus, equals: mode)
                 .keyboardShortcut(filled && session.armed ? .defaultAction : nil)
                 .accessibilityHint(caption)
-            Text(caption).font(.system(size: 12)).foregroundStyle(.white.opacity(0.6))
+            Text(caption).font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: 200, alignment: .leading)
+                .frame(width: 176, alignment: .leading)
         }
     }
 
+    /// A button on the tile, as on Hem: ink with paper text, or soft grey.
     private func roomButton(_ title: LocalizedStringKey, filled: Bool, ring: Bool = false, help: LocalizedStringKey,
                             action: @escaping () -> Void) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
         return Button(action: action) {
-            HStack(spacing: 8) {
-                Circle().fill(DS.Colors.recording).frame(width: 8, height: 8).accessibilityHidden(true)
-                Text(title).font(.system(size: 14, weight: .semibold))
+            HStack(spacing: 7) {
+                Circle().fill(DS.Colors.recording).frame(width: 7, height: 7).accessibilityHidden(true)
+                Text(title).font(.system(size: 13, weight: .semibold))
             }
             .lineLimit(1).fixedSize()
-            .padding(.horizontal, 18).padding(.vertical, 11)
-            .background(shape.fill(filled ? Color.white : Color.white.opacity(0.12)))
-            .overlay(shape.strokeBorder(.white.opacity(filled ? 0 : 0.22), lineWidth: 1))
-            .foregroundStyle(filled ? .black : .white)
+            .padding(.horizontal, 15)
+            .frame(height: 34)
+            .background(shape.fill(filled ? DS.Colors.ink : DS.Colors.chip))
+            .foregroundStyle(filled ? DS.Colors.onInk : .primary)
             .contentShape(shape)
         }
         .buttonStyle(.plain)
         // Opened for this: the button that Return presses, ringed.
-        .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).strokeBorder(.white.opacity(ring ? 0.8 : 0), lineWidth: 1.5).padding(-4))
+        .overlay(RoundedRectangle(cornerRadius: DS.Radius.control + 3, style: .continuous)
+            .strokeBorder(DS.Colors.ink.opacity(ring ? 0.55 : 0), lineWidth: 1.5).padding(-4))
         .animation(.easeOut(duration: 0.25), value: ring)
         .help(help)
     }

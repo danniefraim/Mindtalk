@@ -26,10 +26,22 @@ private struct ImportDrop: ViewModifier {
                 }
             }
             .animation(.spring(duration: 0.3, bounce: 0.15), value: targeted)
-            .onDrop(of: [.fileURL, .audiovisualContent], isTargeted: $targeted) { providers in
-                importer.take(providers, folder: folders.selected)
-            }
+            .modifier(DropTarget(targeted: $targeted) { providers in importer.take(providers, folder: folders.selected) })
             .onChange(of: targeted) { _, now in importer.pageDragging = now }
+    }
+}
+
+/// Takes sound and video dropped on the view — except in a still picture of the page,
+/// where a drop target draws as a sign.
+private struct DropTarget: ViewModifier {
+    @Binding var targeted: Bool
+    let take: ([NSItemProvider]) -> Bool
+
+    func body(content: Content) -> some View {
+        #if DEBUG
+        if Demo.rendering { return AnyView(content) }
+        #endif
+        return AnyView(content.onDrop(of: [.fileURL, .audiovisualContent], isTargeted: $targeted) { take($0) })
     }
 }
 
@@ -164,7 +176,7 @@ struct ImportCard: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, compact ? 10 : 12)
-        .raised(cornerRadius: 18)
+        .raised(cornerRadius: DS.Radius.card)
         .onHover { inside in if inside { MeetingImport.shared.touch(job.id) } }
         .accessibilityElement(children: .contain)
     }
@@ -390,53 +402,32 @@ struct RecordGlyph: View {
     }
 }
 
-/// A key cap beside a button: "⇧⌘R".
-struct KeyCap: View {
-    let keys: String
-    var body: some View {
-        Text(verbatim: keys)
-            .font(.system(size: 11, weight: .medium).monospacedDigit())
-            .foregroundStyle(DS.Colors.faint)
-            .padding(.horizontal, 6)
-            .frame(height: 20)
-            .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(DS.Colors.chip.opacity(0.6)))
-            .accessibilityHidden(true)
-    }
-}
-
-/// The start card's right half: a dashed place to drop a recording — the whole of it
+/// A dashed place to drop a recording, at the foot of the start card: the whole of it
 /// also opens a file, and "Välj fil…" is there for those who'd rather choose.
 struct ImportZone: View {
     let folder: UUID?
-    /// Stacked under the record half in a narrow window: one row.
+    /// One row (under the ways in), rather than a block.
     var compact = false
-    /// On the night tile of "Nytt möte": white on dark, a dashed white edge.
-    var onNight = false
     @ObservedObject private var importer = MeetingImport.shared
     @State private var hovering = false
     @State private var targeted = false
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let dropping = importer.dropping
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         ZStack {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(onNight ? Color.white.opacity(dropping ? 0.14 : hovering ? 0.07 : 0)
-                              : DS.Colors.chip.opacity(dropping ? 0.55 : hovering ? 0.3 : 0.12))
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(onNight ? Color.white.opacity(dropping ? 0.9 : hovering ? 0.45 : 0.28)
-                                      : (dropping ? DS.Colors.ink : DS.Colors.muted.opacity(hovering ? 0.7 : 0.45)),
-                              style: dropping ? StrokeStyle(lineWidth: 1.5) : StrokeStyle(lineWidth: 1, dash: [6, 5]))
+            shape.fill(DS.Colors.chip.opacity(dropping ? 0.7 : hovering ? 0.45 : 0))
+            shape.strokeBorder(dropping ? DS.Colors.ink : DS.Colors.fieldStroke.opacity(hovering ? 1 : 0.8),
+                               style: dropping ? StrokeStyle(lineWidth: 1.5) : StrokeStyle(lineWidth: 1, dash: [5, 4]))
             content(dropping)
-                .padding(compact ? 12 : 18)
-                .foregroundStyle(onNight ? Color.white : Color.primary)
+                .padding(.horizontal, compact ? 14 : 18)
+                .padding(.vertical, compact ? 10 : 18)
+                .foregroundStyle(.primary)
         }
-        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .contentShape(shape)
         .onTapGesture { importer.choose(folder: folder) }
         .onHover { inside in withAnimation(.easeOut(duration: 0.15)) { hovering = inside } }
-        .onDrop(of: [.fileURL, .audiovisualContent], isTargeted: $targeted) { providers in
-            importer.take(providers, folder: folder)
-        }
+        .modifier(DropTarget(targeted: $targeted) { providers in importer.take(providers, folder: folder) })
         .onChange(of: targeted) { _, now in importer.zoneTargeted = now }
         .animation(.spring(duration: 0.3, bounce: 0.15), value: dropping)
         .accessibilityElement(children: .contain)
@@ -447,8 +438,14 @@ struct ImportZone: View {
         if compact {
             HStack(spacing: 12) {
                 glyph
-                Text(dropping ? "Släpp så skrivs den ned" : "Dra hit en inspelning")
-                    .font(.system(size: 14, weight: .semibold))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(dropping ? "Släpp så skrivs den ned" : "Dra hit en inspelning")
+                        .font(.system(size: 13.5, weight: .semibold))
+                    if !dropping {
+                        Text("Ljud eller video, till exempel mp3, m4a eller mp4").font(.system(size: 12))
+                            .foregroundStyle(DS.Colors.muted)
+                    }
+                }
                 Spacer(minLength: 8)
                 if !dropping { chooseButton }
             }
@@ -461,7 +458,7 @@ struct ImportZone: View {
                     VStack(spacing: 3) {
                         Text("Dra hit en inspelning").font(.system(size: 15, weight: .semibold))
                         Text("Ljud eller video, till exempel mp3, m4a eller mp4").font(.system(size: 13))
-                            .foregroundStyle(onNight ? Color.white.opacity(0.6) : DS.Colors.muted)
+                            .foregroundStyle(DS.Colors.muted)
                     }
                     chooseButton.padding(.top, 4)
                 }
@@ -472,27 +469,22 @@ struct ImportZone: View {
 
     private var glyph: some View {
         ZStack {
-            Circle().fill(onNight ? Color.white.opacity(0.1) : DS.Colors.chip)
+            Circle().fill(DS.Colors.chip)
             Image(systemName: "waveform.badge.plus")
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: compact ? 15 : 18, weight: .medium))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(onNight ? Color.white : DS.Colors.ink)
+                .foregroundStyle(DS.Colors.ink)
         }
-        .frame(width: 44, height: 44)
+        .frame(width: compact ? 36 : 44, height: compact ? 36 : 44)
         .accessibilityHidden(true)
     }
 
     private var chooseButton: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Button("Välj fil…") { importer.choose(folder: folder) }
                 .buttonStyle(.soft)
-                .environment(\.colorScheme, onNight ? .dark : colorScheme)
                 .help("Välj en ljud- eller videofil (⌘O)")
-            if onNight {
-                Text(verbatim: "⌘O").font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.55))
-            } else {
-                KeyCap(keys: "⌘O")
-            }
+            KeyChip(text: "⌘O", small: true)
         }
     }
 }

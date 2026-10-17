@@ -16,6 +16,9 @@ enum Demo {
     nonisolated static let hud = CommandLine.arguments.contains("--demo-hud")
     /// As on a first launch: no language model installed yet.
     nonisolated static let fresh = CommandLine.arguments.contains("--fresh")
+    /// A still picture of a page (`--render-…`): a drop target would draw as a sign
+    /// in it, so the zones are drawn without one.
+    nonisolated static let rendering = CommandLine.arguments.contains { $0.hasPrefix("--render-") }
 
     /// `--models-dir <path>`: install and look for models there instead of in
     /// Application Support — to test a real first download without touching yours.

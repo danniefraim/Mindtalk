@@ -47,8 +47,6 @@ struct HomeHero: View {
     /// Ink: the tile is light, so its text is the page's own.
     private var ink: Color { .primary }
     private var meetingKeys: String? { Settings.meetingShortcut.map { $0.chip.replacingOccurrences(of: " ", with: "") } }
-    /// The sphere's column: the cloud itself is about two thirds of it.
-    private static let sphereSize: CGFloat = 200
 
     var body: some View {
         // The week once per redraw — it's date maths over seven days.
@@ -73,8 +71,8 @@ struct HomeHero: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     // The sphere of light from Möten — with your voice while you dictate.
                     // (The cloud is about two thirds of its frame: the rest is let go.)
-                    HeroSphere(meter: dictation.meter, listening: dictation.phase == .recording)
-                        .frame(width: Self.sphereSize, height: Self.sphereSize)
+                    InkSphere(meter: dictation.meter, listening: dictation.phase == .recording)
+                        .frame(width: DS.Layout.sphere, height: DS.Layout.sphere)
                         .padding(.top, -20).padding(.bottom, -46).padding(.trailing, -14)
                         .allowsHitTesting(false)
                 }
@@ -482,11 +480,14 @@ private struct DayFigure: View {
     }
 }
 
-/// The sphere of light over the tile's corner. It breathes at rest and follows your
-/// voice while you dictate; it stops when the window can't be seen.
-private struct HeroSphere: View {
+/// The sphere of light in a tile's own column, in ink: on Hem and on "Nytt möte". It
+/// breathes at rest and follows your voice while you dictate; it stops when the
+/// window can't be seen.
+struct InkSphere: View {
     @ObservedObject var meter: LevelMeter
     let listening: Bool
+    /// Off screen for another reason (scrolled away, a file dragged over): no frames drawn.
+    var paused = false
     @State private var visible = true
 
     var body: some View {
@@ -494,7 +495,7 @@ private struct HeroSphere: View {
         // Plain ink points on the light tile; light added to the dark one. (The app's
         // appearance, not the view's colour scheme: a still picture has none.)
         let light = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) != .darkAqua
-        Constellation(figure: nil, color: DS.Colors.ink, level: level, searching: listening, paused: !visible, onLight: light)
+        Constellation(figure: nil, color: DS.Colors.ink, level: level, searching: listening, paused: !visible || paused, onLight: light)
             .opacity(light ? 0.5 : 0.42)
             .onAppear { visible = AppDelegate.mainWindowVisible }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)) { note in

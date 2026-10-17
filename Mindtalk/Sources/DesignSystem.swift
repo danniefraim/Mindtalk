@@ -25,6 +25,8 @@ enum DS {
         static let pageTop: CGFloat = 44
         /// Between the columns and blocks of an introduction step.
         static let stepGap: CGFloat = 16
+        /// The sphere's column on a tile (InkSphere): the cloud itself is about two thirds of it.
+        static let sphere: CGFloat = 200
     }
 
     enum Colors {
