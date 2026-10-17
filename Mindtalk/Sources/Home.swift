@@ -2,13 +2,14 @@ import SwiftUI
 
 // MARK: - Hem
 //
-// One night-dark tile — the same room as "Nytt möte" on Möten, with its sphere of
-// light breathing in the corner — that speaks about your day: the words you said
-// in big serif, the time you didn't spend typing, the week as a small chart. The
-// ways to start sit on its right. While a meeting goes on, the tile is the meeting:
-// the clock, pause and stop. Under it, the latest meetings as cards you can read
-// without opening, and the thoughts as notes. A meeting's tasks live in its
-// summary — Mindtalk isn't a to-do app.
+// The day in small capitals, the greeting as the page's title, then one light tile
+// that speaks about your day: the words you said in big serif, the week as a small
+// chart, and under a thin line the ways to start — the dictation key as a chip, the
+// two buttons on the right. The sphere of light from Möten keeps the tile's corner.
+// While a meeting goes on, the tile is the meeting: the clock, pause and stop. Under
+// it, the first day's three steps for a new user, the latest meetings as cards you
+// can read without opening, and the thoughts as notes. A meeting's tasks live in
+// its summary — Mindtalk isn't a to-do app.
 
 enum HomeGreeting {
     static func greeting(_ date: Date) -> String {
@@ -26,163 +27,158 @@ enum HomeGreeting {
         return first.isEmpty ? nil : first
     }()
 
-    /// "torsdag 15 oktober" — after "God kväll ·", so in lower case.
+    /// "torsdag 15 oktober" — set in small capitals above the greeting.
     static func day(_ date: Date) -> String {
         date.formatted(Date.FormatStyle().weekday(.wide).day().month(.wide).locale(AppLanguage.locale))
     }
 }
 
-/// The ink tile: your day, or the meeting going on.
+/// The tile: your day, or the meeting going on.
 struct HomeHero: View {
     @ObservedObject var dictation: Dictation
     @Binding var page: Page
-    /// Side by side (actions on the right) or stacked, from the page's width.
+    /// The week beside the figure, or under it, from the page's width.
     var wide = true
     @ObservedObject private var session = MeetingSession.shared
     @ObservedObject private var voices = VoiceModels.shared
     @ObservedObject private var stats = Stats.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// The tile is a light card now (the night tile lives on Möten): text is the page's own.
-    private var onInk: Color { .primary }
+    /// Ink: the tile is light, so its text is the page's own.
+    private var ink: Color { .primary }
     private var meetingKeys: String? { Settings.meetingShortcut.map { $0.chip.replacingOccurrences(of: " ", with: "") } }
+    /// The sphere's column: the cloud itself is about two thirds of it.
+    private static let sphereSize: CGFloat = 200
 
     var body: some View {
         // The week once per redraw — it's date maths over seven days.
         let week = stats.week
         let weekWords = week.reduce(0) { $0 + $1.stat.words }
         let fresh = stats.totalWords == 0
-        let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 24)) : AnyLayout(VStackLayout(alignment: .leading, spacing: 22))
-        VStack(alignment: .leading, spacing: 18) {
-        header
-        layout {
+        // A new user has no week to show: seven grey stubs would read as a broken chart.
+        // While a meeting goes on, or the setup isn't done, the tile is about that.
+        let showWeek = !fresh && !session.isRecording && !needsSetup
+        let top = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 32)) : AnyLayout(VStackLayout(alignment: .leading, spacing: 26))
+        VStack(alignment: .leading, spacing: 22) {
+            header
             VStack(alignment: .leading, spacing: 0) {
-                if session.isRecording {
-                    LiveMeeting(session: session, onInk: onInk)
-                } else if case .finishing(let what) = session.phase {
-                    Text("Mötet är slut").font(.system(size: 44, weight: .regular, design: .serif)).foregroundStyle(onInk)
-                    HStack(spacing: 10) {
-                        SettlingLine(color: onInk).frame(width: 48)
-                        Text(what).font(.system(size: 14)).foregroundStyle(onInk.opacity(0.75))
+                // Above the line: the figure, the week, and the sphere in a column of
+                // its own, so nothing is ever written over it.
+                HStack(alignment: .top, spacing: 28) {
+                    top {
+                        headline(week: week, weekWords: weekWords, fresh: fresh)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if showWeek { weekChart(week, weekWords: weekWords) }
                     }
-                    .padding(.top, 10)
-                } else if needsSetup {
-                    if case .modelDownloading(let p) = setupIssue {
-                        // Only the download left: nothing for you to do but wait.
-                        Text("Nästan klart").font(.system(size: 44, weight: .regular, design: .serif)).foregroundStyle(onInk)
-                        Text(verbatim: SpeechModel.isPreparing(p)
-                             ? String(localized: "Talmodellen görs redo för din Mac, bara första gången.")
-                             : String(localized: "Laddar ned talmodellen · \(dictation.engine.progressText(p, started: dictation.downloadStarted[dictation.engine]))"))
-                            .font(.system(size: 14)).foregroundStyle(onInk.opacity(0.75)).monospacedDigit().padding(.top, 10)
-                    } else {
-                        // Not ready yet: the steps are in the card below, not a promise here.
-                        Text("Ett par steg kvar").font(.system(size: 44, weight: .regular, design: .serif)).foregroundStyle(onInk)
-                        Text(verbatim: setupIssue.map(issueLine) ?? String(localized: "Mindtalk gör sig redo."))
-                            .font(.system(size: 14)).foregroundStyle(onInk.opacity(0.75)).padding(.top, 10)
-                    }
-                } else if let since = slowStart {
-                    // The first start on a Mac takes about half a minute (on the GPU while the
-                    // Neural Engine is prepared). Said plainly rather than "Håll in … och prata".
-                    Text("Nästan klart").font(.system(size: 44, weight: .regular, design: .serif)).foregroundStyle(onInk)
-                    TimelineView(.periodic(from: since, by: 30)) { context in
-                        let minutes = Int(context.date.timeIntervalSince(since) / 60)
-                        let text = String(localized: "Talmodellen görs redo för din Mac. Bara första gången, ungefär en halv minut.")
-                        Text(verbatim: minutes < 1 ? text : text + " " + String(localized: "\(minutes) min hittills."))
-                            .font(.system(size: 15)).foregroundStyle(onInk.opacity(0.75)).monospacedDigit()
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.top, 10)
-                    SettlingLine(color: onInk).frame(width: 60, alignment: .leading).padding(.top, 14).accessibilityHidden(true)
-                } else {
-                    let today = stats.today.words
-                    if today > 0 || weekWords > 0 {
-                        // The figure is the headline: today's words, or the week's when today is still empty.
-                        HStack(alignment: .firstTextBaseline, spacing: 14) {
-                            DayFigure(value: today > 0 ? today : weekWords)
-                                .font(.system(size: 96, weight: .regular, design: .serif))
-                                .tracking(-2)
-                                .foregroundStyle(onInk)
-                                .lineLimit(1).minimumScaleFactor(0.5)
-                            Text(today > 0 ? "ord i dag" : "ord i veckan")
-                                .font(.system(size: 22, weight: .regular, design: .serif))
-                                .foregroundStyle(onInk.opacity(0.75))
-                        }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(Text(verbatim: headline(weekWords: weekWords, fresh: fresh)))
-                    } else {
-                        Text(verbatim: headline(weekWords: weekWords, fresh: fresh)).font(.system(size: 44, weight: .regular, design: .serif))
-                            .foregroundStyle(onInk).lineLimit(2).minimumScaleFactor(0.7)
-                    }
-                    Text(verbatim: subline(week: week, weekWords: weekWords, fresh: fresh)).font(.system(size: 15)).foregroundStyle(onInk.opacity(0.75))
-                        .fixedSize(horizontal: false, vertical: true).padding(.top, today > 0 || weekWords > 0 ? 2 : 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // The sphere of light from Möten — with your voice while you dictate.
+                    // (The cloud is about two thirds of its frame: the rest is let go.)
+                    HeroSphere(meter: dictation.meter, listening: dictation.phase == .recording)
+                        .frame(width: Self.sphereSize, height: Self.sphereSize)
+                        .padding(.top, -20).padding(.bottom, -46).padding(.trailing, -14)
+                        .allowsHitTesting(false)
                 }
-                // A new user has no week to show: seven grey stubs would read as a broken chart.
-                if !fresh, !session.isRecording {
-                    Spacer(minLength: 26)
-                    HStack(alignment: .bottom, spacing: 22) {
-                        weekBars(week)
-                        Text(verbatim: weekWords > 0
-                             ? String(localized: "Vecka \(stats.weekNumber) · \(Stats.number(weekWords)) ord")
-                             : String(localized: "Vecka \(stats.weekNumber)"))
-                            .font(.system(size: 12, weight: .medium)).foregroundStyle(onInk.opacity(0.6)).monospacedDigit()
-                            .lineLimit(1).fixedSize()
-                            .padding(.bottom, 20)
-                            .accessibilityHidden(true)
-                    }
-                } else {
-                    Spacer(minLength: 0)
+                if !needsSetup {
+                    Rectangle().fill(DS.Colors.divider).frame(height: 1)
+                        .padding(.top, 12).padding(.bottom, 18)
+                    bottomRow
                 }
             }
+            .padding(28)
             .frame(maxWidth: .infinity, alignment: .leading)
-            if !needsSetup {
-                VStack(alignment: wide ? .trailing : .leading, spacing: 10) {
-                    if session.isRecording {
-                        meetingButtons
-                    } else if case .finishing = session.phase {
-                        showMeeting
-                    } else if session.phase == .idle {
-                        startButtons
-                    }
-                }
+            .tile()
+            .animation(reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.1), value: session.phase)
+            // A start that takes more than a few seconds is the long first one; a language
+            // switch is over before it would show.
+            .task(id: "\(dictation.model == .loading)-\(dictation.loadingSince.timeIntervalSince1970)") {
+                slowSince = nil
+                // Only the very first start on this Mac is long; a slow ordinary one isn't "Nästan klart".
+                guard dictation.model == .loading, dictation.firstPreparation else { return }
+                let since = dictation.loadingSince
+                let wait = 3 - Date().timeIntervalSince(since)
+                if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+                if !Task.isCancelled, dictation.model == .loading { slowSince = since }
             }
-        }
-        .padding(26)
-        .frame(minHeight: needsSetup ? 180 : 280)
-        .background(alignment: .bottomTrailing) {
-            // The sphere of light from Möten, breathing in the corner — with your voice
-            // while you dictate.
-            HeroSphere(meter: dictation.meter, listening: dictation.phase == .recording, color: DS.Colors.ink)
-                .frame(width: 340, height: 340)
-                .offset(x: 70, y: 120)
-                .allowsHitTesting(false)
-        }
-        .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(DS.Colors.card))
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(DS.Colors.divider, lineWidth: 1))
-        .animation(reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.1), value: session.phase)
-        // A start that takes more than a few seconds is the long first one; a language
-        // switch is over before it would show.
-        .task(id: "\(dictation.model == .loading)-\(dictation.loadingSince.timeIntervalSince1970)") {
-            slowSince = nil
-            // Only the very first start on this Mac is long; a slow ordinary one isn't "Nästan klart".
-            guard dictation.model == .loading, dictation.firstPreparation else { return }
-            let since = dictation.loadingSince
-            let wait = 3 - Date().timeIntervalSince(since)
-            if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
-            if !Task.isCancelled, dictation.model == .loading { slowSince = since }
-        }
         }
     }
 
     /// The day in small capitals, then the greeting as the page's title.
     private var header: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(verbatim: HomeGreeting.day(context.date).uppercased())
-                    .font(.system(size: 12, weight: .semibold)).tracking(1.6).foregroundStyle(DS.Colors.muted)
+                    .font(.system(size: 11.5, weight: .semibold)).tracking(1.8).foregroundStyle(DS.Colors.muted)
                 Text(verbatim: HomeGreeting.greeting(context.date) + (HomeGreeting.firstName.map { ", " + $0 } ?? ""))
                     .font(DS.pageTitle)
                     .accessibilityAddTraits(.isHeader)
+            }
+        }
+    }
+
+    // MARK: Above the line
+
+    /// The figure, the meeting's clock, or what's left to set up.
+    @ViewBuilder private func headline(week: [Stats.WeekDay], weekWords: Int, fresh: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if session.isRecording {
+                LiveMeeting(session: session, ink: ink)
+            } else if case .finishing(let what) = session.phase {
+                Text("Mötet är slut").font(.system(size: 40, weight: .regular, design: .serif)).foregroundStyle(ink)
+                HStack(spacing: 10) {
+                    SettlingLine(color: ink).frame(width: 48)
+                    Text(what).font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
+                }
+                .padding(.top, 10)
+            } else if needsSetup {
+                if case .modelDownloading(let p) = setupIssue {
+                    // Only the download left: nothing for you to do but wait.
+                    Text("Nästan klart").font(.system(size: 40, weight: .regular, design: .serif)).foregroundStyle(ink)
+                    Text(verbatim: SpeechModel.isPreparing(p)
+                         ? String(localized: "Talmodellen görs redo för din Mac, bara första gången.")
+                         : String(localized: "Laddar ned talmodellen · \(dictation.engine.progressText(p, started: dictation.downloadStarted[dictation.engine]))"))
+                        .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted).monospacedDigit().padding(.top, 8)
+                } else {
+                    // Not ready yet: the steps are in the card below, not a promise here.
+                    Text("Ett par steg kvar").font(.system(size: 40, weight: .regular, design: .serif)).foregroundStyle(ink)
+                    Text(verbatim: setupIssue.map(issueLine) ?? String(localized: "Mindtalk gör sig redo."))
+                        .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted).padding(.top, 8)
+                }
+            } else if let since = slowStart {
+                // The first start on a Mac takes about half a minute (on the GPU while the
+                // Neural Engine is prepared). Said plainly rather than "Håll in … och prata".
+                Text("Nästan klart").font(.system(size: 40, weight: .regular, design: .serif)).foregroundStyle(ink)
+                TimelineView(.periodic(from: since, by: 30)) { context in
+                    let minutes = Int(context.date.timeIntervalSince(since) / 60)
+                    let text = String(localized: "Talmodellen görs redo för din Mac. Bara första gången, ungefär en halv minut.")
+                    Text(verbatim: minutes < 1 ? text : text + " " + String(localized: "\(minutes) min hittills."))
+                        .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted).monospacedDigit()
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, 8)
+                SettlingLine(color: ink).frame(width: 60, alignment: .leading).padding(.top, 14).accessibilityHidden(true)
+            } else {
+                let today = stats.today.words
+                if today > 0 || weekWords > 0 {
+                    // The figure is the headline: today's words, or the week's when today is still empty.
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        DayFigure(value: today > 0 ? today : weekWords)
+                            .font(.system(size: 84, weight: .regular, design: .serif))
+                            .tracking(-2.5)
+                            .foregroundStyle(ink)
+                            .lineLimit(1).minimumScaleFactor(0.5)
+                        Text(today > 0 ? "ord i dag" : "ord i veckan")
+                            .font(.system(size: 21, weight: .regular, design: .serif))
+                            .foregroundStyle(DS.Colors.muted)
+                    }
+                    .padding(.top, -6)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text(verbatim: headline(weekWords: weekWords, fresh: fresh)))
+                } else {
+                    Text(verbatim: headline(weekWords: weekWords, fresh: fresh)).font(.system(size: 40, weight: .regular, design: .serif))
+                        .foregroundStyle(ink).lineLimit(2).minimumScaleFactor(0.7)
+                }
+                Text(verbatim: subline(week: week, weekWords: weekWords, fresh: fresh)).font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true).padding(.top, today > 0 || weekWords > 0 ? 2 : 8)
             }
         }
     }
@@ -259,10 +255,11 @@ struct HomeHero: View {
         return parts.joined(separator: "\n")
     }
 
-    /// Monday to Sunday: "mån tis ons", today bright with its figure above it, the
-    /// days to come faint, on a thin baseline.
-    private func weekBars(_ week: [Stats.WeekDay]) -> some View {
+    /// The week in small capitals, then Monday to Sunday as bars on a thin baseline:
+    /// today in ink, the days before in grey, the days to come as faint stubs.
+    private func weekChart(_ week: [Stats.WeekDay], weekWords: Int) -> some View {
         let top = max(1, week.map(\.stat.words).max() ?? 1)
+        let bar: CGFloat = 20, gap: CGFloat = 8, tall: CGFloat = 54
         var cal = Calendar.current; cal.locale = AppLanguage.locale
         let names = cal.shortStandaloneWeekdaySymbols
         let weekday = { (d: Date) in d.formatted(Date.FormatStyle().weekday(.wide).locale(AppLanguage.locale)) }
@@ -270,30 +267,32 @@ struct HomeHero: View {
         let spoken = week.filter { !$0.isFuture }.map { day in
             (day.isToday ? String(localized: "i dag") : weekday(day.date)) + " " + String(localized: "\(Stats.number(day.stat.words)) ord")
         }.joined(separator: ", ")
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .bottom, spacing: 10) {
-                ForEach(Array(week.enumerated()), id: \.offset) { _, day in
-                    VStack(spacing: 5) {
-                        Text(verbatim: day.isToday && day.stat.words > 0 ? Stats.number(day.stat.words) : " ")
-                            .font(.system(size: 10.5, weight: .semibold)).monospacedDigit()
-                            .foregroundStyle(onInk.opacity(0.9)).lineLimit(1).fixedSize()
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill((day.isToday && day.stat.words > 0 ? heroAccent : onInk)
-                                .opacity(day.isFuture ? 0.12 : day.stat.words > 0 ? (day.isToday ? 0.95 : 0.5) : 0.22))
-                            .frame(width: 28, height: max(3, 64 * CGFloat(day.stat.words) / CGFloat(top)))
+        let title = weekWords > 0 ? String(localized: "Vecka \(stats.weekNumber) · \(Stats.number(weekWords)) ord")
+                                  : String(localized: "Vecka \(stats.weekNumber)")
+        return VStack(alignment: .leading, spacing: 14) {
+            Text(verbatim: title.uppercased())
+                .font(.system(size: 10.5, weight: .semibold)).tracking(1.3).monospacedDigit()
+                .foregroundStyle(DS.Colors.muted).lineLimit(1).fixedSize()
+            VStack(spacing: 0) {
+                HStack(alignment: .bottom, spacing: gap) {
+                    ForEach(Array(week.enumerated()), id: \.offset) { _, day in
+                        RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                            .fill(ink.opacity(day.isFuture ? 0.07 : day.stat.words > 0 ? (day.isToday ? 1 : 0.3) : 0.13))
+                            .frame(width: bar, height: max(3, tall * CGFloat(day.stat.words) / CGFloat(top)))
+                            .help(Text(verbatim: weekday(day.date) + ": " + String(localized: "\(Stats.number(day.stat.words)) ord")))
                     }
-                    .frame(width: 28)
-                    .help(Text(verbatim: weekday(day.date) + ": " + String(localized: "\(Stats.number(day.stat.words)) ord")))
                 }
-            }
-            Rectangle().fill(onInk.opacity(0.2)).frame(width: 7 * 28 + 6 * 10, height: 1)
-            HStack(spacing: 10) {
-                ForEach(Array(week.enumerated()), id: \.offset) { _, day in
-                    Text(verbatim: names[cal.component(.weekday, from: day.date) - 1].lowercased())
-                        .font(.system(size: 11, weight: day.isToday ? .semibold : .regular))
-                        .foregroundStyle(onInk.opacity(day.isToday ? 0.92 : 0.6))
-                        .frame(width: 28)
+                Rectangle().fill(ink.opacity(0.18)).frame(width: 7 * bar + 6 * gap, height: 1).padding(.top, 3)
+                HStack(spacing: gap) {
+                    ForEach(Array(week.enumerated()), id: \.offset) { _, day in
+                        Text(verbatim: names[cal.component(.weekday, from: day.date) - 1].lowercased())
+                            .font(.system(size: 10.5, weight: day.isToday ? .semibold : .regular))
+                            .foregroundStyle(day.isToday ? ink : DS.Colors.faint)
+                            .lineLimit(1).fixedSize()
+                            .frame(width: bar)
+                    }
                 }
+                .padding(.top, 7)
             }
         }
         .animation(reduceMotion ? nil : .spring(duration: 0.5, bounce: 0.15), value: week.map(\.stat.words))
@@ -301,36 +300,64 @@ struct HomeHero: View {
         .accessibilityLabel(Text(verbatim: String(localized: "Vecka \(stats.weekNumber)") + ": " + spoken))
     }
 
+    // MARK: Under the line
+
+    /// How to start, on the left; the buttons on the right. While a meeting goes on:
+    /// the way to it, and pause and stop.
+    private var bottomRow: some View {
+        HStack(alignment: .center, spacing: 16) {
+            if session.isRecording || { if case .finishing = session.phase { return true } else { return false } }() {
+                showMeeting
+            } else {
+                dictationHint
+            }
+            Spacer(minLength: 16)
+            HStack(spacing: 8) {
+                if session.isRecording {
+                    meetingButtons
+                } else if session.phase == .idle {
+                    startButtons
+                }
+            }
+        }
+    }
+
+    /// "Håll in ⌥ Opt → för att diktera", the key as a chip.
+    private var dictationHint: some View {
+        HStack(spacing: 6) {
+            Text(verbatim: pressVerb)
+            KeyChip(text: dictation.hotkey.chip, small: true)
+            Text("för att diktera")
+        }
+        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+        .lineLimit(1).fixedSize()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(dictation.mode == .toggle ? Text("Tryck på \(dictation.hotkey.inlineName) för att diktera")
+                                                      : Text("Håll in \(dictation.hotkey.inlineName) för att diktera"))
+    }
+
     @ViewBuilder private var startButtons: some View {
         // Dictating or saying a thought holds the microphone; a moment after (a thought
         // saved, text copied) it is free again.
         let micBusy = dictation.phase == .recording || dictation.phase == .transcribing
+        let busy = String(localized: "Går när dikteringen är klar")
+        tileButton("Säg en tanke", primary: false, keys: Settings.thoughtShortcut?.chip,
+                   help: micBusy ? busy : String(localized: "Säg det du kommer på, så sparas det i Tankar")) { dictation.startThought() }
+            .disabled(micBusy || !dictation.engine.isInstalled)
         if voices.state == .ready, dictation.engine.isInstalled {
-            inkButton("Starta möte", dot: true, filled: true, keys: meetingKeys,
-                      help: micBusy ? "Går när dikteringen är klar" : "Spela in ett möte i rummet") {
+            tileButton("Starta möte", dot: true, primary: true, keys: meetingKeys,
+                       help: micBusy ? busy : String(localized: "Spela in ett möte i rummet")) {
                 // To the start card, waiting for your choice: nothing is recorded yet.
                 session.armed = true
                 page = .meetings
             }
             .disabled(micBusy)
         } else {
-            inkButton("Kom igång med möten", icon: "person.2.wave.2", filled: true, keys: nil, help: "Hämta det som behövs för möten") {
+            tileButton("Kom igång med möten", icon: "person.2.wave.2", primary: true, keys: nil,
+                       help: String(localized: "Hämta det som behövs för möten")) {
                 page = .meetings
             }
         }
-        inkButton("Säg en tanke", icon: "lightbulb", filled: false,
-                  keys: Settings.thoughtShortcut?.chip,
-                  help: micBusy ? "Går när dikteringen är klar" : "Säg det du kommer på, så sparas det i Tankar") { dictation.startThought() }
-            .disabled(micBusy || !dictation.engine.isInstalled)
-        HStack(spacing: 5) {
-            Text(verbatim: pressVerb).foregroundStyle(onInk.opacity(0.65))
-            KeyChip(text: dictation.hotkey.chip)
-            Text("för att diktera").foregroundStyle(onInk.opacity(0.65))
-        }
-        .font(.system(size: 12.5)).padding(.top, 6)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(dictation.mode == .toggle ? Text("Tryck på \(dictation.hotkey.inlineName) för att diktera")
-                                                      : Text("Håll in \(dictation.hotkey.inlineName) för att diktera"))
     }
 
     // MARK: The meeting going on
@@ -339,38 +366,40 @@ struct HomeHero: View {
         if let stopAt = session.stopAt {
             TimelineView(.periodic(from: .now, by: 0.1)) { context in
                 let left = max(0, stopAt.timeIntervalSince(context.date))
-                HStack(spacing: 9) {
+                HStack(spacing: 8) {
                     ZStack {
-                        Circle().stroke(onInk.opacity(0.25), lineWidth: 2)
+                        Circle().stroke(ink.opacity(0.2), lineWidth: 2)
                         Circle().trim(from: 0, to: left / MeetingSession.undoSeconds)
-                            .stroke(onInk, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                            .stroke(ink, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                             .rotationEffect(.degrees(-90))
                     }
-                    .frame(width: 15, height: 15)
+                    .frame(width: 14, height: 14)
                     .accessibilityHidden(true)
                     Text("Avslutas om \(Int(left.rounded(.up))) s")
-                        .font(.system(size: 13, weight: .medium)).monospacedDigit().foregroundStyle(onInk).fixedSize()
+                        .font(.system(size: 13, weight: .medium)).monospacedDigit().foregroundStyle(ink).fixedSize()
                 }
-                .frame(height: 36)
+                .padding(.trailing, 8)
             }
-            inkButton("Ångra", icon: "arrow.uturn.backward", filled: true, keys: nil, help: "Mötet fortsätter som om inget hänt") {
+            tileButton("Ångra", icon: "arrow.uturn.backward", primary: true, keys: nil,
+                       help: String(localized: "Mötet fortsätter som om inget hänt")) {
                 withAnimation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15)) { session.cancelStop() }
             }
-        } else if session.isPaused {
-            inkButton("Fortsätt", icon: "play.fill", filled: true, keys: "⌥⌘P", help: "Fortsätt spela in") {
-                withAnimation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15)) { session.resume() }
-            }
-            .keyboardShortcut("p", modifiers: [.command, .option])
         } else {
-            inkButton("Pausa", icon: "pause.fill", filled: true, keys: "⌥⌘P", help: "Pausa mötet") {
-                withAnimation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15)) { session.pause() }
+            tileButton("Avsluta", icon: "stop.fill", primary: false, keys: meetingKeys, help: String(localized: "Avsluta mötet")) {
+                withAnimation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15)) { _ = session.requestStop() }
             }
-            .keyboardShortcut("p", modifiers: [.command, .option])
+            if session.isPaused {
+                tileButton("Fortsätt", icon: "play.fill", primary: true, keys: "⌥⌘P", help: String(localized: "Fortsätt spela in")) {
+                    withAnimation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15)) { session.resume() }
+                }
+                .keyboardShortcut("p", modifiers: [.command, .option])
+            } else {
+                tileButton("Pausa", icon: "pause.fill", primary: true, keys: "⌥⌘P", help: String(localized: "Pausa mötet")) {
+                    withAnimation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15)) { session.pause() }
+                }
+                .keyboardShortcut("p", modifiers: [.command, .option])
+            }
         }
-        inkButton("Avsluta", icon: "stop.fill", filled: false, keys: meetingKeys, help: "Avsluta mötet") {
-            withAnimation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15)) { _ = session.requestStop() }
-        }
-        showMeeting
     }
 
     private var showMeeting: some View {
@@ -379,49 +408,40 @@ struct HomeHero: View {
                 Text("Visa mötet")
                 Image(systemName: "arrow.right").font(.system(size: 10, weight: .semibold)).accessibilityHidden(true)
             }
-            .font(.system(size: 12.5, weight: .medium)).foregroundStyle(onInk.opacity(0.75))
+            .font(.system(size: 13, weight: .semibold)).foregroundStyle(ink)
             .padding(.vertical, 5)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.top, 1)
     }
 
-    /// A button on the ink tile: filled (paper on ink) or outlined, with its shortcut beside it.
-    /// The main button and today's bar: ink on the light card.
-    private var heroAccent: Color { onInk }
-
-    private func inkButton(_ title: LocalizedStringKey, icon: String? = nil, dot: Bool = false, filled: Bool,
-                           keys: String?, help: LocalizedStringKey, action: @escaping () -> Void) -> some View {
-        HStack(spacing: 8) {
-            Button(action: action) {
-                HStack(spacing: 8) {
-                    if dot { Circle().fill(DS.Colors.recording).frame(width: 8, height: 8).accessibilityHidden(true) }
-                    if let icon { Image(systemName: icon).font(.system(size: 11, weight: .semibold)).accessibilityHidden(true) }
-                    Text(title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
-                }
-                .padding(.horizontal, 14).padding(.vertical, 9)
-                .frame(minWidth: 150)
-                // The main button on the night tile: white, or the accent when one is chosen.
-                .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(filled ? heroAccent : onInk.opacity(0.08)))
-                .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(onInk.opacity(filled ? 0 : 0.5), lineWidth: 1))
-                .foregroundStyle(filled ? DS.Colors.paper : onInk)
-                .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+    /// A button on the tile: ink with paper text, or soft grey. Its shortcut is in the
+    /// tooltip and for VoiceOver, not beside it.
+    private func tileButton(_ title: LocalizedStringKey, icon: String? = nil, dot: Bool = false, primary: Bool,
+                            keys: String?, help: String, action: @escaping () -> Void) -> some View {
+        let shape = RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
+        return Button(action: action) {
+            HStack(spacing: 7) {
+                if dot { Circle().fill(DS.Colors.recording).frame(width: 7, height: 7).accessibilityHidden(true) }
+                if let icon { Image(systemName: icon).font(.system(size: 10.5, weight: .semibold)).accessibilityHidden(true) }
+                Text(title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
             }
-            .buttonStyle(PressStyle())
-            .help(help)
-            .accessibilityHint(keys.map { Text(verbatim: $0) } ?? Text(verbatim: ""))
-            Text(verbatim: keys ?? "").font(.system(size: 11, weight: .medium)).foregroundStyle(onInk.opacity(0.65))
-                .frame(minWidth: 44, alignment: .leading).fixedSize()
-                .accessibilityHidden(true)
+            .padding(.horizontal, 15)
+            .frame(height: 34)
+            .background(shape.fill(primary ? DS.Colors.ink : DS.Colors.chip))
+            .foregroundStyle(primary ? DS.Colors.onInk : ink)
+            .contentShape(shape)
         }
+        .buttonStyle(PressStyle())
+        .help(Text(verbatim: help + (keys.map { "  " + $0 } ?? "")))
+        .accessibilityHint(keys.map { Text(verbatim: $0) } ?? Text(verbatim: ""))
     }
 
     private struct PressStyle: ButtonStyle {
         @Environment(\.isEnabled) private var enabled
         func makeBody(configuration: Configuration) -> some View {
             configuration.label
-                .opacity(enabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
+                .opacity(enabled ? (configuration.isPressed ? 0.8 : 1) : 0.4)
                 .scaleEffect(configuration.isPressed ? 0.98 : 1)
                 .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
         }
@@ -462,22 +482,20 @@ private struct DayFigure: View {
     }
 }
 
-/// The sphere of light in the tile's corner. It breathes at rest and follows your
+/// The sphere of light over the tile's corner. It breathes at rest and follows your
 /// voice while you dictate; it stops when the window can't be seen.
 private struct HeroSphere: View {
     @ObservedObject var meter: LevelMeter
     let listening: Bool
-    /// Ink on the light card, or the accent.
-    let color: Color
     @State private var visible = true
 
     var body: some View {
         let level = listening ? Double(min(1, (meter.levels.suffix(3).max() ?? 0) * 1.6)) : 0.22
-        // Plain ink or accent points on the light card; light added to the dark one. (The
-        // app's appearance, not the view's colour scheme: a still picture has none.)
+        // Plain ink points on the light tile; light added to the dark one. (The app's
+        // appearance, not the view's colour scheme: a still picture has none.)
         let light = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) != .darkAqua
-        Constellation(figure: nil, color: color, level: level, searching: listening, paused: !visible, onLight: light)
-            .opacity(light ? 0.8 : 0.38)
+        Constellation(figure: nil, color: DS.Colors.ink, level: level, searching: listening, paused: !visible, onLight: light)
+            .opacity(light ? 0.5 : 0.42)
             .onAppear { visible = AppDelegate.mainWindowVisible }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)) { note in
                 guard let window = note.object as? NSWindow, window.contentViewController is NSHostingController<MainView> else { return }
@@ -490,13 +508,13 @@ private struct HeroSphere: View {
 /// counted once a second with the clock, not on every word the meeting publishes.
 private struct LiveMeeting: View {
     @ObservedObject var session: MeetingSession
-    let onInk: Color
+    let ink: Color
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
-                RecordingMark(session: session, color: onInk)
-                Text(session.isPaused ? "Mötet är pausat" : "Mötet spelas in").font(.system(size: 15, weight: .semibold)).foregroundStyle(onInk)
+            HStack(spacing: 10) {
+                RecordingMark(session: session, color: ink)
+                Text(session.isPaused ? "Mötet är pausat" : "Mötet spelas in").font(.system(size: 14, weight: .semibold)).foregroundStyle(ink)
             }
             if let start = session.startedAt {
                 TimelineView(.periodic(from: start, by: 1)) { context in
@@ -505,10 +523,10 @@ private struct LiveMeeting: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(verbatim: MeetingView.duration(session.clock(at: context.date)))
                             .font(.system(size: 56, weight: .regular, design: .serif)).monospacedDigit()
-                            .foregroundStyle(onInk).padding(.top, 6)
+                            .foregroundStyle(ink).padding(.top, 4)
                         Text(verbatim: String(localized: "Sedan \(since)")
                              + (speakers > 0 ? " · " + (speakers == 1 ? String(localized: "1 talare hittills") : String(localized: "\(speakers) talare hittills")) : ""))
-                            .font(.system(size: 13.5)).foregroundStyle(onInk.opacity(0.75)).padding(.top, 8)
+                            .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted).padding(.top, 6)
                     }
                 }
             }
@@ -581,7 +599,7 @@ struct HomeShelves: View {
                                 @ViewBuilder content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                Text(title).font(.system(size: 16, weight: .semibold)).accessibilityAddTraits(.isHeader)
+                Text(title).font(.system(size: 15, weight: .semibold)).accessibilityAddTraits(.isHeader)
                 Spacer()
                 Button(action: action) {
                     HStack(spacing: 4) {
@@ -605,7 +623,7 @@ struct HomeShelves: View {
             Text(text).font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 14).padding(.vertical, 12)
+        .padding(.horizontal, 16).padding(.vertical, 14)
         .card()
     }
 
@@ -624,16 +642,16 @@ struct HomeShelves: View {
                     Spacer(minLength: 0)
                     Text(verbatim: MeetingRecord.when(thought.date)).font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
                 }
-                .padding(14)
-                .frame(maxWidth: .infinity, minHeight: 86, alignment: .topLeading)
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(hovering ? DS.Colors.chip : DS.Colors.card))
+                .padding(16)
+                .frame(maxWidth: .infinity, minHeight: 88, alignment: .topLeading)
+                .background(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous).fill(hovering ? DS.Colors.chip : DS.Colors.card))
                 .overlay(alignment: .topTrailing) {
                     if hovering {
                         Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(DS.Colors.muted)
                             .padding(10).accessibilityHidden(true)
                     }
                 }
-                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
             }
             .buttonStyle(.plain)
             .help(thought.text)
@@ -690,9 +708,9 @@ struct HomeShelves: View {
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, minHeight: 168, alignment: .topLeading)
-                .raised(cornerRadius: 18)
+                .raised(cornerRadius: DS.Radius.card)
                 .scaleEffect(hovering && !reduceMotion && !locked ? 1.012 : 1)
-                .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
             }
             .buttonStyle(.plain)
             .disabled(locked)

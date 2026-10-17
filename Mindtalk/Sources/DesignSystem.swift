@@ -13,6 +13,8 @@ enum DS {
         static let chip: CGFloat = 7
         /// The introduction's tiles and panels.
         static let panel: CGFloat = 20
+        /// The big tiles at the top of a page (Hem's day, Möten's start).
+        static let tile: CGFloat = 22
     }
 
     enum Layout {
@@ -145,6 +147,16 @@ extension View {
     func card() -> some View {
         self.background(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous).fill(DS.Colors.card))
     }
+
+    /// A page's big tile: the soft grey card with a hairline edge, clipped so what
+    /// bleeds over its corner (the sphere) ends at the edge.
+    func tile() -> some View {
+        let shape = RoundedRectangle(cornerRadius: DS.Radius.tile, style: .continuous)
+        return self
+            .background(shape.fill(DS.Colors.card))
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(DS.Colors.divider, lineWidth: 1))
+    }
 }
 
 // Components take plain Strings and look them up in the string catalog, so a
@@ -213,17 +225,19 @@ struct CardDivider: View {
     }
 }
 
-/// A key as a small keycap: "⌥ Opt →".
+/// A key as a small keycap: "⌥ Opt →". A raised cap, so it reads on paper and on
+/// a grey card alike; `small` for a key mid-sentence in a hint.
 struct KeyChip: View {
     let text: String
+    var small = false
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: DS.Radius.chip, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: small ? 6 : DS.Radius.chip, style: .continuous)
         Text(text)
-            .font(.system(size: 13, weight: .semibold))
+            .font(.system(size: small ? 11.5 : 13, weight: .semibold))
             .foregroundStyle(.primary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(shape.fill(DS.Colors.accentTone).shadow(color: .black.opacity(0.08), radius: 0, y: 1))
+            .padding(.horizontal, small ? 6 : 8)
+            .padding(.vertical, small ? 2 : 3)
+            .background(shape.fill(DS.Colors.control).shadow(color: .black.opacity(0.08), radius: 0, y: 1))
             .overlay(shape.strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
     }
 }

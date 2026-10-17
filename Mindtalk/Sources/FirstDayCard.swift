@@ -105,97 +105,113 @@ struct FirstDayCard: View {
         }
     }
 
+    /// A compact card: the name in small capitals and "1/3" on one line, then one line
+    /// per step — a numbered ring or an ink check, the step, and how, with the key as
+    /// a chip — and a way to the page on the steps still open.
     private var card: some View {
         let s = steps
         return VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(celebrating ? "Allt klart, nu kör du." : "Din första dag")
-                    .font(.system(size: 24, weight: .regular, design: .serif))
-                    .contentTransition(.opacity)
+            HStack(alignment: .center, spacing: 12) {
+                Text(verbatim: String(localized: "Din första dag").uppercased())
+                    .font(.system(size: 11, weight: .semibold)).tracking(1.4).foregroundStyle(DS.Colors.muted)
                     .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 8)
-                if !celebrating {
-                    Text("\(s.count) av 3").font(.system(size: 12.5, weight: .medium)).monospacedDigit()
+                if celebrating {
+                    Text("Allt klart, nu kör du.").font(.system(size: 13, weight: .medium))
+                        .transition(.opacity)
+                } else {
+                    Text(verbatim: "\(s.count)/3").font(.system(size: 12.5, weight: .medium)).monospacedDigit()
                         .foregroundStyle(DS.Colors.muted)
                         .accessibilityLabel(Text("\(s.count) av 3 klart"))
                     CloseButton { withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) { closed = true } }
                 }
             }
-            .padding(.horizontal, 22).padding(.top, 18).padding(.bottom, 8)
+            .padding(.horizontal, 24).padding(.top, 18).padding(.bottom, 12)
 
-            row(done: s.dictated, title: "Diktera", detail: dictateDetail) { EmptyView() }
-            CardDivider()
-            row(done: s.thought, title: "Säg en tanke", detail: thoughtDetail) {
-                Button("Öppna Tankar →") { page = .thoughts }.buttonStyle(.plain).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.accent)
+            row(1, done: s.dictated, title: "Diktera", link: nil) {
+                Text(verbatim: pressVerb)
+                KeyChip(text: dictation.hotkey.chip, small: true)
+                Text("i vilken app som helst och prata")
             }
-            CardDivider()
-            row(done: s.meeting, title: "Spela in ett möte", detail: String(localized: "Starta här eller från menyraden.")) {
-                Button("Öppna Möten →") { page = .meetings }.buttonStyle(.plain).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.accent)
+            row(2, done: s.thought, title: "Säg en tanke", link: ("Öppna Tankar →", { page = .thoughts })) {
+                if let keys = Settings.thoughtShortcut?.chip {
+                    Text("Håll in")
+                    KeyChip(text: keys, small: true)
+                    Text("och prata, så hamnar den i Tankar")
+                } else {
+                    Text("Säg den på sidan Tankar")
+                }
+            }
+            row(3, done: s.meeting, title: "Spela in ett möte", link: ("Öppna Möten →", { page = .meetings })) {
+                Text("Här eller från menyraden")
             }
 
             // Where Mindtalk goes when the window closes — said before you close it.
-            HStack(alignment: .top, spacing: 10) {
-                MenuBarChip().padding(.top, -1)
+            HStack(alignment: .center, spacing: 10) {
+                MenuBarChip()
                 Text(verbatim: String(localized: "Mindtalk bor i menyraden och fortsätter när du stänger fönstret.")
                      + (startsAtLogin ? " " + String(localized: "Den startar när du loggar in. Ändra under Inställningar.") : ""))
                     .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 22).padding(.vertical, 14)
-            .background(alignment: .top) { Rectangle().fill(DS.Colors.divider).frame(height: 1) }
-            .padding(.top, 6)
+            .padding(.horizontal, 24).padding(.vertical, 13)
+            .background(alignment: .top) { Rectangle().fill(DS.Colors.divider).frame(height: 1).padding(.horizontal, 24) }
+            .padding(.top, 10)
         }
-        .raised(cornerRadius: 20)
+        .padding(.bottom, 4)
+        .tile()
         .animation(reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.2), value: s)
     }
 
     // MARK: Rows
 
-    private var dictateDetail: String {
-        let key = dictation.hotkey.inlineName
-        return dictation.mode == .toggle
-            ? String(localized: "Tryck på \(key) i vilken app som helst och prata.")
-            : String(localized: "Håll in \(key) i vilken app som helst och prata.")
+    /// "Håll in" or "Tryck på", as the dictation key works.
+    private var pressVerb: String {
+        dictation.mode == .toggle ? String(localized: "Tryck på") : String(localized: "Håll in")
     }
 
-    private var thoughtDetail: String {
-        guard let keys = Settings.thoughtShortcut?.inlineName else {
-            return String(localized: "Säg en tanke på sidan Tankar.")
-        }
-        return String(localized: "Håll in \(keys) och prata, så hamnar tanken i Tankar.")
-    }
-
-    private func row<A: View>(done: Bool, title: LocalizedStringKey, detail: String, @ViewBuilder action: () -> A) -> some View {
-        HStack(alignment: .center, spacing: 14) {
-            HStack(alignment: .center, spacing: 14) {
-                Tick(done: done)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.system(size: 14, weight: .semibold))
+    private func row<Hint: View>(_ number: Int, done: Bool, title: LocalizedStringKey,
+                                 link: (title: LocalizedStringKey, action: () -> Void)?,
+                                 @ViewBuilder hint: () -> Hint) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                Tick(number: number, done: done)
+                HStack(spacing: 6) {
+                    Text(title).font(.system(size: 13.5, weight: .semibold))
                         .foregroundStyle(done ? DS.Colors.muted : .primary)
-                    Text(verbatim: detail).font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Text(verbatim: "·").foregroundStyle(DS.Colors.faint)
+                    hint()
                 }
+                .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                .lineLimit(1)
             }
             .accessibilityElement(children: .combine)
             .accessibilityValue(done ? Text("Klart") : Text("Inte gjort än"))
             Spacer(minLength: 12)
-            if !done { action() }
+            if !done, let link {
+                Button(link.title, action: link.action).buttonStyle(.plain)
+                    .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.ink)
+                    .fixedSize()
+            }
         }
-        .padding(.horizontal, 22).padding(.vertical, 13)
+        .padding(.horizontal, 24).padding(.vertical, 7)
     }
 
-    /// An empty ring, then an ink disc with a check when it's done.
+    /// A ring with the step's number, then an ink disc with a check when it's done.
     private struct Tick: View {
+        let number: Int
         let done: Bool
         var body: some View {
             ZStack {
                 Circle().strokeBorder(DS.Colors.fieldStroke, lineWidth: 1.5).opacity(done ? 0 : 1)
-                Circle().fill(DS.Colors.accent).scaleEffect(done ? 1 : 0.4).opacity(done ? 1 : 0)
-                Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundStyle(DS.Colors.onInk)
+                Text(verbatim: "\(number)").font(.system(size: 10, weight: .semibold)).monospacedDigit()
+                    .foregroundStyle(DS.Colors.muted).opacity(done ? 0 : 1)
+                Circle().fill(DS.Colors.ink).scaleEffect(done ? 1 : 0.4).opacity(done ? 1 : 0)
+                Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(DS.Colors.onInk)
                     .scaleEffect(done ? 1 : 0.4).opacity(done ? 1 : 0)
             }
-            .frame(width: 22, height: 22)
+            .frame(width: 20, height: 20)
             .accessibilityHidden(true)
         }
     }
