@@ -2169,6 +2169,23 @@
         }
       }
     },
+    "Accent": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accent"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accent"
+          }
+        }
+      }
+    },
     "Alla": {
       "localizations": {
         "en": {
@@ -6575,6 +6592,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fäll ihop"
+          }
+        }
+      }
+    },
+    "Färgen på det valda, huvudknappen, reglagen och länkar. Svart är helt svartvitt.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The colour of what's chosen, the main button, switches and links. Black is fully black and white."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Färgen på det valda, huvudknappen, reglagen och länkar. Svart är helt svartvitt."
           }
         }
       }
@@ -15391,6 +15425,22 @@
         }
       }
     },
+    "Plommon": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plum"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plommon"
+          }
+        }
+      }
+    },
     "Prata lite närmare": {
       "extractionState": "stale",
       "localizations": {
@@ -18860,6 +18910,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stängd"
+          }
+        }
+      }
+    },
+    "Svart": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Black"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Svart"
           }
         }
       }
@@ -24228,6 +24294,7 @@
       }
     },
     "Öppna Möten": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -24243,7 +24310,24 @@
         }
       }
     },
+    "Öppna Möten →": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Meetings →"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna Möten →"
+          }
+        }
+      }
+    },
     "Öppna Tankar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -24255,6 +24339,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna Tankar"
+          }
+        }
+      }
+    },
+    "Öppna Tankar →": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Thoughts →"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna Tankar →"
           }
         }
       }

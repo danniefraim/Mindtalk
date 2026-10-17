@@ -48,17 +48,25 @@ enum DS {
         static let control = dynamic(light: 0xFFFFFF, dark: 0x383838)
         /// Primary buttons and switches.
         static let ink = dynamic(light: 0x111111, dark: 0xF2F2F2)
-        /// Switches when on — ink in light mode, a warm grey in dark so the white knob shows.
-        static let switchOn = dynamic(light: 0x111111, dark: 0xD0D0D0)
+        /// Switches when on: the accent.
+        static var switchOn: Color { accent }
         /// Switches when off: a soft track and a knob that stands out on it.
         static let switchOff = dynamic(light: 0xE3E3E3, dark: 0x3A3A3A)
         static let switchKnob = dynamic(light: 0xFFFFFF, dark: 0x9A9A9A)
         /// Text on ink.
         static let onInk = dynamic(light: 0xFFFFFF, dark: 0x0E0E0E)
-        /// Mindtalk's accent — ink: black in light mode, white in dark. Selection, waveforms, highlights.
-        static let accent = dynamic(light: 0x111111, dark: 0xF2F2F2)
+        /// Mindtalk's accent (Inställningar → Utseende): ink, black in light mode and white
+        /// in dark, or plum. What's chosen, the main button, switches, links, highlights.
+        static var accent: Color { Settings.accent == .plum ? plum : ink }
         /// The lighter end of the accent sheen.
-        static let accentSoft = dynamic(light: 0x5A5A5A, dark: 0xFFFFFF)
+        static var accentSoft: Color { Settings.accent == .plum ? plumSoft : inkSoft }
+        /// A faint wash of the accent: key chips in running text.
+        static var accentTone: Color { Settings.accent == .plum ? plumTone : dynamic(light: 0xEFEFEF, dark: 0x2A2A2A) }
+        private static let inkSoft = dynamic(light: 0x5A5A5A, dark: 0xFFFFFF)
+        /// Deep red-violet; lighter in dark mode so it reads on the dark paper.
+        private static let plum = dynamic(light: 0x7E2B55, dark: 0xD67DA8)
+        private static let plumSoft = dynamic(light: 0xB05A86, dark: 0xF0B3D0)
+        private static let plumTone = dynamic(light: 0xF3E4EC, dark: 0x3A2230)
         static let recording = Color.red
         /// The dark room of the introduction round and the "Nytt möte" card, in both modes.
         static let night = Color(red: 0.008, green: 0.008, blue: 0.012)
@@ -80,9 +88,10 @@ enum DS {
     }
 
     enum Gradients {
-        /// The accent (ink) with a soft sheen — selection rings, progress, the typing cursor.
-        static let accent = LinearGradient(colors: [Colors.accentSoft, Colors.accent],
-                                           startPoint: .topLeading, endPoint: .bottomTrailing)
+        /// The accent with a soft sheen — selection rings, progress, the typing cursor.
+        static var accent: LinearGradient {
+            LinearGradient(colors: [Colors.accentSoft, Colors.accent], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
         /// The app icon's tile: deep black with a little light at the top.
         static let tile = LinearGradient(colors: [Color(white: 0.24), Color(white: 0.04)],
                                          startPoint: .top, endPoint: .bottom)
@@ -220,8 +229,8 @@ struct KeyChip: View {
             .foregroundStyle(.primary)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(shape.fill(DS.Colors.control).shadow(color: .black.opacity(0.08), radius: 0, y: 1))
-            .overlay(shape.strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
+            .background(shape.fill(DS.Colors.accentTone).shadow(color: .black.opacity(0.08), radius: 0, y: 1))
+            .overlay(shape.strokeBorder(Settings.accent == .plum ? DS.Colors.accent.opacity(0.3) : DS.Colors.fieldStroke, lineWidth: 1))
     }
 }
 
@@ -282,7 +291,7 @@ struct InkButtonStyle: ButtonStyle {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 7)
                 .background(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
-                    .fill(DS.Colors.ink.opacity(configuration.isPressed ? 0.8 : 1)))
+                    .fill(DS.Colors.accent.opacity(configuration.isPressed ? 0.8 : 1)))
                 // Disabled: a quiet grey, clearly not clickable.
                 .opacity(enabled ? 1 : 0.3)
                 .contentShape(Rectangle())
@@ -321,7 +330,7 @@ struct InkSwitchStyle: ToggleStyle {
         } label: {
             ZStack(alignment: configuration.isOn ? .trailing : .leading) {
                 Capsule()
-                    .fill(configuration.isOn ? DS.Colors.ink : DS.Colors.switchOff)
+                    .fill(configuration.isOn ? DS.Colors.switchOn : DS.Colors.switchOff)
                     .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke.opacity(configuration.isOn ? 0 : 1), lineWidth: 1))
                 Circle()
                     .fill(configuration.isOn ? DS.Colors.onInk : DS.Colors.switchKnob)

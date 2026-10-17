@@ -126,11 +126,11 @@ struct FirstDayCard: View {
             row(done: s.dictated, title: "Diktera", detail: dictateDetail) { EmptyView() }
             CardDivider()
             row(done: s.thought, title: "Säg en tanke", detail: thoughtDetail) {
-                Button("Öppna Tankar") { page = .thoughts }.buttonStyle(SoftButtonStyle(small: true))
+                Button("Öppna Tankar →") { page = .thoughts }.buttonStyle(.plain).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.accent)
             }
             CardDivider()
             row(done: s.meeting, title: "Spela in ett möte", detail: String(localized: "Starta här eller från menyraden.")) {
-                Button("Öppna Möten") { page = .meetings }.buttonStyle(SoftButtonStyle(small: true))
+                Button("Öppna Möten →") { page = .meetings }.buttonStyle(.plain).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.accent)
             }
 
             // Where Mindtalk goes when the window closes — said before you close it.
@@ -191,7 +191,7 @@ struct FirstDayCard: View {
         var body: some View {
             ZStack {
                 Circle().strokeBorder(DS.Colors.fieldStroke, lineWidth: 1.5).opacity(done ? 0 : 1)
-                Circle().fill(DS.Colors.ink).scaleEffect(done ? 1 : 0.4).opacity(done ? 1 : 0)
+                Circle().fill(DS.Colors.accent).scaleEffect(done ? 1 : 0.4).opacity(done ? 1 : 0)
                 Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundStyle(DS.Colors.onInk)
                     .scaleEffect(done ? 1 : 0.4).opacity(done ? 1 : 0)
             }

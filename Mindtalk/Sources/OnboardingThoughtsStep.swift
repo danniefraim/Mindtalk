@@ -740,15 +740,15 @@ private struct Tick: View {
         let done = state == .done
         ZStack {
             Circle()
-                .strokeBorder(state == .pending ? DS.Colors.fieldStroke : DS.Colors.ink, lineWidth: 1.5)
+                .strokeBorder(state == .pending ? DS.Colors.fieldStroke : DS.Colors.accent, lineWidth: 1.5)
             Circle()
-                .fill(DS.Colors.ink)
+                .fill(DS.Colors.accent)
                 .scaleEffect(done ? 1 : 0.4)
                 .opacity(done ? 1 : 0)
                 .animation(.snappy(duration: 0.28), value: done)
             Text(verbatim: "\(number)")
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(state == .pending ? DS.Colors.faint : DS.Colors.ink)
+                .foregroundStyle(state == .pending ? DS.Colors.faint : DS.Colors.accent)
                 .opacity(done ? 0 : 1)
                 .animation(.easeOut(duration: 0.15), value: done)
             CheckShape()

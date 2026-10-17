@@ -44,7 +44,7 @@ struct FloatingTabBar: View {
                     .frame(width: 40, height: 40)
                     .background {
                         if selected {
-                            Circle().fill(DS.Colors.ink)
+                            Circle().fill(DS.Colors.accent)
                                 .matchedGeometryEffect(id: "tab", in: selection)
                         }
                     }

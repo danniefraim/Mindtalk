@@ -2029,7 +2029,7 @@ private struct SummaryView: View {
                     Text(String(localized: "Sammanfattat av \(summary.writer ?? "Apple Intelligence")."))
                     // Who writes the summaries is chosen in Settings → Modeller: one click away.
                     Button("Byt modell") { SettingsPage.openModels() }
-                        .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.ink)
+                        .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.accent)
                         .help("Välj vem som skriver sammanfattningarna i Inställningar → Modeller")
                     Text("Stämmer något inte? Klicka på en tid och lyssna själv.")
                     Spacer(minLength: 16)

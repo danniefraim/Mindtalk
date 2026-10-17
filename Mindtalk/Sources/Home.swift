@@ -272,7 +272,8 @@ struct HomeHero: View {
                             .font(.system(size: 10.5, weight: .semibold)).monospacedDigit()
                             .foregroundStyle(onInk.opacity(0.9)).lineLimit(1).fixedSize()
                         RoundedRectangle(cornerRadius: 3)
-                            .fill(onInk.opacity(day.isFuture ? 0.12 : day.stat.words > 0 ? (day.isToday ? 0.95 : 0.5) : 0.22))
+                            .fill((day.isToday && day.stat.words > 0 ? heroAccent : onInk)
+                                .opacity(day.isFuture ? 0.12 : day.stat.words > 0 ? (day.isToday ? 0.95 : 0.5) : 0.22))
                             .frame(width: 28, height: max(3, 64 * CGFloat(day.stat.words) / CGFloat(top)))
                     }
                     .frame(width: 28)
@@ -384,6 +385,9 @@ struct HomeHero: View {
     }
 
     /// A button on the ink tile: filled (paper on ink) or outlined, with its shortcut beside it.
+    /// On the night tile the accent is white, unless a colour is chosen (Inställningar → Utseende).
+    private var heroAccent: Color { Settings.accent == .plum ? DS.Colors.accent : onInk }
+
     private func inkButton(_ title: LocalizedStringKey, icon: String? = nil, dot: Bool = false, filled: Bool,
                            keys: String?, help: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         HStack(spacing: 8) {
@@ -395,9 +399,10 @@ struct HomeHero: View {
                 }
                 .padding(.horizontal, 14).padding(.vertical, 9)
                 .frame(minWidth: 150)
-                .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(filled ? onInk : onInk.opacity(0.08)))
+                // The main button on the night tile: white, or the accent when one is chosen.
+                .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(filled ? heroAccent : onInk.opacity(0.08)))
                 .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(onInk.opacity(filled ? 0 : 0.5), lineWidth: 1))
-                .foregroundStyle(filled ? DS.Colors.night : onInk)
+                .foregroundStyle(filled ? (Settings.accent == .plum ? Color.white : DS.Colors.night) : onInk)
                 .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             }
             .buttonStyle(PressStyle())

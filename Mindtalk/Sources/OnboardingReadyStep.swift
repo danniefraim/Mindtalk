@@ -168,7 +168,7 @@ private struct ReadyRow<Action: View>: View {
         switch state {
         case .ready:
             Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)).foregroundStyle(DS.Colors.onInk)
-                .frame(width: 26, height: 26).background(Circle().fill(DS.Colors.ink))
+                .frame(width: 26, height: 26).background(Circle().fill(DS.Colors.accent))
                 .accessibilityLabel(Text("Klart"))
         case .waiting:
             ProgressView().controlSize(.small)
@@ -178,7 +178,7 @@ private struct ReadyRow<Action: View>: View {
         case .progress(let p):
             ZStack {
                 Circle().stroke(DS.Colors.chip, lineWidth: 3)
-                Circle().trim(from: 0, to: p).stroke(DS.Colors.ink, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                Circle().trim(from: 0, to: p).stroke(DS.Colors.accent, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                     .rotationEffect(.degrees(-90))
             }
             .frame(width: 22, height: 22)
