@@ -1006,6 +1006,7 @@
       }
     },
     "%lld av 3": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7700,6 +7701,22 @@
         }
       }
     },
+    "Här eller från menyraden": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Here or from the menu bar"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Här eller från menyraden"
+          }
+        }
+      }
+    },
     "Här hamnar mötena du spelar in eller lägger till, med en sammanfattning du kan läsa direkt.": {
       "localizations": {
         "en": {
@@ -7816,6 +7833,7 @@
       }
     },
     "Håll in %@ i vilken app som helst och prata.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7881,6 +7899,7 @@
       }
     },
     "Håll in %@ och prata, så hamnar tanken i Tankar.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -18393,6 +18412,7 @@
       }
     },
     "Starta här eller från menyraden.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -18893,6 +18913,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "System"
+          }
+        }
+      }
+    },
+    "Säg den på sidan Tankar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Say it on the Thoughts page"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Säg den på sidan Tankar"
           }
         }
       }
@@ -21147,6 +21183,7 @@
       }
     },
     "Tryck på %@ i vilken app som helst och prata.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -23202,6 +23239,22 @@
         }
       }
     },
+    "i vilken app som helst och prata": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in any app and speak"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "i vilken app som helst och prata"
+          }
+        }
+      }
+    },
     "importerad från": {
       "localizations": {
         "en": {
@@ -23474,6 +23527,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "och prata"
+          }
+        }
+      }
+    },
+    "och prata, så hamnar den i Tankar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "and speak, and it lands in Thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "och prata, så hamnar den i Tankar"
           }
         }
       }
