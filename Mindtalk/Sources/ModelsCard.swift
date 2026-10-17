@@ -266,7 +266,7 @@ struct ModelsCard: View {
                 Button(action: chooser.pick) {
                     Image(systemName: chooser.on ? "largecircle.fill.circle" : "circle")
                         .font(.system(size: 16))
-                        .foregroundStyle(chooser.on ? DS.Colors.ink : DS.Colors.muted)
+                        .foregroundStyle(chooser.on ? DS.Colors.accent : DS.Colors.muted)
                 }
                 .buttonStyle(.plain)
                 .disabled(!chooser.enabled)
@@ -296,7 +296,7 @@ struct ModelsCard: View {
 
     private func progress(_ p: Double) -> some View {
         HStack(spacing: 8) {
-            ProgressView(value: p).tint(DS.Colors.ink).frame(width: 90)
+            ProgressView(value: p).tint(DS.Colors.accent).frame(width: 90)
             Text(p, format: .percent.precision(.fractionLength(0))).font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.Colors.muted)
         }
     }
@@ -404,7 +404,7 @@ struct NotesModelOffer: View {
                 HStack(spacing: 12) {
                     Image(systemName: "sparkle").font(.system(size: 13)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
                     Text("Laddar ned \(m.name)…").font(.system(size: 13, weight: .medium))
-                    ProgressView(value: p).tint(DS.Colors.ink).frame(width: 140)
+                    ProgressView(value: p).tint(DS.Colors.accent).frame(width: 140)
                     Text(p, format: .percent.precision(.fractionLength(0))).font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.Colors.muted)
                     Spacer(minLength: 0)
                 }
