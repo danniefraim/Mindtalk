@@ -41,7 +41,9 @@ final class VoiceMemory: ObservableObject {
 
     enum State: Equatable { case missing, downloading(Double), ready, failed(String) }
 
-    @Published var enabled = UserDefaults.standard.bool(forKey: "voiceMemory") {
+    /// On unless switched off: a saved voice is only a print, never sound, and the
+    /// start card says so and asks you to tell the room.
+    @Published var enabled = UserDefaults.standard.object(forKey: "voiceMemory") as? Bool ?? true {
         didSet {
             UserDefaults.standard.set(enabled, forKey: "voiceMemory")
             if enabled { prepare() }

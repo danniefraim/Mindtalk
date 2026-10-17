@@ -548,7 +548,7 @@ struct StartCard: View {
             }
             roomControl.padding(.top, 22)
             if dictation.micGranted {
-                // A choice, made here and not by default: the voices are other people's.
+                // On from the start; switched off here or in Settings. The voices are other people's, so the line asks you to tell them.
                 Toggle(isOn: $memory.enabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Kom ihåg rösterna till nästa möte").font(.system(size: 13, weight: .medium))
