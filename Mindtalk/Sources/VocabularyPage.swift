@@ -49,7 +49,7 @@ struct VocabularyPage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            PageHeader(title: "Ordlista")
+            PageHeader(title: "Ordlista", eyebrow: eyebrow)
                 .padding(.bottom, 4)
                 .staggered(0)
             tile.staggered(0)
@@ -160,17 +160,16 @@ struct VocabularyPage: View {
         .overlay(alignment: .bottom) {
             if let toast = vocabulary.toast {
                 HStack(spacing: 12) {
-                    Text(verbatim: toast).font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
+                    Text(verbatim: toast).font(.system(size: 13, weight: .medium))
                     Button("Ångra") { withAnimation(.snappy) { vocabulary.undoLast() } }
                         .buttonStyle(.plain)
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
                         .keyboardShortcut("z", modifiers: .command)
                 }
+                .foregroundStyle(DS.Colors.onInk)
                 .padding(.horizontal, 16)
                 .frame(height: 38)
-                .background(Capsule().fill(DS.Colors.night))
-                .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
+                .background(Capsule().fill(DS.Colors.ink))
                 .shadow(color: .black.opacity(0.25), radius: 10, y: 4)
                 .padding(.bottom, 24)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -180,26 +179,29 @@ struct VocabularyPage: View {
         .animation(.spring(duration: 0.3, bounce: 0.12), value: vocabulary.toast)
     }
 
-    /// What the list is and what it has done — on the night tile, like Hem.
+    /// Over the title: how many words, and how often they've been put right.
+    private var eyebrow: String? {
+        let own = vocabulary.entries
+        guard !own.isEmpty else { return nil }
+        let fixes = own.reduce(0) { $0 + $1.fixes }
+        var parts = [own.count == 1 ? String(localized: "1 ord") : String(localized: "\(own.count) ord")]
+        if fixes > 0 {
+            parts.append(fixes == 1 ? String(localized: "rättat 1 gång") : String(localized: "rättat \(Stats.number(fixes)) gånger"))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// What the list is and what it has done — on the light tile, like Hem.
     private var tile: some View {
         let own = vocabulary.entries
-        let fixes = own.reduce(0) { $0 + $1.fixes }
         let top = own.max { $0.fixes < $1.fixes }
         return VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(verbatim: own.count == 1 ? String(localized: "1 ord") : String(localized: "\(own.count) ord"))
-                    .font(.system(size: 44, weight: .regular, design: .serif)).monospacedDigit()
-                if fixes > 0 {
-                    Text(verbatim: fixes == 1 ? String(localized: "rättat 1 gång") : String(localized: "rättat \(Stats.number(fixes)) gånger"))
-                        .font(.system(size: 18, design: .serif)).foregroundStyle(.white.opacity(0.75))
-                }
-            }
             Text("Namn och ord som Mindtalk ska stava som du vill i diktering, tankar och möten. Isärskrivna eller felhörda varianter, som ”Mind Talk”, rättas av sig själva.")
-                .font(.system(size: 13.5)).foregroundStyle(.white.opacity(0.75))
+                .font(.system(size: 14, weight: .regular, design: .serif)).foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 520, alignment: .leading)
             if let top, top.fixes > 0 {
-                Text(verbatim: String(localized: "Mest använt: \(top.word)")).font(.system(size: 12.5, weight: .medium)).foregroundStyle(.white.opacity(0.6))
+                Text(verbatim: String(localized: "Mest använt: \(top.word)")).font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
             } else {
                 // Nothing fixed yet: what's worth adding.
                 HStack(spacing: 8) {
@@ -209,13 +211,12 @@ struct VocabularyPage: View {
                 }
             }
         }
-        .foregroundStyle(.white)
         .padding(24)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(DS.Colors.night))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
+        .tile()
     }
 
+    /// Something worth adding, as a soft chip: a press puts the example in the field.
     private func exampleChip(_ title: LocalizedStringKey, _ hint: String) -> some View {
         Button {
             example = hint
@@ -223,8 +224,8 @@ struct VocabularyPage: View {
         } label: {
             Text(title).font(.system(size: 12.5, weight: .medium))
                 .padding(.horizontal, 12).frame(height: 28)
-                .background(Capsule().fill(.white.opacity(0.1)))
-                .overlay(Capsule().strokeBorder(.white.opacity(0.2), lineWidth: 1))
+                .background(Capsule().fill(DS.Colors.control).shadow(color: .black.opacity(0.06), radius: 2, y: 1))
+                .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)

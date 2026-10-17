@@ -313,7 +313,8 @@ struct SettingsPage: View {
     var body: some View {
         ScrollViewReader { proxy in
         VStack(alignment: .leading, spacing: 14) {
-            PageHeader(title: "Inställningar")
+            PageHeader(title: "Inställningar",
+                       eyebrow: "Mindtalk " + (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""))
                 .staggered(0)
                 .padding(.bottom, 12)
 
@@ -936,7 +937,10 @@ struct RecentPage: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .firstTextBaseline) {
-                PageHeader(title: "Diktering").staggered(0)
+                PageHeader(title: "Diktering",
+                           eyebrow: stats.today.words > 0 ? String(localized: "\(Stats.number(stats.today.words)) ord i dag")
+                               : stats.totalWords > 0 ? String(localized: "Inget sagt i dag än") : nil)
+                    .staggered(0)
                 Spacer()
                 if !dictation.recent.isEmpty {
                     Button("Rensa…") { confirmClear = true }.buttonStyle(.soft)

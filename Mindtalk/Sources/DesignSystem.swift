@@ -165,13 +165,22 @@ extension View {
 // literal like CardRow(title: "Mikrofon") is translated, and a String that is
 // already localized simply isn't found and shows as is.
 
-/// Serif page title with an optional line under it.
+/// Serif page title, with a label in small capitals above it (what the page holds:
+/// "12 MÖTEN") and an optional line under it — as the day over the greeting on Hem.
 struct PageHeader: View {
     let title: String
+    /// Already localized; set in small capitals here.
+    var eyebrow: String? = nil
     var subtitle: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if let eyebrow {
+                Text(verbatim: eyebrow.uppercased())
+                    .font(.system(size: 11.5, weight: .semibold)).tracking(1.8).monospacedDigit()
+                    .foregroundStyle(DS.Colors.muted)
+                    .padding(.bottom, -2)
+            }
             Text(LocalizedStringKey(title)).font(DS.pageTitle)
             if let subtitle {
                 Text(LocalizedStringKey(subtitle))

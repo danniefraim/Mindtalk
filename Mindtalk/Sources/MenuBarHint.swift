@@ -93,7 +93,7 @@ enum MenuBarHint {
     }
 }
 
-/// The bubble: night, like the tile on Hem, with a small arrow up at the icon.
+/// The bubble: ink, like the main button, with a small arrow up at the icon.
 struct MenuBarHintBubble: View {
     /// Where the arrow sits, from the bubble's left edge; nil = the middle.
     var arrowX: CGFloat? = nil
@@ -110,17 +110,15 @@ struct MenuBarHintBubble: View {
                 Text("Mindtalk finns kvar här").font(.system(size: 14, weight: .semibold))
             }
             Text("Klicka för att diktera, säga en tanke eller starta ett möte.")
-                .font(.system(size: 12.5)).foregroundStyle(.white.opacity(0.75))
+                .font(.system(size: 12.5)).foregroundStyle(DS.Colors.onInk.opacity(0.75))
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(DS.Colors.onInk)
         .padding(.horizontal, 16).padding(.vertical, 13)
         .frame(width: Self.width, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.night))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.ink))
         .overlay(alignment: .topLeading) {
-            Arrow().fill(DS.Colors.night)
-                .overlay(Arrow(open: true).stroke(.white.opacity(0.14), lineWidth: 1))
+            Arrow().fill(DS.Colors.ink)
                 .frame(width: Self.arrow.width, height: Self.arrow.height)
                 .offset(x: min(max(arrowX ?? Self.width / 2, 22), Self.width - 22) - Self.arrow.width / 2, y: -Self.arrow.height + 0.5)
         }
@@ -129,7 +127,6 @@ struct MenuBarHintBubble: View {
         .padding(.horizontal, 12).padding(.bottom, 16)   // room for the shadow
         .contentShape(Rectangle())
         .onTapGesture(perform: onClick)
-        .environment(\.colorScheme, .dark)
         .accessibilityElement(children: .combine)
     }
 

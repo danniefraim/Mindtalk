@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - Step 7: The word list
 //
 // Shown rather than told: a sentence as the speech model heard it, and the one
-// word the list spells right — on the night tile, like the Ordlista page. Then
+// word the list spells right — on the light tile, like the Ordlista page. Then
 // your own first word, which drops into a small copy of the list as it looks in
 // the app. One bouncy spring, for the moment of correction. Each example plays
 // once, then the corrected sentence stays; it skips to that as soon as you start
@@ -145,13 +145,13 @@ private struct CorrectionDemo: View {
                 HStack(spacing: 5) {
                     ForEach(Self.examples.indices, id: \.self) { i in
                         Capsule()
-                            .fill(.white.opacity(i == index ? 0.75 : 0.22))
+                            .fill(DS.Colors.ink.opacity(i == index ? 0.75 : 0.2))
                             .frame(width: i == index ? 14 : 5, height: 5)
                     }
                 }
             }
             .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(.white.opacity(0.55))
+            .foregroundStyle(DS.Colors.muted)
             .padding(.horizontal, 22)
             .padding(.top, 18)
 
@@ -163,17 +163,9 @@ private struct CorrectionDemo: View {
                 .padding(.bottom, 30)
             Spacer(minLength: 0)
         }
-        .foregroundStyle(.white)
         .frame(maxWidth: .infinity)
         .frame(height: 158)
-        .background(
-            RoundedRectangle(cornerRadius: DS.Radius.panel, style: .continuous).fill(DS.Colors.night)
-                .overlay(
-                    // A faint light from above, where the words land.
-                    RadialGradient(colors: [.white.opacity(0.07), .clear], center: .top, startRadius: 0, endRadius: 320)
-                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.panel, style: .continuous)))
-                .shadow(color: .black.opacity(0.18), radius: 18, y: 8))
-        .overlay(RoundedRectangle(cornerRadius: DS.Radius.panel, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
+        .tile()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(localized: "Exempel: Mindtalk hörde ”\(example.heard)” och skrev ”\(example.fixed)” enligt din ordlista."))
         // A new id cancels the play: stopping it is the same as having watched it.
@@ -209,8 +201,8 @@ private struct CorrectionDemo: View {
                                             removal: .opacity))
             } else {
                 Text(verbatim: heard)
-                    .strikethrough(stage == .marked, color: .white.opacity(0.8))
-                    .foregroundStyle(.white.opacity(stage == .marked ? 0.45 : 1))
+                    .strikethrough(stage == .marked, color: DS.Colors.ink.opacity(0.8))
+                    .foregroundStyle(DS.Colors.ink.opacity(stage == .marked ? 0.4 : 1))
                     .transition(.modifier(active: Morph(t: 1, rise: -12), identity: Morph(t: 0, rise: -12)))
             }
         }
@@ -218,10 +210,10 @@ private struct CorrectionDemo: View {
         .padding(.vertical, 1)
         .background(
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(.white.opacity(stage == .fixed ? 0.13 : 0))
+                .fill(DS.Colors.control.opacity(stage == .fixed ? 1 : 0))
                 .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .strokeBorder(.white.opacity(stage == .fixed ? 0.28 : 0), lineWidth: 1))
-                .shadow(color: .white.opacity(stage == .fixed ? 0.22 : 0), radius: 14))
+                    .strokeBorder(DS.Colors.fieldStroke.opacity(stage == .fixed ? 1 : 0), lineWidth: 1))
+                .shadow(color: .black.opacity(stage == .fixed ? 0.08 : 0), radius: 6, y: 2))
         .overlay(alignment: .bottom) {
             if stage == .fixed {
                 FromListChip()
@@ -239,7 +231,7 @@ private struct CorrectionDemo: View {
             let typing = typed > 0 && typed < example.count
             let on = typing || Int(context.date.timeIntervalSinceReferenceDate * 2) % 2 == 0
             RoundedRectangle(cornerRadius: 1.25)
-                .fill(.white.opacity(0.85))
+                .fill(DS.Colors.ink.opacity(0.85))
                 .frame(width: 2.5, height: 28)
                 .padding(.leading, 2)
                 .opacity(on ? 1 : 0)
@@ -325,11 +317,10 @@ private struct FromListChip: View {
             Text("Från din ordlista")
         }
         .font(.system(size: 11.5, weight: .semibold))
-        .foregroundStyle(.white.opacity(0.9))
+        .foregroundStyle(.primary)
         .padding(.horizontal, 10)
         .frame(height: 22)
-        .background(Capsule().fill(.white.opacity(0.1)))
-        .overlay(Capsule().strokeBorder(.white.opacity(0.22), lineWidth: 1))
+        .background(Capsule().fill(DS.Colors.chip))
     }
 }
 

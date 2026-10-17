@@ -168,6 +168,8 @@ private struct MeetingList: View {
         // list scrolls — a meeting far down can still be dragged onto a folder.
         LazyVStack(alignment: .leading, spacing: 20, pinnedViews: [.sectionHeaders]) {
             PageHeader(title: "Möten",
+                       eyebrow: store.meetings.isEmpty ? nil
+                           : store.meetings.count == 1 ? String(localized: "1 möte") : String(localized: "\(store.meetings.count) möten"),
                        subtitle: "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får en sammanfattning.")
                 .staggered(0)
             StartCard(session: session, voices: voices, dictation: dictation).staggered(1)

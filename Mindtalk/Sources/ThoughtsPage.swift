@@ -80,6 +80,7 @@ struct ThoughtsPage: View {
     private var header: some View {
         HStack(alignment: .top) {
             PageHeader(title: "Tankar",
+                       eyebrow: live == 0 ? nil : live == 1 ? String(localized: "1 tanke") : String(localized: "\(live) tankar"),
                        subtitle: live < 5 ? "Det du kommer på mitt i något annat. Håll in genvägen och säg det, så hamnar det här, inte i appen du står i." : nil)
             Spacer(minLength: 16)
             Menu {
@@ -572,26 +573,24 @@ struct ThoughtsPage: View {
                 .help("Avmarkera")
                 .accessibilityLabel("Avmarkera")
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(DS.Colors.onInk)
             .padding(.horizontal, 8)
             .frame(height: 42)
-            .background(Capsule().fill(DS.Colors.night))
-            .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
+            .background(Capsule().fill(DS.Colors.ink))
             .shadow(color: .black.opacity(0.25), radius: 12, y: 4)
             .padding(.bottom, 24)
             .transition(.opacity.combined(with: .move(edge: .bottom)))
         } else if let toast = thoughts.toast {
             HStack(spacing: 12) {
-                Text(verbatim: toast).font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
+                Text(verbatim: toast).font(.system(size: 13, weight: .medium))
                 Button("Ångra") { withAnimation(.snappy) { thoughts.undo() } }
                     .buttonStyle(.plain)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
             }
+            .foregroundStyle(DS.Colors.onInk)
             .padding(.horizontal, 16)
             .frame(height: 38)
-            .background(Capsule().fill(DS.Colors.night))
-            .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
+            .background(Capsule().fill(DS.Colors.ink))
             .shadow(color: .black.opacity(0.25), radius: 10, y: 4)
             .padding(.bottom, 24)
             .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -606,7 +605,7 @@ struct ThoughtsPage: View {
                 Text(title).font(.system(size: 12.5, weight: .medium))
             }
             .padding(.horizontal, 10).frame(height: 30)
-            .background(Capsule().fill(.white.opacity(0.08)))
+            .background(Capsule().fill(DS.Colors.onInk.opacity(0.1)))
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
