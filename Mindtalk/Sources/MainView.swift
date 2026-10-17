@@ -71,8 +71,7 @@ struct MainView: View {
                     case .settings: SettingsPage(dictation: dictation, prefs: prefs)
                     }
                 }
-                // A new accent (Inställningar → Utseende) redraws the page and the tab bar.
-                .id("\(page)-\(prefs.accent.rawValue)")
+                .id(page)
                 .transition(.page)
                 .onAppear { MainView.currentPage = page }
                 .onChange(of: page) { _, now in MainView.currentPage = now }
@@ -82,7 +81,6 @@ struct MainView: View {
             .background(DS.Colors.paper)
 
             FloatingTabBar(page: $page, dictation: dictation)
-                .id(prefs.accent)
                 .padding(.leading, 16)
         }
         .ignoresSafeArea()
@@ -460,10 +458,6 @@ struct SettingsPage: View {
                 CardDivider()
                 CardRow(title: "Utseende") {
                     PillPicker(options: Appearance.allCases.map { ($0, $0.title) }, selection: $prefs.appearance)
-                }
-                CardDivider()
-                CardRow(title: "Accent", detail: "Färgen på det valda, huvudknappen, reglagen och länkar. Svart är helt svartvitt.") {
-                    PillPicker(options: AccentChoice.allCases.map { ($0, $0.title) }, selection: $prefs.accent)
                 }
                 CardDivider()
                 CardRow(title: "Appens språk",

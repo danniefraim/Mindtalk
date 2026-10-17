@@ -139,28 +139,7 @@ enum Appearance: String, CaseIterable, Identifiable {
     }
 }
 
-/// The accent: ink only (black and white throughout), or plum, a deep red-violet.
-/// The same system either way; only the colour of what's chosen, the main
-/// button, switches, key chips in running text and links changes.
-enum AccentChoice: String, CaseIterable, Identifiable {
-    case black, plum
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .black: return String(localized: "Svart")
-        case .plum: return String(localized: "Plommon")
-        }
-    }
-}
-
 extension Settings {
-    static var accent: AccentChoice {
-        get { UserDefaults.standard.string(forKey: "accent").flatMap(AccentChoice.init) ?? .black }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: "accent") }
-    }
-
     /// Light by default — the warm paper look.
     static var appearance: Appearance {
         get { UserDefaults.standard.string(forKey: "appearance").flatMap(Appearance.init) ?? .light }
@@ -225,9 +204,6 @@ final class AppPrefs: ObservableObject {
 
     @Published var appearance = Settings.appearance {
         didSet { Settings.appearance = appearance; apply() }
-    }
-    @Published var accent = Settings.accent {
-        didSet { Settings.accent = accent; WindowEpoch.shared.reopened() }
     }
     @Published var showInDock = Settings.showInDock {
         didSet { Settings.showInDock = showInDock; AppDelegate.updateDockPolicy() }

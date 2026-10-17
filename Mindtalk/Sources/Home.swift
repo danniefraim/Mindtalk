@@ -151,8 +151,7 @@ struct HomeHero: View {
         .background(alignment: .bottomTrailing) {
             // The sphere of light from Möten, breathing in the corner — with your voice
             // while you dictate.
-            HeroSphere(meter: dictation.meter, listening: dictation.phase == .recording,
-                       color: Settings.accent == .plum ? DS.Colors.accent : DS.Colors.ink)
+            HeroSphere(meter: dictation.meter, listening: dictation.phase == .recording, color: DS.Colors.ink)
                 .frame(width: 340, height: 340)
                 .offset(x: 70, y: 120)
                 .allowsHitTesting(false)
@@ -389,8 +388,8 @@ struct HomeHero: View {
     }
 
     /// A button on the ink tile: filled (paper on ink) or outlined, with its shortcut beside it.
-    /// On the night tile the accent is white, unless a colour is chosen (Inställningar → Utseende).
-    private var heroAccent: Color { Settings.accent == .plum ? DS.Colors.accent : onInk }
+    /// The main button and today's bar: ink on the light card.
+    private var heroAccent: Color { onInk }
 
     private func inkButton(_ title: LocalizedStringKey, icon: String? = nil, dot: Bool = false, filled: Bool,
                            keys: String?, help: LocalizedStringKey, action: @escaping () -> Void) -> some View {
@@ -406,7 +405,7 @@ struct HomeHero: View {
                 // The main button on the night tile: white, or the accent when one is chosen.
                 .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(filled ? heroAccent : onInk.opacity(0.08)))
                 .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(onInk.opacity(filled ? 0 : 0.5), lineWidth: 1))
-                .foregroundStyle(filled ? (Settings.accent == .plum ? Color.white : DS.Colors.night) : onInk)
+                .foregroundStyle(filled ? DS.Colors.paper : onInk)
                 .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             }
             .buttonStyle(PressStyle())
