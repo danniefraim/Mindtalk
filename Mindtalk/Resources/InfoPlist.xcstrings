@@ -24,13 +24,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mindtalk uses the microphone while you dictate and when you record meetings. Everything is transcribed on your Mac – no audio leaves your computer."
+            "value": "Mindtalk uses the microphone while you dictate and when you record meetings. Everything is transcribed on your Mac, and no audio leaves your computer."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mindtalk använder mikrofonen när du dikterar och när du spelar in möten. Allt tolkas på din Mac – inget ljud lämnar datorn."
+            "value": "Mindtalk använder mikrofonen när du dikterar och när du spelar in möten. Allt tolkas på din Mac, och inget ljud lämnar datorn."
           }
         }
       }

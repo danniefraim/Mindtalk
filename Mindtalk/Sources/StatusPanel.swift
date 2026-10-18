@@ -311,16 +311,16 @@ struct StatusPanelView: View {
             switch dictation.phase {
             case .recording:
                 Circle().fill(DS.Colors.recording).frame(width: 6, height: 6)
-                Text(dictation.handsFree ? "Lyssnar (låst)" : "Lyssnar…")
+                Text(dictation.handsFree ? "Lyssnar fritt" : "Lyssnar…")
             case .transcribing:
                 Text("Skriver…")
             default:
                 switch dictation.model {
                 case .downloading(let p) where SpeechModel.isPreparing(p):
                     // The files are in; a percentage stuck at 95 would only look stuck.
-                    Text("Förbereder \(dictation.engine.title.lowercased())")
+                    Text("Förbereder talmodellen…")
                 case .downloading(let p):
-                    Text("Laddar ned \(dictation.engine.title) · \(Int(p * 100)) %").monospacedDigit()
+                    Text("Laddar ned talmodellen · \(Int(p * 100)) %").monospacedDigit()
                 case .loading:
                     Text("Startar…")
                 default:
@@ -390,7 +390,7 @@ struct StatusPanelView: View {
             if stats.weekWords == 0 {
                 Text("Inga ord den här veckan än").foregroundStyle(DS.Colors.muted)
             } else {
-                figure(stats.today.words, "ord i dag")
+                figure(stats.today.words, stats.today.words == 1 ? String(localized: "one|ord i dag") : String(localized: "ord i dag"))
                 figure(stats.weekWords, "i veckan")
             }
             if bars {

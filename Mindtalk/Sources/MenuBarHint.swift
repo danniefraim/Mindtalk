@@ -58,7 +58,7 @@ enum MenuBarHint {
 
         // VoiceOver hears it too.
         NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested, userInfo: [
-            .announcement: String(localized: "Mindtalk finns kvar i menyraden. Klicka där för att diktera, säga en tanke eller starta ett möte."),
+            .announcement: String(localized: "Mindtalk finns kvar i menyraden. Diktera med din tangent som vanligt. Klicka där för tankar, möten och inställningar."),
             .priority: NSAccessibilityPriorityLevel.medium.rawValue,
         ])
 
@@ -109,7 +109,7 @@ struct MenuBarHintBubble: View {
                     .frame(width: 18, height: 12).accessibilityHidden(true)
                 Text("Mindtalk finns kvar här").font(.system(size: 14, weight: .semibold))
             }
-            Text("Klicka för att diktera, säga en tanke eller starta ett möte.")
+            Text("Diktera med din tangent som vanligt. Klicka här för tankar, möten och inställningar.")
                 .font(.system(size: 12.5)).foregroundStyle(DS.Colors.onInk.opacity(0.75))
                 .fixedSize(horizontal: false, vertical: true)
         }

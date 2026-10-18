@@ -147,8 +147,10 @@ struct HomeHero: View {
                 Text("Nästan klart").font(.system(size: 40, weight: .regular, design: .serif)).foregroundStyle(ink)
                 TimelineView(.periodic(from: since, by: 30)) { context in
                     let minutes = Int(context.date.timeIntervalSince(since) / 60)
-                    let text = String(localized: "Talmodellen görs redo för din Mac. Bara första gången, ungefär en halv minut.")
-                    Text(verbatim: minutes < 1 ? text : text + " " + String(localized: "\(minutes) min hittills."))
+                    // The same words as the introduction's: half a minute at first, then the minutes so far.
+                    Text(verbatim: String(localized: "Talmodellen görs redo för din Mac") + ". "
+                         + (minutes < 1 ? String(localized: "Det tar ungefär en halv minut, bara första gången.")
+                                        : String(localized: "Det tar en liten stund, bara första gången. \(minutes) min hittills.")))
                         .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted).monospacedDigit()
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -164,7 +166,7 @@ struct HomeHero: View {
                             .tracking(-2.5)
                             .foregroundStyle(ink)
                             .lineLimit(1).minimumScaleFactor(0.5)
-                        Text(today > 0 ? "ord i dag" : "ord i veckan")
+                        Text(today > 0 ? (today == 1 ? "one|ord i dag" : "ord i dag") : (weekWords == 1 ? "one|ord i veckan" : "ord i veckan"))
                             .font(.system(size: 21, weight: .regular, design: .serif))
                             .foregroundStyle(DS.Colors.muted)
                     }
@@ -209,9 +211,14 @@ struct HomeHero: View {
     }
 
     /// The issue in Hem's words: one name for the model — "talmodellen".
+    /// "12 ord", "1 word".
+    static func words(_ n: Int) -> String {
+        n == 1 ? String(localized: "1 ord") : String(localized: "\(Stats.number(n)) ord")
+    }
+
     private func issueLine(_ issue: Dictation.SetupIssue) -> String {
         switch issue {
-        case .modelMissing: return String(localized: "Ladda ned talmodellen (\(dictation.engine.title.lowercased()))")
+        case .modelMissing: return String(localized: "Ladda ned talmodellen (\(dictation.engine.inlineTitle))")
         default: return issue.title
         }
     }
@@ -226,7 +233,7 @@ struct HomeHero: View {
     private func headline(weekWords: Int, fresh: Bool) -> String {
         let today = stats.today.words
         if today > 0 { return today == 1 ? String(localized: "1 ord i dag") : String(localized: "\(Stats.number(today)) ord i dag") }
-        if weekWords > 0 { return String(localized: "\(Stats.number(weekWords)) ord i veckan") }
+        if weekWords > 0 { return weekWords == 1 ? String(localized: "1 ord i veckan") : String(localized: "\(Stats.number(weekWords)) ord i veckan") }
         if !fresh { return String(localized: "Inget sagt i dag än") }
         return dictation.mode == .toggle ? String(localized: "Tryck på \(dictation.hotkey.inlineName) och prata")
                                          : String(localized: "Håll in \(dictation.hotkey.inlineName) och prata")
@@ -245,7 +252,7 @@ struct HomeHero: View {
             if saved >= 60 { parts.append(String(localized: "I veckan har du sluppit skriva i ungefär \(Stats.prose(saved)).")) }
         } else if !fresh {
             // A new week (a Monday morning) — not a new user.
-            parts.append(streak > 0 ? String(localized: "Du har dikterat \(streak) dagar i rad.")
+            parts.append(streak > 1 ? String(localized: "Du har dikterat \(streak) dagar i rad.")
                                     : String(localized: "Texten skrivs där markören står, i vilken app som helst."))
         } else {
             parts.append(String(localized: "Texten skrivs där markören står, i vilken app som helst."))
@@ -263,9 +270,9 @@ struct HomeHero: View {
         let weekday = { (d: Date) in d.formatted(Date.FormatStyle().weekday(.wide).locale(AppLanguage.locale)) }
         // One element for VoiceOver: the days said, not seven stops.
         let spoken = week.filter { !$0.isFuture }.map { day in
-            (day.isToday ? String(localized: "i dag") : weekday(day.date)) + " " + String(localized: "\(Stats.number(day.stat.words)) ord")
+            (day.isToday ? String(localized: "i dag") : weekday(day.date)) + " " + Self.words(day.stat.words)
         }.joined(separator: ", ")
-        let title = weekWords > 0 ? String(localized: "Vecka \(stats.weekNumber) · \(Stats.number(weekWords)) ord")
+        let title = weekWords > 0 ? String(localized: "Vecka \(stats.weekNumber)") + " · " + Self.words(weekWords)
                                   : String(localized: "Vecka \(stats.weekNumber)")
         return VStack(alignment: .leading, spacing: 14) {
             Text(verbatim: title.uppercased())
@@ -277,7 +284,7 @@ struct HomeHero: View {
                         RoundedRectangle(cornerRadius: 2.5, style: .continuous)
                             .fill(ink.opacity(day.isFuture ? 0.07 : day.stat.words > 0 ? (day.isToday ? 1 : 0.3) : 0.13))
                             .frame(width: bar, height: max(3, tall * CGFloat(day.stat.words) / CGFloat(top)))
-                            .help(Text(verbatim: weekday(day.date) + ": " + String(localized: "\(Stats.number(day.stat.words)) ord")))
+                            .help(Text(verbatim: weekday(day.date) + ": " + Self.words(day.stat.words)))
                     }
                 }
                 Rectangle().fill(ink.opacity(0.18)).frame(width: 7 * bar + 6 * gap, height: 1).padding(.top, 3)

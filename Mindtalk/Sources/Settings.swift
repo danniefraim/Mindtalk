@@ -105,7 +105,7 @@ enum DictationMode: String, CaseIterable, Identifiable {
         case .hold:
             return String(localized: "Mindtalk lyssnar så länge du håller in.")
         case .toggle:
-            return String(localized: "Tryck för att börja, tryck igen för att klistra in.")
+            return String(localized: "Tryck för att börja och tryck igen när du är klar.")
         }
     }
 }
