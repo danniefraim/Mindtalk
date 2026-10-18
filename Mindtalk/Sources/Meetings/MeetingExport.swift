@@ -174,7 +174,8 @@ enum MeetingExport {
                 section(String(localized: "Att göra"), s.tasks, tasks: true)
                 section(String(localized: "Värt att komma ihåg"), s.points)
             }
-            let own = record.notes.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
+            // Your notes, and what you wrote with a mark.
+            let own = record.ownLines
             if !own.isEmpty {
                 out.append(.heading(String(localized: "Dina anteckningar")))
                 for note in own {

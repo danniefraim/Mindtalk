@@ -1693,6 +1693,22 @@
         }
       }
     },
+    "+%lld till": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld more"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld till"
+          }
+        }
+      }
+    },
     "1 att göra": {
       "extractionState": "stale",
       "localizations": {
@@ -2584,6 +2600,7 @@
       }
     },
     "Anteckning: en rad per sak": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2612,6 +2629,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Anteckningar och text"
+          }
+        }
+      }
+    },
+    "Anteckningen är sparad": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note saved"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anteckningen är sparad"
           }
         }
       }
@@ -5186,6 +5219,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dina ord stavas rätt redan när du pratar"
+          }
+        }
+      }
+    },
+    "Dina senaste anteckningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your latest notes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dina senaste anteckningar"
           }
         }
       }
@@ -13455,6 +13504,22 @@
         }
       }
     },
+    "Markera ett beslut. Har du skrivit något blir det beslutet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark a decision. If you've written something, that becomes the decision."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markera ett beslut. Har du skrivit något blir det beslutet."
+          }
+        }
+      }
+    },
     "Markera något att göra": {
       "localizations": {
         "en": {
@@ -13471,6 +13536,22 @@
         }
       }
     },
+    "Markera något att göra. Har du skrivit något blir det uppgiften.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark something to do. If you've written something, that becomes the task."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markera något att göra. Har du skrivit något blir det uppgiften."
+          }
+        }
+      }
+    },
     "Markera något viktigt": {
       "localizations": {
         "en": {
@@ -13483,6 +13564,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Markera något viktigt"
+          }
+        }
+      }
+    },
+    "Markera något viktigt. Har du skrivit något sparas det som viktigt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark something important. If you've written something, it's kept as important."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markera något viktigt. Har du skrivit något sparas det som viktigt."
           }
         }
       }
@@ -13548,6 +13645,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Markerar det som sägs just nu (⌥⌘%lld)"
+          }
+        }
+      }
+    },
+    "Markerar det som sägs just nu (⌥⌘%lld). Har du skrivit något följer det med.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marks what's being said right now (⌥⌘%lld). Anything you've written goes with it."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markerar det som sägs just nu (⌥⌘%lld). Har du skrivit något följer det med."
           }
         }
       }
@@ -17955,6 +18068,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skriv det som var viktigt för dig, så bygger sammanfattningen på det"
+          }
+        }
+      }
+    },
+    "Skriv en anteckning och tryck ↩": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Write a note and press ↩"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriv en anteckning och tryck ↩"
           }
         }
       }
@@ -22733,6 +22862,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tryck på kombinationen…"
+          }
+        }
+      }
+    },
+    "Tryck på retur så läggs anteckningen till. Skift och retur ger en ny rad.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press Return to add the note. Shift and Return gives a new line."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck på retur så läggs anteckningen till. Skift och retur ger en ny rad."
           }
         }
       }

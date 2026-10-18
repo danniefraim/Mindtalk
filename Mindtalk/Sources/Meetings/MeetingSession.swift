@@ -643,8 +643,8 @@ final class MeetingSession: ObservableObject {
             return
         }
         MeetingPlayer.shared.stop()
-        // Your notes so far stay in the note field: what you type goes on from them.
-        NoteDraft.shared.text = saved.notesText
+        // Your notes so far stand above the note field; what you add comes after them.
+        NoteDraft.shared.text = ""
         steps = 0
         before = saved
         var record = saved
@@ -953,6 +953,7 @@ final class MeetingSession: ObservableObject {
 
     func stop() {
         guard isRecording else { return }
+        takeDraft()
         applyNotes()
         endIntroduction()
         stopCountdown?.cancel()
@@ -1073,12 +1074,52 @@ final class MeetingSession: ObservableObject {
     }
     private var notesSave: Task<Void, Never>?
 
-    /// A moment worth finding again — when you pressed. Whether that was just before
-    /// or just after it was said, the notes look at the seconds around it.
+    /// A note added with ↩: a line of the meeting's notes (a line each, if you wrote
+    /// several), at the moment you began writing it. Returns whether one was added.
     @discardableResult
-    func mark(_ kind: MeetingRecord.Mark.Kind) -> MeetingRecord.Mark? {
+    func addNote(_ text: String, at begun: Double? = nil) -> Bool {
+        applyNotes()          // an edit still on its way lands first
+        guard var record else { return false }
+        let lines = text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        guard !lines.isEmpty else { return false }
+        let at = isRecording ? min(begun ?? elapsed, elapsed) : nil
+        // Blank lines at the end of the notes carry nothing.
+        while let last = record.notes.last, last.text.trimmingCharacters(in: .whitespaces).isEmpty { record.notes.removeLast() }
+        record.notes += lines.map { MeetingRecord.Note(text: $0, at: at) }
+        self.record = record
+        MeetingStore.shared.save(record)
+        return true
+    }
+
+    #if DEBUG
+    /// `--render-island`: notes and marks as if added, on the demo meeting; nothing saved.
+    func preview(notes: [MeetingRecord.Note], marks: [MeetingRecord.Mark]? = nil) {
+        record?.notes = notes
+        if let marks { record?.marks = marks }
+    }
+    #endif
+
+    /// Written but not added when the meeting ends: a note all the same, not lost.
+    private func takeDraft() {
+        guard isRecording, let draft = NoteDraft.shared.take() else { return }
+        addNote(draft.text, at: draft.at)
+    }
+
+    /// A moment worth finding again — when you pressed. Whether that was just before
+    /// or just after it was said, the notes look at the seconds around it. Pressed
+    /// with something written, that is the mark's words, and its moment is when you
+    /// began writing them.
+    @discardableResult
+    func mark(_ kind: MeetingRecord.Mark.Kind, text: String? = nil, at begun: Double? = nil) -> MeetingRecord.Mark? {
         guard var record, isRecording else { return nil }
-        let mark = MeetingRecord.Mark(at: elapsed, kind: kind)
+        let words = (text ?? "").components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        let at = words.isEmpty ? elapsed : min(begun ?? elapsed, elapsed)
+        let mark = MeetingRecord.Mark(at: at, kind: kind, text: words.isEmpty ? nil : words)
         record.marks.append(mark)
         self.record = record
         MeetingStore.shared.save(record)
@@ -1095,6 +1136,7 @@ final class MeetingSession: ObservableObject {
     /// Mindtalk is quitting mid-meeting: keep what has been written. It opens as
     /// an unfinished meeting next time, ready to be finished.
     func saveBeforeQuit() {
+        takeDraft()           // written, not yet added
         applyNotes()          // what you typed in the last moment
         guard var record, isBusy else { return }
         record.words += pending

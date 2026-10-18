@@ -207,17 +207,19 @@ final class MeetingNotes: ObservableObject {
         MeetingStore.shared.loadNow()
         guard let found = MeetingStore.shared.meetings.first(where: { wanted == nil || $0.title.contains(wanted!) })
         else { return print("Inga möten.") }
-        // `--own-notes "rad|rad"` and `--marks "decision@30,task@55"`: as if written and
-        // marked during the meeting — on a copy, nothing saved.
+        // `--own-notes "rad|rad"` and `--marks "decision@30,task@55=Anna skickar offerten"`:
+        // as if written and marked during the meeting (a mark's words after "=") — on a
+        // copy, nothing saved.
         var record = found
         if let i = args.firstIndex(of: "--own-notes"), i + 1 < args.count {
             record.notes = args[i + 1].split(separator: "|").map { MeetingRecord.Note(text: String($0), at: nil) }
         }
         if let i = args.firstIndex(of: "--marks"), i + 1 < args.count {
             record.marks = args[i + 1].split(separator: ",").compactMap { part -> MeetingRecord.Mark? in
-                let p = part.split(separator: "@")
+                let words = part.split(separator: "=", maxSplits: 1)
+                let p = words[0].split(separator: "@")
                 guard p.count == 2, let kind = MeetingRecord.Mark.Kind(rawValue: String(p[0])), let at = Double(p[1]) else { return nil }
-                return MeetingRecord.Mark(at: at, kind: kind)
+                return MeetingRecord.Mark(at: at, kind: kind, text: words.count == 2 ? String(words[1]) : nil)
             }
         }
         var lines = Lines(record)
@@ -410,7 +412,8 @@ final class MeetingNotes: ObservableObject {
     /// The moments you marked: each one is in the notes — the item the model wrote
     /// about it if there is one (flagged as yours), otherwise one written from the
     /// lines around it. A mark is pressed just after something is said, so it
-    /// covers the line it falls in and the one before.
+    /// covers the line it falls in and the one before. A mark you gave words is
+    /// those words: the item that says the same, or one with them.
     nonisolated private static func withMarks(_ summary: MeetingSummary, _ lines: Lines, local: Bool) async -> MeetingSummary {
         var summary = summary
         for mark in lines.marks {
@@ -431,25 +434,32 @@ final class MeetingNotes: ObservableObject {
                 guard let at = item.at else { return false }
                 return at >= mark.at - 16 && at <= mark.at + 8
             }
-            switch mark.kind {
-            case .decision: if flag(&summary.decisions, where: near) { continue }
-            case .task: if flag(&summary.tasks, where: near) { continue }
-            case .important:
-                if flag(&summary.points, where: near) || flag(&summary.decisions, where: nearAny)
-                    || flag(&summary.tasks, where: nearAny) { continue }
+            // Your own words say what it is: not whatever the model wrote nearby.
+            if mark.text == nil {
+                switch mark.kind {
+                case .decision: if flag(&summary.decisions, where: near) { continue }
+                case .task: if flag(&summary.tasks, where: near) { continue }
+                case .important:
+                    if flag(&summary.points, where: near) || flag(&summary.decisions, where: nearAny)
+                        || flag(&summary.tasks, where: nearAny) { continue }
+                }
             }
-            // Otherwise one written from the sentences there.
+            // Otherwise your words, or one written from the sentences there.
             let (said, pressed) = lines.around(mark.at)
-            guard !said.isEmpty else { continue }
-            let shown = said.enumerated().map { k, line in "\(k == pressed ? "▶ " : "")\(line.speaker): \(line.text)" }
-            let fallback = said[pressed].text
-            let text = await phrase(mark.kind, shown.joined(separator: "\n"), lines.language, local: local)
-                ?? firstSentences(fallback, 1)
+            let text: String
+            if let own = mark.text {
+                text = own
+            } else {
+                guard !said.isEmpty else { continue }
+                let shown = said.enumerated().map { k, line in "\(k == pressed ? "▶ " : "")\(line.speaker): \(line.text)" }
+                text = await phrase(mark.kind, shown.joined(separator: "\n"), lines.language, local: local)
+                    ?? firstSentences(said[pressed].text, 1)
+            }
             // Where it was said: the sentence it was written from — the pressed one or
             // the one before when they match as well as a later one.
             let keys = Lines.keys(text)
             let score = { (k: Int) in Lines.overlap(keys, Lines.keys(said[k].text)) + (k == pressed || k == pressed - 1 ? 0.15 : 0) }
-            let source = said[said.indices.max { score($0) < score($1) } ?? pressed]
+            let source = said.isEmpty ? nil : said[said.indices.max { score($0) < score($1) } ?? pressed]
             // Already in the notes in other words (often from your own notes): that one, flagged.
             let about = lines.content(text)
             let same: (MeetingSummary.Item) -> Bool = { $0.marked != true && Lines.overlap(about, lines.content($0.text)) >= 0.5 }
@@ -475,11 +485,12 @@ final class MeetingNotes: ObservableObject {
             case .task: if merged(&summary.tasks) { continue }
             case .important: if merged(&summary.points) { continue }
             }
-            var item = MeetingSummary.Item(text: text.trimmingCharacters(in: .whitespaces), at: source.start, marked: true)
+            var item = MeetingSummary.Item(text: text.trimmingCharacters(in: .whitespaces), at: source?.start ?? mark.at, marked: true)
             switch mark.kind {
             case .decision: summary.decisions.append(item)
             case .task:
-                item.owner = lines.person(source.speaker)
+                // Who takes it on: whoever said it, unless the words are yours (they may name someone else).
+                if mark.text == nil, let source { item.owner = lines.person(source.speaker) }
                 summary.tasks.append(item)
             case .important: summary.points.append(item)
             }
@@ -670,7 +681,7 @@ final class MeetingNotes: ObservableObject {
             let time = informed.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale))
             out += String(localized: "Deltagarna informerades om inspelningen kl. \(time).") + "\n\n"
         }
-        let own = record.notes.map(\.text).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let own = record.ownLines.map(\.text)
         if !own.isEmpty {
             out += "## " + String(localized: "Dina anteckningar") + "\n" + own.map { "- " + $0 }.joined(separator: "\n") + "\n\n"
         }
@@ -832,7 +843,8 @@ struct Lines: Sendable {
     }
     /// Your own notes and marks (MeetingNotesBox.swift): they steer the notes.
     let notes: [String]
-    let marks: [(at: Double, kind: MeetingRecord.Mark.Kind)]
+    /// Each with what you wrote when you pressed it, if anything.
+    let marks: [(at: Double, kind: MeetingRecord.Mark.Kind, text: String?)]
     /// Sentence by sentence, each with its moment — for the marks, which point at
     /// a few seconds rather than a whole line.
     private(set) var sentences: [Line]
@@ -877,7 +889,7 @@ struct Lines: Sendable {
         }
         self.sentences = sentences
         notes = record.notes.map { $0.text.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        marks = record.marks.map { ($0.at, $0.kind) }.sorted { $0.at < $1.at }
+        marks = record.marks.map { ($0.at, $0.kind, $0.text) }.sorted { $0.at < $1.at }
         people = Array(Set(lines.map(\.speaker)))
         let all = lines.map(\.text).joined(separator: " ")
         language = Self.languageName(of: all) ?? (record.language == .swedish ? "Swedish" : "English")
@@ -939,11 +951,23 @@ struct Lines: Sendable {
 
     /// Your notes, put before the transcript: what mattered to you, to be covered.
     var guidance: String {
-        guard !notes.isEmpty else { return "" }
+        // What you wrote with a mark is a note too, saying what kind of thing it is.
+        let marked = marks.compactMap { mark in
+            mark.text.map { text in
+                let kind = switch mark.kind {
+                case .decision: "Decision"
+                case .task: "Task"
+                case .important: "Important"
+                }
+                return "\(kind): \(text)"
+            }
+        }
+        let all = notes + marked
+        guard !all.isEmpty else { return "" }
         return "The note-taker wrote these notes during the meeting. They show what mattered most to them: " +
             "make sure each one is covered, with the details from the transcript, " +
             "besides everything else in the meeting worth noting.\nNotes:\n" +
-            notes.map { "- " + $0 }.joined(separator: "\n") + "\n\n"
+            all.map { "- " + $0 }.joined(separator: "\n") + "\n\n"
     }
 
     /// The line being said at `at`.

@@ -115,6 +115,10 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         var id = UUID()
         var at: Double
         var kind: Kind
+        /// What you had written when you pressed it ("Vi kör på fredag"): the mark's
+        /// content. Nil for a mark pressed with nothing written, and in meetings from
+        /// before there was one; a missing key decodes as nil.
+        var text: String? = nil
 
         enum Kind: String, Codable, CaseIterable, Identifiable {
             case decision, task, important
@@ -257,6 +261,21 @@ extension MeetingRecord {
         // Trailing empty lines carry nothing.
         while let last = notes.last, blank(last.text) { notes.removeLast() }
         return notes
+    }
+
+    /// Your notes, with the marks you gave words among them where they were pressed:
+    /// for the exports' "Dina anteckningar" ("Beslut: Vi kör på fredag"). The notes
+    /// keep your order.
+    var ownLines: [(at: Double?, text: String)] {
+        var out: [(at: Double?, text: String)] = notes
+            .filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
+            .map { (at: $0.at, text: $0.text) }
+        for mark in marks.sorted(by: { $0.at < $1.at }) {
+            guard let text = mark.text else { continue }
+            let i = out.firstIndex { ($0.at ?? .infinity) > mark.at } ?? out.count
+            out.insert((at: mark.at, text: "\(mark.kind.title): \(text)"), at: i)
+        }
+        return out
     }
 
     private static func alike(_ a: String, _ b: String) -> Bool {

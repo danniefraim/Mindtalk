@@ -378,6 +378,78 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        #if DEBUG
+        // `Mindtalk --render-island dir`: the note island of a meeting being recorded (the
+        // demo meeting, nothing saved), drawn to images: empty, written with a mark under
+        // the pointer, with notes added (and the check after ↩), in the panel, and the
+        // marks you gave words as they show under the text.
+        if let i = args.firstIndex(of: "--render-island"), i + 1 < args.count {
+            Task { @MainActor in
+                let dir = URL(fileURLWithPath: args[i + 1])
+                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                NoteDraft.still = true
+                let session = MeetingSession.shared
+                session.showDemo(finished: false)
+                let time = HStack(spacing: 8) {
+                    RecordingMark(session: session)
+                    Text(verbatim: "12:34").font(.system(size: 13, weight: .semibold)).monospacedDigit().foregroundStyle(.white)
+                }
+                @MainActor func draw(_ name: String, width: CGFloat, _ view: some View) {
+                    let content = view.padding(24).padding(.top, 40).frame(width: width).background(DS.Colors.paper)
+                    let renderer = ImageRenderer(content: content)
+                    renderer.scale = 2
+                    if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                       let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                        let url = dir.appendingPathComponent(name)
+                        try? png.write(to: url)
+                        print("Ritad: \(url.path)")
+                    }
+                }
+                let notes = [(250.0, "Budgeten ska vara klar i maj"), (391, "Fråga Erik om siffrorna från Norge"),
+                             (512, "Kom ihåg detta"), (618, "Lansering vecka 12, inte 11"),
+                             (724, "Kom ihåg att skicka offerten till Nordljus innan fredag, och be dem svara senast måndag")]
+                    .map { MeetingRecord.Note(text: $0.1, at: $0.0) }
+                let marks = [MeetingRecord.Mark(at: 230, kind: .decision, text: "Vi kör på fredag"),
+                             MeetingRecord.Mark(at: 240, kind: .task),
+                             MeetingRecord.Mark(at: 250, kind: .important,
+                                                text: "Kunderna i Norge vill ha mötesfunktionen före allt annat, det är det de frågar mest om")]
+                session.preview(notes: [], marks: marks)
+                NoteDraft.shared.text = ""
+                draw("1-tom.png", width: 760, NoteIsland(session: session) { time } trailing: { MeetingControls(session: session) })
+                NoteDraft.shared.text = "Kom ihåg detta"
+                draw("2-skrivet-beslut.png", width: 760,
+                     NoteIsland(session: session, stillHovered: .decision) { time } trailing: { MeetingControls(session: session) })
+                session.preview(notes: Array(notes.prefix(2)))
+                NoteDraft.shared.text = ""
+                draw("3-tva-tillagda.png", width: 760,
+                     NoteIsland(session: session, stillAdded: true) { time } trailing: { MeetingControls(session: session) })
+                session.preview(notes: notes)
+                draw("4-fler-tillagda.png", width: 760, NoteIsland(session: session) { time } trailing: { MeetingControls(session: session) })
+                NoteDraft.shared.text = "Två rader:\nden andra efter skift och retur"
+                draw("5-flerradigt.png", width: 760, NoteIsland(session: session) { time } trailing: { MeetingControls(session: session) })
+                NoteDraft.shared.text = ""
+                draw("6-panel.png", width: 360,
+                     NoteIsland(session: session, compact: true, stillAdded: true) { EmptyView() } trailing: {
+                         MeetingControls(session: session, labelledStop: true)
+                     })
+                NoteDraft.shared.text = "Kom ihåg detta"
+                draw("7-panel-skrivet.png", width: 360,
+                     NoteIsland(session: session, compact: true, stillHovered: .task) { EmptyView() } trailing: {
+                         MeetingControls(session: session, labelledStop: true)
+                     })
+                draw("8-markeringar.png", width: 760, VStack(alignment: .leading, spacing: 16) {
+                    MarkChips(marks: marks)
+                    MarkChips(marks: marks, compact: true).frame(width: 312, alignment: .leading).clipped()
+                }.frame(maxWidth: .infinity, alignment: .leading))
+                var record = session.record ?? MeetingRecord(title: "Demo", date: Date(), language: .swedish)
+                record.notes = notes
+                record.marks = marks
+                print(MeetingExport.markdown(MeetingExport.blocks(record, .notes)))
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
+        #endif
         // `Mindtalk --test-import file`: a file imported as the window would, then what came of it.
         if let i = args.firstIndex(of: "--test-import"), i + 1 < args.count {
             Task { @MainActor in

@@ -2,8 +2,9 @@ import SwiftUI
 
 // MARK: - Your notes, your marks, and telling the room
 //
-// While a meeting runs you can jot a few words — a line each — and mark a moment
-// as a decision, a task or something important. Each line and mark keeps the
+// While a meeting runs you can jot a few words and press ↩ — a note, with its time —
+// and mark a moment as a decision, a task or something important (with the words
+// you wrote, if you wrote any). Each note and mark keeps the
 // moment in the recording, so it can be heard again, and the summary builds on
 // them: your notes say what mattered, your marks become decisions, tasks and
 // points even where the words alone didn't say so.
@@ -18,6 +19,15 @@ extension MeetingRecord.Mark.Kind {
         case .decision: return String(localized: "Markera ett beslut")
         case .task: return String(localized: "Markera något att göra")
         case .important: return String(localized: "Markera något viktigt")
+        }
+    }
+
+    /// The tooltip on its button: what it does, and that what you wrote goes with it.
+    var markHelp: String {
+        switch self {
+        case .decision: return String(localized: "Markera ett beslut. Har du skrivit något blir det beslutet.")
+        case .task: return String(localized: "Markera något att göra. Har du skrivit något blir det uppgiften.")
+        case .important: return String(localized: "Markera något viktigt. Har du skrivit något sparas det som viktigt.")
         }
     }
 
@@ -49,29 +59,75 @@ extension MeetingRecord.Mark.Kind {
     }
 }
 
-/// What you're typing as notes in a meeting — one text, whether typed in the window
-/// or the panel: each island shows it, and neither can overwrite what the other took.
+/// What you're typing as a note in a meeting: one draft, whether typed in the window
+/// or the panel. ↩ adds it to the meeting's notes; a mark pressed takes it as its words.
 @MainActor final class NoteDraft: ObservableObject {
     static let shared = NoteDraft()
-    @Published var text = ""
+    @Published var text = "" {
+        didSet {
+            if trimmed.isEmpty { begunAt = nil }
+            else if begunAt == nil {
+                let session = MeetingSession.shared
+                begunAt = session.isRecording ? session.elapsed : nil
+            }
+        }
+    }
+    /// Where the recording was when you began writing it: the note's moment.
+    private(set) var begunAt: Double?
+    var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// The draft, taken out of the field (which is empty again), with its moment.
+    func take() -> (text: String, at: Double?)? {
+        let taken = trimmed, at = begunAt
+        guard !taken.isEmpty else { return nil }
+        text = ""
+        return (taken, at)
+    }
+
+    #if DEBUG
+    /// `--render-island`: the field drawn as text, since an image can't draw the text view.
+    static var still = false
+    #endif
+}
+
+extension VerticalAlignment {
+    private enum NoteField: AlignmentID {
+        static func defaultValue(in d: ViewDimensions) -> CGFloat { d[VerticalAlignment.center] }
+    }
+    /// The island's row lines up on the note field, not on the notes above it.
+    static let noteField = VerticalAlignment(NoteField.self)
 }
 
 /// While a meeting records, in the window: one island at the foot of the text — the
-/// time, a note (a line per thing), the marks, stop. Dark in both appearances, as
-/// the recording pill always was.
+/// time, a note, the marks, stop. Dark in both appearances, as the recording pill
+/// always was. ↩ adds what you wrote as a note with its time, and the last few stand
+/// above the field, so you see that they're kept.
 struct NoteIsland<Leading: View, Trailing: View>: View {
     @ObservedObject var session: MeetingSession
     /// The panel: too narrow for one row — the note above, the marks and stop below.
     var compact = false
+    /// Drawn to an image: a mark under the pointer, the check after ↩.
+    var stillHovered: MeetingRecord.Mark.Kind? = nil
+    var stillAdded = false
     @ViewBuilder var leading: Leading
     @ViewBuilder var trailing: Trailing
     @ObservedObject private var draft = NoteDraft.shared
     @FocusState private var focused: Bool
+    /// For a moment after ↩: a check in the field.
+    @State private var added = false
+
+    /// How many of the notes you added stand above the field.
+    private var shownCount: Int { compact ? 2 : 3 }
 
     var body: some View {
         Group {
             if compact {
                 VStack(spacing: 8) {
+                    if hasNotes {
+                        recent
+                            .padding(.horizontal, 13)
+                            .padding(.top, 4)
+                    }
                     field
                     HStack(spacing: 10) {
                         leading
@@ -84,15 +140,19 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
                 .padding(8)
                 .frame(maxWidth: .infinity)
             } else {
-                HStack(alignment: .center, spacing: 12) {
+                HStack(alignment: .noteField, spacing: 12) {
                     leading
-                    field
+                    VStack(alignment: .leading, spacing: 6) {
+                        if hasNotes { recent.padding(.horizontal, 13) }
+                        field.alignmentGuide(.noteField) { $0[VerticalAlignment.center] }
+                    }
                     marks
                     trailing
                 }
                 .padding(.leading, 18)
                 .padding(.trailing, 7)
-                .padding(.vertical, 7)
+                .padding(.top, hasNotes ? 11 : 7)
+                .padding(.bottom, 7)
                 .frame(maxWidth: 680)
             }
         }
@@ -100,13 +160,114 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
         .overlay(RoundedRectangle(cornerRadius: compact ? 20 : 23, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
         .shadow(color: .black.opacity(compact ? 0.18 : 0.28), radius: 10, y: 4)
         .environment(\.colorScheme, .dark)
-        .onChange(of: draft.text) { _, new in if focused { session.setNotes(new) } }
     }
 
     private var marks: some View {
-        MarkIcons(paused: session.isPaused) { kind in
-            withAnimation(.spring(duration: 0.35, bounce: 0.35)) { _ = session.mark(kind) }
+        MarkIcons(paused: session.isPaused, stillHovered: stillHovered) { kind in
+            guard session.isRecording else { return }
+            // Something written: the mark's words, and the field is empty again.
+            let taken = draft.take()
+            withAnimation(.spring(duration: 0.35, bounce: 0.35)) { _ = session.mark(kind, text: taken?.text, at: taken?.at) }
         }
+    }
+
+    // MARK: The notes you added
+
+    private var notes: [MeetingRecord.Note] {
+        (session.record?.notes ?? []).filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
+    }
+    private var hasNotes: Bool { !notes.isEmpty }
+
+    /// "12:04 · Kom ihåg detta": the last few, the newest nearest the field and
+    /// clearest, and "+4 till" beside the oldest when there are more.
+    private var recent: some View {
+        let all = notes
+        let shown = Array(all.enumerated().suffix(shownCount))
+        let first = shown.first?.offset ?? 0
+        return VStack(alignment: .leading, spacing: 3) {
+            ForEach(shown, id: \.offset) { k, note in
+                HStack(spacing: 8) {
+                    line(note)
+                        .opacity(fade(k - first, of: shown.count))
+                    if k == first, all.count > shown.count {
+                        Spacer(minLength: 4)
+                        Text("+\(all.count - shown.count) till")
+                            .font(.system(size: 11, weight: .medium)).monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.4))
+                            .fixedSize()
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .animation(.spring(duration: 0.35, bounce: 0.2), value: all.count)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "Dina senaste anteckningar"))
+        .accessibilityValue(shown.map(\.element.text).joined(separator: ", "))
+    }
+
+    private func line(_ note: MeetingRecord.Note) -> some View {
+        let time = note.at.map { Text(verbatim: MeetingView.duration($0) + " · ").foregroundStyle(.white.opacity(0.6)) }
+            ?? Text(verbatim: "")
+        return (time + Text(verbatim: note.text).foregroundStyle(.white))
+            .font(.system(size: 12).monospacedDigit())
+            .lineLimit(1)
+            .truncationMode(.tail)
+    }
+
+    /// The newest clearest, the ones before it fainter.
+    private func fade(_ k: Int, of n: Int) -> Double {
+        [0.8, 0.58, 0.4][min(n - 1 - k, 2)]
+    }
+
+    // MARK: The field
+
+    /// ↩: what you wrote becomes a note with its time, and the field is empty again.
+    private func add() {
+        guard session.record != nil, let taken = draft.take() else { return }
+        withAnimation(.spring(duration: 0.35, bounce: 0.2)) { _ = session.addNote(taken.text, at: taken.at) }
+        AccessibilityNotification.Announcement(String(localized: "Anteckningen är sparad")).post()
+        withAnimation(.spring(duration: 0.3, bounce: 0.3)) { added = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            withAnimation(.easeOut(duration: 0.3)) { added = false }
+        }
+    }
+
+    private var showsCheck: Bool { added || stillAdded }
+
+    @ViewBuilder private var editor: some View {
+        #if DEBUG
+        if NoteDraft.still {
+            Text(verbatim: draft.text.isEmpty ? " " : draft.text)
+                .font(.system(size: 13.5))
+                .foregroundStyle(.white)
+                .padding(.leading, 5)
+                .frame(maxWidth: .infinity, minHeight: 18, alignment: .topLeading)
+        } else {
+            textEditor
+        }
+        #else
+        textEditor
+        #endif
+    }
+
+    private var textEditor: some View {
+        TextEditor(text: $draft.text)
+            .accessibilityLabel("Anteckning")
+            .accessibilityHint("Tryck på retur så läggs anteckningen till. Skift och retur ger en ny rad.")
+            .font(.system(size: 13.5))
+            .foregroundStyle(.white)
+            .scrollContentBackground(.hidden)
+            .focused($focused)
+            .frame(minHeight: 18, maxHeight: 80)
+            .fixedSize(horizontal: false, vertical: true)
+            // ↩ adds the note; ⇧↩ (or ⌥↩) gives a new line in it.
+            .onKeyPress(.return, phases: .down) { press in
+                if press.modifiers.contains(.shift) || press.modifiers.contains(.option) { return .ignored }
+                add()
+                return .handled
+            }
     }
 
     private var field: some View {
@@ -115,26 +276,32 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
                 // it is the editor's padding, not the placeholder's — the caret then
                 // sits on the placeholder's line rather than above it.
                 if draft.text.isEmpty {
-                    Text("Anteckning: en rad per sak")
+                    Text("Skriv en anteckning och tryck ↩")
                         .font(.system(size: 13.5))
                         .foregroundStyle(.white.opacity(0.4))
                         .padding(.leading, 5)        // the text view's own line padding
                         .allowsHitTesting(false)
                 }
-                TextEditor(text: $draft.text)
-                    .accessibilityLabel("Anteckning")
-                    .font(.system(size: 13.5))
-                    .foregroundStyle(.white)
-                    .scrollContentBackground(.hidden)
-                    .focused($focused)
-                    .frame(minHeight: 18, maxHeight: 80)
-                    .fixedSize(horizontal: false, vertical: true)
+                editor
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 7)
             .contentShape(Rectangle())
             .onTapGesture { focused = true }
             .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(.white.opacity(focused ? 0.1 : 0.06)))
+            // Just added: a check for a moment, where the words were.
+            .overlay(alignment: .trailing) {
+                if showsCheck {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10.5, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .frame(width: 20, height: 20)
+                        .background(Circle().fill(.white.opacity(0.16)))
+                        .padding(.trailing, 6)
+                        .transition(.scale(scale: 0.5).combined(with: .opacity))
+                        .accessibilityHidden(true)
+                }
+            }
             .animation(.easeOut(duration: 0.2), value: focused)
     }
 }
@@ -231,9 +398,13 @@ struct RecordingMark: View {
 
 /// The three marks as round buttons in their colours — ⌥⌘1, ⌥⌘2, ⌥⌘3. Under the
 /// pointer, a label floats above the one you're on — its name and key, at once, no
-/// waiting for a tooltip, and nothing beside it moves. Paused, there's nothing to mark.
+/// waiting for a tooltip, and nothing beside it moves; held still, the tooltip says
+/// what it does. Something written in the field goes with the mark as its words.
+/// Paused, there's nothing to mark.
 private struct MarkIcons: View {
     var paused = false
+    /// Drawn to an image: the one under the pointer.
+    var stillHovered: MeetingRecord.Mark.Kind? = nil
     let mark: (MeetingRecord.Mark.Kind) -> Void
     @State private var flashed: MeetingRecord.Mark.Kind?
     @State private var hovered: MeetingRecord.Mark.Kind?
@@ -249,7 +420,8 @@ private struct MarkIcons: View {
                         if flashed == kind { withAnimation(.spring(duration: 0.4)) { flashed = nil } }
                     }
                 } label: {
-                    MarkPill(kind: kind, key: i + 1, open: !paused && (hovered == kind || flashed == kind),
+                    MarkPill(kind: kind, key: i + 1,
+                             open: !paused && (hovered == kind || flashed == kind || stillHovered == kind),
                              done: flashed == kind)
                 }
                 .buttonStyle(.plain)
@@ -260,8 +432,9 @@ private struct MarkIcons: View {
                     }
                 }
                 .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: [.command, .option])
+                .help(kind.markHelp)
                 .accessibilityLabel(kind.markLabel)
-                .accessibilityHint("Markerar det som sägs just nu (⌥⌘\(i + 1))")
+                .accessibilityHint("Markerar det som sägs just nu (⌥⌘\(i + 1)). Har du skrivit något följer det med.")
             }
         }
         .disabled(paused)
@@ -487,6 +660,16 @@ struct MarkChips: View {
                 HStack(spacing: 4) {
                     Image(systemName: mark.kind.symbol).foregroundStyle(mark.kind.tint)
                     Text("\(mark.kind.title) \(MeetingView.duration(mark.at))")
+                        .fixedSize()
+                    // What you wrote when you marked it: the start of it, all of it under the pointer.
+                    if let text = mark.text {
+                        Text(verbatim: Self.start(of: text, compact ? 24 : 44))
+                            .fontWeight(.regular)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .padding(.leading, 3)
+                            .layoutPriority(-1)
+                    }
                 }
                     .font(.system(size: compact ? 11 : 11.5, weight: .semibold)).monospacedDigit()
                     .padding(.horizontal, compact ? 8 : 9)
@@ -495,11 +678,19 @@ struct MarkChips: View {
                     .contextMenu {
                         if let remove { Button("Ta bort markeringen") { remove(mark.id) } }
                     }
-                    .help("Du markerade det här under mötet")
+                    .help(mark.text ?? String(localized: "Du markerade det här under mötet"))
                     .transition(.scale(scale: 0.6, anchor: .leading).combined(with: .opacity))
             }
         }
         .animation(.spring(duration: 0.35, bounce: 0.35), value: marks.map(\.id))
+    }
+
+    /// "Kunderna i Norge vill ha…": a long text cut at a word, so a chip stays a chip.
+    static func start(of text: String, _ count: Int) -> String {
+        guard text.count > count else { return text }
+        let cut = text.prefix(count)
+        let word = cut.lastIndex(of: " ").map { cut[..<$0] } ?? cut
+        return word.trimmingCharacters(in: .punctuationCharacters.union(.whitespaces)) + "…"
     }
 }
 

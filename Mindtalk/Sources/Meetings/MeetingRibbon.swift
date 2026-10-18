@@ -5,7 +5,7 @@ import SwiftUI
 // Who spoke when, as one strip: a lane per speaker, their turns drawn in their
 // quiet colour — a monologue, a ping-pong, a four-way debate each look their own.
 // Decisions (diamonds) and tasks (rings) sit above it where they were said, and
-// the moments you marked as small flags in the accent colour. Point
+// the moments you marked as small flags in their colours. Point
 // at it to see who spoke then; click or drag to listen from there. In the list, a
 // small one tells meetings apart at a glance.
 
@@ -117,20 +117,31 @@ struct MeetingRibbon: View {
         ctx.stroke(Path(ellipseIn: CGRect(x: x - 3.5, y: 1, width: 7, height: 7)), with: .color(DS.Colors.ink), lineWidth: 1.4)
     }
 
-    /// "Anna · 3:12" over the strip where you point.
+    /// "Anna · 3:12" over the strip where you point; on a mark you gave words,
+    /// "Beslut: Vi kör på fredag · 3:12".
     @ViewBuilder private func hoverLabel(width: CGFloat) -> some View {
         if let hover {
             let t = Double(hover / width) * duration
             let who = segments.last { $0.start <= t + 0.3 }.flatMap { $0.end + 1.5 >= t ? cast.name(of: $0.speaker) : nil }
-            Text([who, MeetingView.duration(t)].compactMap { $0 }.joined(separator: " · "))
+            let mark = record.marks
+                .filter { $0.text != nil && abs(CGFloat($0.at / duration) * width - hover) <= 6 }
+                .min { abs($0.at - t) < abs($1.at - t) }
+            let label = mark.flatMap { m in m.text.map { "\(m.kind.title): \($0) · \(MeetingView.duration(m.at))" } }
+                ?? [who, MeetingView.duration(t)].compactMap { $0 }.joined(separator: " · ")
+            Text(verbatim: label)
                 .font(.system(size: 11.5, weight: .semibold)).monospacedDigit()
+                .lineLimit(1)
                 .foregroundStyle(DS.Colors.onInk)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
                 .background(Capsule().fill(DS.Colors.ink))
+                .frame(maxWidth: min(360, width), alignment: .leading)
                 .fixedSize()
-                .offset(x: min(max(0, hover - 40), width - 110), y: -26)
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { labelWidth = $0 }
+                .offset(x: min(max(0, hover - 40), max(0, width - labelWidth)), y: -26)
                 .allowsHitTesting(false)
         }
     }
+    /// The label's own width, so it stays inside the strip at its right end.
+    @State private var labelWidth: CGFloat = 110
 }
