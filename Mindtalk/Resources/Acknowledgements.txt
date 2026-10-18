@@ -48,25 +48,18 @@ Nemotron 3 Speaker Diarization — by NVIDIA (who speaks when, in meetings)
   https://openmdw.ai/license/
 
 
-SUMMARY MODELS (OPTIONAL)
+NOTES MODEL (OPTIONAL)
 ========================================================================
 
-The summaries can be written by a Gemma 4 downloaded to your Mac, only if
-you choose it under Inställningar → Modeller. Either of these:
+"Bättre anteckningar" downloads, only if you choose it, a model that writes
+meeting notes on your Mac:
 
 Gemma 4 26B-A4B (instruction-tuned) — by Google DeepMind
   https://huggingface.co/google/gemma-4-26B-A4B-it
-  MLX 4-bit conversion by the lmstudio-community:
+  MLX 4-bit version by LM Studio:
   https://huggingface.co/lmstudio-community/gemma-4-26B-A4B-it-MLX-4bit
   Licence: Apache License, Version 2.0
-
-Gemma 4 E4B (instruction-tuned) — by Google DeepMind
-  https://huggingface.co/google/gemma-4-E4B-it
-  MLX 4-bit conversion by the lmstudio-community:
-  https://huggingface.co/lmstudio-community/gemma-4-E4B-it-MLX-4bit
-  Licence: Apache License, Version 2.0
-
-Apache 2.0: https://www.apache.org/licenses/LICENSE-2.0
+  https://www.apache.org/licenses/LICENSE-2.0
 
 
 FIRST NAMES (INCLUDED)
