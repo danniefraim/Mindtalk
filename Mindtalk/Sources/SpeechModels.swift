@@ -466,9 +466,14 @@ actor SpeechEngine {
         UserDefaults.standard.string(forKey: "neuralEngineReady.\(model.rawValue)") == engineStamp
     }
 
+    /// This copy of Mindtalk and this macOS. macOS prepares the model again for every new
+    /// copy of the app (an update, even the same version installed again), so the
+    /// program file's own date is part of it.
     nonisolated static var engineStamp: String {
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
-        return "\(build) · \(ProcessInfo.processInfo.operatingSystemVersionString)"
+        let exe = Bundle.main.executableURL.flatMap { try? FileManager.default.attributesOfItem(atPath: $0.path) }
+        let made = (exe?[.modificationDate] as? Date).map { String(Int($0.timeIntervalSince1970)) } ?? "?"
+        return "\(build) · \(made) · \(ProcessInfo.processInfo.operatingSystemVersionString)"
     }
 
     /// The Neural Engine version, prepared in the background while the GPU one writes;
