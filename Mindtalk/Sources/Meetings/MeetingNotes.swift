@@ -77,6 +77,10 @@ struct MeetingSummary: Codable, Equatable {
     var tasks: [Item] = []
     var points: [Item] = []
     var created = Date()
+    /// Your notes and the marks you gave words, as they were when this was written
+    /// (MeetingRecord.notesFingerprint): differ now, and the summary says so. Nil in
+    /// summaries from before it was kept; they never say so.
+    var notesFrom: String? = nil
 }
 
 struct MeetingAnswer: Codable, Equatable, Identifiable {
@@ -114,6 +118,7 @@ final class MeetingNotes: ObservableObject {
         if let name = choice.name { lines.write(in: name) }
         let local = BetterNotes.shared.isActive
         let written = (words: record.words.count, duration: record.duration)
+        let notesFrom = record.notesFingerprint
         Task {
             defer {
                 writing.remove(id)
@@ -141,6 +146,7 @@ final class MeetingNotes: ObservableObject {
                 for i in summary.tasks.indices where ticked.contains(Self.taskKey(summary.tasks[i].text)) {
                     summary.tasks[i].done = true
                 }
+                summary.notesFrom = notesFrom
                 latest.summary = summary
                 if !latest.userTitled, let title = summary.title, !title.isEmpty { latest.title = title }
                 MeetingStore.shared.save(latest)

@@ -5517,6 +5517,22 @@
         }
       }
     },
+    "Du har skrivit till anteckningar. Sammanfatta igen?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You've added notes. Summarise again?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du har skrivit till anteckningar. Sammanfatta igen?"
+          }
+        }
+      }
+    },
     "Du har sluppit skriva i ungefär %@.": {
       "localizations": {
         "en": {
@@ -18515,6 +18531,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skriver sammanfattningen av ett möte och svarar på dina frågor. Välj vilken som skriver."
+          }
+        }
+      }
+    },
+    "Skriver sammanfattningen igen, med det du skrivit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Writes the summary again, with what you've written"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriver sammanfattningen igen, med det du skrivit"
           }
         }
       }

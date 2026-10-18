@@ -2152,12 +2152,23 @@ private struct SummaryView: View {
         return parts.joined(separator: " · ")
     }
 
+    /// You wrote to your notes (or gave a mark words) after the summary was written:
+    /// it doesn't know. Not while it's being written again, not for summaries from
+    /// before this was kept, and not when nothing on this Mac can write one.
+    private var notesChanged: Bool {
+        guard let from = record.summary?.notesFrom, !writing, MeetingNotes.isAvailable else { return false }
+        return from != record.notesFingerprint
+    }
+
     @ViewBuilder private var notesSection: some View {
         // A summary already written is shown also when no model can write one now.
         if let summary = record.summary {
             VStack(alignment: .leading, spacing: 32) {
             if writing || justRewritten {
                 RewriteBanner(writing: writing).transition(.move(edge: .top).combined(with: .opacity))
+            } else if notesChanged {
+                NotesChangedRow { notes.summarize(record.id) }
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
             // The old notes stay while the new ones are written — faded, so it's
             // clear they're about to change.

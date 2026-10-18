@@ -617,6 +617,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 draw("anteckningar.png", SavedNotes(record: record, edit: .saved(MeetingStore.shared, record.id), listen: { _ in },
                                                     showInText: { _ in }, stillHovered: 1)
                     .padding(28).frame(width: 720))
+                draw("sammanfatta-igen.png", NotesChangedRow {}.padding(28).frame(width: 720))
+                // The fingerprint: the same twice, blind to blank lines, changed by a note or a mark's words.
+                var changed = record
+                changed.notes.append(MeetingRecord.Note(text: "  ", at: nil))
+                let same = changed.notesFingerprint == record.notesFingerprint
+                changed.notes.append(MeetingRecord.Note(text: "En rad till", at: nil))
+                let note = changed.notesFingerprint != record.notesFingerprint
+                changed = record
+                changed.marks[1].text = "Planen till torsdag"
+                let mark = changed.notesFingerprint != record.notesFingerprint
+                print("Fingeravtryck \(record.notesFingerprint): tom rad lika \(same), ny rad olika \(note), markeringens ord olika \(mark)")
                 let placed = NotePlacement.place(record, turns: MeetingText.turnsAllAnew(record.words, pending: []))
                 for (turn, notes) in placed.sorted(by: { $0.key < $1.key }) {
                     print("Tur \(turn): \(notes.map { "\($0.id) \(MeetingView.duration($0.note.at ?? 0)) \($0.note.text)" }.joined(separator: " | "))")

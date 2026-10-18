@@ -106,6 +106,27 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     }
     var notesText: String { notes.map(\.text).joined(separator: "\n") }
 
+    /// Your notes and the marks you gave words, as one short stable string: the summary
+    /// keeps the one it was written from (MeetingSummary.notesFrom), and a difference
+    /// means you've written since. Stable across launches (no Hasher, which is seeded
+    /// anew each time), blind to blank lines and to marks without words.
+    var notesFingerprint: String {
+        var text = ""
+        for note in notes {
+            let t = note.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !t.isEmpty else { continue }
+            text += t + "@" + (note.at.map { String(Int($0.rounded())) } ?? "") + "\n"
+        }
+        for mark in marks.sorted(by: { $0.at < $1.at }) {
+            guard let t = mark.text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { continue }
+            text += mark.kind.rawValue + "@" + String(Int(mark.at.rounded())) + ":" + t + "\n"
+        }
+        // FNV-1a, 64 bits.
+        var h: UInt64 = 0xcbf29ce484222325
+        for b in text.utf8 { h ^= UInt64(b); h = h &* 0x100000001b3 }
+        return String(h, radix: 16)
+    }
+
     struct Note: Codable, Equatable {
         var text: String
         var at: Double?

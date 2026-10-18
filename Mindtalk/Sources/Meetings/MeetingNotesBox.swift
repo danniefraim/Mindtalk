@@ -766,6 +766,33 @@ struct NoteLines: View {
     }
 }
 
+/// Above the summary when you've written to your notes since it was written: a
+/// quiet question, and the button that answers it. Nothing happens until you press.
+struct NotesChangedRow: View {
+    let again: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "pencil")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(DS.Colors.muted)
+            Text("Du har skrivit till anteckningar. Sammanfatta igen?")
+                .font(.system(size: 13.5, weight: .medium))
+                .foregroundStyle(DS.Colors.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 12)
+            Button("Sammanfatta igen", action: again)
+                .buttonStyle(.soft)
+                .help("Skriver sammanfattningen igen, med det du skrivit")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: 620, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.card))
+        .accessibilityElement(children: .contain)
+    }
+}
+
 /// Your notes with a time, each under the turn that was being said when you began
 /// it (the first turn for a note from before anything was said). Worked out once per
 /// change to the meeting, not at every redraw: the text is redrawn while you listen.
