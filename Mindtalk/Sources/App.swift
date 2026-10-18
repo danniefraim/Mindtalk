@@ -304,7 +304,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if let i = args.firstIndex(of: "--render-voices"), i + 1 < args.count {
             Task { @MainActor in
                 NSApplication.shared.appearance = NSAppearance(named: args.contains("--dark") ? .darkAqua : .aqua)
-                let renderer = ImageRenderer(content: VoiceMemoryCard(memory: VoiceMemory.shared).padding(28).frame(width: 720).background(DS.Colors.paper))
+                let dark = args.contains("--dark")
+                let renderer = ImageRenderer(content: VoiceMemoryCard(memory: VoiceMemory.shared).padding(28).frame(width: 720)
+                    .background(DS.Colors.paper).environment(\.colorScheme, dark ? .dark : .light))
                 renderer.scale = 2
                 if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
                    let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
@@ -714,6 +716,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if let i = args.firstIndex(of: "--render-import"), i + 1 < args.count {
             Task { @MainActor in
                 let dark = args.contains("--dark")
+                MeetingSession.previewPreparing = args.contains("--preparing")
                 let f = { (n: String) in URL(fileURLWithPath: "/tmp/\(n)") }
                 let view = VStack(alignment: .leading, spacing: 10) {
                     StartCard(session: .shared, voices: .shared, dictation: .shared)

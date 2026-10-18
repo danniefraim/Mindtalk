@@ -196,11 +196,14 @@ struct Constellation: View {
         let rgb = onLight && state.figure == nil ? plain : state.rgb
         let tint = Color(red: rgb.x, green: rgb.y, blue: rgb.z)
 
-        // The voice's colour, faintly, behind the cloud.
-        let glow = R * 2.4
-        ctx.fill(Path(ellipseIn: CGRect(x: cx - glow, y: cy - glow, width: glow * 2, height: glow * 2)),
-                 with: .radialGradient(Gradient(colors: [tint.opacity(0.07 * k + 0.02), .clear]),
-                                       center: CGPoint(x: cx, y: cy), startRadius: 0, endRadius: glow))
+        // The voice's colour, faintly, behind the cloud — not the plain ink sphere on
+        // a light tile, where it would only show as a grey disc.
+        if !onLight || state.figure != nil {
+            let glow = R * 2.4
+            ctx.fill(Path(ellipseIn: CGRect(x: cx - glow, y: cy - glow, width: glow * 2, height: glow * 2)),
+                     with: .radialGradient(Gradient(colors: [tint.opacity(0.07 * k + 0.02), .clear]),
+                                           center: CGPoint(x: cx, y: cy), startRadius: 0, endRadius: glow))
+        }
 
         let a = 0.15 + 0.85 * min(1, level)
         let cr = cos(angle), sr = sin(angle)

@@ -314,7 +314,7 @@ struct MarkPill: View {
             if !done {
                 Text("⌥⌘\(key)")
                     .font(.system(size: 11, weight: .medium).monospacedDigit())
-                    .foregroundStyle(.white.opacity(0.45))
+                    .foregroundStyle(.white.opacity(0.6))
             }
         }
         .padding(.horizontal, 11)

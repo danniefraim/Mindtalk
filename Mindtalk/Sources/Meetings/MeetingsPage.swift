@@ -303,12 +303,13 @@ private struct MeetingList: View {
     @ViewBuilder private func archive(_ section: ArchiveSection, order: [UUID]) -> some View {
         switch section.kind {
         case .recent:
-            VStack(alignment: .leading, spacing: 10) {
-                SectionTitle(section.title)
+            // The day in small capitals, close above its meetings.
+            VStack(alignment: .leading, spacing: 8) {
+                CapsLabel(section.title).padding(.top, 6)
                 rows(section.meetings, order: order, compact: false, timeOnly: section.day)
             }
         case .month:
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
                 let open = archiveOpen.isOpen(section)
                 ArchiveHeader(section: section, open: open, people: open ? [] : section.people(among: store.meetings)) {
                     withAnimation(.spring(duration: 0.35, bounce: 0.1)) { archiveOpen.toggle(section) }
@@ -316,13 +317,13 @@ private struct MeetingList: View {
                 if open { rows(section.meetings, order: order, compact: section.openByDefault == false) }
             }
         case .year:
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
                 let open = archiveOpen.isOpen(section)
                 ArchiveHeader(section: section, open: open, people: open ? [] : section.people(among: store.meetings)) {
                     withAnimation(.spring(duration: 0.35, bounce: 0.1)) { archiveOpen.toggle(section) }
                 }
                 if open {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 4) {
                         ForEach(section.months) { month in
                             let monthOpen = archiveOpen.isOpen(month)
                             ArchiveHeader(section: month, open: monthOpen,
@@ -472,6 +473,15 @@ struct StartCard: View {
     /// Opened for this (the menu bar, the shortcut, Hem): the remembered button holds the keyboard.
     @FocusState private var focus: MeetingSession.StartMode?
 
+    /// Drawn to an image (`--render-…`): no models are loaded for it.
+    private static var rendering: Bool {
+        #if DEBUG
+        return MeetingSession.previewPreparing != nil
+        #else
+        return false
+        #endif
+    }
+
     /// Both doors open: the voices and the speech model are here.
     private var ready: Bool { voices.state == .ready && dictation.engine.isInstalled }
 
@@ -512,7 +522,7 @@ struct StartCard: View {
             windowVisible = AppDelegate.mainWindowVisible
             if session.armed { takeKeyboard() }
             // The voices made ready now, if launch hasn't got to it yet: the round waits for them.
-            if voices.state == .ready, !voices.isWarm { VoiceModels.warmUp() }
+            if voices.state == .ready, !voices.isWarm, !Self.rendering { VoiceModels.warmUp() }
         }
         .onChange(of: session.armed) { _, armed in if armed { takeKeyboard() } }
         // Ready again after preparing: the keyboard back on the remembered button.
@@ -832,7 +842,7 @@ private struct WeekRecap: View {
             let people = ArchiveSection(id: "week", title: "", kind: .recent, meetings: week).people(among: all)
             HStack(alignment: .center, spacing: 18) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Den här veckan").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+                    CapsLabel(String(localized: "Den här veckan"))
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text(verbatim: String(localized: "\(week.count) möten"))
                             .font(.system(size: 30, weight: .regular, design: .serif)).monospacedDigit()
@@ -931,21 +941,21 @@ struct MeetingRow: View {
             }
             Text(record.date.formatted(Date.FormatStyle().day().month(.abbreviated).locale(AppLanguage.locale)))
                 .font(.system(size: 12)).foregroundStyle(DS.Colors.muted).monospacedDigit()
-                .frame(minWidth: 52, alignment: .trailing)
+                .frame(width: 56, alignment: .trailing)
             Text(Stats.duration(record.duration))
                 .font(.system(size: 12)).foregroundStyle(DS.Colors.faint).monospacedDigit()
-                .frame(minWidth: 48, alignment: .trailing)
+                .frame(width: 64, alignment: .trailing)
             Image(systemName: "chevron.right")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(DS.Colors.faint)
                 .opacity(hovering ? 1 : 0.4)
                 .accessibilityHidden(true)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 16)
         .padding(.vertical, 9)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
             .fill(DS.Colors.chip.opacity(selected ? 1 : hovering ? 0.6 : 0)))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
             .strokeBorder(DS.Colors.ink.opacity(selected ? 0.35 : 0), lineWidth: 1))
         .contentShape(Rectangle())
     }
@@ -2848,37 +2858,44 @@ struct ArchivePreview: View {
 
     var body: some View {
         let sections = ArchiveSection.sections(records, now: ArchivePreview.now)
-        VStack(alignment: .leading, spacing: 14) {
+        // As the list lays them out (MeetingList.archive), on its 20 pt rhythm.
+        VStack(alignment: .leading, spacing: 20) {
             ForEach(sections) { section in
                 switch section.kind {
                 case .recent:
-                    SectionTitle(section.title)
-                    VStack(spacing: 0) {
-                        ForEach(section.meetings) { MeetingRow(record: $0, writing: false, timeOnly: section.day) {} }
-                    }.padding(4).card()
-                case .month:
-                    ArchiveHeader(section: section, open: section.openByDefault,
-                                  people: section.openByDefault ? [] : section.people(among: records)) {}
-                    if section.openByDefault {
+                    VStack(alignment: .leading, spacing: 8) {
+                        CapsLabel(section.title).padding(.top, 6)
                         VStack(spacing: 0) {
-                            ForEach(section.meetings) { MeetingRow(record: $0, writing: false) {} }
+                            ForEach(section.meetings) { MeetingRow(record: $0, writing: false, timeOnly: section.day) {} }
                         }.padding(4).card()
                     }
-                case .year:
-                    ArchiveHeader(section: section, open: true, people: []) {}
-                    VStack(alignment: .leading, spacing: 6) {
-                        ForEach(Array(section.months.enumerated()), id: \.element.id) { i, month in
-                            ArchiveHeader(section: month, open: i == 0, people: i == 0 ? [] : month.people(among: records), nested: true) {}
-                            if i == 0 {
-                                VStack(spacing: 0) {
-                                    ForEach(Array(month.meetings.enumerated()), id: \.element.id) { j, r in
-                                        if j > 0 { CardDivider() }
-                                        MeetingRow(record: r, writing: false, compact: true) {}
-                                    }
-                                }.padding(4).card()
-                            }
+                case .month:
+                    VStack(alignment: .leading, spacing: 4) {
+                        ArchiveHeader(section: section, open: section.openByDefault,
+                                      people: section.openByDefault ? [] : section.people(among: records)) {}
+                        if section.openByDefault {
+                            VStack(spacing: 0) {
+                                ForEach(section.meetings) { MeetingRow(record: $0, writing: false) {} }
+                            }.padding(4).card()
                         }
-                    }.padding(.leading, 18)
+                    }
+                case .year:
+                    VStack(alignment: .leading, spacing: 4) {
+                        ArchiveHeader(section: section, open: true, people: []) {}
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(Array(section.months.enumerated()), id: \.element.id) { i, month in
+                                ArchiveHeader(section: month, open: i == 0, people: i == 0 ? [] : month.people(among: records), nested: true) {}
+                                if i == 0 {
+                                    VStack(spacing: 0) {
+                                        ForEach(Array(month.meetings.enumerated()), id: \.element.id) { j, r in
+                                            if j > 0 { CardDivider() }
+                                            MeetingRow(record: r, writing: false, compact: true) {}
+                                        }
+                                    }.padding(4).card()
+                                }
+                            }
+                        }.padding(.leading, 18)
+                    }
                 }
             }
         }

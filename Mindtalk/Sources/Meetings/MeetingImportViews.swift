@@ -59,10 +59,10 @@ struct DropSign: View {
             DS.Colors.paper.opacity(0.88)
             TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
                 let turn = (context.date.timeIntervalSinceReferenceDate / 6).truncatingRemainder(dividingBy: 1) * 360
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                RoundedRectangle(cornerRadius: DS.Radius.tile, style: .continuous)
                     .strokeBorder(AngularGradient(colors: [DS.Colors.accentSoft, DS.Colors.accent, DS.Colors.accentSoft],
                                                   center: .center, angle: .degrees(turn)),
-                                  style: StrokeStyle(lineWidth: 2.5, dash: [10, 8]))
+                                  style: StrokeStyle(lineWidth: 1.5, dash: [6, 6]))
                     .padding(28)
             }
             VStack(spacing: 14) {
@@ -461,7 +461,7 @@ struct ImportZone: View {
     private var chooseButton: some View {
         HStack(spacing: 8) {
             Button("Välj fil…") { importer.choose(folder: folder) }
-                .buttonStyle(.soft)
+                .buttonStyle(TileButtonStyle())
                 .help("Välj en ljud- eller videofil (⌘O)")
             KeyChip(text: "⌘O", small: true)
         }

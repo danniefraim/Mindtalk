@@ -335,22 +335,21 @@ struct MoveToast: View {
     var body: some View {
         if let move = folders.lastMove {
             HStack(spacing: 12) {
-                Image(systemName: "folder.fill").font(.system(size: 12)).foregroundStyle(.white.opacity(0.7))
+                Image(systemName: "folder.fill").font(.system(size: 12)).foregroundStyle(DS.Colors.onInk.opacity(0.7))
                 Text(move.ids.count == 1 ? String(localized: "Flyttat till \(move.to)")
                      : String(localized: "\(move.ids.count) möten flyttade till \(move.to)"))
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(DS.Colors.onInk)
                     .lineLimit(1)
                 Button("Ångra") { withAnimation(.snappy) { folders.undoLastMove() } }
                     .buttonStyle(.plain)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(DS.Colors.onInk)
                     .keyboardShortcut("z", modifiers: .command)
             }
             .padding(.horizontal, 16)
             .frame(height: 38)
-            .background(Capsule().fill(Color(white: 0.1)))
-            .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
+            .background(Capsule().fill(DS.Colors.ink))
             .shadow(color: .black.opacity(0.25), radius: 10, y: 4)
             .transition(.opacity.combined(with: .move(edge: .bottom)))
             .id(move.id)
@@ -365,16 +364,17 @@ extension View {
     func meetingDrag(_ record: MeetingRecord, selection: Set<UUID> = []) -> some View {
         let ids = selection.contains(record.id) ? Array(selection) : [record.id]
         return draggable(MeetingDrag(ids: ids)) {
-            Label(ids.count == 1 ? record.title : String(localized: "\(ids.count) möten"),
-                  systemImage: ids.count == 1 ? "doc.text" : "doc.on.doc")
+            HStack(spacing: 6) {
+                Image(systemName: ids.count == 1 ? "doc.text" : "doc.on.doc").opacity(0.7)
+                Text(verbatim: ids.count == 1 ? record.title : String(localized: "\(ids.count) möten"))
+            }
                 .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
                 .frame(maxWidth: 280)
                 .padding(.horizontal, 12)
                 .frame(height: 30)
-                .background(Capsule().fill(Color(white: 0.12)))
-                .foregroundStyle(.white)
-                .environment(\.colorScheme, .dark)
+                .background(Capsule().fill(DS.Colors.ink))
+                .foregroundStyle(DS.Colors.onInk)
         }
     }
 

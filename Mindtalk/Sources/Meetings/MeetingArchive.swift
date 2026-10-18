@@ -123,30 +123,35 @@ struct ArchiveHeader: View {
     let toggle: () -> Void
     @State private var hovering = false
 
+    /// The chevron hangs in the margin: the heading's words start where the day
+    /// headings' do ("I DAG"), on one left edge.
+    static let hang: CGFloat = 8 + 12 + 8
+
     var body: some View {
         Button(action: toggle) {
-            HStack(spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 10.5, weight: .bold))
+                    .font(.system(size: 9.5, weight: .bold))
                     .foregroundStyle(DS.Colors.muted)
                     .rotationEffect(.degrees(open ? 90 : 0))
-                    .frame(width: 14)
-                Text(section.title)
-                    .font(.system(size: nested ? 14 : 15, weight: .semibold))
-                    .foregroundStyle(Color.primary)
+                    .frame(width: 12)
+                CapsLabel(section.title)
+                    .fixedSize()
                 Text(summary)
                     .font(.system(size: 12.5))
-                    .foregroundStyle(DS.Colors.muted)
+                    .foregroundStyle(DS.Colors.faint)
                     .lineLimit(1)
+                    .padding(.leading, 4)
                 Spacer(minLength: 0)
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, 6)
             .padding(.horizontal, 8)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(DS.Colors.chip.opacity(hovering ? 0.5 : 0)))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
+        .padding(.leading, -Self.hang)
         .padding(.top, nested ? 0 : 4)
         .accessibilityLabel("\(section.title), \(summary)")
         .accessibilityHint(open ? "Fäll ihop" : "Visa mötena")

@@ -296,6 +296,29 @@ struct SoftButtonStyle: ButtonStyle {
     }
 }
 
+/// The soft button on a light tile, as "Starta direkt" and Hem's: chip grey, no edge
+/// or shadow, as tall as the tile's other buttons.
+struct TileButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { Styled(configuration: configuration) }
+
+    private struct Styled: View {
+        let configuration: ButtonStyle.Configuration
+        @Environment(\.isEnabled) private var enabled
+        var body: some View {
+            let shape = RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
+            configuration.label
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .padding(.horizontal, 15)
+                .frame(height: 34)
+                .background(shape.fill(DS.Colors.chip.opacity(configuration.isPressed ? 0.7 : 1)))
+                .opacity(enabled ? 1 : 0.45)
+                .contentShape(shape)
+        }
+    }
+}
+
 /// Ink-black primary button ("Klar").
 struct InkButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View { Styled(configuration: configuration) }
