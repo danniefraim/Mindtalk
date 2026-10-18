@@ -177,25 +177,49 @@ enum HotkeySelfTest {
     }
 
     private static func lockAndCancel() async throws {
-        let probe = Probe(hotkey: try combination(comboMask))
+        // Right ⌥ + right ⇧: Space locks.
+        let shiftMask: UInt64 = 0x44
+        let shiftFlags = flags(shiftMask, [.maskAlternate, .maskShift])
+        let probe = Probe(hotkey: try combination(shiftMask))
         probe.listener.onSpaceWhileHeld = { [weak probe] in probe?.calls.append("space"); return true }
         probe.listener.onEscape = { [weak probe] in probe?.calls.append("escape"); return true }
         _ = try probe.send(.flagsChanged, option, optionFlags)
-        _ = try probe.send(.flagsChanged, command, comboFlags)
+        _ = try probe.send(.flagsChanged, UInt16(kVK_RightShift), shiftFlags)
         await drainCallbacks()
-        try require(!probe.send(.keyDown, UInt16(kVK_Space), comboFlags), "Space lock was not swallowed")
-        _ = try probe.send(.keyUp, UInt16(kVK_Space), comboFlags)
+        try require(!probe.send(.keyDown, UInt16(kVK_Space), shiftFlags), "Space lock was not swallowed")
+        _ = try probe.send(.keyUp, UInt16(kVK_Space), shiftFlags)
         await drainCallbacks()
-        try require(probe.calls == ["press", "space"], "Space lock did not run once without chording")
-        try require(!probe.send(.keyDown, UInt16(kVK_Escape), comboFlags), "Escape cancellation was not swallowed")
-        _ = try probe.send(.keyUp, UInt16(kVK_Escape), comboFlags)
+        try require(probe.calls == ["press", "space"], "Space lock did not run once without chording: \(probe.calls)")
+        try require(!probe.send(.keyDown, UInt16(kVK_Escape), shiftFlags), "Escape cancellation was not swallowed")
+        _ = try probe.send(.keyUp, UInt16(kVK_Escape), shiftFlags)
         await drainCallbacks()
         try require(probe.calls.filter { $0 == "escape" }.count == 1, "Escape cancellation did not run exactly once")
-        _ = try probe.send(.flagsChanged, option, commandFlags)
-        _ = try probe.send(.flagsChanged, command, [])
+        _ = try probe.send(.flagsChanged, option, flags(0x04, [.maskShift]))
+        _ = try probe.send(.flagsChanged, UInt16(kVK_RightShift), [])
         await drainCallbacks()
         try require(probe.calls.last == "release", "Lock/cancel prevented the modifier release callback")
-        print("Passed Space lock and Escape cancellation")
+
+        // With ⌘ in the key, Space is ⌘Space (Spotlight): passed on, a shortcut, never a lock.
+        let spotlight = Probe(hotkey: try combination(comboMask))
+        spotlight.listener.onSpaceWhileHeld = { [weak spotlight] in spotlight?.calls.append("space"); return true }
+        _ = try spotlight.send(.flagsChanged, option, optionFlags)
+        _ = try spotlight.send(.flagsChanged, command, comboFlags)
+        try require(try spotlight.send(.keyDown, UInt16(kVK_Space), comboFlags), "⌘Space was swallowed")
+        _ = try spotlight.send(.keyUp, UInt16(kVK_Space), comboFlags)
+        await drainCallbacks()
+        try require(spotlight.calls == ["press", "chord"], "⌘Space with a ⌘ key: \(spotlight.calls)")
+
+        // A click with right ⌥ held (⌥-click) is a shortcut; scrolling while you talk isn't.
+        let click = Probe(hotkey: .default)
+        _ = try click.send(.flagsChanged, option, optionFlags)
+        click.listener.clicked(scroll: true)
+        await drainCallbacks()
+        try require(click.calls == ["press"], "Scrolling with right ⌥ held: \(click.calls)")
+        click.listener.clicked()
+        _ = try click.send(.flagsChanged, option, [])
+        await drainCallbacks()
+        try require(click.calls == ["press", "chord", "release"], "⌥-click: \(click.calls)")
+        print("Passed Space lock (not with ⌘), ⌥-click and Escape cancellation")
     }
 
     private static func regularKeys() async throws {
@@ -490,6 +514,16 @@ enum HotkeySelfTest {
         await drainCallbacks()
         try require(click.calls == ["thought", "shortcut", "kept"], "⌘-click: \(click.calls)")
 
+        let scroll = thoughtProbe()
+        _ = try scroll.send(.flagsChanged, command, commandFlags)
+        scroll.listener.clicked(scroll: true, momentum: true)     // still gliding from before
+        await drainCallbacks()
+        try require(scroll.calls == ["thought"], "A gliding scroll spoiled the thought: \(scroll.calls)")
+        scroll.listener.clicked(scroll: true)
+        _ = try scroll.send(.flagsChanged, command, [])
+        await drainCallbacks()
+        try require(scroll.calls == ["thought", "shortcut", "kept"], "⌘-scroll: \(scroll.calls)")
+
         // ⇧ first, then right ⌘: ⇧⌘-something on its way — never a thought, also after ⇧ is let go.
         let shiftFirst = thoughtProbe()
         _ = try shiftFirst.send(.flagsChanged, UInt16(kVK_Shift), flags(0x02, [.maskShift]))
@@ -530,7 +564,7 @@ enum HotkeySelfTest {
         _ = try picking.send(.flagsChanged, option, [])
         await drainCallbacks()
         try require(picking.calls.isEmpty, "A key held while picking a shortcut began something: \(picking.calls)")
-        print("Passed thought key held alone: right ⌘ alone, ⌘C, ⌘Tab, ⇧⌘, ⌘-click, left ⌘, picking")
+        print("Passed thought key held alone: right ⌘ alone, ⌘C, ⌘Tab, ⇧⌘, ⌘-click, ⌘-scroll, left ⌘, picking")
     }
 
     /// The thought key and the dictation key never share a key — whichever is picked second is refused.

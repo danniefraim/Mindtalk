@@ -39,6 +39,11 @@ struct MicrophonePicker: View {
                     }
                     option(.system, icon: "wand.and.stars", title: mics.systemName,
                            detail: "Följer ljudinställningarna på din Mac")
+                    // The chosen mic, unplugged: still the choice, said to be missing.
+                    if mics.chosenIsMissing {
+                        option(mics.choice, icon: "mic.slash", title: mics.missingName ?? String(localized: "Vald mikrofon"),
+                               detail: String(localized: "Använder \(mics.fallbackName) så länge."), badge: "Saknas")
+                    }
                     ForEach(others) { device in
                         option(.device(uid: device.uid), icon: device.icon, title: device.name,
                                detail: device.isBluetooth ? "Bluetooth: ljudet blir sämre medan mikrofonen används" : nil)

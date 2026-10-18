@@ -68,6 +68,10 @@ final class Microphones: ObservableObject {
     @Published var choice = MicChoice(raw: UserDefaults.standard.string(forKey: "microphone")) {
         didSet {
             UserDefaults.standard.set(choice.raw, forKey: "microphone")
+            // Its name, for when it's unplugged: "AirPods saknas" says more than "saknas".
+            if case .device(let uid) = choice, let device = devices.first(where: { $0.uid == uid }) {
+                UserDefaults.standard.set(device.name, forKey: "microphoneName")
+            }
             if monitoring { startMonitor() }
         }
     }
@@ -97,10 +101,26 @@ final class Microphones: ObservableObject {
     }
 
     func refresh() {
+        let before = selectedDeviceID
         devices = Self.inputDevices()
         let defaultID = Self.defaultInputID()
         systemDefault = devices.first { $0.id == defaultID }
+        // The mic being listened to came or went (or the system input changed): the
+        // level preview follows it.
+        if monitoring, before != selectedDeviceID || selectedDeviceID == nil { startMonitor() }
     }
+
+    /// The mic you chose isn't here (unplugged, out of reach): the system input is used.
+    var chosenIsMissing: Bool {
+        guard case .device(let uid) = choice else { return false }
+        return !devices.contains { $0.uid == uid }
+    }
+
+    /// The missing mic's name, as it was when chosen.
+    var missingName: String? { UserDefaults.standard.string(forKey: "microphoneName") }
+
+    /// What's used while the chosen mic is missing.
+    var fallbackName: String { systemDefault?.name ?? String(localized: "Automatiskt") }
 
     var builtIn: InputDevice? { devices.first(where: \.isBuiltIn) }
 
@@ -118,7 +138,8 @@ final class Microphones: ObservableObject {
         switch choice {
         case .builtIn: return builtIn == nil ? systemName : String(localized: "Inbyggd mikrofon")
         case .system: return systemName
-        case .device(let uid): return devices.first { $0.uid == uid }?.name ?? String(localized: "\(systemName): vald mikrofon saknas")
+        case .device(let uid):
+            return devices.first { $0.uid == uid }?.name ?? String(localized: "Vald mikrofon saknas. Använder \(fallbackName) så länge.")
         }
     }
 
@@ -151,8 +172,8 @@ final class Microphones: ObservableObject {
     /// How well the chosen mic hears you, from the last second of levels.
     var hearing: (text: String, good: Bool?) {
         let peak = history.suffix(16).max() ?? 0
-        if peak > 0.3 { return (String(localized: "Vi hör dig tydligt"), true) }
-        if peak > 0.07 { return (String(localized: "Lite svagt. Prata närmare mikrofonen"), false) }
+        if peak > 0.3 { return (String(localized: "Mindtalk hör dig tydligt"), true) }
+        if peak > 0.07 { return (String(localized: "Lite svagt. Prata närmare mikrofonen."), false) }
         return (String(localized: "Säg något för att testa"), nil)
     }
 

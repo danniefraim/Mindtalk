@@ -169,7 +169,7 @@ struct Hotkey: Codable, Equatable {
     /// Something worth knowing about this key.
     var note: String {
         if modifierKeys.count > 1 {
-            let instructions = String(localized: "Håll in alla valda modifieringstangenter samtidigt. Kortkommandon fungerar som vanligt.")
+            let instructions = String(localized: "Håll in alla valda tangenter samtidigt. Kortkommandon fungerar som vanligt.")
             if containsModifier(UInt16(kVK_Function)) {
                 return instructions + " " + String(localized: "Ställ in ”Tryck på 🌐 för att” till ”Gör ingenting” under Tangentbord i Systeminställningar.")
             }
@@ -451,25 +451,84 @@ final class KeyListener {
         self.source = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
-        // A click with the thought key held (⌘-click) is a shortcut too. Only watched,
-        // never held up: the tap stays a keyboard tap.
-        let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
-        if let global = NSEvent.addGlobalMonitorForEvents(matching: clicks, handler: { _ in
-            MainActor.assumeIsolated { KeyListener.shared.clicked() }
+        // A click with the thought key held (⌘-click) is a shortcut too, and so is
+        // ⌘-scroll (zoom). Only watched, never held up: the tap stays a keyboard tap.
+        let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel]
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: clicks, handler: { event in
+            let scroll = event.type == .scrollWheel, momentum = !event.momentumPhase.isEmpty
+            MainActor.assumeIsolated { KeyListener.shared.clicked(scroll: scroll, momentum: momentum) }
         }) { mouseMonitors.append(global) }
         if let local = NSEvent.addLocalMonitorForEvents(matching: clicks, handler: { event in
-            MainActor.assumeIsolated { KeyListener.shared.clicked() }
+            let scroll = event.type == .scrollWheel, momentum = !event.momentumPhase.isEmpty
+            MainActor.assumeIsolated { KeyListener.shared.clicked(scroll: scroll, momentum: momentum) }
             return event
         }) { mouseMonitors.append(local) }
         isRunning = true
         return true
     }
 
-    /// A mouse button went down: with the thought key held, it's a ⌘-click, not a thought.
-    func clicked() {
-        guard thoughtKeyDown, !thoughtKeySpoiled else { return }
+    /// Takes the tap down (to make a new one).
+    private func stop() {
+        if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
+        if let tap {
+            CGEvent.tapEnable(tap: tap, enable: false)
+            CFMachPortInvalidate(tap)
+        }
+        tap = nil
+        source = nil
+        mouseMonitors.forEach(NSEvent.removeMonitor)
+        mouseMonitors = []
+        isRunning = false
+    }
+
+    /// Is the tap still hearing keys? macOS switches it off when Accessibility is taken
+    /// away, and a tap made before Accessibility was given back stays deaf: switched on
+    /// again — or, if that doesn't take (or `recreate`), made anew.
+    func ensureTap(recreate: Bool = false) {
+        guard isRunning, let tap else { return }
+        if !recreate {
+            if CGEvent.tapIsEnabled(tap: tap) { return }
+            CGEvent.tapEnable(tap: tap, enable: true)
+            if CGEvent.tapIsEnabled(tap: tap) { return resync() }
+        }
+        os_log("event tap made anew", log: Self.diagnostics, type: .info)
+        stop()
+        if start() { resync() }
+    }
+
+    /// A mouse button went down (or the wheel turned): with the thought key held, it's
+    /// a ⌘-click or ⌘-scroll, not a thought. A click with the dictation key held
+    /// (⌥-click) is a shortcut too; scrolling while you talk isn't.
+    func clicked(scroll: Bool = false, momentum: Bool = false) {
+        if !scroll, isDown, hotkey.isModifier { later { $0.onChord?() } }
+        // A scroll still gliding from before isn't something done with ⌘.
+        guard thoughtKeyDown, !thoughtKeySpoiled, !momentum else { return }
         thoughtKeySpoiled = true
         later { $0.onThoughtChord?() }
+    }
+
+    /// When the dictation key, and the thought key held alone, last went down.
+    private(set) var pressedAt: Date?
+    private(set) var thoughtPressedAt: Date?
+    /// A shortcut found by `resync` has been passed on once.
+    private var typedReported = false
+
+    /// A key went down after `date`, by the keyboard's own account — which sees keys
+    /// the tap doesn't: a password field's secure input hides them from it.
+    static func keyWentDown(since date: Date) -> Bool {
+        CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: .keyDown) < Date().timeIntervalSince(date)
+    }
+
+    /// A key was typed while the dictation key (a modifier) is held: ⌥2 for @.
+    var keyTypedSincePress: Bool {
+        guard hotkey.isModifier, let pressedAt else { return false }
+        return Self.keyWentDown(since: pressedAt)
+    }
+
+    /// The same for the thought key held alone: ⌘C.
+    var keyTypedSinceThoughtPress: Bool {
+        guard thoughtShortcut?.isModifier == true, let thoughtPressedAt else { return false }
+        return Self.keyWentDown(since: thoughtPressedAt)
     }
 
     /// The thought key held on its own. Never swallows anything — ⌘ stays ⌘ for every
@@ -486,6 +545,7 @@ final class KeyListener {
                     return
                 }
                 thoughtKeyDown = true
+                thoughtPressedAt = Date()
                 later { $0.onThoughtPress?() }
             } else {
                 let wasDown = thoughtKeyDown
@@ -592,7 +652,8 @@ final class KeyListener {
         }
         if type == .keyUp, Int(keyCode) == kVK_ANSI_V, event.flags.contains([.maskControl, .maskAlternate]) { return nil }
 
-        if isDown, type == .keyDown, Int(keyCode) == kVK_Space, keyCode != hotkey.keyCode {
+        // Not with ⌘ or ⌃ in the key: ⌘Space is Spotlight, ⌃Space the input source.
+        if isDown, type == .keyDown, Int(keyCode) == kVK_Space, keyCode != hotkey.keyCode, !hotkeyHasCommandOrControl {
             if onSpaceWhileHeld?() == true { return nil }
         }
 
@@ -628,9 +689,14 @@ final class KeyListener {
         return pass
     }
 
+    private var hotkeyHasCommandOrControl: Bool {
+        [kVK_Command, kVK_RightCommand, kVK_Control, kVK_RightControl].contains { hotkey.containsModifier(UInt16($0)) }
+    }
+
     private func setDown(_ down: Bool) {
         guard down != isDown else { return }
         isDown = down
+        if down { pressedAt = Date(); typedReported = false }
         later { down ? $0.onPress?() : $0.onRelease?() }
     }
 
@@ -675,6 +741,16 @@ final class KeyListener {
         if thoughtHeld, let chord = thoughtShortcut?.chord, !CGEventSource.keyState(.hidSystemState, key: CGKeyCode(chord.keyCode)) {
             thoughtHeld = false
             later { $0.onThoughtRelease?() }
+        }
+        // A key typed with a held key that the tap never saw (secure input): a
+        // shortcut, as if the tap had seen it.
+        if isDown, !typedReported, keyTypedSincePress {
+            typedReported = true
+            later { $0.onChord?() }
+        }
+        if thoughtKeyDown, !thoughtKeySpoiled, keyTypedSinceThoughtPress {
+            thoughtKeySpoiled = true
+            later { $0.onThoughtChord?() }
         }
         if thoughtKeyDown || thoughtKeySpoiled, let key = thoughtShortcut?.key,
            !key.modifiersPhysicallyDown(in: hid),
