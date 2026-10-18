@@ -1112,6 +1112,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.application(NSApp, open: files) }
             }
         }
+        // Voice memory's first value, before onboarding marks this Mac as onboarded.
+        VoiceMemory.settleDefault()
         // From the disk image or Downloads: offer to move to Applications first.
         if AppMover.offerIfNeeded() { return }
         MediaControl.shared.restoreAfterCrash()
@@ -1591,7 +1593,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         let meeting = MeetingSession.shared
         guard meeting.phase == .idle else { return }
         let cardShown = mainWindowIsKey && MainView.currentPage == .meetings && MeetingsPage.lastOpen == nil
-        if cardShown || meeting.armed {
+        // Armed counts only while that card is still in front of you.
+        let armedCard = meeting.armed && mainWindowVisible && !NSApp.isHidden && MainView.currentPage == .meetings
+        if cardShown || armedCard {
             // Into the folder chosen on the page, as a press on the card would.
             meeting.startRemembered(folder: MeetingFolders.shared.selected)
             if !meeting.isRecording { MeetingPanel.shared.startedElsewhere = false }
@@ -1615,6 +1619,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             showWindow(page: .meetings)
         }
     }
+
+    /// The start card waiting for a press, put away (its window closed, the app hidden):
+    /// a later ⌃⌥⌘M opens it again rather than starting at once.
+    static func disarmMeeting() {
+        let meeting = MeetingSession.shared
+        guard meeting.armed, meeting.phase == .idle else { return }
+        meeting.armed = false
+        MeetingPanel.shared.startedElsewhere = false
+    }
+
+    func applicationDidHide(_ notification: Notification) { Self.disarmMeeting() }
 
     static var mainWindowVisible: Bool { (NSApp.delegate as? AppDelegate)?.window?.isVisible == true }
     static var mainWindowIsKey: Bool { (NSApp.delegate as? AppDelegate)?.window?.isKeyWindow == true && mainWindowVisible }
@@ -1733,7 +1748,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         dictation.stopPickingKey()
         let closing = notification.object as? NSWindow
         // The meeting carries on in its panel when its window goes.
-        if closing === window { MeetingPanel.shared.mainWindowClosed() }
+        if closing === window {
+            MeetingPanel.shared.mainWindowClosed()
+            Self.disarmMeeting()
+        }
         if closing === onboardingWindow {
             onboardingWindow = nil
             if finishingOnboarding {

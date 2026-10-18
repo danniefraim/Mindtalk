@@ -80,6 +80,9 @@ final class MeetingSession: ObservableObject {
     @Published private(set) var introFigures: [Int: VoiceFigure] = [:]
     /// Recording from a Bluetooth headset — no sounds then (they can cost the mic).
     var usesBluetooth: Bool { recorder.usesBluetooth }
+    /// A sound would reach a Bluetooth headset — recorded from, or played to (the
+    /// output or the alert device): no sounds while recording then.
+    var soundsReachBluetooth: Bool { recorder.usesBluetooth || Recorder.outputIsBluetooth }
 
     /// Ending: the moment it ends, unless you undo it. Recording goes on until then.
     @Published private(set) var stopAt: Date?
@@ -436,26 +439,36 @@ final class MeetingSession: ObservableObject {
     /// in it. (From the menu bar or the shortcut, in none: the page suggests one after.)
     func start(introducing: Bool = false, folder: UUID? = nil) {
         guard phase == .idle else { return }
-        armed = false
-        // Nothing plays while the microphone listens — into AirPods, or back into the text.
-        MeetingPlayer.shared.stop()
         lastError = nil
-        NoteDraft.shared.text = ""
-        steps = 0
         let dictation = Dictation.shared
+        // What stands in the way first, said on the card — the card stays as it was.
         // Only while the dictation has the microphone — a thought just saved or text
         // just copied (the HUD still saying so) doesn't stand in the way.
-        guard dictation.phase != .recording, dictation.phase != .transcribing else { return }
-        language = dictation.engine
-        guard language.isInstalled else {
-            lastError = String(localized: "Ladda ned \(language.modelName) först, under Inställningar → Modeller.")
+        guard dictation.phase != .recording, dictation.phase != .transcribing else {
+            lastError = String(localized: "Avsluta dikteringen först.")
             return
         }
-        guard VoiceModels.isInstalled else { return }
+        guard dictation.engine.isInstalled else {
+            lastError = String(localized: "Ladda ned \(dictation.engine.modelName) först, under Inställningar → Modeller.")
+            return
+        }
+        guard VoiceModels.isInstalled else {
+            lastError = String(localized: "Ladda ned Nemotron 3 först, under Inställningar → Modeller.")
+            return
+        }
         guard Recorder.micAuthorized else {
             lastError = String(localized: "Mindtalk behöver få använda mikrofonen.")
             return
         }
+        armed = false
+        // Nothing plays while the microphone listens — into AirPods, or back into the text.
+        MeetingPlayer.shared.stop()
+        NoteDraft.shared.text = ""
+        steps = 0
+        // A round from a meeting before is never this one's.
+        roundLeft = []
+        roundMeeting = nil
+        language = dictation.engine
         let date = Date()
         var new = MeetingRecord(title: MeetingRecord.defaultTitle(for: date), date: date, language: language)
         new.finished = false
@@ -494,9 +507,10 @@ final class MeetingSession: ObservableObject {
         phase = .starting
         startMoment = date
         lastRestart = nil
+        gaveUpOnSignal = false
         // Not into a Bluetooth headset: when a sound there ends, macOS may hand the
         // headset's link over (to a phone it's also paired with) and the mic goes dead.
-        if !recorder.usesBluetooth { Cue.start() }
+        if !soundsReachBluetooth { Cue.start() }
         activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated],
                                                          reason: "Recording a meeting")
         MeetingStore.shared.save(new)
@@ -641,11 +655,12 @@ final class MeetingSession: ObservableObject {
         lastHeard = Date()
         phase = .starting
         lastRestart = nil
+        gaveUpOnSignal = false
         introductionHeld = true          // who's here is known; a new voice is named with a click
         // The new part's opening kept for recognising voices — ten minutes, not three:
         // someone from before may first speak a while in.
         intake?.keepOpening(seconds: 600)
-        if !recorder.usesBluetooth { Cue.start() }
+        if !soundsReachBluetooth { Cue.start() }
         activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated],
                                                          reason: "Recording a meeting")
         MeetingStore.shared.save(record)
@@ -724,6 +739,7 @@ final class MeetingSession: ObservableObject {
 
     func resume() {
         guard isRecording, let pausedAt else { return }
+        gaveUpOnSignal = false          // unmuted meanwhile, perhaps
         do {
             try startMicrophone()
         } catch {
@@ -795,7 +811,8 @@ final class MeetingSession: ObservableObject {
 
     /// The round's names onto the voices — now, and again as the words settle.
     private func placeRound(_ captures: [IntroRound.Capture]) {
-        guard var latest = record, !captures.isEmpty else { return }
+        // Only into the meeting the round was in — a later meeting never gets its names.
+        guard var latest = record, !captures.isEmpty, roundMeeting == latest.id else { return }
         let before = latest.names
         roundLeft = IntroRound.bind(captures, into: &latest, words: latest.words + pending)
         if latest.names != before {
@@ -870,10 +887,11 @@ final class MeetingSession: ObservableObject {
             self.round = nil
             // Words still settling: try the rest again a few times.
             if !roundLeft.isEmpty {
+                let meeting = record?.id
                 Task { @MainActor [weak self] in
                     for _ in 0..<12 {
                         try? await Task.sleep(for: .seconds(3))
-                        guard let self, self.isRecording, !self.roundLeft.isEmpty else { return }
+                        guard let self, self.isRecording, self.record?.id == meeting, !self.roundLeft.isEmpty else { return }
                         self.placeRound(self.roundLeft)
                     }
                 }
@@ -1066,15 +1084,24 @@ final class MeetingSession: ObservableObject {
     // MARK: The live loop
 
     private func run() async {
+        // Each on its own: the voices are told apart also if the speech model won't load,
+        // and the text is written also if the voices won't.
+        var speechFailed = false
+        do { try await SpeechEngine.shared.load(language) } catch {
+            Self.log.error("meeting speech model: \(error.localizedDescription, privacy: .public)")
+            speechFailed = true
+        }
         do {
-            try await SpeechEngine.shared.load(language)
             tracker = try await VoiceTracker.make(VoiceModels.live)
             steady = try? await VoiceTracker.make(VoiceModels.final)
         } catch {
-            Self.log.error("meeting models: \(error.localizedDescription, privacy: .public)")
-            warning = tracker == nil && language.isInstalled
-                ? String(localized: "Nemotron 3 kunde inte startas, så texten skrivs utan att visa vem som pratar.")
-                : error.localizedDescription
+            Self.log.error("meeting voice model: \(error.localizedDescription, privacy: .public)")
+            if !speechFailed {
+                warning = String(localized: "Nemotron 3 kunde inte startas, så texten skrivs utan att visa vem som pratar.")
+            }
+        }
+        if speechFailed {
+            warning = String(localized: "\(language.modelName) kunde inte startas, så ingen text skrivs just nu. Inspelningen fortsätter.")
         }
         if phase == .starting { phase = .recording }
         while !Task.isCancelled, phase == .recording {
@@ -1083,7 +1110,7 @@ final class MeetingSession: ObservableObject {
             if isPaused {
                 if !settledForPause {
                     settledForPause = true
-                    await step(final: true)
+                    await settleAll()
                 }
                 checkInput()
                 try? await Task.sleep(for: .milliseconds(400))
@@ -1136,6 +1163,22 @@ final class MeetingSession: ObservableObject {
         } else if warning == String(localized: "Jag hör nästan ingenting. Är rätt mikrofon vald?") {
             warning = nil
         }
+    }
+
+    /// Everything heard so far written out. One step reads at most 14 s, so when the
+    /// live text is further behind (a busy Mac), it steps on until the rest fits in one
+    /// window, then settles that. Stops if a step makes no headway.
+    private func settleAll() async {
+        let reach = 14 - Self.lead          // a window starts `lead` before `settled`
+        for _ in 0..<600 {                  // 600 steps of ~12 s: two hours behind
+            guard let intake else { return }
+            let behind = Double(intake.count) / Double(Self.rate) - settled
+            guard behind > reach else { break }
+            let before = settled
+            await step(final: false)
+            if settled <= before { break }
+        }
+        await step(final: true)
     }
 
     /// Scores the new audio for voices, then writes out what hasn't settled.
@@ -1391,8 +1434,9 @@ final class MeetingSession: ObservableObject {
 
     private func finish() async {
         intake?.close()
-        // The last words are written also when the voices never started.
-        await step(final: true)
+        // The last words are written also when the voices never started — all of them,
+        // also when the live text was far behind.
+        await settleAll()
         if let rest = try? await tracker?.finish() { scores += rest }
         if let rest = try? await steady?.finish() { steadyScores += rest }
         resolveSpeakers(final: true)
@@ -1704,6 +1748,8 @@ final class MeetingSession: ObservableObject {
         keepUnfinished = false
         before = nil
         continuing = false
+        roundLeft = []
+        roundMeeting = nil
         speakerBase = 0
         earlier = [:]
         pausedAt = nil
@@ -1751,6 +1797,7 @@ final class MeetingSession: ObservableObject {
         guard isRecording else { return }
         if level > 0.04 {
             lastHeard = Date()
+            gaveUpOnSignal = false
             if warning == Self.restarting || warning == Self.silent { warning = nil }      // back
         }
         LiveMeter.shared.push(level)
@@ -1758,6 +1805,9 @@ final class MeetingSession: ObservableObject {
 
     /// When the microphone was last opened again after losing its signal.
     private var lastRestart: Date?
+    /// Restarting and the fallback both failed (a muted mic, one that sends digital
+    /// silence): no more restarts until real sound comes back or the input changes.
+    private var gaveUpOnSignal = false
     private static var restarting: String { String(localized: "Mikrofonen slutade ge ljud. Startar om den…") }
     private static var silent: String { String(localized: "Mikrofonen ger inget ljud. Är den avstängd?") }
 
@@ -1776,6 +1826,7 @@ final class MeetingSession: ObservableObject {
     /// any other mic stays (it may be muted on purpose) and you're told.
     private func signalLost() {
         guard isRecording, !isPaused else { return }      // paused: the mic is off on purpose
+        guard !gaveUpOnSignal else { return }
         let device = recorder.inputDevice
         let bluetooth = recorder.usesBluetooth
         let again = lastRestart.map { Date().timeIntervalSince($0) < 30 } ?? false
@@ -1793,11 +1844,13 @@ final class MeetingSession: ObservableObject {
         }
         try? recorder.start(device: device)
         warning = Self.silent
+        gaveUpOnSignal = true
     }
 
     /// The microphone went away (unplugged, AirPods gone): carry on with the system input.
     private func inputChanged() {
         guard isRecording, !isPaused else { return }
+        gaveUpOnSignal = false          // another input: worth trying again if it goes quiet
         // The recorder still counts itself as running on the lost device — let it
         // go first, or the restart is a no-op and the meeting records silence.
         _ = recorder.stop()

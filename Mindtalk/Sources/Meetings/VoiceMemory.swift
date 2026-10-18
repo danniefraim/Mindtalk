@@ -13,8 +13,10 @@ import SwiftUI
 // app: 192 numbers per voice, no audio) and compared with the people you've named before. A clear match
 // gets the name; anything unsure stays "Talare N".
 //
-// A voiceprint is biometric data, so this is off until you switch it on (Inställningar
-// → Möten). Prints live only on this Mac, in People.json next to the meetings, and
+// A voiceprint is biometric data. On a new Mac it starts on, and the start card says
+// so, asks you to tell the room and can switch it off (as can Inställningar → Möten).
+// Someone who used Mindtalk before this and never chose keeps it off: nothing is learnt
+// from their past meetings without asking. Prints live only on this Mac, in People.json next to the meetings, and
 // any person — or everyone — can be forgotten at any time. Nothing is ever sent.
 
 @MainActor
@@ -41,9 +43,10 @@ final class VoiceMemory: ObservableObject {
 
     enum State: Equatable { case missing, downloading(Double), ready, failed(String) }
 
-    /// On unless switched off: a saved voice is only a print, never sound, and the
-    /// start card says so and asks you to tell the room.
-    @Published var enabled = UserDefaults.standard.object(forKey: "voiceMemory") as? Bool ?? true {
+    /// On for a new install unless switched off: a saved voice is only a print, never
+    /// sound, and the start card says so and asks you to tell the room. Decided once,
+    /// at first launch, and written down so it stays the same (see `initialEnabled`).
+    @Published var enabled = VoiceMemory.initialEnabled() {
         didSet {
             UserDefaults.standard.set(enabled, forKey: "voiceMemory")
             if enabled { prepare() }
@@ -58,6 +61,22 @@ final class VoiceMemory: ObservableObject {
     /// Figures shown for new voices in the introduction round, waiting for those voices
     /// to be saved under the names they were given.
     private var reserved: [String: VoiceFigure] = [:]
+
+    /// The setting as chosen — or, never chosen, decided now and saved: on for a fresh
+    /// install (not onboarded, no meetings, never asked), off for someone who used
+    /// Mindtalk before (who may have said "Inte nu" to the offer).
+    /// At launch, before onboarding can set didOnboard: the first value written down.
+    static func settleDefault() { _ = initialEnabled() }
+
+    private static func initialEnabled() -> Bool {
+        let defaults = UserDefaults.standard
+        if let chosen = defaults.object(forKey: "voiceMemory") as? Bool { return chosen }
+        let meetings = ((try? FileManager.default.contentsOfDirectory(atPath: MeetingStore.root.path)) ?? [])
+            .contains { UUID(uuidString: $0) != nil }
+        let fresh = !Settings.didOnboard && !meetings && !defaults.bool(forKey: "voiceMemoryAsked")
+        defaults.set(fresh, forKey: "voiceMemory")
+        return fresh
+    }
 
     private init() {
         people = Self.loadPeople()

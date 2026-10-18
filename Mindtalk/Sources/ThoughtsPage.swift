@@ -112,17 +112,7 @@ struct ThoughtsPage: View {
                     withAnimation(.snappy) { thoughts.add(typed) }
                     typed = ""
                 }
-            Button {
-                dictation.startThought()
-            } label: {
-                HStack(spacing: 7) {
-                    Image(systemName: "mic.fill").font(.system(size: 11, weight: .semibold)).accessibilityHidden(true)
-                    Text("Säg en tanke")
-                }
-            }
-            .buttonStyle(.ink)
-            .disabled(dictation.phase == .recording || dictation.phase == .transcribing || !dictation.engine.isInstalled)
-            .help("Börja lyssna. Tryck på ✓ i bubblan när du är klar")
+            SayThoughtButton(dictation: dictation)
         }
         .padding(.leading, 16).padding(.trailing, 7).padding(.vertical, 7)
         .raised(cornerRadius: 16)
@@ -868,5 +858,28 @@ struct PageScroll: ViewModifier {
     let on: Bool
     func body(content: Content) -> some View {
         if on { content.pageLayout() } else { content.padding(28) }
+    }
+}
+
+/// "Säg en tanke" — not while a meeting has the microphone. (Its own view: the
+/// meeting's updates redraw only this button, not the page.)
+private struct SayThoughtButton: View {
+    @ObservedObject var dictation: Dictation
+    @ObservedObject private var meeting = MeetingSession.shared
+
+    var body: some View {
+        Button {
+            dictation.startThought()
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: "mic.fill").font(.system(size: 11, weight: .semibold)).accessibilityHidden(true)
+                Text("Säg en tanke")
+            }
+        }
+        .buttonStyle(.ink)
+        .disabled(dictation.phase == .recording || dictation.phase == .transcribing || !dictation.engine.isInstalled
+                  || meeting.isRecording)
+        .help(meeting.isRecording ? String(localized: "Går inte medan ett möte spelas in.")
+              : String(localized: "Börja lyssna. Tryck på ✓ i bubblan när du är klar"))
     }
 }

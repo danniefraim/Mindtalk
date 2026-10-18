@@ -274,6 +274,22 @@
         }
       }
     },
+    "%@ kunde inte startas, så ingen text skrivs just nu. Inspelningen fortsätter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ couldn't start, so no text is being written right now. The recording carries on."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ kunde inte startas, så ingen text skrivs just nu. Inspelningen fortsätter."
+          }
+        }
+      }
+    },
     "%@ laddades inte ned": {
       "localizations": {
         "en": {
@@ -7316,6 +7332,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Går att öppna när mötet är klart"
+          }
+        }
+      }
+    },
+    "Går inte medan ett möte spelas in.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not available while a meeting is being recorded."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Går inte medan ett möte spelas in."
           }
         }
       }

@@ -225,6 +225,19 @@ final class Recorder: @unchecked Sendable {
         return status == noErr && id != 0 ? id : nil
     }
 
+    /// The Mac's sound goes to a Bluetooth headset: the default output, or the device
+    /// alerts play on. A sound there while recording can cost the headset's mic.
+    static var outputIsBluetooth: Bool {
+        [kAudioHardwarePropertyDefaultOutputDevice, kAudioHardwarePropertyDefaultSystemOutputDevice].contains { selector in
+            var id = AudioDeviceID(0)
+            var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+            var address = AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal,
+                                                     mElement: kAudioObjectPropertyElementMain)
+            let status = AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &id)
+            return status == noErr && id != 0 && isBluetooth(id)
+        }
+    }
+
     static func isBluetooth(_ id: AudioDeviceID) -> Bool {
         var transport = UInt32(0)
         var size = UInt32(MemoryLayout<UInt32>.size)

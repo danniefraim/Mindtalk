@@ -20,7 +20,8 @@ final class MeetingPlayer: ObservableObject {
     /// Plays `id`'s recording from a little before `seconds`.
     func play(_ id: UUID, from seconds: Double) {
         // A meeting being recorded has the microphone: nothing plays into it.
-        guard !MeetingSession.shared.isRecording else { return NSSound.beep() }
+        // (No beep either: it could play into a Bluetooth headset and cost its mic.)
+        guard !MeetingSession.shared.isRecording else { return }
         if meeting != id || player == nil {
             stop()
             guard let p = try? AVAudioPlayer(contentsOf: MeetingStore.audioURL(for: id)) else { return }
@@ -45,7 +46,7 @@ final class MeetingPlayer: ObservableObject {
             player.pause()
             ticker = nil          // paused: nothing to follow
         } else {
-            guard !MeetingSession.shared.isRecording else { return NSSound.beep() }
+            guard !MeetingSession.shared.isRecording else { return }
             player.play()
             ticker = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect().sink { [weak self] _ in self?.tick() }
         }

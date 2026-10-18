@@ -309,7 +309,7 @@ struct VoiceScanner: View {
 
     /// A soft sound — never into a Bluetooth headset (its mic can go when a sound there ends).
     func chime(_ name: String) {
-        guard Settings.sounds, !session.usesBluetooth, let sound = NSSound(named: name)?.copy() as? NSSound else { return }
+        guard Settings.sounds, !session.soundsReachBluetooth, let sound = NSSound(named: name)?.copy() as? NSSound else { return }
         sound.volume = 0.12
         sound.play()
     }
