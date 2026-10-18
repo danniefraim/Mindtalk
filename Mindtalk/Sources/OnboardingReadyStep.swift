@@ -18,7 +18,7 @@ struct ReadyStep: View {
     var body: some View {
         VStack(spacing: 24) {
             StepHeader(title: "Det här har du nu.",
-                       subtitle: "Det här fungerar nu i vilken app som helst.")
+                       subtitle: "Diktering och tankar fungerar i vilken app som helst. Resten finns i Mindtalk.")
                 .staggered(0)
             VStack(spacing: 0) {
                 dictationRow

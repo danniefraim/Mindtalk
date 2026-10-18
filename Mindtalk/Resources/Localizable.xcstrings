@@ -5264,6 +5264,23 @@
         }
       }
     },
+    "Diktering och tankar fungerar i vilken app som helst. Resten finns i Mindtalk.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dictation and thoughts work in any app. The rest lives in Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diktering och tankar fungerar i vilken app som helst. Resten finns i Mindtalk."
+          }
+        }
+      }
+    },
     "Dikteringen är borttagen": {
       "localizations": {
         "en": {
