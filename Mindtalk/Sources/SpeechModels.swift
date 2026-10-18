@@ -209,7 +209,8 @@ enum SpeechModel: String, CaseIterable, Identifiable, Codable, Sendable {
 
     /// Unfinished downloads are kept so the next try continues them — but not for
     /// ever: one untouched for two weeks, or from an older Mindtalk (named by a
-    /// random id), is removed. Called at launch.
+    /// random id), is removed. Called at launch. "Untouched" goes by the newest file
+    /// in the folder: the folder itself only changes when a file is added.
     static func removeLeftoverDownloads() {
         let fm = FileManager.default
         let limit = Date().addingTimeInterval(-14 * 86_400)
@@ -218,10 +219,22 @@ enum SpeechModel: String, CaseIterable, Identifiable, Codable, Sendable {
             else { continue }
             for item in items where item.lastPathComponent.hasPrefix(".staging-") {
                 let name = item.lastPathComponent.dropFirst(".staging-".count)
-                let old = (try? item.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate).map { $0 < limit } ?? true
+                let old = newestChange(in: item).map { $0 < limit } ?? true
                 if old || UUID(uuidString: String(name)) != nil { try? fm.removeItem(at: item) }
             }
         }
+    }
+
+    /// When anything in the tree last changed.
+    private static func newestChange(in folder: URL) -> Date? {
+        let fm = FileManager.default
+        var newest = try? folder.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+        guard let items = fm.enumerator(at: folder, includingPropertiesForKeys: [.contentModificationDateKey]) else { return newest }
+        for case let url as URL in items {
+            if let date = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate,
+               newest.map({ date > $0 }) ?? true { newest = date }
+        }
+        return newest
     }
 
     static var rootDirectory: URL {
@@ -351,13 +364,15 @@ enum SpeechModel: String, CaseIterable, Identifiable, Codable, Sendable {
 enum ModelError: LocalizedError {
     case notInstalled
     case checksumMismatch(String)
-    case badResponse(String, Int)
+    /// The file, the status code, and what the server said to wait (Retry-After), in seconds.
+    case badResponse(String, Int, Double?)
 
+    /// For the log, with the file; the user gets `Dictation.plainWords`.
     var errorDescription: String? {
         switch self {
         case .notInstalled: return String(localized: "Talmodellen är inte nedladdad.")
-        case .checksumMismatch(let f): return String(localized: "Nedladdningen av \(f) blev skadad. Försök igen.")
-        case .badResponse(let f, let code): return String(localized: "Kunde inte ladda ned \(f) (HTTP \(code)).")
+        case .checksumMismatch(let f): return String(localized: "En fil blev skadad under nedladdningen. Försök igen.") + " (\(f))"
+        case .badResponse(let f, let code, _): return String(localized: "Kunde inte ladda ned en fil (HTTP \(code)).") + " (\(f))"
         }
     }
 }
@@ -565,6 +580,15 @@ actor SpeechEngine {
     private static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "Speech")
 
     func unload(_ model: SpeechModel) async {
+        // Still on its way in: stopped, and what did load is let go — never put in place.
+        if let pending = loading, pending.model == model {
+            pending.task.cancel()
+            if let started = try? await pending.task.value {
+                started.pending?.cancel()
+                await started.asr.cleanup()
+            }
+            if loading?.id == pending.id { loading = nil }
+        }
         while inFlight > 0 { try? await Task.sleep(for: .milliseconds(50)) }
         guard let current = loaded, current.model == model else { return }
         // Gone before the wait for its cleanup, so nobody is handed it meanwhile.

@@ -29,6 +29,9 @@ actor VocabularyBoost {
     nonisolated static var isInstalled: Bool { CtcModels.modelsExist(at: directory) }
     static let sizeText = "100 MB"
     static let bytes: Int64 = 100_000_000
+    /// The commit of FluidInference/parakeet-ctc-110m-coreml that's fetched (`ModelPins`).
+    nonisolated static let revision = "accdafd8cf8a2ff1cabe3c11e54416b405d409aa"
+    nonisolated static let repo = "FluidInference/parakeet-ctc-110m-coreml"
 
     private var models: CtcModels?
     private var ready: (terms: [String], spotter: CtcKeywordSpotter, rescorer: VocabularyRescorer, vocabulary: CustomVocabularyContext)?

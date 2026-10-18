@@ -215,9 +215,10 @@ final class BetterNotes: ObservableObject {
                 try await Self.install(model) { p in
                     Task { @MainActor in
                         let notes = BetterNotes.shared
-                        if case .downloading = notes.state(model) {
+                        if case .downloading(let sofar) = notes.state(model) {
                             if notes.downloadBase == nil { notes.downloadBase = p }
-                            notes.states[model] = .downloading(p)
+                            // Parts land out of order: the number never ticks backwards.
+                            notes.states[model] = .downloading(max(sofar, p))
                         }
                     }
                 }

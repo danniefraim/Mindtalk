@@ -11,6 +11,8 @@ import CoreML
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNotificationCenterDelegate {
     static func main() {
+        // Before any model is looked at: the revisions FluidAudio fetches from.
+        ModelPins.apply()
         // Self-test: `Mindtalk --transcribe file.wav [--model swedish|multilingual] [--clean]`
         // prints what the model hears (and, with --clean, the cleaned and polished text).
         // `Mindtalk --clean "text"` runs only the cleanup.

@@ -396,6 +396,26 @@ struct InkCheckboxStyle: ToggleStyle {
     }
 }
 
+/// A download's progress as a thin bar: ink on the chip-grey track, 6 pt, rounded —
+/// the same under Modeller, in the introduction and in the box you talk into.
+struct InkProgressBar: View {
+    let progress: Double
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(DS.Colors.chip)
+                Capsule().fill(DS.Colors.ink)
+                    .frame(width: max(6, geo.size.width * min(1, max(0, progress))))
+                    .animation(.smooth(duration: 0.4), value: progress)
+            }
+        }
+        .frame(height: 6)
+        .accessibilityElement()
+        .accessibilityValue(Text(progress, format: .percent.precision(.fractionLength(0))))
+    }
+}
+
 /// A label in small capitals over what it names — "NYTT MÖTE", "I DAG" — as on Hem.
 struct CapsLabel: View {
     let text: String

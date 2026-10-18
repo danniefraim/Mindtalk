@@ -196,7 +196,10 @@ final class Dictation: ObservableObject {
             case .accessibility: return String(localized: "Slå på Hjälpmedel för Mindtalk")
             case .microphone: return String(localized: "Tillåt mikrofonen")
             case .modelMissing: return String(localized: "Ladda ned talmodellen (\(model))")
-            case .modelDownloading(let p): return String(localized: "Laddar ned talmodellen (\(Int(p * 100)) %)")
+            case .modelDownloading(let p):
+                // The last tenth is checking and compiling, not fetching.
+                return SpeechModel.isPreparing(p) ? String(localized: "Förbereder talmodellen…")
+                                                  : String(localized: "Laddar ned talmodellen (\(Int(min(1, p / 0.9) * 100)) %)")
             case .modelFailed:
                 return engine.isInstalled ? String(localized: "Starta talmodellen igen")
                                           : String(localized: "Ladda ned talmodellen igen")
@@ -517,7 +520,9 @@ final class Dictation: ObservableObject {
                 try await m.install { p in
                     Task { @MainActor in
                         let d = Dictation.shared
-                        guard d.downloads[m] != nil else { return }
+                        guard let sofar = d.downloads[m] else { return }
+                        // Parts land out of order: the number never ticks backwards.
+                        let p = max(sofar, p)
                         d.downloads[m] = p
                         if d.engine == m { d.model = .downloading(p) }
                     }
@@ -545,6 +550,7 @@ final class Dictation: ObservableObject {
         case .offline: return String(localized: "Internetanslutningen bröts. Kontrollera nätverket och försök igen.")
         case .unreachable: return String(localized: "Kunde inte nå servern just nu. Försök igen om en stund.")
         case .diskFull: return String(localized: "Det finns inte tillräckligt med ledigt utrymme på din Mac.")
+        case .serverRefused(let code): return String(localized: "Modellen kunde inte hämtas just nu (fel \(code)). Försök igen senare.")
         case .other: return String(localized: "Något gick fel under nedladdningen. Försök igen.")
         }
     }
@@ -553,11 +559,16 @@ final class Dictation: ObservableObject {
     /// system's error in its own (the voice models' does).
     enum DownloadTrouble {
         case offline, unreachable, diskFull, other
+        /// The server said no (403, 404), asked for a pause (429) or was down (5xx).
+        case serverRefused(Int)
 
         init(_ error: Error) {
             var next: Error? = error
             for _ in 0..<5 {
                 guard let error = next else { break }
+                if case ModelError.badResponse(_, let code, _) = error, [403, 404, 429].contains(code) || code >= 500 {
+                    self = .serverRefused(code); return
+                }
                 if let url = error as? URLError {
                     switch url.code {
                     case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed, .internationalRoamingOff:
@@ -584,11 +595,16 @@ final class Dictation: ObservableObject {
 
     /// Deletes Mindtalk's copy of a model to free up space.
     func removeModel(_ m: SpeechModel) {
-        // Not during a meeting: the model it uses, or the one it will switch to, stays.
-        guard m.isOwnInstall, !MeetingSession.shared.isBusy else { return }
+        // Not during a meeting, or while recordings are being written out: the model
+        // in use, or the one it will switch to, stays.
+        guard m.isOwnInstall, !MeetingSession.shared.isBusy, !MeetingImport.shared.busy else { return }
         Task {
             await SpeechEngine.shared.unload(m)
             try? m.uninstall()
+            // What macOS and Mindtalk remembered about this copy goes with it: the next
+            // one is prepared afresh.
+            UserDefaults.standard.removeObject(forKey: "neuralEngineReady.\(m.rawValue)")
+            UserDefaults.standard.removeObject(forKey: "modelPrepared.\(m.rawValue)")
             refreshModels()
         }
     }

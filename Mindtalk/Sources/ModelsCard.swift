@@ -17,6 +17,8 @@ struct ModelsCard: View {
     @ObservedObject private var meeting = MeetingSession.shared
     @ObservedObject private var listener = VocabularyBoostStatus.shared
     @ObservedObject private var vocabulary = Vocabulary.shared
+    /// Recordings being written out use the speech model too: not removed meanwhile.
+    @ObservedObject private var importing = MeetingImport.shared
     /// What each folder takes on disk — counted when the card shows.
     @State private var onDisk: [URL: Int64] = [:]
     @State private var total: Int64?
@@ -38,27 +40,27 @@ struct ModelsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             RecommendedDownloads()
-            group("Tal", "Skriver ned det du säger när du dikterar, i möten och för tankar.") {
+            group(String(localized: "Tal"), "Skriver ned det du säger när du dikterar, i möten och för tankar.") {
                 ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
                     if i > 0 { CardDivider() }
                     speechRow(m)
                 }
             }
-            group("Röster i möten", "Håller isär vem som pratar och känner igen röster till nästa gång.") {
+            group(String(localized: "Röster i möten"), "Håller isär vem som pratar och känner igen röster till nästa gång.") {
                 voicesRow
                 CardDivider()
                 row(name: "ReDimNet2+", detail: String(localized: "Känner igen röster mellan möten · följer med appen")) {
                     Text("Inbyggd").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                 }
             }
-            group("Sammanfattningar", "Skriver sammanfattningen av ett möte och svarar på dina frågor. Välj vilken som skriver.") {
+            group(String(localized: "Sammanfattningar"), "Skriver sammanfattningen av ett möte och svarar på dina frågor. Välj vilken som skriver.") {
                 appleRow
                 ForEach(NotesModel.allCases) { m in
                     CardDivider()
                     notesRow(m)
                 }
             }
-            group("Ordlistan", nil) {
+            group(String(localized: "Ordlista"), nil) {
                 listenerRow
             }
             HStack(spacing: 10) {
@@ -88,8 +90,10 @@ struct ModelsCard: View {
         } message: { what in
             switch what {
             case .speech: Text("Den kan laddas ned igen senare.")
-            case .voices: Text("Möten kan inte spelas in förrän den laddats ned igen.")
-            case .notes: Text("Den kan laddas ned igen senare. Apple Intelligence skriver sammanfattningarna så länge.")
+            case .voices where VoiceModels.isInstalled: Text("Möten kan inte spelas in förrän den laddats ned igen.")
+            case .voices: Text("Det som laddats ned hittills tas bort. Du kan börja om senare.")
+            case .notes(let m) where m.isInstalled: Text("Den kan laddas ned igen senare. Apple Intelligence skriver sammanfattningarna så länge.")
+            case .notes: Text("Det som laddats ned hittills tas bort. Du kan börja om senare.")
             case .listener: Text("Dina ord rättas ändå i texten. Den kan laddas ned igen senare.")
             }
         }
@@ -130,14 +134,16 @@ struct ModelsCard: View {
         else if meeting.isBusy, m.isInstalled, !inUse { detail += "\n" + String(localized: "Går att byta när mötet är klart.") }
         return row(name: m.modelName, detail: detail, badge: inUse ? String(localized: "Används") : nil) {
             if let p = dictation.downloads[m] {
-                progress(p)
+                // The last tenth is checking and compiling, not fetching.
+                if SpeechModel.isPreparing(p) { preparingLabel } else { progress(min(1, p / 0.9)) }
             } else if m.isInstalled {
                 Menu {
                     Button("Visa i Finder") { reveal(m.ownDirectory) }
                     if !inUse, m.isOwnInstall {
                         Divider()
-                        // Not while a meeting may need it: the model is let go when the meeting is done.
-                        Button("Ta bort…", role: .destructive) { confirmRemove = .speech(m) }.disabled(meeting.isBusy)
+                        // Not while a meeting, or a recording being written out, may need it:
+                        // the model is let go when they're done.
+                        Button("Ta bort…", role: .destructive) { confirmRemove = .speech(m) }.disabled(meeting.isBusy || importing.busy)
                     }
                 } label: { moreLabel }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
@@ -195,7 +201,7 @@ struct ModelsCard: View {
         return row(name: "Nemotron 3", detail: detail) {
             switch voices.state {
             case .downloading(let p):
-                progress(p)
+                if voices.preparing { preparingLabel } else { progress(p) }
             case .ready:
                 Menu {
                     Button("Visa i Finder") { reveal(VoiceModels.directory) }
@@ -207,7 +213,15 @@ struct ModelsCard: View {
             case .missing:
                 Button("Ladda ned") { voices.download() }.buttonStyle(.soft)
             case .failed:
-                Button("Försök igen") { voices.download() }.buttonStyle(.soft)
+                // What came in stays for the next try — or goes, if you'd rather start over.
+                HStack(spacing: 10) {
+                    Button("Försök igen") { voices.download() }.buttonStyle(.soft)
+                    Menu {
+                        Button("Ta bort det nedladdade…", role: .destructive) { confirmRemove = .voices }
+                    } label: { moreLabel(ticked: false) }
+                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                    .help("Mer")
+                }
             }
         }
     }
@@ -254,7 +268,9 @@ struct ModelsCard: View {
                 return text
             }
         }()
-        return row(name: m.name, detail: detail, badge: recommended && state != .unsupported ? String(localized: "Rekommenderas för din Mac") : nil,
+        // Recommended, but not while it wouldn't fit: a badge next to "Får inte plats" would argue with it.
+        let fits = state == .ready || m.hasRoom
+        return row(name: m.name, detail: detail, badge: recommended && state != .unsupported && fits ? String(localized: "Rekommenderas för din Mac") : nil,
                    chooser: (notes.active == m, state == .ready, { notes.chosen = m })) {
             switch state {
             case .unsupported:
@@ -274,21 +290,32 @@ struct ModelsCard: View {
                 .help("Mer")
             case .missing, .failed:
                 let partly = m.remainingBytes < m.bytes - 50_000_000
-                Button(partly ? String(localized: "Fortsätt (\(BetterNotes.gigabytes(m.remainingBytes)) kvar)") : String(localized: "Ladda ned")) {
-                    if partly { notes.download(m) } else { confirmDownload = m }
+                HStack(spacing: 10) {
+                    Button(partly ? String(localized: "Fortsätt (\(BetterNotes.gigabytes(m.remainingBytes)) kvar)") : String(localized: "Ladda ned")) {
+                        if partly { notes.download(m) } else { confirmDownload = m }
+                    }
+                    .buttonStyle(.soft)
+                    .disabled(!m.hasRoom || notes.downloading != nil)
+                    // Something of it is on disk (a cancelled or failed download): it can go.
+                    if m.remainingBytes < m.bytes {
+                        Menu {
+                            Button("Ta bort det nedladdade…", role: .destructive) { confirmRemove = .notes(m) }
+                        } label: { moreLabel(ticked: false) }
+                        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                        .help("Mer")
+                    }
                 }
-                .buttonStyle(.soft)
-                .disabled(!m.hasRoom || notes.downloading != nil)
             }
         }
     }
 
     // MARK: Parts
 
-    private func group<C: View>(_ title: LocalizedStringKey, _ detail: LocalizedStringKey?, @ViewBuilder content: () -> C) -> some View {
+    /// A group of models under a label in small capitals, as on Hem, and a line on what they do.
+    private func group<C: View>(_ title: String, _ detail: LocalizedStringKey?, @ViewBuilder content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 13.5, weight: .semibold))
+            VStack(alignment: .leading, spacing: 4) {
+                CapsLabel(title)
                 if let detail { Text(detail).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted) }
             }
             .padding(.leading, 4)
@@ -330,27 +357,42 @@ struct ModelsCard: View {
             Spacer(minLength: 12)
             trailing()
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .padding(.horizontal, 22)
+        .padding(.vertical, 16)
     }
 
     private func progress(_ p: Double) -> some View {
         HStack(spacing: 8) {
-            ProgressView(value: p).tint(DS.Colors.accent).frame(width: 90)
+            InkProgressBar(progress: p).frame(width: 90)
             Text(p, format: .percent.precision(.fractionLength(0))).font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.Colors.muted)
         }
     }
 
-    /// On a model that's here: a green tick that says so, and ⋯ for Finder and removing.
-    private var moreLabel: some View {
-        HStack(spacing: 10) {
-            Label("Nedladdad", systemImage: "checkmark.circle.fill")
-                .labelStyle(.iconOnly)
-                .font(.system(size: 15))
-                .foregroundStyle(DS.Colors.good)
-            Image(systemName: "ellipsis").font(.system(size: 13, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+    /// The files are in; now it's checked and made ready for this Mac.
+    private var preparingLabel: some View {
+        HStack(spacing: 8) {
+            ProgressView().controlSize(.small)
+            Text("Förbereder…").font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
         }
-        .frame(height: 26).padding(.horizontal, 4).contentShape(Rectangle())
+    }
+
+    /// On a model that's here: a green tick that says so, and ⋯ for Finder and removing.
+    private var moreLabel: some View { moreLabel(ticked: true) }
+
+    /// ⋯ in a small chip disc — with the green tick in front when the model is here.
+    private func moreLabel(ticked: Bool) -> some View {
+        HStack(spacing: 10) {
+            if ticked {
+                Label("Nedladdad", systemImage: "checkmark.circle.fill")
+                    .labelStyle(.iconOnly)
+                    .font(.system(size: 15))
+                    .foregroundStyle(DS.Colors.good)
+            }
+            Image(systemName: "ellipsis").font(.system(size: 13, weight: .semibold)).foregroundStyle(.primary)
+                .frame(width: 26, height: 26)
+                .background(Circle().fill(DS.Colors.chip))
+        }
+        .contentShape(Rectangle())
     }
 
     private func finderMenu(_ folder: URL) -> some View {
@@ -450,7 +492,7 @@ struct NotesModelOffer: View {
                 HStack(spacing: 12) {
                     Image(systemName: "sparkle").font(.system(size: 13)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
                     Text("Laddar ned \(m.name)…").font(.system(size: 13, weight: .medium))
-                    ProgressView(value: p).tint(DS.Colors.accent).frame(width: 140)
+                    InkProgressBar(progress: p).frame(width: 140)
                     Text(p, format: .percent.precision(.fractionLength(0))).font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.Colors.muted)
                     Spacer(minLength: 0)
                 }

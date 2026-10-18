@@ -30,25 +30,69 @@ final class VoiceModels: ObservableObject {
     @Published private(set) var state: State = .missing
     /// `warm`, to watch: the start card waits for it before the round of names.
     @Published private(set) var isWarm = false
+    /// A bundle's files are in and it's being prepared for this Mac (the bar would
+    /// otherwise stand still at 50 % and 100 %).
+    @Published private(set) var preparing = false
 
     static let live = Nemotron3Config.fast32
     static let final = Nemotron3Config.fast128
     /// Both bundles, rounded — shown before downloading.
     static let sizeText = "400 MB"
     private static let downloadBytes: Int64 = 400_000_000
+    /// The commit of FluidInference/nemotron-3-diarization-coreml that's fetched (pinned
+    /// at launch, `ModelPins`): a changed upstream branch can't slip in other weights.
+    static let revision = "25a90f97f254428d4b30374b76af9c74fdee8327"
+    static let repo = "FluidInference/nemotron-3-diarization-coreml"
 
     static var directory: URL { SpeechModel.rootDirectory.appendingPathComponent("Voices") }
     private static var repoDirectory: URL { directory.appendingPathComponent("nemotron-3-diarization") }
 
     private init() { state = Self.isInstalled ? .ready : .missing }
 
+    private static func bundle(_ config: Nemotron3Config) -> URL {
+        repoDirectory.appendingPathComponent("\(config.hubSubdirectory)/\(config.modelFileName)")
+    }
+
+    /// Both bundles whole: the manifest and the weights of each, the silence embedding,
+    /// and nothing left half-fetched (FluidAudio writes the manifest first, so a download
+    /// that stopped at the weights would otherwise pass as installed).
     static var isInstalled: Bool {
         let fm = FileManager.default
-        let bundles = [live, final].map {
-            repoDirectory.appendingPathComponent("\($0.hubSubdirectory)/\($0.modelFileName)/coremldata.bin")
+        for config in [live, final] {
+            let bundle = bundle(config)
+            guard fm.fileExists(atPath: bundle.appendingPathComponent("coremldata.bin").path),
+                  fm.fileExists(atPath: bundle.appendingPathComponent("weights/weight.bin").path) else { return false }
         }
-        return bundles.allSatisfy { fm.fileExists(atPath: $0.path) }
-            && fm.fileExists(atPath: repoDirectory.appendingPathComponent(ModelNames.Nemotron3.silenceEmbeddingFile).path)
+        return fm.fileExists(atPath: repoDirectory.appendingPathComponent(ModelNames.Nemotron3.silenceEmbeddingFile).path)
+            && !hasUnfinishedFiles(in: repoDirectory)
+    }
+
+    /// A `.partial` or `.etag` somewhere under `folder`: a download that stopped midway.
+    private static func hasUnfinishedFiles(in folder: URL) -> Bool {
+        guard let items = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: nil) else { return false }
+        for case let url as URL in items where url.pathExtension == "partial" || url.pathExtension == "etag" { return true }
+        return false
+    }
+
+    /// Before a download: a bundle whose manifest is in but whose weights aren't (or
+    /// that still has a file half-fetched) loses its manifest, so FluidAudio fetches the
+    /// bundle again rather than taking it for complete. A folder from before the revision
+    /// was pinned (no marker, or another) goes whole, so both bundles come in one go
+    /// instead of FluidAudio wiping it midway.
+    private static func tidyBeforeDownload() {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: repoDirectory.path), !isInstalled else { return }
+        let marker = (try? String(contentsOf: repoDirectory.appendingPathComponent(".fluidaudio-revision"), encoding: .utf8))?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if marker != revision {
+            try? fm.removeItem(at: repoDirectory)
+            return
+        }
+        for config in [live, final] {
+            let bundle = bundle(config)
+            let whole = fm.fileExists(atPath: bundle.appendingPathComponent("weights/weight.bin").path) && !hasUnfinishedFiles(in: bundle)
+            if !whole { try? fm.removeItem(at: bundle.appendingPathComponent("coremldata.bin")) }
+        }
     }
 
     func download() {
@@ -56,43 +100,59 @@ final class VoiceModels: ObservableObject {
         // Room for the download and for preparing it for this Mac, with some to spare
         // (as for the speech models).
         guard BetterNotes.freeBytes > Self.downloadBytes * 2 + 500_000_000 else {
-            state = .failed(String(localized: "Det behövs drygt \(BetterNotes.gigabytes(Self.downloadBytes * 2)) ledigt på disken."))
+            state = .failed(String(localized: "Det behövs drygt \(RecommendedDownloads.size(Self.downloadBytes * 2)) ledigt på disken."))
             return
         }
+        Self.tidyBeforeDownload()
         state = .downloading(0)
+        preparing = false
         Task {
             do {
                 for (i, config) in [Self.live, Self.final].enumerated() {
-                    _ = try await Nemotron3Models.loadFromHuggingFace(
+                    // Already fetched by an earlier try: no progress comes, it's only prepared.
+                    preparing = FileManager.default.fileExists(atPath: Self.bundle(config).appendingPathComponent("coremldata.bin").path)
+                    let models = try await Nemotron3Models.loadFromHuggingFace(
                         config: config, cacheDirectory: Self.directory,
                         progressHandler: { progress in
-                            let total = (Double(i) + progress.fractionCompleted) / 2
+                            let fraction = progress.fractionCompleted
+                            let total = (Double(i) + fraction) / 2
                             Task { @MainActor in
-                                if case .downloading = VoiceModels.shared.state { VoiceModels.shared.state = .downloading(total) }
+                                let shared = VoiceModels.shared
+                                guard case .downloading(let sofar) = shared.state else { return }
+                                shared.state = .downloading(max(sofar, total))
+                                shared.preparing = fraction >= 0.999
                             }
                         })
+                    // Loaded once here; kept, so warming up doesn't load it a second time.
+                    await ModelCache.shared.put(models, for: config)
                 }
-                state = Self.isInstalled ? .ready : .failed(String(localized: "Nedladdningen blev inte komplett."))
+                preparing = false
+                state = Self.isInstalled ? .ready : .failed(String(localized: "Nedladdningen blev inte klar."))
                 // Prepared for this Mac right away, so the first meeting doesn't wait for it.
                 if state == .ready { Self.warmUp() }
             } catch {
+                preparing = false
                 state = .failed(Self.plainWords(for: error))
             }
         }
     }
 
-    /// A failed download in words anyone understands, not the system's.
+    /// A failed download in words anyone understands, not the system's — the same
+    /// words as for the speech models, with one of its own for the unknown case.
     private static func plainWords(for error: Error) -> String {
-        switch Dictation.DownloadTrouble(error) {
-        case .offline: return String(localized: "Ingen internetanslutning. Försök igen när du är uppkopplad.")
-        case .diskFull: return String(localized: "Det finns inte plats på disken.")
-        case .unreachable, .other: return String(localized: "Röstmodellen kunde inte laddas ned. Försök igen.")
+        if case .other = Dictation.DownloadTrouble(error) {
+            return String(localized: "Röstmodellen kunde inte laddas ned. Försök igen.")
         }
+        return Dictation.plainWords(for: error)
     }
 
     func remove() {
         try? FileManager.default.removeItem(at: Self.directory)
         state = .missing
+        preparing = false
+        Self.warm = false
+        isWarm = false
+        Task { await ModelCache.shared.clear() }
     }
 
     /// Loads a profile from disk (never downloads — check `isInstalled` first).
@@ -142,6 +202,32 @@ private actor ModelCache {
         let models = try await task.value
         loaded[key] = models
         return models
+    }
+
+    /// Models the download just loaded: kept, so they aren't loaded again.
+    func put(_ models: Nemotron3Models, for config: Nemotron3Config) {
+        loaded["\(config)"] = Loaded(models: models)
+    }
+
+    /// After "Ta bort": nothing kept from the folder that's gone.
+    func clear() {
+        loaded = [:]
+    }
+}
+
+// MARK: - Pinned revisions
+
+/// The two models FluidAudio fetches itself (the voices, the word list's listener) are
+/// pinned to one commit each, like the speech models Mindtalk fetches on its own: set
+/// before anything else runs, so no call can go to a moving branch. A folder downloaded
+/// before the pin (no revision marker) is fetched again once by FluidAudio when it next
+/// checks the listener; the voices' folder is only read, never re-fetched, once whole.
+enum ModelPins {
+    static func apply() {
+        ModelRegistry.revisionOverrides = [
+            VoiceModels.repo: VoiceModels.revision,
+            VocabularyBoost.repo: VocabularyBoost.revision,
+        ]
     }
 }
 

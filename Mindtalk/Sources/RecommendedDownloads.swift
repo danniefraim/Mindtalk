@@ -25,26 +25,27 @@ struct RecommendedDownloads: View {
     /// Missing and useful, in the order they matter — as many as fit with room to spare.
     private var items: [Item] {
         var all: [Item] = []
+        // The same words as in the introduction's list of extras.
         if voices.state == .missing {
-            all.append(Item(id: "voices", name: "Nemotron 3", gives: String(localized: "Vem som säger vad i möten"),
+            all.append(Item(id: "voices", name: String(localized: "Röstmodellen (Nemotron 3)"), gives: String(localized: "hör vem som säger vad i möten"),
                             bytes: 400_000_000, start: { VoiceModels.shared.download() }))
         }
         // As on the Ordlista page: once there are words of your own, and not after "Inte nu".
         if listener.state == .missing, vocabulary.hasOwnWords, !listenerAnswered {
             all.append(Item(id: "listener", name: String(localized: "Lyssnaren"),
-                            gives: String(localized: "Dina ord stavas rätt redan när du pratar"),
+                            gives: String(localized: "stavar dina ord rätt redan när du pratar"),
                             bytes: 100_000_000, start: { Vocabulary.shared.fetchListener() }))
         }
         var room = BetterNotes.freeBytes - 2_000_000_000
         // The best Gemma this Mac runs that also fits next to the rest — the large one
-        // when there's room, the small one when there isn't.
+        // when there's room, the small one when there isn't. Not while one is on its way.
         let rest = all.reduce(Int64(0)) { $0 + $1.bytes }
-        if notes.active == nil,
+        if notes.active == nil, notes.downloading == nil,
            let m = NotesModel.allCases.reversed().first(where: { m in
                guard m.supported, case .missing = notes.state(m) else { return false }
                return m.remainingBytes + rest <= room
            }) {
-            all.append(Item(id: "notes", name: m.name, gives: String(localized: "Mer träffsäkra sammanfattningar"),
+            all.append(Item(id: "notes", name: m.name, gives: String(localized: "ger mer träffsäkra sammanfattningar"),
                             bytes: m.remainingBytes, start: { BetterNotes.shared.download(m) }))
         }
         return all.filter { item in

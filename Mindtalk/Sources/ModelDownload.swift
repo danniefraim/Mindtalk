@@ -87,9 +87,19 @@ enum ModelDownload {
                     let data = try await attempt(file.path) {
                         var request = URLRequest(url: url)
                         request.setValue("bytes=\(from)-\(to)", forHTTPHeaderField: "Range")
-                        let (data, response) = try await session.data(for: request)
+                        // Streamed, and the reply checked first: a server that answers a range
+                        // with the whole file (200) is refused before a byte of it is kept.
+                        let (bytes, response) = try await session.bytes(for: request)
                         try check(response, file.path, expect: 206)
-                        guard Int64(data.count) == to - from + 1 else { throw URLError(.networkConnectionLost) }
+                        let expected = to - from + 1
+                        let length = response.expectedContentLength
+                        guard length < 0 || length == expected else { throw URLError(.cannotParseResponse) }
+                        var data = Data(capacity: Int(expected))
+                        for try await byte in bytes {
+                            data.append(byte)
+                            if Int64(data.count) == expected { break }
+                        }
+                        guard Int64(data.count) == expected else { throw URLError(.networkConnectionLost) }
                         return data
                     }
                     let total = try await writer.store(data, part: i, at: from)
@@ -114,15 +124,22 @@ enum ModelDownload {
     }
 
     /// Three more tries after a dropped connection or a server hiccup, a little
-    /// later each time. Not after a cancel.
+    /// later each time — as long as the server asks, within reason, when it says
+    /// so (Retry-After on 429 and 503). Not after a cancel, and not after a refusal
+    /// (403, 404) or a whole file sent for a range: those come back the same.
     private static func attempt<T>(_ what: String, _ work: () async throws -> T) async throws -> T {
         var wait = 1.0
         for _ in 0..<3 {
             do { return try await work() } catch {
                 if error is CancellationError || (error as? URLError)?.code == .cancelled { throw error }
-                if case ModelError.badResponse(_, let code) = error, (400..<500).contains(code), code != 429 { throw error }
-                log.error("\(what, privacy: .public): \(error.localizedDescription, privacy: .public) – trying again")
-                try await Task.sleep(for: .seconds(wait))
+                var pause = wait
+                if case ModelError.badResponse(_, let code, let retryAfter) = error {
+                    if (400..<500).contains(code), code != 429 { throw error }
+                    if code == 200 { throw error }
+                    if code == 429 || code == 503, let retryAfter { pause = min(60, max(pause, retryAfter)) }
+                }
+                log.error("\(what, privacy: .public): \(error.localizedDescription, privacy: .public) – trying again in \(Int(pause)) s")
+                try await Task.sleep(for: .seconds(pause))
                 wait *= 3
             }
         }
@@ -130,9 +147,24 @@ enum ModelDownload {
     }
 
     private static func check(_ response: URLResponse, _ path: String, expect: Int) throws {
-        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard code == expect else { throw ModelError.badResponse(path, code) }
+        let http = response as? HTTPURLResponse
+        let code = http?.statusCode ?? 0
+        guard code == expect else {
+            // "Retry-After: 30" (seconds) or a date; a date is turned into seconds from now.
+            let header = http?.value(forHTTPHeaderField: "Retry-After")
+            let seconds = header.flatMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+                ?? header.flatMap { httpDate.date(from: $0)?.timeIntervalSinceNow }
+            throw ModelError.badResponse(path, code, seconds.map { max(0, $0) })
+        }
     }
+
+    private static let httpDate: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "GMT")
+        f.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        return f
+    }()
 
     /// Streams the file through SHA-256 so a 5 GB file never sits in memory.
     static func sha256(of url: URL) throws -> String {
