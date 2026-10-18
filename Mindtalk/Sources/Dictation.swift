@@ -393,18 +393,31 @@ final class Dictation: ObservableObject {
         let hadAccessibility = accessibilityGranted
         micGranted = Recorder.micAuthorized
         accessibilityGranted = AXIsProcessTrusted()
+        if accessibilityGranted { UserDefaults.standard.set(true, forKey: Self.everTrustedKey) }
         // Accessibility taken away and given back while running: the old tap is deaf
         // for good, so a new one. Otherwise one that macOS switched off is switched on.
         if accessibilityGranted { KeyListener.shared.ensureTap(recreate: !hadAccessibility) }
         if accessibilityGranted, KeyListener.shared.start(), micGranted {
             permissionPoll?.invalidate(); permissionPoll = nil; return
         }
-        // macOS doesn't announce newly granted permissions — check once a second until it does.
+        // macOS doesn't announce newly granted permissions — check once a second until
+        // it does, as long as something shows them (the window, the introduction, the
+        // panel); with all of them closed the poll stops, and starts again from here
+        // when one opens.
         guard permissionPoll == nil else { return }
         permissionPoll = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            Task { @MainActor in Dictation.shared.refreshPermissions() }
+            Task { @MainActor in
+                let d = Dictation.shared
+                guard AppDelegate.mainWindowVisible || AppDelegate.isOnboarding || AppDelegate.statusPanelShown else {
+                    d.permissionPoll?.invalidate(); d.permissionPoll = nil; return
+                }
+                d.refreshPermissions()
+            }
         }
     }
+
+    /// Mindtalk has been trusted under Hjälpmedel at some point on this Mac.
+    private static let everTrustedKey = "accessibilityEverTrusted"
 
     func requestMicrophone() {
         Task {
@@ -418,8 +431,10 @@ final class Dictation: ObservableObject {
         // Value of kAXTrustedCheckOptionPrompt.
         _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
         refreshPermissions()
-        // macOS only asks the first time. If Mindtalk is already in the list (e.g. after
-        // an update with a new signature) nothing appears — so open the list itself.
+        // macOS only asks the first time; its own dialog then opens the list. If Mindtalk
+        // was trusted before (an update with a new signature, or switched off) nothing
+        // appears — so open the list itself. Never both at once.
+        guard UserDefaults.standard.bool(forKey: Self.everTrustedKey) else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
             guard let self, !self.accessibilityGranted else { return }
             self.openPrivacySettings("Privacy_Accessibility")
@@ -832,10 +847,12 @@ final class Dictation: ObservableObject {
         finish()
     }
 
-    /// "Sparad i Tankar." clicked: the thought, where it went.
+    /// "Sparad i Tankar." clicked: the thought, where it went. During the introduction
+    /// the step itself shows where: the main window stays out of the way.
     func openThoughtsFromHUD() {
         guard phase == .saved else { return }
         reset()
+        if AppDelegate.isOnboarding { return }
         AppDelegate.showWindow(page: .thoughts)
     }
 

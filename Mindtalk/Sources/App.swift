@@ -1595,6 +1595,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     @objc func toggleMeeting() {
         let meeting = MeetingSession.shared
+        // The chord pressed during the introduction (the step shows an example, not a
+        // button) opens nothing; a meeting already running can still be stopped.
+        guard !Self.isOnboarding || meeting.isRecording else { return }
         if meeting.isRecording {
             // Asks once — in the panel, or the large window if that's where the meeting is.
             if !meeting.requestStop(), !Self.mainWindowVisible { MeetingPanel.shared.show() }
@@ -1922,11 +1925,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     static func showIntroduction() {
         guard let delegate = NSApp.delegate as? AppDelegate else { return }
         if let window = delegate.window, window.isVisible {
+            // The steps are drawn 640 pt tall: a shorter window grows first (downwards,
+            // or up when the screen's edge is in the way) so nothing is cut off.
+            let height = window.contentRect(forFrameRect: window.frame).height
+            if height < 640 {
+                var frame = window.frame
+                let extra = 640 - height
+                frame.origin.y -= extra
+                frame.size.height += extra
+                if let screen = window.screen ?? NSScreen.main {
+                    let room = screen.visibleFrame
+                    if frame.minY < room.minY { frame.origin.y = room.minY }
+                    if frame.maxY > room.maxY { frame.origin.y = max(room.minY, room.maxY - frame.height) }
+                }
+                window.setFrame(frame, display: true, animate: true)
+            }
             NotificationCenter.default.post(name: .showIntroduction, object: nil)
         } else {
             delegate.showOnboarding()
         }
     }
+
+    /// The menu bar panel is open.
+    static var statusPanelShown: Bool { (NSApp.delegate as? AppDelegate)?.statusPanel.isShown == true }
 
     func closeStatusPanel(immediately: Bool = false) { statusPanel.close(immediately: immediately) }
 

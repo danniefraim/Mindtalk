@@ -1,11 +1,13 @@
+import ServiceManagement
 import SwiftUI
 
-// MARK: - Step 8: Nu kör vi
+// MARK: - Step 8: Det här har du nu
 //
 // The last step says what you have: each thing with a tick when it works, its key,
-// or how far its download has come — and where the summaries come from, with the
-// one thing worth adding (Gemma) offered here, once, if it fits. Then where Mindtalk
-// lives: in the menu bar, started at login.
+// or how far its download has come — and what still stands in the way, with the one
+// button that fixes it. Where the summaries come from, with the one thing worth
+// adding (Gemma) offered here, once, if it fits. Then where Mindtalk lives: in the
+// menu bar, started at login if it is.
 
 struct ReadyStep: View {
     @ObservedObject var dictation: Dictation
@@ -14,25 +16,19 @@ struct ReadyStep: View {
     @ObservedObject private var listener = VocabularyBoostStatus.shared
 
     var body: some View {
-        VStack(spacing: 18) {
-            StepHeader(title: "Nu kör vi",
+        VStack(spacing: 24) {
+            StepHeader(title: "Det här har du nu.",
                        subtitle: "Det här fungerar nu i vilken app som helst.")
                 .staggered(0)
             VStack(spacing: 0) {
-                ReadyRow(icon: "mic", state: dictation.model == .ready ? .ready : .waiting,
-                         title: "Diktering", keys: dictation.hotkey.chip,
-                         detail: dictation.mode == .toggle ? String(localized: "Tryck på tangenten och prata, så hamnar texten där markören står.")
-                                                           : String(localized: "Håll in tangenten och prata, så hamnar texten där markören står."))
-                CardDivider()
-                ReadyRow(icon: "lightbulb", state: dictation.model == .ready ? .ready : .waiting,
-                         title: "Tankar", keys: Settings.thoughtShortcut?.chip,
-                         detail: Settings.thoughtShortcut == nil ? String(localized: "Säg en tanke på sidan Tankar.")
-                                                                  : String(localized: "Det du kommer på hamnar i Tankar."))
-                CardDivider()
+                dictationRow
+                divider
+                thoughtsRow
+                divider
                 meetingsRow
-                CardDivider()
+                divider
                 wordsRow
-                CardDivider()
+                divider
                 summariesRow
             }
             .padding(.horizontal, 20)
@@ -41,13 +37,92 @@ struct ReadyStep: View {
             .staggered(1)
             HStack(spacing: 10) {
                 MenuBarChip()
-                Text("Mindtalk finns i menyraden och startar när du loggar in.")
+                Text(SMAppService.mainApp.status == .enabled ? "Mindtalk finns i menyraden och startar när du loggar in."
+                                                             : "Mindtalk finns i menyraden.")
                     .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
             .staggered(2)
+        }
+    }
+
+    /// Between the rows, from the text's left edge: the mark stands clear of it.
+    private var divider: some View {
+        Rectangle().fill(DS.Colors.divider).frame(height: 1).padding(.leading, 44)
+    }
+
+    // MARK: Diktering and Tankar
+
+    /// What stands between you and dictating, if anything: a permission first, then the model.
+    private enum Blocker {
+        case accessibility, microphone, modelFailed, modelMissing, downloading(Double), loading
+    }
+
+    private var blocker: Blocker? {
+        if !dictation.accessibilityGranted { return .accessibility }
+        if !dictation.micGranted { return .microphone }
+        switch dictation.model {
+        case .ready: return nil
+        case .loading: return .loading
+        case .failed: return .modelFailed
+        case .missing: return .modelMissing
+        case .downloading(let p): return .downloading(p)
+        }
+    }
+
+    @ViewBuilder private var dictationRow: some View {
+        let keys = dictation.hotkey.chip
+        let works = dictation.mode == .toggle ? String(localized: "Tryck på tangenten och prata, så hamnar texten där markören står.")
+                                              : String(localized: "Håll in tangenten och prata, så hamnar texten där markören står.")
+        switch blocker {
+        case nil:
+            ReadyRow(icon: "mic", state: .ready, title: "Diktering", keys: keys, detail: works)
+        case .loading:
+            ReadyRow(icon: "mic", state: .waiting, title: "Diktering", keys: keys,
+                     detail: String(localized: "Talmodellen görs redo för din Mac. Sedan fungerar det så här: \(works)"))
+        case .downloading(let p):
+            ReadyRow(icon: "mic", state: .progress(min(1, p / 0.9)), title: "Diktering", keys: keys,
+                     detail: SpeechModel.isPreparing(p) ? String(localized: "Talmodellen förbereds för din Mac.")
+                                                        : String(localized: "Talmodellen laddas ned (\(Int(min(1, p / 0.9) * 100)) %)."))
+        case .accessibility:
+            ReadyRow(icon: "mic", state: .optional, title: "Diktering", keys: keys,
+                     detail: String(localized: "Behöver Hjälpmedel för att känna av tangenten och skriva in texten.")) {
+                Button("Öppna") { dictation.requestAccessibility() }.buttonStyle(SoftButtonStyle(small: true))
+            }
+        case .microphone:
+            ReadyRow(icon: "mic", state: .optional, title: "Diktering", keys: keys,
+                     detail: String(localized: "Behöver mikrofonen för att höra dig.")) {
+                Button("Tillåt") { dictation.requestMicrophone() }.buttonStyle(SoftButtonStyle(small: true))
+            }
+        case .modelFailed:
+            ReadyRow(icon: "mic", state: .optional, title: "Diktering", keys: keys,
+                     detail: dictation.engine.isInstalled ? String(localized: "Talmodellen startade inte.")
+                                                          : String(localized: "Talmodellen laddades inte ned.")) {
+                Button("intro|Försök igen") { dictation.retryModel() }.buttonStyle(SoftButtonStyle(small: true))
+            }
+        case .modelMissing:
+            ReadyRow(icon: "mic", state: .optional, title: "Diktering", keys: keys,
+                     detail: String(localized: "Talmodellen är inte nedladdad (\(dictation.engine.sizeText)).")) {
+                Button("Ladda ned") { dictation.downloadModel() }.buttonStyle(SoftButtonStyle(small: true))
+            }
+        }
+    }
+
+    @ViewBuilder private var thoughtsRow: some View {
+        let keys = Settings.thoughtShortcut?.chip
+        let works = Settings.thoughtShortcut == nil ? String(localized: "Säg en tanke på sidan Tankar.")
+                                                    : String(localized: "Det du kommer på hamnar i Tankar.")
+        switch blocker {
+        case nil:
+            ReadyRow(icon: "lightbulb", state: .ready, title: "Tankar", keys: keys, detail: works)
+        case .loading, .downloading:
+            ReadyRow(icon: "lightbulb", state: .waiting, title: "Tankar", keys: keys, detail: works)
+        default:
+            // The same thing stands in the way; the button is on the row above.
+            ReadyRow(icon: "lightbulb", state: .optional, title: "Tankar", keys: keys,
+                     detail: String(localized: "Fungerar så fort dikteringen gör det."))
         }
     }
 
@@ -61,7 +136,8 @@ struct ReadyStep: View {
                      detail: String(localized: "Spelar in ett möte i rummet och håller isär vem som säger vad."))
         case .downloading(let p):
             ReadyRow(icon: "person.2.wave.2", state: .progress(p), title: "Möten", keys: keys,
-                     detail: String(localized: "Röstmodellen laddas ned (\(Int(p * 100)) %). Du kan börja under tiden."))
+                     detail: voices.preparing ? String(localized: "Röstmodellen förbereds. Du kan starta ett möte under tiden.")
+                                              : String(localized: "Röstmodellen laddas ned (\(Int(p * 100)) %). Du kan starta ett möte under tiden."))
         case .missing, .failed:
             ReadyRow(icon: "person.2.wave.2", state: .optional, title: "Möten", keys: nil,
                      detail: String(localized: "Behöver röstmodellen för att hålla isär vem som pratar.")) {
@@ -149,8 +225,7 @@ private struct ReadyRow<Action: View>: View {
                 HStack(spacing: 8) {
                     Text(title).font(.system(size: 14, weight: .semibold))
                     if let keys {
-                        KeyChip(text: keys)
-                            .scaleEffect(0.85, anchor: .leading)
+                        KeyChip(text: keys, small: true)
                             .accessibilityLabel(Text(verbatim: keys))
                     }
                 }

@@ -64,8 +64,8 @@ struct ThoughtsStep: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            StepHeader(title: String(localized: "Spara en tanke"),
-                       subtitle: String(localized: "Kommer du på något mitt i något annat? Säg det, så hamnar det i Tankar, inte i texten."))
+            StepHeader(title: "Spara en tanke",
+                       subtitle: "Kommer du på något mitt i något annat? Säg det, så hamnar det i Tankar, inte i texten.")
                 .staggered(0)
             HStack(alignment: .top, spacing: DS.Layout.stepGap) {
                 VStack(spacing: DS.Layout.stepGap) {

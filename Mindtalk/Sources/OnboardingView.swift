@@ -33,13 +33,20 @@ struct OnboardingView: View {
     @State private var chosen: Set<SpeechModel> = [Settings.engine]
     /// The listener for the word list (100 MB), fetched along with the speech model —
     /// ticked from the start; it's small and makes names right as you speak.
-    @State private var listener = !VocabularyBoost.isInstalled
+    @State private var listener = OnboardingView.defaultListener
     /// The voice model for meetings (400 MB): ticked — small, and needed for meetings.
-    @State private var voices = !VoiceModels.isInstalled
+    @State private var voices = OnboardingView.defaultVoices
     /// Gemma: not ticked — big, and Apple Intelligence writes summaries without it.
     @State private var gemma = false
-    /// Which Gemma, when the Mac runs both: the recommended one if it fits, else the one that does.
-    @State private var gemmaPick: NotesModel? = LanguageStep.defaultGemma
+    /// Which Gemma, when the Mac runs both: the recommended one if it fits next to the
+    /// rest, else the one that does.
+    @State private var gemmaPick: NotesModel? = LanguageStep.defaultGemma(
+        besides: LanguageStep.others(chosen: [Settings.engine], listener: OnboardingView.defaultListener, voices: OnboardingView.defaultVoices))
+
+    /// Ticked from the start on the first run only: shown again, something you removed
+    /// under Modeller stays removed unless you tick it yourself.
+    static var defaultListener: Bool { !Settings.didOnboard && !VocabularyBoost.isInstalled }
+    static var defaultVoices: Bool { !Settings.didOnboard && !VoiceModels.isInstalled }
     @State private var forward = true
     /// The feature steps (Tankar, Möten, Ordlista) you've tried — "Fortsätt" rather than
     /// "Hoppa över". Kept per step, so one stays done when you go back to it.
@@ -166,10 +173,18 @@ struct OnboardingView: View {
                 .transition(.opacity)
             }
             if skipping || waitingForModel {
+                // The same shape as the ink button, in chip grey: a quiet way past.
                 Button(action: primary) {
-                    Text(waitingForModel ? "Fortsätt ändå" : "Hoppa över").contentTransition(.opacity)
+                    Text(waitingForModel ? "Fortsätt ändå" : "Hoppa över")
+                        .contentTransition(.opacity)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 22)
+                        .frame(height: 42)
+                        .background(Capsule().fill(DS.Colors.chip))
+                        .contentShape(Capsule())
                 }
-                .buttonStyle(.soft)
+                .buttonStyle(PressableStyle())
                 .transition(.opacity)
             } else {
                 // Return only where there's nothing to type or say into.
@@ -216,10 +231,16 @@ struct OnboardingView: View {
             // introduction shown again shouldn't switch it. Otherwise Swedish first.
             let order = SpeechModel.allCases.filter(chosen.contains)
             if !chosen.contains(dictation.engine), let first = order.first { dictation.setEngine(first) }
+            // Back here with other choices: what's no longer chosen stops before the rest starts.
+            for m in SpeechModel.allCases where !chosen.contains(m) { dictation.cancelDownload(m) }
             for m in order where !m.isInstalled { dictation.downloadModel(m) }
             if listener { Vocabulary.shared.fetchListener() }
             if voices, VoiceModels.shared.state == .missing { VoiceModels.shared.download() }
-            if gemma, let m = gemmaPick, m.hasRoom, case .missing = BetterNotes.shared.state(m) { BetterNotes.shared.download(m) }
+            // Gemma only if it fits next to everything else on its way, with room to spare.
+            let others = LanguageStep.others(chosen: chosen, listener: listener, voices: voices)
+            if gemma, let m = gemmaPick, LanguageStep.fits(m, besides: others), case .missing = BetterNotes.shared.state(m) {
+                BetterNotes.shared.download(m)
+            }
             go(1)
         case .vocabulary:
             VocabularyStep.commitPending?()   // a word typed but not added
@@ -242,9 +263,11 @@ struct OnboardingView: View {
         // Past "Prova": done, even if Mindtalk is quit before the last step — and the
         // day the first-day card on Hem counts from.
         if step == .tryIt, delta > 0 {
+            // Only the first time through: shown again later, the first day stays the first day.
+            let firstRun = !Settings.didOnboard
             OnboardingView.pastTry = true
             Settings.didOnboard = true
-            if UserDefaults.standard.object(forKey: "introFinishedAt") == nil {
+            if firstRun, UserDefaults.standard.object(forKey: "introFinishedAt") == nil {
                 UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "introFinishedAt")
             }
         }
@@ -283,7 +306,7 @@ private struct WelcomeStep: View {
                        repeats: true,
                        cursorHeight: 44)
             Text("Diktera i alla appar, spara tankar och spela in möten. Allt stannar på din Mac.")
-                .font(.system(size: 16)).foregroundStyle(DS.Colors.muted)
+                .font(.system(size: 15.5)).foregroundStyle(DS.Colors.muted)
                 .multilineTextAlignment(.center)
                 .staggered(2)
         }
@@ -309,11 +332,29 @@ private struct LanguageStep: View {
         return options.contains(where: \.hasRoom) ? Array(options) : []
     }
 
-    /// The best one that fits: the recommended one when there's room for it.
-    static var defaultGemma: NotesModel? { gemmaOptions.first(where: \.hasRoom) }
+    /// The best one that fits next to the rest: the recommended one when there's room for it.
+    static func defaultGemma(besides others: Int64) -> NotesModel? {
+        gemmaOptions.first { fits($0, besides: others) }
+    }
+
+    /// Room for a Gemma next to everything else that's ticked, with 2 GB to spare —
+    /// as Modeller counts (RecommendedDownloads).
+    static func fits(_ m: NotesModel, besides others: Int64) -> Bool {
+        m.remainingBytes + others + 2_000_000_000 <= BetterNotes.freeBytes
+    }
+
+    /// What the speech models and the small extras still have to fetch.
+    static func others(chosen: Set<SpeechModel>, listener: Bool, voices: Bool) -> Int64 {
+        var bytes = SpeechModel.allCases.filter { chosen.contains($0) && !$0.isInstalled }.reduce(Int64(0)) { $0 + $1.downloadBytes }
+        if listener, !VocabularyBoost.isInstalled { bytes += VocabularyBoost.bytes }
+        if voices, !VoiceModels.isInstalled { bytes += 400_000_000 }
+        return bytes
+    }
+
+    private var others: Int64 { Self.others(chosen: chosen, listener: listener, voices: voices) }
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 24) {
             StepHeader(title: "Vilket språk pratar du?",
                        subtitle: "Välj ett eller båda. Du byter med ett klick i menyraden. Allt hämtas en gång och körs på din Mac.")
                 .staggered(0)
@@ -331,6 +372,10 @@ private struct LanguageStep: View {
             // time the steps about meetings and the word list come.
             recommended.staggered(3)
         }
+        // More ticked, less room: a Gemma that no longer fits next to the rest is unticked.
+        .onChange(of: others) { _, now in
+            if gemma, let m = gemmaPick, !Self.fits(m, besides: now) { gemma = false }
+        }
     }
 }
 
@@ -341,19 +386,20 @@ extension LanguageStep {
         let options = Self.gemmaOptions
         if showsVoices || showsListener || !options.isEmpty {
             VStack(alignment: .leading, spacing: 9) {
-                Text("Rekommenderas också. Laddas ned medan du går vidare")
+                Text("Rekommenderas också. Laddas ned medan du går vidare.")
                     .font(.system(size: 12, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+                // What each gives, in the same words as under Modeller.
                 if showsVoices {
-                    extra($voices, name: "Röstmodellen", gives: "vem som säger vad i möten", size: VoiceModels.sizeText)
+                    extra($voices, name: "Röstmodellen", gives: "hör vem som säger vad i möten", size: VoiceModels.sizeText)
                 }
                 if showsListener {
-                    extra($listener, name: "Lyssnaren", gives: "dina ord stavas rätt redan när du pratar", size: VocabularyBoost.sizeText)
+                    extra($listener, name: "Lyssnaren", gives: "stavar dina ord rätt redan när du pratar", size: VocabularyBoost.sizeText)
                 }
                 if options.count == 1, let m = options.first {
-                    extra($gemma, name: m.name, gives: "mer träffsäkra sammanfattningar", size: m.sizeText)
+                    extra($gemma, name: m.name, gives: "ger mer träffsäkra sammanfattningar", size: m.sizeText)
                 } else if !options.isEmpty {
                     // Both sizes: pick one, the recommended one marked.
-                    extra($gemma, name: "Gemma 4", gives: "mer träffsäkra sammanfattningar", size: nil)
+                    extra($gemma, name: "Gemma 4", gives: "ger mer träffsäkra sammanfattningar", size: nil)
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(options) { m in gemmaOption(m, largest: m == options.first) }
                     }
@@ -361,7 +407,7 @@ extension LanguageStep {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
+            .padding(20)
             .raised(cornerRadius: DS.Radius.panel)
         }
     }
@@ -377,14 +423,14 @@ extension LanguageStep {
                 }
             }
         }
-        .toggleStyle(.checkbox)
+        .toggleStyle(InkCheckboxStyle())
     }
 
     /// One size of Gemma: picking it ticks Gemma too. One that doesn't fit says how much
     /// more room it needs.
     private func gemmaOption(_ m: NotesModel, largest: Bool) -> some View {
         let picked = gemmaPick == m
-        let fits = m.hasRoom
+        let fits = Self.fits(m, besides: others)
         // Not ticked: the sizes wait, greyed — nothing here is on its way.
         let active = gemma
         return Button {
@@ -392,13 +438,13 @@ extension LanguageStep {
         } label: {
             HStack(spacing: 7) {
                 Image(systemName: picked ? "largecircle.fill.circle" : "circle")
-                    .font(.system(size: 13)).foregroundStyle(picked && active ? DS.Colors.ink : DS.Colors.muted)
+                    .font(.system(size: 16)).foregroundStyle(picked && active ? DS.Colors.accent : DS.Colors.muted)
                 Text(verbatim: m.name.replacingOccurrences(of: "Gemma 4 ", with: ""))
                     .font(.system(size: 12.5, weight: .semibold))
                 Text(verbatim: "· \(m.sizeText) ·").font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted).monospacedDigit()
                 Group {
                     if !fits {
-                        Text("behöver \(BetterNotes.gigabytes(max(100_000_000, m.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes))) mer ledigt")
+                        Text("behöver \(BetterNotes.gigabytes(max(100_000_000, m.remainingBytes + others + 2_000_000_000 - BetterNotes.freeBytes))) mer ledigt")
                     } else if largest {
                         Text("mest träffsäker")
                     } else {
@@ -408,7 +454,7 @@ extension LanguageStep {
                 .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                 if m == NotesModel.recommended {
                     Text("Rekommenderas för din Mac")
-                        .font(.system(size: 10.5, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
                         .padding(.horizontal, 7).padding(.vertical, 2)
                         .background(Capsule().fill(DS.Colors.chip))
                 }
@@ -440,7 +486,7 @@ private struct LanguageCard: View {
                         .foregroundStyle(selected ? DS.Colors.onInk : DS.Colors.accent)
                         .frame(width: 46, height: 46)
                         .background(Circle().fill(selected ? AnyShapeStyle(DS.Gradients.accent) : AnyShapeStyle(DS.Colors.chip)))
-                        .shadow(color: DS.Colors.accent.opacity(selected ? 0.35 : 0), radius: 12, y: 5)
+                        .shadow(color: .black.opacity(selected ? 0.18 : 0), radius: 10, y: 6)
                     Spacer()
                     Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 22))
@@ -452,11 +498,12 @@ private struct LanguageCard: View {
                 HStack(spacing: 8) {
                     Text(model.title).font(.system(size: 19, weight: .semibold))
                     if recommended {
+                        // The same chip as the badges under Modeller.
                         Text("Rekommenderas")
-                            .font(.system(size: 10.5, weight: .semibold))
-                            .foregroundStyle(DS.Colors.accent)
-                            .padding(.horizontal, 7).padding(.vertical, 2.5)
-                            .background(Capsule().fill(DS.Colors.accent.opacity(0.12)))
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.primary)
+                            .padding(.horizontal, 7).padding(.vertical, 2)
+                            .background(Capsule().fill(DS.Colors.chip))
                     }
                 }
                 Text(model.pitch)
@@ -497,9 +544,9 @@ private struct PermissionsStep: View {
     @ObservedObject var dictation: Dictation
 
     var body: some View {
-        VStack(spacing: 26) {
-            StepHeader(title: "Två behörigheter, en gång",
-                       subtitle: "En gång räcker. Samma tillåtelse gäller diktering, tankar och möten.")
+        VStack(spacing: 24) {
+            StepHeader(title: "Två behörigheter",
+                       subtitle: "Samma tillåtelse gäller diktering, tankar och möten.")
                 .staggered(0)
             HStack(spacing: 16) {
                 PermissionCard(icon: "hand.point.up.left.fill", title: "Hjälpmedel",
@@ -590,8 +637,12 @@ private struct TryStep: View {
     @State private var practice = ""
     @State private var celebrated = false
     @State private var confetti = 0
+    /// Words came out of a dictation (not typed): only then is there something to celebrate.
+    @State private var dictated = false
     /// "Klart, prova nu!" for a moment when the speech model becomes ready while you wait.
     @State private var justReady = false
+    /// The box gets the cursor by itself once there's something to talk into.
+    @FocusState private var boxFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var ready: Bool { dictation.model == .ready }
@@ -600,18 +651,18 @@ private struct TryStep: View {
     private var recording: Bool { dictation.phase == .recording }
     private var hearing: Bool { recording && (meter.levels.suffix(8).max() ?? 0) > 0.08 }
 
-    private var subtitle: String {
-        if celebrated { return String(localized: "Din första text, utan att skriva ett ord. Det fungerar i alla appar.") }
-        if !permitted { return String(localized: "Snart kan du prova. Först behövs din tillåtelse.") }
-        if ready { return String(localized: "Klicka i rutan, håll in \(dictation.hotkey.inlineName) och säg något.") }
-        return String(localized: "Du kan prova så fort talmodellen är klar.")
+    private var subtitle: LocalizedStringResource {
+        if celebrated { return "Din första text, utan att skriva ett ord. Det fungerar i alla appar." }
+        if !permitted { return "Snart kan du prova. Först behövs din tillåtelse." }
+        if ready { return "Klicka i rutan, håll in \(dictation.hotkey.inlineName) och säg något." }
+        return "Du kan prova så fort talmodellen är klar."
     }
 
     var body: some View {
         // Top: the confetti fills the step, the rest hangs from the title line.
         ZStack(alignment: .top) {
-            VStack(spacing: 20) {
-                StepHeader(title: celebrated ? String(localized: "Snyggt.") : String(localized: "Prova på riktigt"),
+            VStack(spacing: 24) {
+                StepHeader(title: celebrated ? "Snyggt." : "Prova på riktigt",
                            subtitle: subtitle)
                     .staggered(0)
                     .animation(.easeOut(duration: 0.3), value: celebrated)
@@ -642,11 +693,15 @@ private struct TryStep: View {
                             // The thought key's: said for a moment, then the link is back.
                             Text(verbatim: refusal).foregroundStyle(DS.Colors.ink)
                         } else {
-                            Button(dictation.pickingKey ? String(localized: "Tryck på en tangent…") : String(localized: "Välj en annan genväg")) {
+                            Button {
                                 dictation.pickKey()
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text("Välj en annan genväg")
+                                    Image(systemName: "arrow.right").font(.system(size: 10, weight: .semibold))
+                                }
                             }
                             .buttonStyle(.plain)
-                            .underline()
                             .disabled(!dictation.accessibilityGranted)
                             .help(dictation.accessibilityGranted ? String(localized: "Klicka och håll in tangenterna du vill använda. Släpp för att spara.")
                                                                   : String(localized: "Tillåt Hjälpmedel i förra steget för att välja genväg."))
@@ -662,13 +717,10 @@ private struct TryStep: View {
                     TextEditor(text: $practice)
                         .font(.system(size: 19))
                         .scrollContentBackground(.hidden)
+                        .focused($boxFocused)
                         .padding(16)
                         .frame(height: celebrated ? 96 : 130)
-                        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(DS.Colors.field))
-                        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(practice.isEmpty ? AnyShapeStyle(DS.Colors.fieldStroke) : AnyShapeStyle(DS.Colors.ink),
-                                          lineWidth: practice.isEmpty ? 1 : 2))
-                        .shadow(color: .black.opacity(0.05), radius: 16, y: 8)
+                        .raised(cornerRadius: DS.Radius.panel, selected: !practice.isEmpty)
                     if practice.isEmpty && ready && permitted {
                         Text("”Hej! Det här är min första diktering.”")
                             .font(.system(size: 19))
@@ -713,11 +765,23 @@ private struct TryStep: View {
         }
         .animation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.55, bounce: 0.2), value: celebrated)
         .onAppear { dictation.refreshPermissions() }
-        .onChange(of: practice) { _, text in
-            guard !celebrated, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-            celebrated = true
-            confetti += 1
-            Cue.celebrate()
+        // The cursor in the box once there's something to talk into — after the entrance,
+        // and again when the model becomes ready while you wait.
+        .task {
+            try? await Task.sleep(for: .milliseconds(700))
+            if ready && permitted { boxFocused = true }
+        }
+        .onChange(of: ready && permitted) { _, now in
+            guard now else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { boxFocused = true }
+        }
+        // Typing into the box is no dictation: the words have to come from a press.
+        .onChange(of: practice) { _, _ in celebrateIfDictated() }
+        .onChange(of: dictation.phase) { old, _ in
+            if old == .transcribing, !dictation.forThought {
+                dictated = true
+                celebrateIfDictated()
+            }
         }
         // Waited for it: a sound and a moment's "Klart, prova nu!", so you notice even
         // if you looked away.
@@ -731,6 +795,14 @@ private struct TryStep: View {
             }
         }
         .onDisappear { dictation.stopPickingKey() }
+    }
+
+    /// Words in the box, and they were dictated: the first text, celebrated once.
+    private func celebrateIfDictated() {
+        guard !celebrated, dictated, !practice.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        celebrated = true
+        confetti += 1
+        Cue.celebrate()
     }
 }
 
@@ -786,7 +858,7 @@ struct Keycap: View {
                 .offset(y: pressed ? 6 : 0)
         }
         .frame(width: isCombination ? 480 : 190, height: 96)
-        .shadow(color: pressed ? DS.Colors.accent.opacity(0.35) : .black.opacity(0.12), radius: pressed ? 22 : 14, y: pressed ? 4 : 10)
+        .shadow(color: .black.opacity(pressed ? 0.18 : 0.12), radius: pressed ? 10 : 14, y: pressed ? 6 : 10)
         .animation(.spring(duration: 0.2, bounce: 0.35), value: pressed)
         .accessibilityLabel(String(localized: "Din genväg: \(text)"))
     }
@@ -805,12 +877,10 @@ struct ModelState: View {
                 // "Talmodellen" rather than the language's name — "Flerspråkig" isn't a
                 // thing you can make ready.
                 case .downloading(let p):
-                    Text(SpeechModel.isPreparing(p) ? String(localized: "Förbereder talmodellen")
+                    Text(SpeechModel.isPreparing(p) ? String(localized: "Talmodellen förbereds")
                                                     : String(localized: "Talmodellen laddas ned"))
                         .font(.system(size: 16, weight: .semibold))
-                    ProgressView(value: min(1, p / 0.9))
-                        .progressViewStyle(.linear)
-                        .tint(DS.Colors.ink)
+                    InkProgressBar(progress: min(1, p / 0.9))
                         .frame(width: 300)
                     Text(dictation.engine.progressText(p, started: dictation.downloadStarted[dictation.engine]))
                         .font(.system(size: 13)).monospacedDigit()
@@ -828,7 +898,7 @@ struct ModelState: View {
                     Text("Vänta gärna här. Sedan provar du direkt.")
                         .font(.system(size: 13, weight: .medium)).foregroundStyle(.primary)
                 case .failed(let message):
-                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 22)).foregroundStyle(.orange)
+                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 22)).foregroundStyle(DS.Colors.warning)
                     // Downloaded but wouldn't start, or never arrived — retryModel() knows which.
                     Text(dictation.engine.isInstalled ? String(localized: "Talmodellen startade inte")
                                                       : String(localized: "Talmodellen laddades inte ned"))
@@ -838,7 +908,7 @@ struct ModelState: View {
                         Text(message).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                             .multilineTextAlignment(.center).lineLimit(2)
                     }
-                    Button("Försök igen") { dictation.retryModel() }.buttonStyle(.ink)
+                    Button("intro|Försök igen") { dictation.retryModel() }.buttonStyle(.ink)
                 case .missing:
                     Text("Talmodellen är inte nedladdad").font(.system(size: 16, weight: .semibold))
                     Button("Ladda ned \(dictation.engine.sizeText)") { dictation.downloadModel() }.buttonStyle(.ink)
@@ -876,30 +946,32 @@ private struct Blocker: View {
 /// An announcement rather than moving focus: `accessibilityFocused` turns the title
 /// into something ImageRenderer can't draw.
 struct StepHeader: View {
-    let title: String
-    let subtitle: String
+    /// Resources, not strings: every title and line is then found by the string
+    /// extractor, so none can go stale in the catalog.
+    let title: LocalizedStringResource
+    let subtitle: LocalizedStringResource
 
     var body: some View {
         VStack(spacing: 10) {
-            Text(LocalizedStringKey(title))
-                .font(.system(size: 38, weight: .regular, design: .serif))
+            Text(title)
+                .font(DS.pageTitle)
                 .contentTransition(.opacity)
                 .accessibilityAddTraits(.isHeader)
-            Text(LocalizedStringKey(subtitle))
+            Text(subtitle)
                 .font(.system(size: 15.5))
                 .foregroundStyle(DS.Colors.muted)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .contentTransition(.opacity)
         }
-        .frame(maxWidth: 560)
+        .frame(maxWidth: 640)
         .frame(height: 104, alignment: .top)
         // After the step has slid in, so it isn't cut off by the one leaving.
         .task {
             try? await Task.sleep(for: .milliseconds(450))
-            let heading = String(localized: String.LocalizationValue(title))
+            let heading = String(localized: title)
             let stop = heading.last.map { ".?!".contains($0) } == true ? " " : ". "
-            AccessibilityNotification.Announcement(heading + stop + String(localized: String.LocalizationValue(subtitle))).post()
+            AccessibilityNotification.Announcement(heading + stop + String(localized: subtitle)).post()
         }
     }
 }
@@ -924,7 +996,7 @@ struct GlowButton: View {
             .padding(.horizontal, 22)
             .frame(height: 42)
             .background(Capsule().fill(DS.Colors.ink))
-            .shadow(color: DS.Colors.accent.opacity(hovering ? 0.45 : 0.2), radius: hovering ? 18 : 10, y: 6)
+            .shadow(color: .black.opacity(hovering ? 0.26 : 0.18), radius: 10, y: 6)
             .scaleEffect(hovering ? 1.02 : 1)
             .contentShape(Capsule())
         }
@@ -950,9 +1022,9 @@ private struct ProgressSegments: View {
     var body: some View {
         HStack(spacing: 6) {
             ForEach(0..<count, id: \.self) { i in
-                // Done: half ink. Now: full ink, wider. Still to come: faint but visible.
+                // Done: the grey of a past day's bar. Now: ink, wider. Still to come: a divider's grey.
                 Capsule()
-                    .fill(DS.Colors.ink.opacity(i == current ? 1 : i < current ? 0.45 : 0.16))
+                    .fill(i == current ? DS.Colors.ink : i < current ? DS.Colors.barPast : DS.Colors.divider)
                     .frame(width: i == current ? 34 : 18, height: 4)
             }
         }
@@ -972,6 +1044,8 @@ struct DownloadStatus: View {
     @ObservedObject var dictation: Dictation
     var compact = false
     @ObservedObject private var voices = VoiceModels.shared
+    @ObservedObject private var notes = BetterNotes.shared
+    @ObservedObject private var listener = VocabularyBoostStatus.shared
 
     /// One thing on its way, or one that went wrong.
     private struct Item: Identifiable {
@@ -979,6 +1053,10 @@ struct DownloadStatus: View {
         let name: String
         /// nil: it failed.
         let progress: Double?
+        /// A speech model spends its last tenth preparing for this Mac; the others don't.
+        var speech = false
+        /// The files are in and it's being made ready (the voice model, between its bundles).
+        var preparing = false
         let detail: String
         let retry: () -> Void
     }
@@ -987,17 +1065,17 @@ struct DownloadStatus: View {
         var items: [Item] = []
         for m in SpeechModel.allCases {
             if let p = dictation.downloads[m] {
-                items.append(Item(id: m.rawValue, name: m.title, progress: p,
+                items.append(Item(id: m.rawValue, name: m.title, progress: p, speech: true,
                                   detail: m.progressText(p, started: dictation.downloadStarted[m]), retry: {}))
             } else if dictation.downloadErrors[m] != nil {
-                items.append(Item(id: m.rawValue, name: m.title, progress: nil,
+                items.append(Item(id: m.rawValue, name: m.title, progress: nil, speech: true,
                                   detail: String(localized: "\(m.title) laddades inte ned"),
                                   retry: { dictation.downloadModel(m) }))
             }
         }
         switch voices.state {
         case .downloading(let p):
-            items.append(Item(id: "voices", name: String(localized: "Röstmodellen"), progress: p,
+            items.append(Item(id: "voices", name: String(localized: "Röstmodellen"), progress: p, preparing: voices.preparing,
                               detail: String(localized: "\(Self.percent(p)) %"), retry: {}))
         case .failed:
             items.append(Item(id: "voices", name: String(localized: "Röstmodellen"), progress: nil,
@@ -1005,8 +1083,26 @@ struct DownloadStatus: View {
                               retry: { VoiceModels.shared.download() }))
         default: break
         }
-        if let m = BetterNotes.shared.downloading, case .downloading(let p) = BetterNotes.shared.state(m) {
-            items.append(Item(id: "notes", name: m.name, progress: p, detail: String(localized: "\(Self.percent(p)) %"), retry: {}))
+        switch listener.state {
+        case .downloading:
+            items.append(Item(id: "listener", name: String(localized: "Lyssnaren"), progress: 0, preparing: true,
+                              detail: String(localized: "Lyssnaren laddas ned"), retry: {}))
+        case .failed:
+            items.append(Item(id: "listener", name: String(localized: "Lyssnaren"), progress: nil,
+                              detail: String(localized: "Lyssnaren laddades inte ned"),
+                              retry: { Vocabulary.shared.fetchListener() }))
+        default: break
+        }
+        for m in NotesModel.allCases {
+            switch notes.state(m) {
+            case .downloading(let p):
+                items.append(Item(id: "notes", name: m.name, progress: p, detail: String(localized: "\(Self.percent(p)) %"), retry: {}))
+            case .failed:
+                items.append(Item(id: "notes", name: m.name, progress: nil,
+                                  detail: String(localized: "\(m.name) laddades inte ned"),
+                                  retry: { BetterNotes.shared.download(m) }))
+            default: break
+            }
         }
         return items
     }
@@ -1035,14 +1131,14 @@ struct DownloadStatus: View {
                 ProgressRing(progress: p).frame(width: 20, height: 20)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(item.name).font(.system(size: 12.5, weight: .semibold))
-                    Text(item.detail)
+                    Text(item.preparing ? String(localized: "Förbereds") : item.detail)
                         .font(.system(size: 11.5)).monospacedDigit()
                         .foregroundStyle(DS.Colors.muted)
                 }
             }
         } else {
             HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warning)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(item.detail).font(.system(size: 12.5, weight: .semibold))
                     retryButton(item)
@@ -1052,10 +1148,10 @@ struct DownloadStatus: View {
     }
 
     @ViewBuilder private func compactRow(_ item: Item, named: Bool) -> some View {
-        let model = item.id != "voices"
+        let model = item.speech
         Group {
             if let p = item.progress {
-                let preparing = model && SpeechModel.isPreparing(p)
+                let preparing = item.preparing || (model && SpeechModel.isPreparing(p))
                 let amount = String(localized: "\(Self.percent(p, model: model)) %")
                 HStack(spacing: 6) {
                     ProgressRing(progress: p).frame(width: 16, height: 16)
@@ -1069,7 +1165,7 @@ struct DownloadStatus: View {
                 .help(String(localized: "\(item.name) laddas ned · \(item.detail)"))
             } else {
                 HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warning)
                     retryButton(item)
                 }
                 .help(item.detail)
@@ -1079,7 +1175,7 @@ struct DownloadStatus: View {
     }
 
     private func retryButton(_ item: Item) -> some View {
-        Button("Försök igen", action: item.retry)
+        Button("intro|Försök igen", action: item.retry)
             .buttonStyle(.plain)
             .font(.system(size: compact ? 12 : 11.5, weight: .semibold))
             .foregroundStyle(DS.Colors.accent)
