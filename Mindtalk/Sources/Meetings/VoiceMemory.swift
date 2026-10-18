@@ -238,6 +238,23 @@ final class VoiceMemory: ObservableObject {
         save()
     }
 
+    /// A misspelt name put right. The same name as someone else's: one person, with
+    /// both their voiceprints (the first five), as it's the same voice heard twice.
+    func rename(_ person: Person, to newName: String) {
+        let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, name != person.name, let i = people.firstIndex(where: { $0.id == person.id }) else { return }
+        if let j = people.firstIndex(where: { $0.id != person.id && $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
+            people[j].prints = Array((people[j].prints + people[i].prints).prefix(5))
+            people[j].sources = (people[j].sources ?? []) + (people[i].sources ?? [])
+            people[j].updated = Date()
+            people.remove(at: i)
+        } else {
+            people[i].name = name
+            people[i].updated = Date()
+        }
+        save()
+    }
+
     func forgetAll() {
         people = []
         let fm = FileManager.default
@@ -602,6 +619,9 @@ struct VoiceMemoryCard: View {
     @State private var confirmForgetAll = false
     /// Someone to forget — asked first: there's no way back.
     @State private var confirmForget: VoiceMemory.Person?
+    /// Someone whose name is being put right, and the name as typed.
+    @State private var renaming: VoiceMemory.Person?
+    @State private var newName = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -619,7 +639,14 @@ struct VoiceMemoryCard: View {
                                 VoiceFigureMark(figure: VoiceFigure.remembered(person.name) ?? VoiceFigure.from(seed: person.name),
                                                 color: SpeakerMark.fill(i), lineWidth: 1.2)
                                     .frame(width: 18, height: 18)
-                                Text(person.name).font(.system(size: 12.5, weight: .medium))
+                                Button { renaming = person; newName = person.name } label: {
+                                    Text(person.name).font(.system(size: 12.5, weight: .medium))
+                                }
+                                .buttonStyle(.plain)
+                                .help("Ändra namnet")
+                                .popover(isPresented: Binding(get: { renaming?.id == person.id }, set: { if !$0 { renaming = nil } })) {
+                                    renamePopover(person)
+                                }
                                 Button { confirmForget = person } label: {
                                     Image(systemName: "xmark").font(.system(size: 8.5, weight: .bold)).foregroundStyle(DS.Colors.faint)
                                 }
@@ -655,6 +682,30 @@ struct VoiceMemoryCard: View {
         } message: { _ in
             Text("Rösten känns inte igen nästa gång. Namnet i gamla möten finns kvar.")
         }
+    }
+
+    /// Click the name: a field to spell it right, and Return to keep it.
+    private func renamePopover(_ person: VoiceMemory.Person) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Ändra namnet").font(.system(size: 13, weight: .semibold))
+            TextField("Namn", text: $newName)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 220)
+                .onSubmit { commitRename(person) }
+            Text("Namnet i gamla möten ändras inte.").font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+            HStack {
+                Spacer()
+                Button("Avbryt") { renaming = nil }.buttonStyle(.soft)
+                Button("Spara") { commitRename(person) }.buttonStyle(.ink)
+                    .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(16)
+    }
+
+    private func commitRename(_ person: VoiceMemory.Person) {
+        withAnimation(.snappy) { memory.rename(person, to: newName) }
+        renaming = nil
     }
 
     private var detail: String {
