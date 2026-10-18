@@ -918,15 +918,20 @@ struct RecentPage: View {
                 .pageLayout()
                 .overlay(alignment: .bottom) {
                     if removed != nil {
-                        HStack(spacing: 14) {
-                            Text("Dikteringen är borttagen").font(.system(size: 13))
-                            Button("Ångra") { undoRemove() }.buttonStyle(.soft)
+                        // The same ink capsule as Tankar's.
+                        HStack(spacing: 12) {
+                            Text("Dikteringen är borttagen").font(.system(size: 13, weight: .medium))
+                            Button("Ångra") { undoRemove() }
+                                .buttonStyle(.plain)
+                                .font(.system(size: 13, weight: .semibold))
                         }
-                        .padding(.leading, 18).padding(.trailing, 8).padding(.vertical, 8)
-                        .background(Capsule().fill(DS.Colors.card).shadow(color: .black.opacity(0.15), radius: 10, y: 4))
-                        .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke, lineWidth: 0.5))
+                        .foregroundStyle(DS.Colors.onInk)
+                        .padding(.horizontal, 16)
+                        .frame(height: 38)
+                        .background(Capsule().fill(DS.Colors.ink))
+                        .shadow(color: .black.opacity(0.25), radius: 10, y: 4)
                         .padding(.bottom, 24)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
                 }
                 .confirmationDialog("Rensa historiken?", isPresented: $confirmClear) {

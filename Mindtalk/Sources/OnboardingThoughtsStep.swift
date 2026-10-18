@@ -65,7 +65,7 @@ struct ThoughtsStep: View {
     var body: some View {
         VStack(spacing: 24) {
             StepHeader(title: String(localized: "Spara en tanke"),
-                       subtitle: String(localized: "Kom på något mitt i något annat? Säg det, så hamnar det i Tankar, inte i texten."))
+                       subtitle: String(localized: "Kommer du på något mitt i något annat? Säg det, så hamnar det i Tankar, inte i texten."))
                 .staggered(0)
             HStack(alignment: .top, spacing: DS.Layout.stepGap) {
                 VStack(spacing: DS.Layout.stepGap) {
@@ -475,9 +475,9 @@ struct ThoughtsStep: View {
         }
         if !landed.isEmpty, incoming == nil { return .saved }
         if nudge {
-            return .info(l.useButton ? String(localized: "Håll in knappen och prata medan du håller den.")
-                         : oneKey ? String(localized: "Håll in \(keysInline) och prata medan du håller den.")
-                         : String(localized: "Håll in tangenterna samtidigt och prata medan du håller dem."))
+            return .info(l.useButton ? String(localized: "Håll in knappen och prata. Släpp när du är klar.")
+                         : oneKey ? String(localized: "Håll in \(keysInline) och prata. Släpp när du är klar.")
+                         : String(localized: "Håll in tangenterna samtidigt och prata. Släpp när du är klar."))
         }
         return nil
     }
@@ -781,7 +781,7 @@ private struct NoteRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(thought.text)
-                .font(.system(size: 13.5))
+                .font(.system(size: 14, design: .serif))
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
