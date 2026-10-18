@@ -97,7 +97,9 @@ final class Thoughts: ObservableObject {
     /// For Hem: open thoughts, pinned first, then newest.
     private(set) var forHome: [Thought] = []
 
-    private struct Step { let label: String?; let before: [Thought] }
+    /// What everything was before a change, and when — a thought said after the
+    /// step isn't part of it, so ⌘Z leaves it be.
+    private struct Step { let label: String?; let before: [Thought]; let at: Date }
     private var undoSteps: [Step] = []
     private var redoSteps: [Step] = []
     private var saveTask: Task<Void, Never>?
@@ -122,7 +124,7 @@ final class Thoughts: ObservableObject {
             if let read = try? decoder.decode([Thought].self, from: data) {
                 var kept = read
                 // Thirty days in "Nyligen raderade", then gone.
-                let limit = Date().addingTimeInterval(-Double(Self.keepRemovedDays) * 86_400)
+                let limit = Self.removedLimit
                 for t in kept where (t.deleted ?? .distantFuture) < limit { try? FileManager.default.removeItem(at: Self.soundURL(t.id)) }
                 kept.removeAll { ($0.deleted ?? .distantFuture) < limit }
                 // Being written when Mindtalk quit: "Försök igen" if the sound is there.
@@ -138,9 +140,55 @@ final class Thoughts: ObservableObject {
             }
         }
         reindex()
+        sweepSounds()
         NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { Thoughts.shared.saveNow() }
+            MainActor.assumeIsolated {
+                Thoughts.shared.saveNow()
+                Thoughts.writer.sync {}          // written before the app is gone
+            }
         }
+        // Midnight: "I dag" becomes "I går", and a removed thought's thirty days may be up.
+        NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { Thoughts.shared.dayChanged() }
+        }
+    }
+
+    private static var removedLimit: Date { Date().addingTimeInterval(-Double(keepRemovedDays) * 86_400) }
+
+    /// A sound with no thought still being written (a crash between the two, a
+    /// thought gone for good): removed, so the folder never grows.
+    private func sweepSounds() {
+        #if DEBUG
+        if previewing { return }
+        #endif
+        let kept = Set(all.filter { $0.writing != nil }.map(\.id))
+        Self.writer.async { Self.sweepSounds(in: Self.pendingFolder, keeping: kept) }
+    }
+
+    /// Every sound in the folder that isn't one of `kept`: removed.
+    nonisolated static func sweepSounds(in folder: URL, keeping kept: Set<UUID>) {
+        guard let files = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) else { return }
+        for file in files where file.pathExtension == "f32" {
+            if let id = UUID(uuidString: file.deletingPathExtension().lastPathComponent), kept.contains(id) { continue }
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
+
+    /// Removed thoughts whose thirty days are up: gone — not an undo step, it's
+    /// time passing, not you.
+    private func sweepRemoved() {
+        let limit = Self.removedLimit
+        let gone = all.filter { ($0.deleted ?? .distantFuture) < limit }.map(\.id)
+        guard !gone.isEmpty else { return }
+        for id in gone { dropSound(id) }
+        all.removeAll { gone.contains($0.id) }
+        save()
+    }
+
+    private func dayChanged() {
+        sweepRemoved()
+        objectWillChange.send()
+        reindex()
     }
 
     private func reindex() {
@@ -196,7 +244,7 @@ final class Thoughts: ObservableObject {
         var next = all
         body(&next)
         guard next != all else { return }
-        undoSteps.append(Step(label: label, before: all))
+        undoSteps.append(Step(label: label, before: all, at: Date()))
         if undoSteps.count > 30 { undoSteps.removeFirst() }
         redoSteps.removeAll()
         all = next
@@ -209,17 +257,37 @@ final class Thoughts: ObservableObject {
 
     func undo() {
         guard let step = undoSteps.popLast() else { return }
-        redoSteps.append(Step(label: step.label, before: all))
-        all = step.before
+        redoSteps.append(Step(label: step.label, before: all, at: Date()))
+        all = restored(step)
         toast = nil
         save()
     }
 
     func redo() {
         guard let step = redoSteps.popLast() else { return }
-        undoSteps.append(Step(label: step.label, before: all))
-        all = step.before
+        undoSteps.append(Step(label: step.label, before: all, at: Date()))
+        all = restored(step)
         save()
+    }
+
+    /// The step's snapshot, with what the app did on its own since left as it is:
+    /// a thought being written down then has the text it got (or is gone, if not
+    /// a word was heard), and one said after the step is still there.
+    private func restored(_ step: Step) -> [Thought] {
+        var next = step.before
+        for i in next.indices.reversed() where next[i].writing != nil {
+            if let now = all.first(where: { $0.id == next[i].id }) {
+                next[i].text = now.text
+                next[i].writing = now.writing
+                next[i].language = now.language
+                next[i].updated = now.updated
+            } else {
+                next.remove(at: i)
+            }
+        }
+        let known = Set(next.map(\.id))
+        next += all.filter { $0.date > step.at && !known.contains($0.id) }
+        return next
     }
 
     private func say(_ label: String) {
@@ -250,6 +318,9 @@ final class Thoughts: ObservableObject {
         thought.language = language
         all.append(thought)          // not an undo step: it's the app writing, not you
         let id = thought.id
+        #if DEBUG
+        if previewing { return id }
+        #endif
         Self.writer.async {
             let url = Self.soundURL(id)
             try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true,
@@ -264,7 +335,7 @@ final class Thoughts: ObservableObject {
 
     /// Written down: the text in, the sound gone.
     func fill(_ id: UUID, text: String) {
-        guard let i = all.firstIndex(where: { $0.id == id }) else { return add(text) }
+        guard let i = all.firstIndex(where: { $0.id == id }) else { dropSound(id); return add(text) }
         let text = Self.tidy(text)
         if text.isEmpty { return discard(id) }
         all[i].text = text
@@ -319,6 +390,9 @@ final class Thoughts: ObservableObject {
     }
 
     private func dropSound(_ id: UUID) {
+        #if DEBUG
+        if previewing { return }
+        #endif
         let url = Self.soundURL(id)
         Self.writer.async { try? FileManager.default.removeItem(at: url) }
     }
@@ -373,6 +447,7 @@ final class Thoughts: ObservableObject {
         change(label) { all in
             for i in all.indices where ids.contains(all[i].id) { all[i].deleted = Date() }
         }
+        sweepRemoved()
     }
 
     /// Back from "Nyligen raderade", where it was.
@@ -458,18 +533,19 @@ final class Thoughts: ObservableObject {
     func markdown() -> String {
         let time = Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale)
         var lines = ["# " + String(localized: "Tankar"), ""]
+        func line(_ t: Thought) -> String {
+            "- " + t.date.formatted(time) + ": " + t.text.replacingOccurrences(of: "\n", with: "\n  ")
+                + (t.done ? " " + String(localized: "(klar)") : "")
+        }
         if !pinned.isEmpty {
             lines += ["## " + String(localized: "Fäst"), ""]
-            lines += pinned.filter { $0.writing == nil }.map { "- " + $0.text.replacingOccurrences(of: "\n", with: "\n  ") }
+            lines += pinned.filter { $0.writing == nil }.map(line)
             lines.append("")
         }
         for day in days {
             let title = day.day.formatted(Date.FormatStyle().weekday(.wide).day().month(.wide).year().locale(AppLanguage.locale))
             lines += ["## " + title.prefix(1).uppercased() + title.dropFirst(), ""]
-            for t in day.items where t.writing == nil {
-                lines.append("- " + t.date.formatted(time) + ": " + t.text.replacingOccurrences(of: "\n", with: "\n  ")
-                             + (t.done ? " " + String(localized: "(klar)") : ""))
-            }
+            lines += day.items.filter { $0.writing == nil }.map(line)
             lines.append("")
         }
         return lines.joined(separator: "\n")

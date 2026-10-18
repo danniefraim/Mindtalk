@@ -712,6 +712,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 store.restore([c.id]);                               check("C tillbaka på sin plats", order() == "ECDA")
                 store.setDone([e(store).id], true);                  check("E klar räknas inte som öppen", store.openCount == 4)
                 store.edit(c.id, text: "  c ändrad ");               check("ändra: versal och trimmat", store.all.first { $0.id == c.id }?.text == "C ändrad")
+                // A thought said after a step is no part of it: ⌘Z leaves it be.
+                store.remove([c.id])
+                let p = store.hold([0.1, 0.2], language: .swedish)
+                store.fill(p, text: "P")
+                store.undo()
+                check("ångra tar inte bort en tanke sagd efteråt", order() == "PEC ändradDA" && store.all.first { $0.id == p }?.writing == nil)
+                // One still being written when you undo keeps being written, and gets its text.
+                store.setDone([a.id], true)
+                let q = store.hold([0.1, 0.2], language: .swedish)
+                store.undo()
+                check("ångra lämnar en tanke som skrivs ned", store.all.first { $0.id == q }?.writing == .writing
+                      && store.all.first { $0.id == a.id }?.done == false)
+                store.fill(q, text: "Q");                            check("…och den får sin text", store.all.first { $0.id == q }?.text == "Q")
+                // One discarded (not a word heard) meanwhile stays gone.
+                store.setDone([a.id], true)
+                let r = store.hold([0.1, 0.2], language: .swedish)
+                store.discard(r)
+                store.undo();                                        check("ångra väcker inte en kasserad tanke", !store.all.contains { $0.id == r })
+                // Sounds with no thought still being written are swept.
+                let folder = FileManager.default.temporaryDirectory.appendingPathComponent("mindtalk-thoughts-test-\(getpid())", isDirectory: true)
+                try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                let keptSound = UUID(), orphan = UUID()
+                for name in [keptSound.uuidString + ".f32", orphan.uuidString + ".f32", "not-a-uuid.f32", "notes.txt"] {
+                    try? Data([1, 2, 3]).write(to: folder.appendingPathComponent(name))
+                }
+                Thoughts.sweepSounds(in: folder, keeping: [keptSound])
+                let left = Set((try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? [])
+                check("övergivna ljud rensas, det som skrivs ned är kvar", left == [keptSound.uuidString + ".f32", "notes.txt"])
+                try? FileManager.default.removeItem(at: folder)
                 print(failed == 0 ? "Tankar self-test passed." : "\(failed) fel")
                 exit(failed == 0 ? 0 : 1)
                 @MainActor func e(_ s: Thoughts) -> Thought { s.days.first!.items.first { $0.text == "E" }! }

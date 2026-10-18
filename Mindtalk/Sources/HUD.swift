@@ -32,9 +32,10 @@ final class HUD {
             self.panel = panel
         }
         guard let panel else { return }
-        // Clickable only while locked, when it has buttons; otherwise it never gets in the way.
+        // Clickable only while locked, when it has buttons, and while "Sparad i Tankar."
+        // is up (a click opens Tankar); otherwise it never gets in the way.
         let dictation = Dictation.shared
-        panel.ignoresMouseEvents = !(dictation.handsFree && dictation.phase == .recording)
+        panel.ignoresMouseEvents = !((dictation.handsFree && dictation.phase == .recording) || dictation.phase == .saved)
         place(panel)
         panel.orderFrontRegardless()
     }
@@ -100,7 +101,7 @@ private struct HUDView: View {
                 if dictation.forThought {
                     Image(systemName: "lightbulb.fill")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Color(red: 1, green: 0.84, blue: 0.4))
+                        .foregroundStyle(.white.opacity(0.85))
                         .padding(.leading, dictation.handsFree ? 0 : 2)
                         .transition(.opacity)
                 }
@@ -114,8 +115,13 @@ private struct HUDView: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.6)))
                 }
                 if dictation.handsFree {
+                    // A thought is kept, not typed: a check, not the text cursor.
                     RoundButton(help: dictation.forThought ? "Spara tanken" : "Skriv in", filled: true) { dictation.finishFromHUD() } label: {
-                        CursorGlyph().frame(width: 8, height: 13)
+                        if dictation.forThought {
+                            Image(systemName: "checkmark").font(.system(size: 10, weight: .bold))
+                        } else {
+                            CursorGlyph().frame(width: 8, height: 13)
+                        }
                     }
                     .transition(.scale(scale: 0.4).combined(with: .opacity))
                 }
@@ -123,7 +129,7 @@ private struct HUDView: View {
                 SettlingLine()
                     .frame(width: 60, height: 16)
             case .failed(let message):
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warning)
                 Text(message)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white)
@@ -139,10 +145,19 @@ private struct HUDView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: Self.textWidth, alignment: .leading)
             case .saved:
-                Image(systemName: "lightbulb.fill").foregroundStyle(Color(red: 1, green: 0.84, blue: 0.4))
-                Text("Sparad i Tankar")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white)
+                // A click: to Tankar, where it went.
+                Button { dictation.openThoughtsFromHUD() } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "lightbulb.fill").foregroundStyle(.white.opacity(0.85))
+                        Text("Sparad i Tankar.")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.white)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Öppna Tankar")
+                .accessibilityHint(Text("Öppnar Tankar"))
             case .idle:
                 EmptyView()
             }

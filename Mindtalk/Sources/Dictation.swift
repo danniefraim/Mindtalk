@@ -756,9 +756,10 @@ final class Dictation: ObservableObject {
         }
         if let problem = pendingProblem {
             pendingProblem = nil
+            problem()                // said as a thought's problem, then it's no thought
             forThought = false
             thoughtByKey = false
-            return problem()
+            return
         }
         if ignoreNextRelease { ignoreNextRelease = false; return }
         guard phase == .recording, forThought, !handsFree, let pressedAt else { return }
@@ -785,13 +786,14 @@ final class Dictation: ObservableObject {
         case .idle, .failed, .copied, .saved:
             freshStart()
             forThought = true
+            // A click is clearly meant: a problem (the model starting, no mic) is said
+            // at once, not held for a key release that never comes.
+            lastReport = Date()
             begin()
+            lastReport = nil
             if phase == .recording { lock() } else {
                 forThought = false
-                // A click has no key to let go of: a problem left waiting for a release
-                // would swallow the next real one.
                 pendingProblem = nil
-                lastReport = nil
             }
         default:
             beep()
@@ -810,6 +812,13 @@ final class Dictation: ObservableObject {
     func finishFromHUD() {
         guard phase == .recording else { return }
         finish()
+    }
+
+    /// "Sparad i Tankar." clicked: the thought, where it went.
+    func openThoughtsFromHUD() {
+        guard phase == .saved else { return }
+        reset()
+        AppDelegate.showWindow(page: .thoughts)
     }
 
     /// The language, shown for a moment in the HUD when it differs from last time.
@@ -875,7 +884,10 @@ final class Dictation: ObservableObject {
     private func begin() {
         // One microphone, one model: a meeting being recorded has both.
         if MeetingSession.shared.isRecording {
-            return report { $0.fail(String(localized: "Ett möte spelas in, så dikteringen är pausad.")) }
+            return report {
+                $0.fail($0.forThought ? String(localized: "Ett möte spelas in, så tankar får vänta.")
+                                      : String(localized: "Ett möte spelas in, så dikteringen är pausad."))
+            }
         }
         // One speech model at a time: an import writing in the other language has it.
         if MeetingImport.shared.jobs.contains(where: { ($0.stage == .reading || $0.stage == .writing) && $0.language != engine }) {
@@ -1051,6 +1063,7 @@ final class Dictation: ObservableObject {
         let lasted = recordingStarted.map { Date().timeIntervalSince($0) } ?? 0
         watchdog?.invalidate(); watchdog = nil
         MediaControl.shared.end()
+        let locked = handsFree
         handsFree = false
         awaitingSecondTap = false
         secondTapDown = false
@@ -1075,7 +1088,7 @@ final class Dictation: ObservableObject {
         let pending = thought && !TextInserter.dryRun ? Thoughts.shared.hold(samples, language: language) : nil
         writingThought = pending
         let take = Take(samples: samples, job: job, language: language, heard: peakLevel, thought: thought,
-                        byKey: thoughtByKey, pending: pending,
+                        byKey: thoughtByKey, locked: locked, pending: pending,
                         // Where you are when you stop talking is where the text goes — or
                         // nowhere, if you switch app while it's being written.
                         target: NSWorkspace.shared.frontmostApplication?.processIdentifier,
@@ -1102,6 +1115,9 @@ final class Dictation: ObservableObject {
         let heard: Float
         let thought: Bool
         let byKey: Bool
+        /// Listening hands-free (a tap, or the button): ended on purpose, so not a
+        /// word heard is worth saying.
+        let locked: Bool
         let pending: UUID?
         let target: pid_t?
         let secret: Bool
@@ -1147,7 +1163,7 @@ final class Dictation: ObservableObject {
             if let pending = take.pending { Thoughts.shared.discard(pending) }
             guard current else { return }
             // The thought key held alone and not a word: ⌘ held for something else.
-            if take.thought && take.byKey { return reset() }
+            if take.thought && take.byKey && !take.locked { return reset() }
             return fail(take.heard < 0.03 ? String(localized: "Hörde inget. Kontrollera mikrofonen.")
                                           : String(localized: "Uppfattade inga ord. Försök igen."))
         }
@@ -1197,7 +1213,7 @@ final class Dictation: ObservableObject {
     }
 
     private static var micWentQuiet: String { String(localized: "Mikrofonen tystnade. Det du hann säga är kvar.") }
-    private static var thoughtWithoutText: String { String(localized: "Tanken sparades utan text. Försök igen i Tankar.") }
+    private static var thoughtWithoutText: String { String(localized: "Tanken kunde inte skrivas ned. Försök igen i Tankar.") }
 
     /// Esc while writing, or writing that never ends: the HUD and the key are free
     /// again. A thought gets its text if it comes, or "Försök igen" in Tankar.
