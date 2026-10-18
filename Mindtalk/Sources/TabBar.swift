@@ -108,6 +108,7 @@ struct FloatingTabBar: View {
     private var statusText: String {
         if meeting.isRecording { return String(localized: "Ett möte spelas in") }
         switch dictation.model {
+        case .downloading(let p) where SpeechModel.isPreparing(p): return String(localized: "Förbereder talmodellen…")
         case .downloading(let p): return String(localized: "Laddar ned \(Int(p * 100)) %")
         case .loading: return String(localized: "Startar…")
         default: return dictation.setupIssue?.title ?? String(localized: "Redo")

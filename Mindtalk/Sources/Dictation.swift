@@ -113,6 +113,11 @@ final class Dictation: ObservableObject {
     }
     /// When the current recording started (for the HUD's timer).
     @Published private(set) var recordingStarted: Date?
+    /// A dictation has been typed or copied at least once (a thought isn't one): the
+    /// first step on Hem's first-day card. Never reset.
+    @Published private(set) var dictatedOnce = UserDefaults.standard.bool(forKey: "dictatedOnce") {
+        didSet { UserDefaults.standard.set(dictatedOnce, forKey: "dictatedOnce") }
+    }
 
     struct Entry: Identifiable, Equatable, Codable {
         var id = UUID()
@@ -1156,6 +1161,7 @@ final class Dictation: ObservableObject {
             return saved()
         }
         guard current else { return }
+        if !selfTest, !onlyBreak { dictatedOnce = true }
         if !selfTest && !secret && !onlyBreak {
             Stats.shared.record(text: text, seconds: Double(take.samples.count) / 16_000)
             var updated = recent

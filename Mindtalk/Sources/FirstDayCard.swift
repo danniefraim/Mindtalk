@@ -28,6 +28,13 @@ struct FirstDayCard: View {
     /// A week from the first time it showed.
     private static let lasts: TimeInterval = 7 * 86_400
 
+    /// Whether the card is on Hem right now. The hero reads it: while the card teaches
+    /// the three steps, the hero welcomes instead of saying the dictation key a third time.
+    @MainActor final class Presence: ObservableObject {
+        static let shared = Presence()
+        @Published fileprivate(set) var showing = false
+    }
+
     private struct Steps: Equatable {
         var dictated: Bool, thought: Bool, meeting: Bool
         var count: Int { [dictated, thought, meeting].filter { $0 }.count }
@@ -39,7 +46,11 @@ struct FirstDayCard: View {
         if HomeDebug.firstDayDone { return Steps(dictated: true, thought: true, meeting: true) }
         if HomeDebug.firstDay { return Steps(dictated: true, thought: false, meeting: false) }
         #endif
-        return Steps(dictated: stats.totalWords > 0, thought: thoughts.all.contains { $0.deleted == nil }, meeting: !store.meetings.isEmpty)
+        // A dictation typed somewhere (a thought's words count on the tile, not here), a
+        // thought with its text in place, a meeting kept.
+        return Steps(dictated: dictation.dictatedOnce,
+                     thought: thoughts.all.contains { $0.deleted == nil && $0.writing == nil && !$0.text.isEmpty },
+                     meeting: !store.meetings.isEmpty)
     }
 
     /// Went through the introduction (the day it was done is kept) and has nothing from
@@ -59,9 +70,11 @@ struct FirstDayCard: View {
         if HomeDebug.firstDay || HomeDebug.firstDayDone { return true }
         if Demo.on { return false }
         #endif
-        // After the setup, with the speech model up — and the meetings read, so a
-        // meeting from before doesn't flash as not done.
-        guard !closed, !dictation.needsSetup, dictation.model == .ready, store.loaded else { return false }
+        // After the setup, and the meetings read, so a meeting from before doesn't flash
+        // as not done. The first time, only with the speech model up; once shown it stays
+        // through a language switch.
+        guard !closed, !dictation.needsSetup, store.loaded else { return false }
+        if shownAt == 0, dictation.model != .ready { return false }
         // Celebrated once already (quit during "Allt klart"): not again.
         if celebrated, !celebrating { return false }
         if shownAt > 0 { return celebrating || Date().timeIntervalSince1970 - shownAt < Self.lasts }
@@ -80,6 +93,8 @@ struct FirstDayCard: View {
                     if shownAt == 0 { shownAt = Date().timeIntervalSince1970 }
                     celebrateIfDone()
                 }
+                .onAppear { Presence.shared.showing = true }
+                .onDisappear { Presence.shared.showing = false }
                 .onChange(of: steps) { celebrateIfDone() }
                 .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)) { note in
                     guard let window = note.object as? NSWindow, window.contentViewController is NSHostingController<MainView> else { return }
@@ -254,12 +269,14 @@ struct MenuBarChip: View {
 // MARK: - Screenshots (debug builds)
 
 /// Hem in states this Mac isn't in, for `--render-home`: `--first-day` (one of three
-/// done), `--first-day-done` (Allt klart), `--model-loading` (the speech model being
-/// made ready, three minutes in), `--model-preparing` (the download's last step) and
-/// `--menubar-hint` (the bubble from the menu bar, under the page). Nothing is saved.
+/// done), `--fresh` (with it: nothing said yet, the hero welcomes), `--first-day-done`
+/// (Allt klart), `--model-loading` (the speech model being made ready, three minutes
+/// in), `--model-preparing` (the download's last step) and `--menubar-hint` (the bubble
+/// from the menu bar, under the page). Nothing is saved.
 enum HomeDebug {
     #if DEBUG
     nonisolated static let firstDay = CommandLine.arguments.contains("--first-day")
+    nonisolated static let fresh = CommandLine.arguments.contains("--fresh")
     nonisolated static let firstDayDone = CommandLine.arguments.contains("--first-day-done")
     nonisolated static let modelLoading = CommandLine.arguments.contains("--model-loading")
     nonisolated static let modelPreparing = CommandLine.arguments.contains("--model-preparing")

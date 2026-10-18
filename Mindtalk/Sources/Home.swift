@@ -42,6 +42,7 @@ struct HomeHero: View {
     @ObservedObject private var session = MeetingSession.shared
     @ObservedObject private var voices = VoiceModels.shared
     @ObservedObject private var stats = Stats.shared
+    @ObservedObject private var firstDay = FirstDayCard.Presence.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Ink: the tile is light, so its text is the page's own.
@@ -53,9 +54,10 @@ struct HomeHero: View {
         let week = stats.week
         let weekWords = week.reduce(0) { $0 + $1.stat.words }
         let fresh = stats.totalWords == 0
-        // A new user has no week to show: seven grey stubs would read as a broken chart.
-        // While a meeting goes on, or the setup isn't done, the tile is about that.
-        let showWeek = !fresh && !session.isRecording && !needsSetup
+        // An empty week is no chart: seven grey stubs would read as a broken one. While a
+        // meeting goes on, the setup isn't done or the first start is explained, the tile
+        // is about that.
+        let showWeek = weekWords > 0 && !welcoming(fresh) && !session.isRecording && !needsSetup && slowStart == nil
         let top = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 32)) : AnyLayout(VStackLayout(alignment: .leading, spacing: 26))
         VStack(alignment: .leading, spacing: 22) {
             header
@@ -76,7 +78,8 @@ struct HomeHero: View {
                         .padding(.top, -20).padding(.bottom, -46).padding(.trailing, -14)
                         .allowsHitTesting(false)
                 }
-                if !needsSetup {
+                // A meeting going on keeps its pause and stop, setup done or not.
+                if !needsSetup || session.isBusy {
                     Rectangle().fill(DS.Colors.divider).frame(height: 1)
                         .padding(.top, 12).padding(.bottom, 18)
                     bottomRow
@@ -86,14 +89,14 @@ struct HomeHero: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .tile()
             .animation(reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.1), value: session.phase)
-            // A start that takes more than a few seconds is the long first one; a language
-            // switch is over before it would show.
+            // The first start of a language on this Mac is the long one, said almost at once
+            // (half a second, so a start that is over in a blink never shows it). A slow
+            // ordinary start isn't "Nästan klart".
             .task(id: "\(dictation.model == .loading)-\(dictation.loadingSince.timeIntervalSince1970)") {
                 slowSince = nil
-                // Only the very first start on this Mac is long; a slow ordinary one isn't "Nästan klart".
                 guard dictation.model == .loading, dictation.firstPreparation else { return }
                 let since = dictation.loadingSince
-                let wait = 3 - Date().timeIntervalSince(since)
+                let wait = 0.5 - Date().timeIntervalSince(since)
                 if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
                 if !Task.isCancelled, dictation.model == .loading { slowSince = since }
             }
@@ -129,11 +132,13 @@ struct HomeHero: View {
                 .padding(.top, 10)
             } else if needsSetup {
                 if case .modelDownloading(let p) = setupIssue {
-                    // Only the download left: nothing for you to do but wait.
-                    Text("Nästan klart").font(.system(size: 40, weight: .regular, design: .serif)).foregroundStyle(ink)
-                    Text(verbatim: SpeechModel.isPreparing(p)
+                    // Only the download left: nothing for you to do but wait. "Nästan klart"
+                    // once the files are in, not at the first byte.
+                    let preparing = SpeechModel.isPreparing(p)
+                    Text(preparing ? "Nästan klart" : "Laddar ned talmodellen").font(.system(size: 40, weight: .regular, design: .serif)).foregroundStyle(ink)
+                    Text(verbatim: preparing
                          ? String(localized: "Talmodellen görs redo för din Mac, bara första gången.")
-                         : String(localized: "Laddar ned talmodellen · \(dictation.engine.progressText(p, started: dictation.downloadStarted[dictation.engine]))"))
+                         : dictation.engine.progressText(p, started: dictation.downloadStarted[dictation.engine]))
                         .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted).monospacedDigit().padding(.top, 8)
                 } else {
                     // Not ready yet: the steps are in the card below, not a promise here.
@@ -156,6 +161,13 @@ struct HomeHero: View {
                 }
                 .padding(.top, 8)
                 SettlingLine(color: ink).frame(width: 60, alignment: .leading).padding(.top, 14).accessibilityHidden(true)
+            } else if welcoming(fresh) {
+                // Nothing said yet and the first-day card below says how: the hero
+                // welcomes rather than saying the key a third time.
+                Text("Välkommen till Mindtalk").font(.system(size: 40, weight: .regular, design: .serif))
+                    .foregroundStyle(ink).lineLimit(2).minimumScaleFactor(0.7)
+                Text("Allt du säger blir text, direkt på din Mac.").font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true).padding(.top, 8)
             } else {
                 let today = stats.today.words
                 if today > 0 || weekWords > 0 {
@@ -208,6 +220,15 @@ struct HomeHero: View {
         if HomeDebug.modelPreparing { return .modelDownloading(0.95) }
         #endif
         return dictation.setupIssue
+    }
+
+    /// Nothing dictated yet, with the first-day card on the page: it says how, so the
+    /// hero welcomes and the line under it keeps the key to itself.
+    private func welcoming(_ fresh: Bool) -> Bool {
+        #if DEBUG
+        if HomeDebug.fresh { return true }
+        #endif
+        return fresh && firstDay.showing
     }
 
     /// The issue in Hem's words: one name for the model — "talmodellen".
@@ -313,14 +334,14 @@ struct HomeHero: View {
         HStack(alignment: .center, spacing: 16) {
             if session.isRecording || { if case .finishing = session.phase { return true } else { return false } }() {
                 showMeeting
-            } else {
+            } else if !welcoming(stats.totalWords == 0) {
                 dictationHint
             }
             Spacer(minLength: 16)
             HStack(spacing: 8) {
                 if session.isRecording {
                     meetingButtons
-                } else if session.phase == .idle {
+                } else {
                     startButtons
                 }
             }
@@ -349,7 +370,9 @@ struct HomeHero: View {
         tileButton("Säg en tanke", primary: false, keys: Settings.thoughtShortcut?.chip,
                    help: micBusy ? busy : String(localized: "Säg det du kommer på, så sparas det i Tankar")) { dictation.startThought() }
             .disabled(micBusy || !dictation.engine.isInstalled)
-        if voices.state == .ready, dictation.engine.isInstalled {
+        // A thought can be said while the last meeting is written out; the next meeting waits.
+        if case .finishing = session.phase {
+        } else if voices.state == .ready, dictation.engine.isInstalled {
             tileButton("Starta möte", dot: true, primary: true, keys: meetingKeys,
                        help: micBusy ? busy : String(localized: "Spela in ett möte i rummet")) {
                 // To the start card, waiting for your choice: nothing is recorded yet.
@@ -496,11 +519,14 @@ struct InkSphere: View {
     /// Off screen for another reason (scrolled away, a file dragged over): no frames drawn.
     var paused = false
     @State private var visible = true
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let level = listening ? Double(min(1, (meter.levels.suffix(3).max() ?? 0) * 1.6)) : 0.22
-        // Plain ink points on the light tile; light added to the dark one. (The app's
-        // appearance, not the view's colour scheme: a still picture has none.)
+        // Plain ink points on the light tile; light added to the dark one. The value comes
+        // from the app's appearance (a still picture has no colour scheme); the scheme is
+        // read so the body is drawn again when the appearance changes.
+        let _ = colorScheme
         let light = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) != .darkAqua
         Constellation(figure: nil, color: DS.Colors.ink, level: level, searching: listening, paused: !visible || paused, onLight: light)
             .opacity(light ? 0.5 : 0.42)

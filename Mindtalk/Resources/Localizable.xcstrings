@@ -2467,6 +2467,22 @@
         }
       }
     },
+    "Allt du säger blir text, direkt på din Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everything you say becomes text, right on your Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allt du säger blir text, direkt på din Mac."
+          }
+        }
+      }
+    },
     "Allt klart, nu kör du.": {
       "localizations": {
         "en": {
@@ -12081,6 +12097,7 @@
       }
     },
     "Laddar ned talmodellen · %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13634,6 +13651,7 @@
       }
     },
     "Markerar det som sägs just nu (⌥⌘%lld)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -24402,6 +24420,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Välj vilken modell som skriver sammanfattningarna i Inställningar → Modeller."
+          }
+        }
+      }
+    },
+    "Välkommen till Mindtalk": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome to Mindtalk"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välkommen till Mindtalk"
           }
         }
       }

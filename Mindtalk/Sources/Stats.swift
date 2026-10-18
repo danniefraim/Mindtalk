@@ -32,12 +32,14 @@ final class Stats: ObservableObject {
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)
         f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .autoupdatingCurrent
         f.dateFormat = "yyyy-MM-dd"
         return f
     }()
 
-    /// Today's key. It moves at midnight — and when the Mac wakes on a new day — so
-    /// "i dag" and the week follow the clock rather than wait for the next dictation.
+    /// Today's key. It moves at midnight — and when the Mac wakes on a new day, or lands
+    /// in another time zone — so "i dag" and the week follow the clock rather than wait
+    /// for the next dictation.
     @Published private(set) var day = Stats.key(for: Date())
     private var dayWatch: [NSObjectProtocol] = []
 
@@ -52,6 +54,7 @@ final class Stats: ObservableObject {
             NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main, using: roll),
             NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main, using: roll),
             NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main, using: roll),
+            NotificationCenter.default.addObserver(forName: .NSSystemTimeZoneDidChange, object: nil, queue: .main, using: roll),
         ]
     }
 
@@ -107,7 +110,7 @@ final class Stats: ObservableObject {
     static let calendar: Calendar = {
         var cal = Calendar(identifier: .iso8601)
         cal.locale = AppLanguage.locale
-        cal.timeZone = .current
+        cal.timeZone = .autoupdatingCurrent
         return cal
     }()
 

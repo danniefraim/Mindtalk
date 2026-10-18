@@ -1892,8 +1892,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
         Self.updateDockPolicy()
         // Mindtalk just left the Dock: once, a word from the menu bar icon on where it went.
-        // Not while a meeting moves into its panel, nor on the way out.
-        if closing === window, !windowOpen, !Settings.showInDock, !Self.isQuitting, !MeetingSession.shared.isRecording {
+        // Not while a meeting moves into its panel or is written out, nor on the way out.
+        if closing === window, !windowOpen, !Settings.showInDock, !Self.isQuitting, !MeetingSession.shared.isBusy {
             MenuBarHint.showOnce(from: statusItem.button)
         }
     }
