@@ -104,11 +104,17 @@ enum TextCleanup {
 
     // MARK: Voice commands
 
+    // A comma the speech model put before the command goes with it ("Hej, ny rad." → "Hej" and a break).
     private static let paragraph = try! NSRegularExpression(
-        pattern: #"[ \t]*(?<![\p{L}\p{N}])(?:nytt[ \t]*stycke|new[ \t]*paragraph)(?![\p{L}\p{N}])[.,;:!?]?[ \t]*"#,
+        pattern: #"[ \t]*[,;]?[ \t]*(?<![\p{L}\p{N}])(?:nytt[ \t]*stycke|new[ \t]*paragraph)(?![\p{L}\p{N}])[.,;:!?]?[ \t]*"#,
         options: [.caseInsensitive])
     private static let line = try! NSRegularExpression(
-        pattern: #"[ \t]*(?<![\p{L}\p{N}])(?:ny[ \t]*rad|new[ \t]*line)(?![\p{L}\p{N}])[.,;:!?]?[ \t]*"#,
+        pattern: #"[ \t]*[,;]?[ \t]*(?<![\p{L}\p{N}])(?:ny[ \t]*rad|new[ \t]*line)(?![\p{L}\p{N}])[.,;:!?]?[ \t]*"#,
+        options: [.caseInsensitive])
+    /// The whole dictation is the command, said on its own. Short and alone, the speech
+    /// model often hears it as one word ("nyradet", "nytt stycket").
+    private static let alone = try! NSRegularExpression(
+        pattern: #"^[ \t]*(?:(ny[ \t]*rad\p{L}{0,3}|new[ \t]*line)|(nytt?[ \t]*stycke\p{L}{0,2}|new[ \t]*paragraph))[.,;:!?]?[ \t]*$"#,
         options: [.caseInsensitive])
 
     /// "en ny rad", "i ny rad", "a new line": the phrase used as words, not a command.
@@ -119,6 +125,10 @@ enum TextCleanup {
     ]
 
     static func applyCommands(_ text: String) -> String {
+        let whole = NSRange(location: 0, length: (text as NSString).length)
+        if let match = alone.firstMatch(in: text, range: whole) {
+            return match.range(at: 1).location != NSNotFound ? "\n" : "\n\n"
+        }
         var text = text
         for (pattern, breaks) in [(paragraph, "\n\n"), (line, "\n")] {
             let ns = NSMutableString(string: text)

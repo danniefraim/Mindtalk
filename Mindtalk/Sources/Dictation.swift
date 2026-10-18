@@ -873,7 +873,9 @@ final class Dictation: ObservableObject {
                     // A name from your list split by the polish: the text before it is kept.
                     if Vocabulary.shared.keepsWords(of: text, in: fixed) { text = fixed }
                 }
-                guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                // Only "ny rad" or "nytt stycke", said on its own: the break itself is typed.
+                let onlyBreak = !thought && !text.isEmpty && text.allSatisfy(\.isNewline)
+                guard onlyBreak || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     if let pending { Thoughts.shared.discard(pending) }
                     return heard < 0.03 ? fail(String(localized: "Hörde inget. Kontrollera mikrofonen.")) : reset()
                 }
@@ -884,7 +886,7 @@ final class Dictation: ObservableObject {
                     Cue.done()
                     return saved()
                 }
-                if !selfTest && !secret {
+                if !selfTest && !secret && !onlyBreak {
                     Stats.shared.record(text: text, seconds: Double(samples.count) / 16_000)
                     var updated = recent
                     updated.insert(Entry(text: text, date: Date()), at: 0)

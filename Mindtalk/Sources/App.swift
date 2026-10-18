@@ -956,6 +956,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 ("Den låg längst ner där i. Fönstret där man pratar.", "Den låg längst ner där i fönstret där man pratar."),
                 ("Det var det jag tänkte på. Sen gick vi hem.", "Det var det jag tänkte på. Sen gick vi hem."),
                 ("Yeah, det är okej, meh.", "Yeah, det är okej, meh."),
+                ("Hej på dig, ny rad. Hur mår du idag?", "Hej på dig\nHur mår du idag?"),
+                ("Första punkten ny rad, andra punkten nytt stycke, tack.", "Första punkten\nAndra punkten\n\nTack."),
+                ("nyradet.", "\n"),
+                ("Ny rad.", "\n"),
+                ("Nytt stycke.", "\n\n"),
+                ("Skriv en ny rad i listan.", "Skriv en ny rad i listan."),
             ]
             let nameCases: [(String, String?)] = [
                 ("Hej, jag heter Erik och jobbar med försäljningen.", "Erik"),
@@ -974,7 +980,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             for (input, want) in ruleCases {
                 let got = TextCleanup.apply(input, fillers: true, commands: true)
-                if got != want { failed += 1; print("FEL regel: \(input) → \(got)") }
+                if got != want { failed += 1; print("FEL regel: \(input) → \(got.debugDescription)") }
             }
             print(failed == 0 ? "Polish guard, rules and names self-test passed (\(guardCases.count + ruleCases.count + nameCases.count) cases)." : "\(failed) fel")
             exit(failed == 0 ? 0 : 1)
