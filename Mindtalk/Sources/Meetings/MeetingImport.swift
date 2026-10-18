@@ -247,6 +247,8 @@ final class MeetingImport: ObservableObject {
     func remove(_ id: UUID) {
         guard let i = jobs.firstIndex(where: { $0.id == id }) else { return }
         if jobs[i].active { running?.cancel() }
+        // Never begun: its copy (from Röstmemon, Bilder) isn't left in the temporary folder.
+        if jobs[i].stage == .waiting { Self.dropCopy(jobs[i].url) }
         jobs.remove(at: i)
     }
 
@@ -369,8 +371,8 @@ final class MeetingImport: ObservableObject {
             }
             record.refined = true
             record.finished = true
-            // Only now in the list: whole, with its text.
-            MeetingStore.shared.save(record)
+            // Only now in the list: whole, with its text. Not written (the disk full): failed, not done.
+            guard MeetingStore.shared.save(record, onlyIfWritten: true) else { throw ImportError.notSaved }
             update(id) {
                 $0.stage = .done; $0.progress = 1; $0.title = record.title; $0.doneAt = Date()
             }
@@ -457,9 +459,10 @@ final class MeetingImport: ObservableObject {
     }
 
     enum ImportError: Error {
-        case noSound, silent, noSpeech, protected
+        case noSound, silent, noSpeech, protected, notSaved
         var message: String {
             switch self {
+            case .notSaved: return String(localized: "Mindtalk kunde inte spara mötet. Kontrollera att det finns plats på disken.")
             case .protected: return String(localized: "Filen är kopieringsskyddad och kan inte läsas.")
             case .noSound: return String(localized: "Filen har inget ljud.")
             case .silent: return String(localized: "Filen är för kort, under en sekund.")

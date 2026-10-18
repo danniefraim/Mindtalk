@@ -13588,6 +13588,22 @@
         }
       }
     },
+    "Mindtalk kunde inte spara mötet. Kontrollera att det finns plats på disken.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk couldn't save the meeting. Check that there is space on the disk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk kunde inte spara mötet. Kontrollera att det finns plats på disken."
+          }
+        }
+      }
+    },
     "Mindtalk kände igen rösten": {
       "extractionState": "stale",
       "localizations": {
@@ -14188,6 +14204,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mötet kunde inte exporteras"
+          }
+        }
+      }
+    },
+    "Mötet kunde inte flyttas till papperskorgen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting couldn't be moved to the Trash"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet kunde inte flyttas till papperskorgen"
           }
         }
       }
@@ -21442,6 +21474,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Töm…"
+          }
+        }
+      }
+    },
+    "Under mötet går frågor bara med Apple Intelligence. Fråga igen när mötet är klart.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "During the meeting, questions only work with Apple Intelligence. Ask again when the meeting is finished."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Under mötet går frågor bara med Apple Intelligence. Fråga igen när mötet är klart."
           }
         }
       }

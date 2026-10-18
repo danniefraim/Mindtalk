@@ -172,6 +172,7 @@ private struct MeetingList: View {
                            : store.meetings.count == 1 ? String(localized: "1 möte") : String(localized: "\(store.meetings.count) möten"),
                        subtitle: "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får en sammanfattning.")
                 .staggered(0)
+            SaveProblemLine()
             StartCard(session: session, voices: voices, dictation: dictation).staggered(1)
             ImportCards { id in open(id, nil) }
             if !searching, folders.selected == nil {
@@ -418,6 +419,21 @@ private struct MeetingList: View {
         return store.meetings.filter { $0.folder == folder }
     }
 
+}
+
+/// A meeting that couldn't be written (the disk full): said on the page until a save goes through.
+private struct SaveProblemLine: View {
+    @ObservedObject private var store = MeetingStore.shared
+
+    var body: some View {
+        if let problem = store.saveProblem {
+            Label(problem, systemImage: "exclamationmark.triangle.fill")
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(DS.Colors.warning)
+                .fixedSize(horizontal: false, vertical: true)
+                .transition(.opacity)
+        }
+    }
 }
 
 /// "Nu spelar vi in": the start moment, a second long, over the room as it comes in.
@@ -1211,6 +1227,8 @@ struct MeetingView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onDisappear {
+            // A title being typed when the page goes (⌘[, the meeting ending) is kept.
+            if editingTitle { commitTitle() }
             if MeetingPlayer.shared.meeting == record.id { MeetingPlayer.shared.stop() }
             // A "Fortsätt mötet" that couldn't is said here — not later on another page.
             if !live, recorder.phase == .idle { recorder.lastError = nil }
@@ -1310,6 +1328,7 @@ struct MeetingView: View {
             }
             healLine
             banner
+            SaveProblemLine()
             if !live { FolderSuggestion(record: record) }
             // "Fortsätt mötet" couldn't: why, here where you pressed it.
             if !live, let error = recorder.lastError {
@@ -1986,9 +2005,8 @@ private struct SummaryView: View {
     }
 
     @ViewBuilder private var notesSection: some View {
-        if !MeetingNotes.isAvailable {
-            unavailable
-        } else if let summary = record.summary {
+        // A summary already written is shown also when no model can write one now.
+        if let summary = record.summary {
             VStack(alignment: .leading, spacing: 32) {
             if writing || justRewritten {
                 RewriteBanner(writing: writing).transition(.move(edge: .top).combined(with: .opacity))
@@ -2028,13 +2046,15 @@ private struct SummaryView: View {
                         .help("Välj vem som skriver sammanfattningarna i Inställningar → Modeller")
                     Text("Stämmer något inte? Klicka på en tid och lyssna själv.")
                     Spacer(minLength: 16)
-                    Button {
-                        notes.summarize(record.id)
-                    } label: {
-                        Label("Sammanfatta igen", systemImage: "arrow.clockwise")
+                    if MeetingNotes.isAvailable {
+                        Button {
+                            notes.summarize(record.id)
+                        } label: {
+                            Label("Sammanfatta igen", systemImage: "arrow.clockwise")
+                        }
+                        .buttonStyle(.soft)
+                        .disabled(writing)
                     }
-                    .buttonStyle(.soft)
-                    .disabled(writing)
                 }
                 .font(.system(size: 11.5))
                 .foregroundStyle(DS.Colors.muted)
@@ -2051,6 +2071,8 @@ private struct SummaryView: View {
             .animation(.spring(duration: 0.4, bounce: 0.12), value: writing || justRewritten)
         } else if writing {
             WritingPlaceholder()
+        } else if !MeetingNotes.isAvailable {
+            unavailable
         } else {
             HStack(spacing: 14) {
                 Image(systemName: "apple.intelligence").font(.system(size: 18)).foregroundStyle(DS.Colors.muted)

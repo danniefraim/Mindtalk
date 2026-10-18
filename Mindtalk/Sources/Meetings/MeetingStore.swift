@@ -1,3 +1,4 @@
+import AppKit
 import AVFoundation
 import Foundation
 
@@ -497,6 +498,7 @@ enum MeetingText {
     @MainActor static func forget() {
         cache.removeAll()
         older.removeAll()
+        MeetingSearch.forget()
     }
 
     /// Who spoke when: runs of one speaker, a pause of up to 1.5 s kept inside.
@@ -664,39 +666,56 @@ final class MeetingStore: ObservableObject {
         try fm.createDirectory(at: folder(for: id), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
     }
 
-    func save(_ record: MeetingRecord) {
-        let url = Self.recordURL(for: record.id)
-        Self.writer.sync {}          // a quiet save still on its way lands first, not over this one
-        do {
-            try Self.prepareFolder(for: record.id)
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            try encoder.encode(record).write(to: url, options: [.atomic])
-            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
-        } catch {
+    /// Written to its folder, readable only by you.
+    private static func write(_ record: MeetingRecord) throws {
+        try prepareFolder(for: record.id)
+        let url = recordURL(for: record.id)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(record).write(to: url, options: [.atomic])
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+
+    /// A meeting couldn't be written (the disk full, most often): said once on the
+    /// Möten page, and gone again when a save goes through.
+    @Published private(set) var saveProblem: String?
+
+    private func noteSave(_ error: Error?) {
+        if let error {
             NSLog("Mindtalk: could not save meeting: \(error.localizedDescription)")
+            if saveProblem == nil {
+                saveProblem = String(localized: "Mindtalk kunde inte spara mötet. Kontrollera att det finns plats på disken.")
+            }
+        } else if saveProblem != nil {
+            saveProblem = nil
         }
+    }
+
+    /// Saved and in the list. `onlyIfWritten`: a meeting that couldn't be written
+    /// isn't put in the list (an import, which then fails instead).
+    @discardableResult
+    func save(_ record: MeetingRecord, onlyIfWritten: Bool = false) -> Bool {
+        Self.writer.sync {}          // a quiet save still on its way lands first, not over this one
+        var failure: Error?
+        do { try Self.write(record) } catch { failure = error }
+        noteSave(failure)
+        if failure != nil, onlyIfWritten { return false }
         if let i = meetings.firstIndex(where: { $0.id == record.id }) { meetings[i] = record } else {
             // In its place by date — an imported recording may be from long ago.
             meetings.insert(record, at: meetings.firstIndex { $0.date < record.date } ?? meetings.count)
         }
+        return failure == nil
     }
 
     /// While a meeting is recorded (every 20 s, notes): written on a queue of its own,
     /// so a long meeting's file never stalls the page — and the list isn't redrawn
     /// for it (it gets the meeting when it ends).
     func saveQuietly(_ record: MeetingRecord) {
-        let url = Self.recordURL(for: record.id)
         Self.writer.async {
-            do {
-                try Self.prepareFolder(for: record.id)
-                let encoder = JSONEncoder()
-                encoder.dateEncodingStrategy = .iso8601
-                try encoder.encode(record).write(to: url, options: [.atomic])
-                try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
-            } catch {
-                NSLog("Mindtalk: could not save meeting: \(error.localizedDescription)")
-            }
+            var failure: Error?
+            do { try Self.write(record) } catch { failure = error }
+            let failed = failure
+            Task { @MainActor in MeetingStore.shared.noteSave(failed) }
         }
     }
     nonisolated private static let writer = DispatchQueue(label: "ai.mindact.mindtalk.meeting-writer", qos: .utility)
@@ -805,15 +824,28 @@ final class MeetingStore: ObservableObject {
     /// Many meetings changed at once (moved to a folder), already written quietly.
     func replaceAll(_ changed: [MeetingRecord]) { meetings = changed }
 
-    /// Removes the meeting — text and recording — from the Mac.
-    func delete(_ id: UUID) {
+    /// Removes the meeting — text and recording — from the Mac. To the Trash only:
+    /// when that fails, the meeting stays and you're told why. `quietly`: no alert
+    /// (self-tests).
+    @discardableResult
+    func delete(_ id: UUID, quietly: Bool = false) -> Bool {
         Self.writer.sync {}          // a save on its way would bring the folder back
         // To the Trash, like a removed recording — there for a while if it was a mistake.
         let folder = Self.folder(for: id)
-        if (try? FileManager.default.trashItem(at: folder, resultingItemURL: nil)) == nil {
-            try? FileManager.default.removeItem(at: folder)
+        if FileManager.default.fileExists(atPath: folder.path) {
+            do { try FileManager.default.trashItem(at: folder, resultingItemURL: nil) } catch {
+                NSLog("Mindtalk: could not move a meeting to the Trash: \(error.localizedDescription)")
+                if !quietly {
+                    let alert = NSAlert()
+                    alert.messageText = String(localized: "Mötet kunde inte flyttas till papperskorgen")
+                    alert.informativeText = error.localizedDescription
+                    alert.runModal()
+                }
+                return false
+            }
         }
         meetings.removeAll { $0.id == id }
+        return true
     }
 }
 

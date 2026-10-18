@@ -83,7 +83,11 @@ enum MeetingSearch {
     /// The meeting sentence by sentence, with who said it and when. Kept per meeting
     /// until its words or names change, so typing a search doesn't redo every meeting.
     @MainActor static func sentences(of record: MeetingRecord) -> [Sentence] {
-        let key = "\(record.words.count)-\(record.words.last?.end ?? 0)-\(record.names.sorted { $0.key < $1.key })-\(record.moves.count)"
+        // Who said each word too: a merge or a move changes the speakers, not the count.
+        var speakers = Hasher()
+        for w in record.words { speakers.combine(w.speaker) }
+        for m in record.moves { speakers.combine(m.speaker) }
+        let key = "\(record.words.count)-\(record.words.last?.end ?? 0)-\(record.names.sorted { $0.key < $1.key })-\(speakers.finalize())"
         if let cached = cache[record.id], cached.key == key { return cached.sentences }
         let made = makeSentences(of: record)
         if cache.count > 500 { cache.removeAll() }
@@ -91,6 +95,9 @@ enum MeetingSearch {
         return made
     }
     @MainActor private static var cache: [UUID: (key: String, sentences: [Sentence])] = [:]
+
+    /// The word list or the filler setting changed (MeetingText.forget): cleaned afresh.
+    @MainActor static func forget() { cache.removeAll() }
 
     @MainActor private static func makeSentences(of record: MeetingRecord) -> [Sentence] {
         let cast = record.cast
@@ -333,10 +340,15 @@ final class MeetingLibrary: ObservableObject {
             failed = folderName.map { String(localized: "Inga möten med text i \($0) än.") }
             return
         }
-        asking = true
-        failed = nil
         // Not the large model during a meeting: it would crowd the live transcription.
         let local = BetterNotes.shared.isActive && !MeetingSession.shared.isRecording
+        // Then only Apple's model answers: without it, say so plainly.
+        guard local || Polisher.status == .available else {
+            failed = MeetingNotes.onlyAppleDuringMeeting
+            return
+        }
+        asking = true
+        failed = nil
         let context = LibraryContext(question: question, meetings: meetings,
                                      budget: local ? 12_000 : Lines.appleBudget)
         // The questions before, in the same folder — not what was asked about others.

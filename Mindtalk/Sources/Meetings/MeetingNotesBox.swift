@@ -389,6 +389,14 @@ struct SavedNotes: View {
         .onAppear {
             if startEditing, record.notes.isEmpty { text = ""; editing = true; focused = true }
         }
+        // Kept as you type (a moment after you stop), and when the page goes — not only on "Klar".
+        .task(id: text) {
+            guard editing else { return }
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, editing else { return }
+            edit.notes(text)
+        }
+        .onDisappear { if editing { edit.notes(text) } }
     }
 }
 

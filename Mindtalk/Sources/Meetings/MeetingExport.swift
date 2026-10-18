@@ -90,8 +90,22 @@ enum MeetingExport {
                 guard let session = AVAssetExportSession(asset: AVURLAsset(url: source), presetName: AVAssetExportPresetAppleM4A) else {
                     throw CocoaError(.fileWriteUnknown)
                 }
-                try? FileManager.default.removeItem(at: url)       // the save panel asked about replacing it
-                try await session.export(to: url, as: .m4a)
+                // Written beside it first: a file you already had (the save panel asked about
+                // replacing it) is only replaced once the new one is whole.
+                let fm = FileManager.default
+                let dir = (try? fm.url(for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: url, create: true))
+                    ?? fm.temporaryDirectory
+                let temp = dir.appendingPathComponent("Mindtalk-export-\(UUID().uuidString).m4a")
+                defer {
+                    try? fm.removeItem(at: temp)
+                    if dir != fm.temporaryDirectory { try? fm.removeItem(at: dir) }
+                }
+                try await session.export(to: temp, as: .m4a)
+                if fm.fileExists(atPath: url.path) {
+                    _ = try fm.replaceItemAt(url, withItemAt: temp)
+                } else {
+                    try fm.moveItem(at: temp, to: url)
+                }
             } catch {
                 await MainActor.run { fail(error) }
             }

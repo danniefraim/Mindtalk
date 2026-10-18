@@ -169,12 +169,17 @@ final class MeetingNotes: ObservableObject {
         let question = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard Self.isAvailable, !question.isEmpty, !answering.contains(id),
               let record = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
+        let local = BetterNotes.shared.isActive && !MeetingSession.shared.isRecording   // not during a meeting
+        // During a meeting only Apple's model answers: without it, say so plainly.
+        guard local || Polisher.status == .available else {
+            failed[id] = Self.onlyAppleDuringMeeting
+            return
+        }
         answering.insert(id)
         failed[id] = nil
         let lines = Lines(record)
         // The last questions, so "och vem?" knows what it follows.
         let history = record.answers.suffix(2).map { "Q: \($0.question)\nA: \($0.answer)" }.joined(separator: "\n")
-        let local = BetterNotes.shared.isActive && !MeetingSession.shared.isRecording   // not during a meeting
         Task {
             defer { answering.remove(id) }
             do {
@@ -244,6 +249,10 @@ final class MeetingNotes: ObservableObject {
         guard var record = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
         record.answers.removeAll { $0.id == answer.id }
         MeetingStore.shared.save(record)
+    }
+
+    static var onlyAppleDuringMeeting: String {
+        String(localized: "Under mötet går frågor bara med Apple Intelligence. Fråga igen när mötet är klart.")
     }
 
     private static func explain(_ error: Error) -> String {

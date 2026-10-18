@@ -295,14 +295,21 @@ actor LocalWriter {
     private var container: ModelContainer?
     /// Which model's folder `container` was loaded from — another chosen means a reload.
     private var loadedFrom: URL?
-    private var loading: Task<ModelContainer, Error>?
+    /// A load on its way: for which folder, and which load it is (a newer one may replace it).
+    private var loading: (directory: URL, id: UUID, task: Task<ModelContainer, Error>)?
     private var unloadTask: Task<Void, Never>?
+    /// Answers being written now: the model isn't unloaded under any of them.
+    private var inFlight = 0
 
     /// One answer, at temperature 0 (the same text for the same meeting), thinking off.
     func respond(_ prompt: String, maxTokens: Int = 800) async throws -> String {
-        let model = try await load()
+        inFlight += 1
         unloadTask?.cancel()
-        defer { scheduleUnload() }
+        defer {
+            inFlight -= 1
+            scheduleUnload()
+        }
+        let model = try await load()
         let session = ChatSession(model,
                                   generateParameters: GenerateParameters(maxTokens: maxTokens, temperature: 0),
                                   additionalContext: ["enable_thinking": false])
@@ -314,8 +321,12 @@ actor LocalWriter {
 
     func unload() {
         unloadTask?.cancel()
-        loading?.cancel()
+        loading?.task.cancel()
         loading = nil
+        dropModel()
+    }
+
+    private func dropModel() {
         container = nil
         loadedFrom = nil
         MLX.GPU.clearCache()
@@ -324,8 +335,15 @@ actor LocalWriter {
     private func load() async throws -> ModelContainer {
         guard let directory = await MainActor.run(body: { BetterNotes.shared.active?.directory }) else { throw ModelError.notInstalled }
         if let container, loadedFrom == directory { return container }
-        if loadedFrom != directory { unload() }
-        if let loading { return try await loading.value }
+        // Already being loaded: wait for that one, rather than starting over.
+        if let loading {
+            if loading.directory == directory { return try await loading.task.value }
+            // Another model chosen meanwhile: that load goes.
+            loading.task.cancel()
+            self.loading = nil
+        }
+        if loadedFrom != nil { dropModel() }      // another model was loaded
+        let id = UUID()
         let task = Task { () async throws -> ModelContainer in
             // Keep memory for the model, not for a cache of old buffers.
             MLX.GPU.set(cacheLimit: 512 * 1024 * 1024)
@@ -334,19 +352,24 @@ actor LocalWriter {
             Self.log.info("loaded in \(Date().timeIntervalSince(t0), format: .fixed(precision: 1)) s")
             return model
         }
-        loading = task
-        defer { loading = nil }
+        loading = (directory, id, task)
+        // Only this load's own: a newer one started meanwhile is left alone.
+        defer { if loading?.id == id { loading = nil } }
         let model = try await task.value
-        container = model
-        loadedFrom = directory
+        if loading?.id == id {
+            container = model
+            loadedFrom = directory
+        }
         return model
     }
 
+    /// Unloaded two minutes after the last answer — never while one is being written.
     private func scheduleUnload() {
         unloadTask?.cancel()
+        guard inFlight == 0 else { return }
         unloadTask = Task {
             try? await Task.sleep(for: .seconds(120))
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, self.inFlight == 0 else { return }
             self.unload()
         }
     }

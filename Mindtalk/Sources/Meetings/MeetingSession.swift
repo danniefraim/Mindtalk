@@ -348,7 +348,7 @@ final class MeetingSession: ObservableObject {
                 if let heal = saved.heal { print("\n" + MeetingView.healText(heal) + " – ändrade ord: " + heal.changed.map { saved.words[$0].text }.joined(separator: ", ")) }
             }
             // `--keep`: left in Möten, to look at afterwards.
-            if !CommandLine.arguments.contains("--keep") { MeetingStore.shared.delete(id) } else { print("Sparat: \(id.uuidString)") }
+            if !CommandLine.arguments.contains("--keep") { MeetingStore.shared.delete(id, quietly: true) } else { print("Sparat: \(id.uuidString)") }
         }
     }
 
