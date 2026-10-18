@@ -492,6 +492,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 var demo = MeetingRecord(title: "Veckomöte", date: Date(), language: .swedish)
                 demo.names = ["0": "Anna", "1": "Erik"]
                 MeetingSession.shared.armed = args.contains("--armed")
+                MeetingSession.previewPreparing = args.contains("--preparing")
                 let view = VStack(spacing: 30) {
                     StartCard(session: .shared, voices: .shared, dictation: .shared)
                         .padding(30).frame(width: 900)
@@ -628,6 +629,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                 MeetingStore.shared.loadNow()
                 MeetingSession.shared.armed = args.contains("--armed")      // the start card, waiting for a press
+                MeetingSession.previewPreparing = args.contains("--preparing")
                 let page: AnyView = flag == "--render-moten-top" ? AnyView(MeetingsTopPreview()) : AnyView(VocabularyPage(vocabulary: .shared, plain: true))
                 let view = page.padding(28).frame(width: 820).background(DS.Colors.paper)
                     .environment(\.colorScheme, dark ? .dark : .light)

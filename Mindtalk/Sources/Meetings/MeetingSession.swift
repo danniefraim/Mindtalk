@@ -37,7 +37,13 @@ final class MeetingSession: ObservableObject {
         case finishing(String)
     }
 
-    @Published private(set) var phase: Phase = .idle
+    @Published private(set) var phase: Phase = .idle {
+        didSet {
+            if case .finishing = phase { if finishingSince == nil { finishingSince = Date() } } else { finishingSince = nil }
+        }
+    }
+    /// When the final pass began — its time is shown beside what it's doing.
+    @Published private(set) var finishingSince: Date?
     /// The meeting being recorded or finished; nil otherwise.
     @Published private(set) var record: MeetingRecord?
     /// Words still being written: they may change until a pause settles them.
@@ -65,10 +71,27 @@ final class MeetingSession: ObservableObject {
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "meetingStartMode") }
     }
 
-    /// Starts the way you chose last time (the shortcut, the card's Return key).
+    /// Starts the way you chose last time (the shortcut, the card's Return key) —
+    /// not while what it needs is still being prepared: the card says so and waits.
     func startRemembered(folder: UUID? = nil) {
+        guard !Self.preparing(Self.startMode) else { return }
         start(introducing: Self.startMode == .round, folder: folder)
     }
+
+    /// The models a start needs are still being made ready — the speech model, and for
+    /// the round the voices too. The start card's buttons wait; nothing starts on its own
+    /// once they're ready.
+    static func preparing(_ mode: StartMode) -> Bool {
+        #if DEBUG
+        if let previewPreparing { return previewPreparing }
+        #endif
+        return Dictation.shared.model == .loading
+            || (mode == .round && VoiceModels.isInstalled && !VoiceModels.shared.isWarm)
+    }
+    #if DEBUG
+    /// Screenshots: the start card as if preparing (true) or ready (false).
+    static var previewPreparing: Bool?
+    #endif
     /// Voices you've named before, recognised while the meeting runs (the round does
     /// its own while it's up).
     private var recognition: Task<Void, Never>?
@@ -1450,6 +1473,8 @@ final class MeetingSession: ObservableObject {
         if !continuing, record.words.isEmpty, record.duration < 10, record.notes.isEmpty, record.marks.isEmpty {
             MeetingStore.shared.delete(record.id)
             self.record = nil
+            // Said on the start card, so it doesn't look as if the meeting went missing.
+            lastError = String(localized: "Mötet var för kort för att sparas.")
             return done()
         }
         self.record = record

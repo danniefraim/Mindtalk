@@ -485,10 +485,10 @@ struct StartCard: View {
                 // Getting ready: one door — both ways need the same models.
                 HStack(alignment: .center, spacing: 18) {
                     RecordGlyph()
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Nytt möte").font(.system(size: 17, weight: .semibold))
+                    VStack(alignment: .leading, spacing: 8) {
+                        CapsLabel(String(localized: "Nytt möte"))
                         Text(LocalizedStringKey(detail))
-                            .font(.system(size: 13))
+                            .font(.system(size: 13.5))
                             .foregroundStyle(DS.Colors.muted)
                             .fixedSize(horizontal: false, vertical: true)
                         if let error = session.lastError {
@@ -498,7 +498,7 @@ struct StartCard: View {
                     Spacer(minLength: 16)
                     control
                 }
-                .padding(24)
+                .padding(28)
                 .tile()
             }
         }
@@ -508,12 +508,19 @@ struct StartCard: View {
         .onScrollVisibilityChange(threshold: 0.4) { visible in importer.zoneVisible = visible; onScreen = visible }
         .onDisappear { importer.zoneVisible = false; onScreen = false; putDown() }
         .onChange(of: session.phase) { _, now in if now == .idle { starting = false } }
-        .onAppear { windowVisible = AppDelegate.mainWindowVisible; if session.armed { takeKeyboard() } }
+        .onAppear {
+            windowVisible = AppDelegate.mainWindowVisible
+            if session.armed { takeKeyboard() }
+            // The voices made ready now, if launch hasn't got to it yet: the round waits for them.
+            if voices.state == .ready, !voices.isWarm { VoiceModels.warmUp() }
+        }
         .onChange(of: session.armed) { _, armed in if armed { takeKeyboard() } }
+        // Ready again after preparing: the keyboard back on the remembered button.
+        .onChange(of: MeetingSession.preparing(remembered)) { _, now in if !now, session.armed { takeKeyboard() } }
         .background {
             // Esc while the card waits: nothing starts, nothing is recorded.
             if session.armed {
-                Button("") { putDown() }.keyboardShortcut(.cancelAction)
+                Button("") { putDown(escaped: true) }.keyboardShortcut(.cancelAction)
                     .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
             }
         }
@@ -549,42 +556,39 @@ struct StartCard: View {
     /// A new meeting: the choice, the two ways in, the voices, and what it runs on.
     private var room: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Nytt möte").font(.system(size: 28, weight: .regular, design: .serif))
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Är ni flera? Ta en namnrunda, så står rätt namn i texten.")
-                Text("Du kan också namnge talarna under mötet genom att klicka på dem.")
-            }
-            .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.top, 6)
-            .frame(maxWidth: 440, alignment: .leading)
+            CapsLabel(String(localized: "Nytt möte"))
+            Text("Är ni flera? Ta en namnrunda, så står rätt namn i texten.")
+                .font(.system(size: 15)).foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 10)
+                .frame(maxWidth: 440, alignment: .leading)
             if let error = session.lastError {
                 Text(error).font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
                     .fixedSize(horizontal: false, vertical: true).padding(.top, 6)
             }
-            roomControl.padding(.top, 22)
+            roomControl.padding(.top, 20)
             if dictation.micGranted {
                 // On from the start; switched off here or in Settings. The voices are other people's, so the line asks you to tell them.
                 Toggle(isOn: $memory.enabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Kom ihåg rösterna till nästa möte").font(.system(size: 13, weight: .medium))
-                        Text("Bara ett röstavtryck sparas på din Mac, inget ljud. Berätta för de andra i rummet.")
+                        Text("Bara ett röstavtryck sparas på din Mac, aldrig ljud. Fråga de andra i rummet först.")
                             .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.leading, 2)
                 }
-                .toggleStyle(.checkbox)
+                .toggleStyle(InkCheckboxStyle())
                 .padding(.top, 20)
             }
             // The shortcut, what it runs on, and where a new one goes — quietly, at the foot.
-            HStack(spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 if dictation.micGranted {
-                    KeyChip(text: "⇧⌘R", small: true)
-                        .help("Starta möte (⇧⌘R). Du väljer om ni tar en namnrunda eller startar direkt.")
+                    KeyChip(text: StatusPanelView.meetingKeys, small: true)
+                        .help("Starta möte (\(StatusPanelView.meetingKeys)). Du väljer om ni tar en namnrunda eller startar direkt.")
                 }
                 if let caption {
-                    Text(verbatim: caption).font(.system(size: 12)).foregroundStyle(DS.Colors.faint).lineLimit(1)
+                    Text(verbatim: caption).font(.system(size: 12)).foregroundStyle(DS.Colors.faint)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(.top, 16)
@@ -604,24 +608,70 @@ struct StartCard: View {
     /// The ways in: the round of names, or straight into the meeting.
     @ViewBuilder private var roomControl: some View {
         if !dictation.micGranted {
-            roomButton("Tillåt mikrofonen", filled: true, help: "Mindtalk behöver få använda mikrofonen") { dictation.fix(.microphone) }
-        } else {
-            HStack(alignment: .top, spacing: 16) {
-                choice(.round, "Starta med namnrunda", caption: "Alla säger hej och sitt namn. En halv minut.")
-                choice(.direct, "Starta direkt", caption: "Namnge talarna under mötet om du vill.")
+            VStack(alignment: .leading, spacing: 10) {
+                roomButton("Tillåt mikrofonen", filled: true, dot: false, help: "Mindtalk behöver få använda mikrofonen") {
+                    dictation.fix(.microphone)
+                }
+                Text("Mindtalk behöver mikrofonen för att spela in. Slå på den i Systeminställningar under Integritet och säkerhet.")
+                    .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 400, alignment: .leading)
             }
-            .disabled(dictation.phase != .idle || starting)
+        } else {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 16) {
+                    choice(.round, "Starta med namnrunda", caption: "Alla säger hej och sitt namn. En halv minut.")
+                    choice(.direct, "Starta direkt", caption: "Namnge talarna under mötet om du vill.")
+                }
+                .disabled(dictation.phase != .idle || starting)
+                if let line = waitingLine {
+                    Text(verbatim: line)
+                        .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .transition(.opacity)
+                } else if case .failed = dictation.model {
+                    // Never stuck waiting: a model that failed to start can be tried again.
+                    HStack(spacing: 10) {
+                        Text("Talmodellen kunde inte startas.")
+                            .font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
+                        Button("Försök igen") { dictation.retryModel() }
+                            .buttonStyle(SoftButtonStyle(small: true))
+                    }
+                } else if session.armed {
+                    Text(verbatim: remembered == .round
+                         ? String(localized: "Tryck ↩ för att starta med namnrunda. Esc avbryter.")
+                         : String(localized: "Tryck ↩ för att starta direkt. Esc avbryter."))
+                        .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeOut(duration: 0.2), value: waitingLine)
         }
     }
 
+    /// What a start still waits for, in a line under the buttons (nil: nothing).
+    private var waitingLine: String? {
+        if MeetingSession.preparing(.direct) {
+            return String(localized: "Talmodellen förbereds. Det tar någon minut första gången.")
+        }
+        if MeetingSession.preparing(.round) {
+            return String(localized: "Röstmodellen förbereds. Det tar någon minut första gången.")
+        }
+        return nil
+    }
+
     /// One way in, with a line under it. The one you took last time is ink and on
-    /// Return while the card waits for you; the other is soft.
+    /// Return while the card waits for you; the other is soft. While what it needs is
+    /// being prepared, it waits: "Förbereder…", and Return does nothing.
     private func choice(_ mode: MeetingSession.StartMode, _ title: LocalizedStringKey, caption: LocalizedStringKey) -> some View {
         let filled = remembered == mode
+        let waiting = MeetingSession.preparing(mode)
         return VStack(alignment: .leading, spacing: 8) {
-            roomButton(title, filled: filled, ring: filled && session.armed, help: caption) { begin(introducing: mode == .round) }
+            roomButton(waiting ? "Förbereder…" : title, filled: filled, dot: !waiting, ring: filled && session.armed && !waiting,
+                       help: caption) { begin(introducing: mode == .round) }
+                .disabled(waiting)
                 .focused($focus, equals: mode)
-                .keyboardShortcut(filled && session.armed ? .defaultAction : nil)
+                .keyboardShortcut(filled && session.armed && !waiting ? .defaultAction : nil)
                 .accessibilityHint(caption)
             Text(caption).font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -630,12 +680,12 @@ struct StartCard: View {
     }
 
     /// A button on the tile, as on Hem: ink with paper text, or soft grey.
-    private func roomButton(_ title: LocalizedStringKey, filled: Bool, ring: Bool = false, help: LocalizedStringKey,
-                            action: @escaping () -> Void) -> some View {
+    private func roomButton(_ title: LocalizedStringKey, filled: Bool, dot: Bool = true, ring: Bool = false,
+                            help: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         let shape = RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
         return Button(action: action) {
             HStack(spacing: 7) {
-                Circle().fill(DS.Colors.recording).frame(width: 7, height: 7).accessibilityHidden(true)
+                if dot { Circle().fill(DS.Colors.recording).frame(width: 7, height: 7).accessibilityHidden(true) }
                 Text(title).font(.system(size: 13, weight: .semibold))
             }
             .lineLimit(1).fixedSize()
@@ -645,7 +695,7 @@ struct StartCard: View {
             .foregroundStyle(filled ? DS.Colors.onInk : .primary)
             .contentShape(shape)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(RoomPressStyle())
         // Opened for this: the button that Return presses, ringed.
         .overlay(RoundedRectangle(cornerRadius: DS.Radius.control + 3, style: .continuous)
             .strokeBorder(DS.Colors.ink.opacity(ring ? 0.55 : 0), lineWidth: 1.5).padding(-4))
@@ -653,8 +703,18 @@ struct StartCard: View {
         .help(help)
     }
 
+    /// Disabled (preparing): a quieter button, clearly not ready.
+    private struct RoomPressStyle: ButtonStyle {
+        @Environment(\.isEnabled) private var enabled
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
+        }
+    }
+
     /// A press: the way is remembered, the sphere swells, and the meeting starts this moment.
     private func begin(introducing: Bool) {
+        guard !MeetingSession.preparing(introducing ? .round : .direct) else { return }
         MeetingSession.startMode = introducing ? .round : .direct
         remembered = MeetingSession.startMode
         starting = true
@@ -667,28 +727,46 @@ struct StartCard: View {
         DispatchQueue.main.async { focus = remembered }
     }
 
-    /// Esc, or away from the page, while the card waits: nothing starts, nothing is recorded.
-    private func putDown() {
+    /// Esc, or away from the page, while the card waits: nothing starts, nothing is
+    /// recorded. Esc on a card opened from elsewhere (the menu bar, the shortcut, Hem):
+    /// back to where you were, the window out of the way.
+    private func putDown(escaped: Bool = false) {
         guard session.phase == .idle, session.armed else { return }
+        let elsewhere = MeetingPanel.shared.startedElsewhere
         session.armed = false
         MeetingPanel.shared.startedElsewhere = false
+        if escaped, elsewhere {
+            AppDelegate.hideMainWindow()
+            NSApp.deactivate()
+        }
     }
 
     private var detail: String {
+        let speech: String? = {
+            guard !dictation.engine.isInstalled else { return nil }
+            if case .downloading = dictation.model {
+                return String(localized: "Talmodellen laddas ned, så att Mindtalk kan skriva ned det som sägs.")
+            }
+            return voices.state == .ready
+                ? String(localized: "Mindtalk behöver talmodellen för att skriva ned det som sägs.")
+                : String(localized: "Mindtalk behöver också talmodellen för att skriva ned det som sägs.")
+        }()
+        let voicesLine: String?
         switch voices.state {
         case .ready:
-            return String(localized: "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar.")
+            voicesLine = speech == nil ? String(localized: "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar.") : nil
         case .downloading:
-            return String(localized: "Laddar ned Nemotron 3 från NVIDIA, så att Mindtalk hör vem som pratar…")
+            voicesLine = String(localized: "Laddar ned Nemotron 3 från NVIDIA, så att Mindtalk hör vem som pratar.")
         case .missing, .failed:
-            return String(localized: "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (\(VoiceModels.sizeText)). Laddas ned en gång och fungerar sedan utan internet.")
+            voicesLine = String(localized: "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (\(VoiceModels.sizeText)). Den laddas ned en gång och fungerar sedan utan internet.")
         }
+        return [voicesLine, speech].compactMap { $0 }.joined(separator: " ")
     }
 
     private var note: String? {
         guard voices.state == .ready else { return nil }
         if !MeetingNotes.isAvailable {
-            return String(localized: "Utan Apple Intelligence blir det text men ingen sammanfattning")
+            return String(localized: "Utan Apple Intelligence eller Gemma 4 blir det text men ingen sammanfattning.")
         }
         if BetterNotes.shared.isActive {
             return String(localized: "\(dictation.engine.modelName) och Gemma 4")
@@ -699,26 +777,26 @@ struct StartCard: View {
     @ViewBuilder private var control: some View {
         switch voices.state {
         case .ready:
+            // (Ready and the speech model here is the tile above: here it's missing.)
             if !dictation.micGranted {
                 Button("Tillåt mikrofonen") { dictation.fix(.microphone) }.buttonStyle(.ink)
-            } else if !dictation.engine.isInstalled {
+            } else if case .downloading(let p) = dictation.model {
+                VStack(alignment: .trailing, spacing: 6) {
+                    ProgressView(value: p).tint(DS.Colors.ink).frame(width: 140)
+                        .accessibilityLabel("Laddar ned talmodellen")
+                    Text(p, format: .percent.precision(.fractionLength(0)))
+                        .font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.Colors.muted)
+                }
+            } else if dictation.model == .loading {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Förbereder talmodellen").font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                }
+            } else {
                 Button("Ladda ned \(dictation.engine.title)") {
                     NotificationCenter.default.post(name: .showPage, object: Page.settings)
                 }
                 .buttonStyle(.soft)
-            } else {
-                // The way you started last time (the tile above offers both).
-                Button {
-                    session.startRemembered(folder: MeetingFolders.shared.selected)
-                } label: {
-                    HStack(spacing: 8) {
-                        Circle().fill(DS.Colors.recording).frame(width: 8, height: 8)
-                        Text("Starta möte")
-                    }
-                }
-                .buttonStyle(.ink)
-                .help("Starta möte (⇧⌘R). Du väljer om ni tar en namnrunda eller startar direkt.")
-                .disabled(dictation.phase != .idle)
             }
         case .downloading(let p):
             VStack(alignment: .trailing, spacing: 6) {
@@ -1049,6 +1127,8 @@ struct SpeakerChip: View {
 
     enum Style { case chip, name }
     @State private var draft = ""
+    /// Under the pointer: the name underlined and a pencil, so it reads as something to click.
+    @State private var hovering = false
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -1070,14 +1150,22 @@ struct SpeakerChip: View {
                 .contentShape(Capsule())
                 .accessibilityLabel(recognized ? String(localized: "\(cast.name(of: speaker)), igenkänd röst") : cast.name(of: speaker))
             case .name:
-                Text(cast.name(of: speaker))
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(SpeakerMark.ink(of: speaker, in: cast))
-                    .lineLimit(1)
-                    .contentShape(Rectangle())
+                HStack(spacing: 5) {
+                    Text(cast.name(of: speaker))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(SpeakerMark.ink(of: speaker, in: cast))
+                        .underline(hovering, color: SpeakerMark.ink(of: speaker, in: cast).opacity(0.5))
+                        .lineLimit(1)
+                    Image(systemName: "pencil").font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DS.Colors.faint)
+                        .opacity(hovering ? 1 : 0)
+                        .accessibilityHidden(true)
+                }
+                .contentShape(Rectangle())
             }
         }
         .buttonStyle(.plain)
+        .onHover { hovering = $0 }
         .help(recognized ? "Mindtalk kände igen rösten. Klicka för att ändra" : "Ge talaren ett namn")
         .accessibilityHint("Ge talaren ett namn")
         .popover(isPresented: $editing, arrowEdge: .bottom) {
@@ -1235,6 +1323,8 @@ struct MeetingView: View {
         }
         .onAppear {
             title = record.title
+            // Nothing can write a summary on this Mac: the text first, not an empty tab.
+            if !live, !MeetingNotes.isAvailable, record.summary == nil { tab = .transcript }
             if let at = MeetingsPage.focusAt, !live {
                 MeetingsPage.focusAt = nil
                 tab = .transcript
@@ -2106,6 +2196,11 @@ private struct SummaryView: View {
                 }
                 .buttonStyle(.soft)
             }
+            // The other way: Gemma 4, on this Mac, when it can run it.
+            if NotesModel.recommended != nil {
+                Button("Ladda ned Gemma 4") { SettingsPage.openModels() }
+                    .buttonStyle(.soft)
+            }
         }
         .padding(20)
         .card()
@@ -2434,7 +2529,7 @@ private struct LiveBar: View {
         }
         if session.isPaused { return (String(localized: "Pausat. Mikrofonen är av och det som sagts finns kvar."), false) }
         if let w = session.warning { return (w, true) }
-        if !panelTipSeen, session.isRecording {
+        if !panelTipSeen, session.isRecording, !session.introducing {
             return (String(localized: "Stäng fönstret så fortsätter mötet i en liten panel."), false)
         }
         return nil
@@ -2447,6 +2542,7 @@ private struct LiveBar: View {
                 SettlingLine()
                 Text(what).font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
                     .accessibilityLabel(what)
+                FinishingClock(session: session)
             default:
                 timer
                 if session.stopping {
@@ -2498,6 +2594,23 @@ private struct LiveBar: View {
         .buttonStyle(.plain)
         .help("Avsluta mötet. Du kan ångra i några sekunder")
         .accessibilityLabel("Avsluta mötet")
+    }
+}
+
+/// How long the final pass has been going, beside what it's doing — a long meeting
+/// takes a while, and a clock that moves says it hasn't stopped.
+struct FinishingClock: View {
+    @ObservedObject var session: MeetingSession
+    var color: Color = .white.opacity(0.55)
+
+    var body: some View {
+        if let since = session.finishingSince {
+            TimelineView(.periodic(from: since, by: 1)) { context in
+                Text(MeetingView.duration(context.date.timeIntervalSince(since)))
+                    .font(.system(size: 13, weight: .medium)).monospacedDigit().foregroundStyle(color)
+            }
+            .accessibilityHidden(true)
+        }
     }
 }
 

@@ -60,6 +60,8 @@ final class MeetingPanel: ObservableObject {
     /// the meeting belongs in the panel once the round is over.
     var startedElsewhere = false
     private var watchingRound: AnyCancellable?
+    /// The move to the panel, a moment after a meeting started from elsewhere.
+    private var handOff: Task<Void, Never>?
 
     private init() {}
 
@@ -112,8 +114,17 @@ final class MeetingPanel: ObservableObject {
                 returnToPanel = true
                 expand()
             } else if home == .panel {
-                if AppDelegate.mainWindowVisible { AppDelegate.hideMainWindow() }   // behind your work anyway
-                show()
+                // "Nu spelar vi in" is seen first (StartCue, about a second), then the
+                // window goes behind your work and the panel comes. Stopped, put in the
+                // window or ended meanwhile: nothing moves.
+                handOff?.cancel()
+                handOff = Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .seconds(1.2))
+                    guard !Task.isCancelled, let self, self.home == .panel, MeetingSession.shared.isRecording,
+                          !MeetingSession.shared.stopping else { return }
+                    if AppDelegate.mainWindowVisible { AppDelegate.hideMainWindow() }   // behind your work anyway
+                    self.show()
+                }
             }
         } else if !busy, wasBusy, meetingRan || wasRecording || isVisible {
             meetingRan = false
@@ -504,6 +515,8 @@ private struct LivePanel: View {
                     SettlingLine(color: .white)
                     Text(what).font(.system(size: 13, weight: .medium)).foregroundStyle(.white)
                         .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 4)
+                    FinishingClock(session: session)
                 }
                 .padding(.horizontal, 18)
                 .frame(maxWidth: .infinity, minHeight: 44)

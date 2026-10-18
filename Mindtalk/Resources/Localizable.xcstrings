@@ -3400,6 +3400,7 @@
       }
     },
     "Bara ett röstavtryck sparas på din Mac, inget ljud. Berätta för de andra i rummet.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5228,6 +5229,7 @@
       }
     },
     "Du kan också namnge talarna under mötet genom att klicka på dem.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6696,6 +6698,22 @@
         }
       }
     },
+    "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (%@). Den laddas ned en gång och fungerar sedan utan internet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To tell who is speaking, Mindtalk needs Nemotron 3 from NVIDIA (%@). It downloads once and then works offline."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (%@). Den laddas ned en gång och fungerar sedan utan internet."
+          }
+        }
+      }
+    },
     "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (%@). Laddas ned en gång och fungerar sedan offline.": {
       "extractionState": "stale",
       "localizations": {
@@ -6714,6 +6732,7 @@
       }
     },
     "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (%@). Laddas ned en gång och fungerar sedan utan internet.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7503,6 +7522,7 @@
       }
     },
     "Har du redan en inspelning? Dra hit den, eller välj en fil": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11175,6 +11195,22 @@
         }
       }
     },
+    "Ladda ned Gemma 4": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download Gemma 4"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda ned Gemma 4"
+          }
+        }
+      }
+    },
     "Ladda ned Nemotron 3 först, under Inställningar → Modeller.": {
       "localizations": {
         "en": {
@@ -11403,7 +11439,24 @@
         }
       }
     },
+    "Laddar ned Nemotron 3 från NVIDIA, så att Mindtalk hör vem som pratar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading Nemotron 3 from NVIDIA, so Mindtalk can tell who is speaking."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddar ned Nemotron 3 från NVIDIA, så att Mindtalk hör vem som pratar."
+          }
+        }
+      }
+    },
     "Laddar ned Nemotron 3 från NVIDIA, så att Mindtalk hör vem som pratar…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11463,6 +11516,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Laddar ned röstmodellen"
+          }
+        }
+      }
+    },
+    "Laddar ned talmodellen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading the speech model"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddar ned talmodellen"
           }
         }
       }
@@ -13341,6 +13410,22 @@
         }
       }
     },
+    "Mindtalk behöver mikrofonen för att spela in. Slå på den i Systeminställningar under Integritet och säkerhet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk needs the microphone to record. Turn it on in System Settings under Privacy & Security."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk behöver mikrofonen för att spela in. Slå på den i Systeminställningar under Integritet och säkerhet."
+          }
+        }
+      }
+    },
     "Mindtalk behöver mikrofonen. Tillåt den i förra steget.": {
       "localizations": {
         "en": {
@@ -13353,6 +13438,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mindtalk behöver mikrofonen. Tillåt den i förra steget."
+          }
+        }
+      }
+    },
+    "Mindtalk behöver också talmodellen för att skriva ned det som sägs.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk also needs the speech model to write down what is said."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk behöver också talmodellen för att skriva ned det som sägs."
           }
         }
       }
@@ -13404,6 +13505,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mindtalk behöver startas om för att byta språk. Det går när mötet är klart."
+          }
+        }
+      }
+    },
+    "Mindtalk behöver talmodellen för att skriva ned det som sägs.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk needs the speech model to write down what is said."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk behöver talmodellen för att skriva ned det som sägs."
           }
         }
       }
@@ -16396,6 +16513,22 @@
         }
       }
     },
+    "Röstmodellen förbereds. Det tar någon minut första gången.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The voice model is getting ready. It takes a minute or so the first time."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Röstmodellen förbereds. Det tar någon minut första gången."
+          }
+        }
+      }
+    },
     "Röstmodellen görs redo, bara första gången. Inspelningen är igång och inget går förlorat.": {
       "localizations": {
         "en": {
@@ -18541,6 +18674,22 @@
         }
       }
     },
+    "Starta möte (%@). Du väljer om ni tar en namnrunda eller startar direkt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start a meeting (%@). You choose a round of names or a direct start."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starta möte (%@). Du väljer om ni tar en namnrunda eller startar direkt."
+          }
+        }
+      }
+    },
     "Starta möte (⇧⌘R)": {
       "extractionState": "stale",
       "localizations": {
@@ -18576,6 +18725,7 @@
       }
     },
     "Starta möte (⇧⌘R). Du väljer om ni tar en namnrunda eller startar direkt.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -20105,6 +20255,22 @@
         }
       }
     },
+    "Talmodellen förbereds. Det tar någon minut första gången.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The speech model is getting ready. It takes a minute or so the first time."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellen förbereds. Det tar någon minut första gången."
+          }
+        }
+      }
+    },
     "Talmodellen görs redo för din Mac": {
       "localizations": {
         "en": {
@@ -20185,6 +20351,22 @@
         }
       }
     },
+    "Talmodellen kunde inte startas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The speech model couldn't start."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellen kunde inte startas."
+          }
+        }
+      }
+    },
     "Talmodellen laddades inte ned": {
       "localizations": {
         "en": {
@@ -20229,6 +20411,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Talmodellen laddas ned"
+          }
+        }
+      }
+    },
+    "Talmodellen laddas ned, så att Mindtalk kan skriva ned det som sägs.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The speech model is downloading, so Mindtalk can write down what is said."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellen laddas ned, så att Mindtalk kan skriva ned det som sägs."
           }
         }
       }
@@ -21376,6 +21574,38 @@
         }
       }
     },
+    "Tryck ↩ för att starta direkt. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press ↩ to start directly. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck ↩ för att starta direkt. Esc avbryter."
+          }
+        }
+      }
+    },
+    "Tryck ↩ för att starta med namnrunda. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press ↩ to start with a round of names. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck ↩ för att starta med namnrunda. Esc avbryter."
+          }
+        }
+      }
+    },
     "Tur %lld": {
       "extractionState": "stale",
       "localizations": {
@@ -21593,6 +21823,7 @@
       }
     },
     "Utan Apple Intelligence blir det text men ingen sammanfattning": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -21604,6 +21835,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Utan Apple Intelligence blir det text men ingen sammanfattning"
+          }
+        }
+      }
+    },
+    "Utan Apple Intelligence eller Gemma 4 blir det text men ingen sammanfattning.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Without Apple Intelligence or Gemma 4 you get the text but no summary."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utan Apple Intelligence eller Gemma 4 blir det text men ingen sammanfattning."
           }
         }
       }

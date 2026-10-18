@@ -28,6 +28,8 @@ final class VoiceModels: ObservableObject {
     }
 
     @Published private(set) var state: State = .missing
+    /// `warm`, to watch: the start card waits for it before the round of names.
+    @Published private(set) var isWarm = false
 
     static let live = Nemotron3Config.fast32
     static let final = Nemotron3Config.fast128
@@ -112,7 +114,7 @@ final class VoiceModels: ObservableObject {
         let configs = [live, final]
         Task.detached(priority: .utility) {
             for config in configs { _ = try? await load(config) }
-            await MainActor.run { warm = true }
+            await MainActor.run { warm = true; VoiceModels.shared.isWarm = true }
         }
     }
 }

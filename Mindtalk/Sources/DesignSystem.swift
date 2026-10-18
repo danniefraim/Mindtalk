@@ -340,6 +340,44 @@ struct InkToggle: View {
     }
 }
 
+/// A checkbox in ink, not the system's blue: a small rounded square, filled with a
+/// check when on, a light control with an edge when off.
+struct InkCheckboxStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                let shape = RoundedRectangle(cornerRadius: 4.5, style: .continuous)
+                ZStack {
+                    shape.fill(configuration.isOn ? DS.Colors.ink : DS.Colors.control)
+                    shape.strokeBorder(DS.Colors.fieldStroke, lineWidth: configuration.isOn ? 0 : 1)
+                    if configuration.isOn {
+                        Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(DS.Colors.onInk)
+                    }
+                }
+                .frame(width: 16, height: 16)
+                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4.5 }
+                configuration.label
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityRepresentation { Toggle(isOn: configuration.$isOn) { configuration.label } }
+    }
+}
+
+/// A label in small capitals over what it names — "NYTT MÖTE", "I DAG" — as on Hem.
+struct CapsLabel: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+    var body: some View {
+        Text(verbatim: text.uppercased())
+            .font(.system(size: 11.5, weight: .semibold)).tracking(1.8)
+            .foregroundStyle(DS.Colors.muted)
+            .accessibilityLabel(text)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
 struct InkSwitchStyle: ToggleStyle {
     @Environment(\.isEnabled) private var enabled
 

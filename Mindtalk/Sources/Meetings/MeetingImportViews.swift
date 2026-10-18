@@ -277,31 +277,6 @@ struct MeetingDateSheet: View {
     }
 }
 
-// MARK: - Saying you can
-
-/// Under an empty archive: a recording you already have can come in too.
-struct ImportHint: View {
-    @State private var hovering = false
-
-    var body: some View {
-        Button { MeetingImport.shared.choose(folder: MeetingFolders.shared.selected) } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "square.and.arrow.down")
-                Text("Har du redan en inspelning? Dra hit den, eller välj en fil")
-                Text(verbatim: "⌘O").foregroundStyle(DS.Colors.faint)
-            }
-            .font(.system(size: 12.5, weight: .medium))
-            .foregroundStyle(hovering ? DS.Colors.ink : DS.Colors.muted)
-            .padding(.horizontal, 16)
-            .frame(height: 36)
-            .overlay(Capsule().strokeBorder(DS.Colors.muted.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [4, 4])))
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-    }
-}
-
 // MARK: - Where it came from
 
 /// "importerad från Khraftpodden #197.mp3" beside a meeting's date — click to see the
