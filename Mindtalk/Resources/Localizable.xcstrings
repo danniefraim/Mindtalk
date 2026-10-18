@@ -18650,6 +18650,38 @@
         }
       }
     },
+    "Röstavtryck sparat": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voiceprint saved"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Röstavtryck sparat"
+          }
+        }
+      }
+    },
+    "Röstavtryck sparat för %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voiceprint saved for %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Röstavtryck sparat för %@"
+          }
+        }
+      }
+    },
     "Röstavtrycken tas bort. Namnen i dina möten finns kvar.": {
       "localizations": {
         "en": {

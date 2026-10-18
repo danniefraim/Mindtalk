@@ -334,6 +334,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             Task { @MainActor in
                 NSApplication.shared.appearance = NSAppearance(named: args.contains("--dark") ? .darkAqua : .aqua)
                 let dark = args.contains("--dark")
+                #if DEBUG
+                // `--demo`: three made-up people, in memory only.
+                if args.contains("--demo") { VoiceMemory.shared.showDemoPeople() }
+                #endif
                 let renderer = ImageRenderer(content: VoiceMemoryCard(memory: VoiceMemory.shared).padding(28).frame(width: 720)
                     .background(DS.Colors.paper).environment(\.colorScheme, dark ? .dark : .light))
                 renderer.scale = 2
@@ -665,6 +669,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        #if DEBUG
+        // `Mindtalk --render-round out.png [--round-state reveal|known|new|listening|ready]`:
+        // the round's room in a given state (the moment a name is settled, by default),
+        // with demo people and prints — nothing heard, nothing saved.
+        if let i = args.firstIndex(of: "--render-round"), i + 1 < args.count {
+            Task { @MainActor in
+                let state = args.firstIndex(of: "--round-state").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } ?? "reveal"
+                let round = IntroRound(session: .shared)
+                round.demo(state)
+                let renderer = ImageRenderer(content: VoiceScanner.still(round: round, size: CGSize(width: 1100, height: 680))
+                    .padding(28).background(DS.Colors.night))
+                renderer.scale = 2
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
+        #endif
         if let i = args.firstIndex(of: "--render-panel"), i + 1 < args.count {
             Task { @MainActor in
                 let dark = args.contains("--dark")

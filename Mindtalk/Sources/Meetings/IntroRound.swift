@@ -632,16 +632,30 @@ final class IntroRound: ObservableObject {
     }
 
     #if DEBUG
-    /// Screenshots: a round in a given state (`--demo-phase listening|known|new|ready`).
+    /// Screenshots: the moment a name is settled, held still (`--demo-phase reveal`):
+    /// the name, whether the voice was known, and the print its signature is drawn from.
+    private(set) var demoReveal: (name: String, known: Bool, print: [Float])?
+
+    /// Screenshots: a round in a given state (`--demo-phase listening|known|new|ready|reveal`).
     func demo(_ phase: String) {
         if phase == "first" { set(.ready); task?.cancel(); return }
-        captures = [Capture(name: "Anna", known: true, score: 0.8, from: 1, to: 6, print: nil,
+        captures = [Capture(name: "Anna", known: true, score: 0.8, from: 1, to: 6, print: VoiceSignature.demoPrint("anna"),
                             figure: VoiceFigure.from(seed: "anna"), colour: 0)]
         turn = 2
         switch phase {
         case "listening": progress = 0.55; set(.listening)
         case "known": figure = VoiceFigure.from(seed: "erik"); progress = 1; knownMatch = ("Erik", 0.8); set(.known("Erik"))
         case "new": figure = VoiceFigure.from(seed: "sara"); progress = 1; draft = "Sara"; set(.new)
+        case "reveal":
+            // Two in the room, and Sara's voiceprint just made: the next turn has begun.
+            captures.append(Capture(name: "Erik", known: false, score: nil, from: 8, to: 13, print: VoiceSignature.demoPrint("erik"),
+                                    figure: VoiceFigure.from(seed: "erik"), colour: 1))
+            captures.append(Capture(name: "Sara", known: false, score: nil, from: 15, to: 19, print: VoiceSignature.demoPrint("sara"),
+                                    figure: VoiceFigure.from(seed: "sara"), colour: 2))
+            turn = 4
+            figure = VoiceFigure.from(seed: "sara")
+            demoReveal = ("Sara", false, VoiceSignature.demoPrint("sara"))
+            set(.ready)
         default: set(.ready)
         }
         task?.cancel()

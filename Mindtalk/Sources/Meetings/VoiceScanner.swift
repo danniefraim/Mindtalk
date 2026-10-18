@@ -41,17 +41,59 @@ struct VoiceScanner: View {
         let shown: Bool
         @ObservedObject private var memory = VoiceMemory.shared
         @FocusState private var nameFocused: Bool
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+        /// The moment a name is settled, shown on the cloud: the voice's figure drawn
+        /// clearly, its signature beside the name — then flown down into "I rummet".
+        /// Purely a picture over the round, which goes on underneath as before.
+        struct Reveal: Equatable {
+            let id = UUID()
+            let name: String
+            let known: Bool
+            /// The capture it is (a new voice), whose print may still be on its way.
+            let capture: UUID?
+            let figure: VoiceFigure?
+            let colour: Int
+            /// A print of its own for the picture (screenshots); otherwise looked up.
+            var print: [Float]?
+            var flying = false
+        }
+        @State private var reveal: Reveal?
+        /// The ring's single pulse, and how far the signature has drawn itself.
+        @State private var pulse = false
+        @State private var drawn = 0.0
+        @State private var revealTask: Task<Void, Never>?
+
+        init(scanner: VoiceScanner, round: IntroRound, lit: Bool, shown: Bool) {
+            self.scanner = scanner
+            self.round = round
+            self.lit = lit
+            self.shown = shown
+            #if DEBUG
+            // A still picture of the moment (`--demo-phase reveal`).
+            if let d = round.demoReveal {
+                _reveal = State(initialValue: Reveal(name: d.name, known: d.known, capture: round.captures.last?.id, figure: round.figure,
+                                                     colour: round.captures.count - 1, print: d.print))
+                _drawn = State(initialValue: 1)
+            }
+            #endif
+        }
+
+        /// The reveal while it stands on the cloud (not yet flying down).
+        private var revealing: Reveal? { reveal.flatMap { $0.flying ? nil : $0 } }
 
         var body: some View {
             GeometryReader { geo in
                 TimelineView(.periodic(from: .now, by: 0.5)) { _ in
-                    let colour = SpeakerMark.fill(round.captures.count)
-                    Constellation(figure: round.figure, color: colour, level: scanner.roomLevel,
-                                  searching: round.phase == .listening && round.progress > 0)
+                    let colour = SpeakerMark.fill(revealing?.colour ?? round.captures.count)
+                    Constellation(figure: revealing?.figure ?? round.figure, color: colour, level: scanner.roomLevel,
+                                  searching: round.phase == .listening && round.progress > 0, defined: revealing != nil)
                     .overlay { ring(in: geo.size, colour: colour) }
                     .overlay(alignment: .topLeading) { heading.padding(.leading, 40).padding(.top, 34) }
                     .overlay(alignment: .topTrailing) { scanner.continueButton(round).padding(24) }
                     .overlay(alignment: .bottom) { prompt(width: geo.size.width).padding(.bottom, 40) }
+                    // Over the words' gradient: the name stands where the big line was.
+                    .overlay { revealView(in: geo.size) }
                     .overlay(alignment: .bottomLeading) { room.padding(.leading, 40).padding(.bottom, 38) }
                     .overlay(alignment: .bottomTrailing) { card.padding(24) }
                     .opacity(shown ? 1 : 0)
@@ -65,25 +107,129 @@ struct VoiceScanner: View {
                 case .known(let name):
                     scanner.chime("Glass")
                     AccessibilityNotification.Announcement(String(localized: "Känd röst: \(name)")).post()
+                    show(Reveal(name: name, known: true, capture: nil, figure: round.figure, colour: round.captures.count))
                 case .new:
                     scanner.chime("Pop")
                     nameFocused = true
                 default: break
                 }
             }
-            .onChange(of: round.captures.count) { old, new in if new > old { scanner.chime("Pop") } }
+            .onChange(of: round.captures.count) { old, new in
+                guard new > old else { return }
+                scanner.chime("Pop")
+                // A new voice named: its print is made. (A known one was shown when greeted.)
+                if let c = round.captures.last, !c.known {
+                    AccessibilityNotification.Announcement(String(localized: "Röstavtryck sparat för \(c.name)")).post()
+                    show(Reveal(name: c.name, known: false, capture: c.id, figure: c.figure, colour: c.colour))
+                }
+            }
             .onChange(of: round.wantsToEnd) { _, end in if end { scanner.leave() } }
         }
 
-        /// The ring around the cloud: fills as the person speaks (Face ID–like).
+        // MARK: The moment
+
+        /// About a second and a half, all of it over the round going on: the ring
+        /// closes and pulses once, the signature draws itself in, and the name stands
+        /// under the cloud; then it all flies down into "I rummet". With Reduce Motion
+        /// it fades in and out instead.
+        private func show(_ r: Reveal) {
+            revealTask?.cancel()
+            pulse = false
+            drawn = 0
+            if reduceMotion {
+                withAnimation(.easeInOut(duration: 0.3)) { reveal = r; drawn = 1 }
+            } else {
+                withAnimation(.spring(duration: 0.45, bounce: 0.25)) { reveal = r }
+                withAnimation(.easeOut(duration: 0.7)) { pulse = true }
+                withAnimation(.easeOut(duration: 0.6).delay(0.1)) { drawn = 1 }
+            }
+            revealTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(reduceMotion ? 1.5 : 0.95))
+                guard !Task.isCancelled, reveal?.id == r.id else { return }
+                if reduceMotion {
+                    withAnimation(.easeInOut(duration: 0.4)) { reveal = nil }
+                    return
+                }
+                withAnimation(.easeIn(duration: 0.5)) { reveal?.flying = true }
+                try? await Task.sleep(for: .seconds(0.55))
+                guard !Task.isCancelled, reveal?.id == r.id else { return }
+                reveal = nil
+            }
+        }
+
+        /// The print a capture's signature is drawn from: for a voice Mindtalk knows,
+        /// the one it knows them by (the same signature every time); otherwise this
+        /// round's print of them.
+        private func signaturePrint(of c: IntroRound.Capture) -> [Float]? {
+            (c.known ? memory.signaturePrint(of: c.name) : nil) ?? c.print
+        }
+
+        private func signaturePrint(of r: Reveal) -> [Float]? {
+            if let print = r.print { return print }
+            if r.known, let print = memory.signaturePrint(of: r.name) { return print }
+            return round.captures.first { $0.id == r.capture }?.print
+        }
+
+        /// The name and its signature under the cloud — and, flying, down in the corner.
+        @ViewBuilder private func revealView(in size: CGSize) -> some View {
+            if let reveal {
+                let rgb = Constellation.rgb(SpeakerMark.fill(reveal.colour))
+                let tint = Color(red: rgb.x, green: rgb.y, blue: rgb.z)
+                let R = min(size.width, size.height) * 0.28
+                let flying = reveal.flying
+                HStack(spacing: 18) {
+                    if let print = signaturePrint(of: reveal) {
+                        VoiceSignature(print: print, color: tint, size: .large, progress: drawn)
+                    } else {
+                        VoiceFigureMark(figure: reveal.figure ?? VoiceFigure.from(seed: reveal.name), color: tint, lineWidth: 1.3)
+                            .frame(width: 56, height: 56)
+                    }
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(reveal.known ? "Känd röst" : "Röstavtryck sparat").textCase(.uppercase).tracking(2.4)
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.75))
+                        Text(reveal.name).font(.system(size: 34, weight: .regular, design: .serif))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                    }
+                }
+                .fixedSize()
+                .scaleEffect(flying ? 0.28 : 1)
+                .opacity(flying ? 0 : 1)
+                .position(x: flying ? 40 + 70 : size.width / 2,
+                          y: flying ? size.height - 38 - 11 : size.height * 0.42 + R * 1.16 + 58)
+                .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9)))
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                .id(reveal.id)
+            }
+        }
+
+        /// The ring around the cloud: fills as the person speaks (Face ID–like), and
+        /// closes with one pulse the moment the name is settled.
         @ViewBuilder private func ring(in size: CGSize, colour: Color) -> some View {
-            if round.phase == .listening {
-                let r = min(size.width, size.height) * 0.28 * 1.16
-                let c = Constellation.rgb(colour)
+            let r = min(size.width, size.height) * 0.28 * 1.16
+            let c = Constellation.rgb(colour)
+            let tint = Color(red: c.x, green: c.y, blue: c.z)
+            if let reveal, !reveal.flying {
+                ZStack {
+                    Circle().stroke(tint, lineWidth: 2)
+                    if !reduceMotion {
+                        Circle().stroke(tint.opacity(pulse ? 0 : 0.9), lineWidth: 2)
+                            .scaleEffect(pulse ? 1.14 : 1)
+                    }
+                }
+                .frame(width: r * 2, height: r * 2)
+                .position(x: size.width / 2, y: size.height * 0.42)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                .transition(.opacity)
+                .id(reveal.id)
+            } else if round.phase == .listening {
                 ZStack {
                     Circle().stroke(.white.opacity(0.08), lineWidth: 1.5)
                     Circle().trim(from: 0, to: round.progress)
-                        .stroke(Color(red: c.x, green: c.y, blue: c.z), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .stroke(tint, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                         .animation(.easeOut(duration: 0.25), value: round.progress)
                 }
@@ -169,14 +315,18 @@ struct VoiceScanner: View {
             let accent = Constellation.rgb(SpeakerMark.fill(round.captures.count))
             let tint = Color(red: accent.x, green: accent.y, blue: accent.z)
 
+            // The name stands over the cloud for a moment (the reveal): the big line
+            // waits until it has flown down.
+            let hidden = big == nil || revealing != nil
             return VStack(spacing: 12) {
                 Text(big ?? " ")
                     .font(.system(size: min(88, max(52, width * 0.075)), weight: .regular, design: .serif)).italic()
                     .foregroundStyle(.white)
                     .lineLimit(1).minimumScaleFactor(0.5)
                     .frame(maxWidth: max(200, width - 2 * 340))
-                    .opacity(big == nil ? 0 : 1)
-                    .blur(radius: big == nil ? 14 : 0)
+                    .opacity(hidden ? 0 : 1)
+                    .blur(radius: hidden ? 14 : 0)
+                    .animation(.easeOut(duration: 0.35), value: hidden)
                     .contentTransition(.opacity)
                 Text(line).font(.system(size: 16)).foregroundStyle(.white.opacity(0.75))
                 if round.phase == .listening || { if case .known = round.phase { return true }; return false }() {
@@ -210,11 +360,18 @@ struct VoiceScanner: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("I rummet").textCase(.uppercase).tracking(2.2)
                         .font(.system(size: 11, design: .monospaced)).foregroundStyle(.white.opacity(0.4))
-                    ForEach(round.captures) { c in
+                    // The one just named takes its row once it has flown down.
+                    ForEach(round.captures.filter { $0.id != revealing?.capture }) { c in
                         let rgb = Constellation.rgb(SpeakerMark.fill(c.colour))
                         let tint = Color(red: rgb.x, green: rgb.y, blue: rgb.z)
                         HStack(spacing: 10) {
-                            VoiceFigureMark(figure: c.figure, color: tint, lineWidth: 1).frame(width: 16, height: 16)
+                            // Their signature, drawn from the voiceprint; the figure
+                            // until there is one.
+                            if let print = signaturePrint(of: c) {
+                                VoiceSignature(print: print, color: tint, size: .compact)
+                            } else {
+                                VoiceFigureMark(figure: c.figure, color: tint, lineWidth: 1).frame(width: 16, height: 16)
+                            }
                             Text(c.name).font(.system(size: 15)).foregroundStyle(.white.opacity(0.85))
                             if c.known { Image(systemName: "checkmark.seal.fill").font(.system(size: 10.5)).foregroundStyle(tint) }
                         }
@@ -259,6 +416,16 @@ struct VoiceScanner: View {
             }
         }
     }
+
+    #if DEBUG
+    /// Screenshots: the room as it stands for a round (`--render-round`), lit and shown.
+    static func still(round: IntroRound, size: CGSize) -> some View {
+        Room(scanner: VoiceScanner(session: .shared), round: round, lit: true, shown: true)
+            .frame(width: size.width, height: size.height)
+            .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .environment(\.colorScheme, .dark)
+    }
+    #endif
 
     /// The room's level, a little smoothed — the light shouldn't flicker.
     var roomLevel: Double {

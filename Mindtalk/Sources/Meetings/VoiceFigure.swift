@@ -151,6 +151,9 @@ struct Constellation: View {
     var searching = false
     /// Off screen: no frames drawn.
     var paused = false
+    /// The moment the round has a name: the figure's line drawn clearly through the
+    /// points (eased in and out, so it never snaps).
+    var defined = false
     /// On a light surface (the Hem card): the points are the colour itself, drawn
     /// plainly — light added to light would vanish.
     var onLight = false
@@ -162,17 +165,20 @@ struct Constellation: View {
 
     static let count = 900
 
-    init(figure: VoiceFigure?, color: Color, level: Double, searching: Bool = false, paused: Bool = false, onLight: Bool = false) {
+    init(figure: VoiceFigure?, color: Color, level: Double, searching: Bool = false, paused: Bool = false, onLight: Bool = false,
+         defined: Bool = false) {
         self.figure = figure
         self.color = color
         self.level = level
         self.searching = searching
         self.paused = paused
         self.onLight = onLight
+        self.defined = defined
         self.plain = Self.rgb(color, vivid: false)
         // In its colour from the first frame, also in a still picture (no onAppear there).
-        var first = Morph()
+        let first = Morph()
         first.set(figure, rgb: Self.rgb(color, vivid: !onLight), now: Date.timeIntervalSinceReferenceDate, instant: true)
+        first.define(defined, now: Date.timeIntervalSinceReferenceDate, instant: true)
         _morph = State(initialValue: first)
     }
 
@@ -185,11 +191,13 @@ struct Constellation: View {
         .onAppear { morph.set(figure, rgb: Self.rgb(color, vivid: !onLight), now: Date.timeIntervalSinceReferenceDate, instant: reduceMotion) }
         .onChange(of: figure) { _, f in morph.set(f, rgb: Self.rgb(color, vivid: !onLight), now: Date.timeIntervalSinceReferenceDate, instant: reduceMotion) }
         .onChange(of: Self.rgb(color)) { _, c in morph.recolour(c) }
+        .onChange(of: defined) { _, d in morph.define(d, now: Date.timeIntervalSinceReferenceDate, instant: reduceMotion) }
         .accessibilityHidden(true)
     }
 
     private func draw(_ ctx: inout GraphicsContext, size: CGSize, now: Double) {
         let state = morph.state(now: now, instant: reduceMotion)
+        let clear = morph.clarity(now: now)
         let angle = morph.turn(now: now, speed: reduceMotion ? 0 : (searching ? 0.6 : 0.25))
         let cx = size.width / 2, cy = size.height * 0.42, R = min(size.width, size.height) * 0.28
         let k = state.k
@@ -231,7 +239,7 @@ struct Constellation: View {
                     line.addLine(to: CGPoint(x: xs[j], y: ys[j]))
                 }
             }
-            ctx.stroke(line, with: .color(tint.opacity(0.28 * k)), lineWidth: 0.7)
+            ctx.stroke(line, with: .color(tint.opacity((0.28 + 0.5 * clear) * k)), lineWidth: 0.7 + 0.6 * clear)
         }
         // The points, nearer ones brighter and larger, whiter until they've arrived.
         // Drawn in a few batches (by brightness and colour) rather than one by one.
@@ -304,6 +312,22 @@ struct Constellation: View {
         }
 
         func recolour(_ rgb: SIMD3<Double>) { current?.rgb = rgb }
+
+        private var defined = false
+        private var definedAt = -1_000.0
+
+        /// The figure's line drawn clearly (the round has a name) — or back to faint.
+        func define(_ on: Bool, now: Double, instant: Bool) {
+            guard on != defined else { return }
+            defined = on
+            definedAt = instant ? -1_000 : now
+        }
+
+        /// How clearly the line is drawn now (0…1): in over 0.35 s, out over 0.5 s.
+        func clarity(now: Double) -> Double {
+            let dt = now - definedAt
+            return defined ? min(1, dt / 0.35) : max(0, 1 - dt / 0.5)
+        }
 
         /// What to draw now: a figure and how far the cloud has fallen into it (0…1).
         func state(now: Double, instant: Bool) -> (figure: VoiceFigure?, rgb: SIMD3<Double>, k: Double) {

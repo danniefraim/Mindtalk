@@ -115,6 +115,22 @@ final class VoiceMemory: ObservableObject {
         VoiceFigure.from(print: print, avoiding: takenRhythms.union(others))
     }
 
+    /// The print a person's signature is drawn from (VoiceSignature): their first,
+    /// so the same person has the same signature in every round and in Settings.
+    func signaturePrint(of name: String) -> [Float]? {
+        people.first { Self.key($0.name) == Self.key(name) }?.prints.first
+    }
+
+    #if DEBUG
+    /// Screenshots: three people with made-up prints, in memory only — nothing saved.
+    func showDemoPeople() {
+        people = ["Anna", "Erik", "Sara"].map { name in
+            Person(name: name, prints: [VoiceSignature.demoPrint(name.lowercased())], figure: VoiceFigure.from(seed: name.lowercased()),
+                   model: Self.modelID)
+        }
+    }
+    #endif
+
     /// A new voice was shown with this figure and given this name: saved, it keeps it.
     func reserve(_ figure: VoiceFigure, for name: String) {
         reserved[Self.key(name)] = figure
@@ -636,9 +652,16 @@ struct VoiceMemoryCard: View {
                     FlowLayout(spacing: 8) {
                         ForEach(Array(memory.people.enumerated()), id: \.element.id) { i, person in
                             HStack(spacing: 6) {
-                                VoiceFigureMark(figure: VoiceFigure.remembered(person.name) ?? VoiceFigure.from(seed: person.name),
-                                                color: SpeakerMark.fill(i), lineWidth: 1.2)
-                                    .frame(width: 18, height: 18)
+                                // The voice's own signature, drawn from its print; the
+                                // figure while there is no print yet (being made again).
+                                if let print = person.prints.first {
+                                    VoiceSignature(print: print, color: SpeakerMark.fill(i), size: .compact)
+                                        .frame(width: 18, height: 18)
+                                } else {
+                                    VoiceFigureMark(figure: VoiceFigure.remembered(person.name) ?? VoiceFigure.from(seed: person.name),
+                                                    color: SpeakerMark.fill(i), lineWidth: 1.2)
+                                        .frame(width: 18, height: 18)
+                                }
                                 Button { renaming = person; newName = person.name } label: {
                                     Text(person.name).font(.system(size: 12.5, weight: .medium))
                                 }
