@@ -609,13 +609,7 @@ private struct VoiceModelCard: View {
         }
     }
 
-    private var eyebrow: some View {
-        Text("Talare")
-            .font(.system(size: 11, weight: .semibold))
-            .textCase(.uppercase)
-            .tracking(1.2)
-            .foregroundStyle(DS.Colors.muted)
-    }
+    private var eyebrow: some View { CapsLabel(String(localized: "Talare")) }
 
     // MARK: Not here yet
 
@@ -639,7 +633,7 @@ private struct VoiceModelCard: View {
                 // After a failed download the reason takes its place.
                 if failure == nil { fact("cpu", Text("Nemotron 3 från NVIDIA")) }
                 fact("arrow.down.circle", Text("\(VoiceModels.sizeText), laddas ned en gång"))
-                fact("lock", Text("Körs på din Mac. Ljudet lämnar den aldrig"))
+                fact("lock", Text("Körs på din Mac, ljudet lämnar den aldrig"))
                 fact("internaldrive", Text("Du har \(BetterNotes.gigabytes(BetterNotes.freeBytes)) ledigt"),
                      warn: BetterNotes.freeBytes < 2_000_000_000)
             }
@@ -649,7 +643,7 @@ private struct VoiceModelCard: View {
                 HStack(spacing: 7) {
                     Image(systemName: failure == nil ? "arrow.down" : "arrow.clockwise")
                         .font(.system(size: 11.5, weight: .bold))
-                    Text(failure == nil ? String(localized: "Ladda ned \(VoiceModels.sizeText)") : String(localized: "Försök igen"))
+                    Text(failure == nil ? String(localized: "Ladda ned \(VoiceModels.sizeText)") : String(localized: "intro|Försök igen"))
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 22)
@@ -694,7 +688,7 @@ private struct VoiceModelCard: View {
         let total = Int(VoiceModels.sizeText.prefix { $0.isNumber }) ?? 400
         return VStack(alignment: .leading, spacing: 0) {
             eyebrow
-            Text("Laddar ned Nemotron 3")
+            Text("Laddar ned röstmodellen")
                 .font(.system(size: 15.5, weight: .semibold))
                 .padding(.top, 8)
             Spacer(minLength: 12)
@@ -703,20 +697,11 @@ private struct VoiceModelCard: View {
                 .monospacedDigit()
                 .contentTransition(.numericText())
                 .animation(.smooth(duration: 0.3), value: Int(p * 100))
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(DS.Colors.chip)
-                    Capsule().fill(DS.Colors.ink)
-                        .frame(width: max(6, geo.size.width * min(1, max(0, p))))
-                        .animation(.smooth(duration: 0.4), value: p)
-                }
-            }
-            .frame(height: 6)
-            .padding(.top, 8)
-            .accessibilityElement()
-            .accessibilityLabel(Text("Laddar ned röstmodellen"))
-            .accessibilityValue(Text(p, format: .percent.precision(.fractionLength(0))))
-            Text("\(Int((p * Double(total)).rounded())) av \(VoiceModels.sizeText)")
+            InkProgressBar(progress: p)
+                .padding(.top, 8)
+                .accessibilityLabel(Text("Laddar ned röstmodellen"))
+            // Between the bundles the files are in and it's being made ready for this Mac.
+            Text(voices.preparing ? String(localized: "Förbereder…") : "\(Int((p * Double(total)).rounded())) av \(VoiceModels.sizeText)")
                 .font(.system(size: 12)).monospacedDigit()
                 .foregroundStyle(DS.Colors.muted)
                 .padding(.top, 8)
@@ -787,17 +772,18 @@ private struct DoneCheck: View {
     @State private var tick = false
 
     var body: some View {
+        // The same disc as a granted permission's (52, a 20 pt check), drawn so it can animate.
         ZStack {
             Circle().fill(DS.Colors.ink)
             CheckShape()
                 .trim(from: 0, to: tick ? 1 : 0)
-                .stroke(DS.Colors.onInk, style: StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round))
-                .padding(21)
+                .stroke(DS.Colors.onInk, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                .frame(width: 20, height: 16)
         }
-        .frame(width: 66, height: 66)
+        .frame(width: 52, height: 52)
         .scaleEffect(disc ? 1 : 0.5)
         .opacity(disc ? 1 : 0)
-        .shadow(color: .black.opacity(0.18), radius: 14, y: 6)
+        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
         .accessibilityHidden(true)
         .onAppear {
             guard animate else { disc = true; tick = true; return }

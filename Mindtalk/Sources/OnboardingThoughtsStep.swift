@@ -366,7 +366,7 @@ struct ThoughtsStep: View {
     private var panel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Tankar").font(.system(size: 22, weight: .regular, design: .serif))
+                CapsLabel(String(localized: "Tankar"))
                 Spacer()
                 Image(systemName: "lightbulb")
                     .font(.system(size: 13, weight: .medium))
@@ -724,7 +724,7 @@ private struct ChecklistRow<Trailing: View>: View {
         .padding(.horizontal, 12)
         .frame(height: 44)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(DS.Colors.chip.opacity(state == .current ? 0.75 : 0)))
+            .fill(state == .current ? DS.Colors.chip : .clear))
         .animation(.smooth(duration: 0.35), value: state)
         .accessibilityElement(children: .combine)
         .accessibilityValue(state == .done ? Text("Klart") : Text(verbatim: ""))
@@ -781,7 +781,7 @@ private struct NoteRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(thought.text)
-                .font(.system(size: 14, design: .serif))
+                .font(.system(size: 15, design: .serif))
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)

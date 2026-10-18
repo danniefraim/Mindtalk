@@ -36,7 +36,7 @@ struct VocabularyStep: View {
                 HStack(alignment: .top, spacing: DS.Layout.stepGap) {
                     FirstWordCard(vocabulary: vocabulary, hasOwnWords: hasOwnWords,
                                   added: $added, highlighted: $highlighted, done: $done, typing: $typing)
-                        .frame(height: 186)
+                        .frame(height: 180)
                     // As tall as what's on it, no taller.
                     MiniWordList(entries: entries, highlighted: highlighted, showsSlot: added == nil)
                 }
@@ -51,7 +51,6 @@ struct VocabularyStep: View {
                 .foregroundStyle(DS.Colors.muted)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 560)
-                .padding(.top, 4)
                 .staggered(3)
             }
         }
@@ -139,7 +138,7 @@ private struct CorrectionDemo: View {
                     .font(.system(size: 11, weight: .semibold))
                     .contentTransition(.symbolEffect(.replace))
                     .frame(width: 14)
-                Text(stage == .fixed ? "Så skrivs det" : "Så hördes det")
+                CapsLabel(stage == .fixed ? String(localized: "Så skrivs det") : String(localized: "Så hördes det"))
                     .contentTransition(.opacity)
                 Spacer()
                 HStack(spacing: 5) {
@@ -164,8 +163,8 @@ private struct CorrectionDemo: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 158)
-        .tile()
+        .frame(height: 144)
+        .raised(cornerRadius: DS.Radius.panel)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(localized: "Exempel: Mindtalk hörde ”\(example.heard)” och skrev ”\(example.fixed)” enligt din ordlista."))
         // A new id cancels the play: stopping it is the same as having watched it.
@@ -398,8 +397,7 @@ private struct FirstWordCard: View {
 
     private var form: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(hasOwnWords ? "Lägg till ett ord" : "Lägg till ditt första ord")
-                .font(.system(size: 15, weight: .semibold))
+            CapsLabel(hasOwnWords ? String(localized: "Ett ord till") : String(localized: "Ditt första ord"))
             Group {
                 if let problem {
                     Label(problem, systemImage: "exclamationmark.circle.fill")
@@ -412,7 +410,7 @@ private struct FirstWordCard: View {
             .font(.system(size: 12.5))
             .lineLimit(2)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.top, 3)
+            .padding(.top, 8)
             .animation(.smooth(duration: 0.25), value: problem)
             Spacer(minLength: 10)
             field(String(localized: "t.ex. ett företagsnamn"), text: $word)
@@ -433,10 +431,11 @@ private struct FirstWordCard: View {
     private func confirmation(_ result: AddResult) -> some View {
         let new = isNew(result)
         return VStack(alignment: .leading, spacing: 0) {
+            // The same disc as a granted permission's.
             Image(systemName: new ? "checkmark" : "text.book.closed.fill")
-                .font(.system(size: 15, weight: .bold))
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(new ? DS.Colors.onInk : DS.Colors.accent)
-                .frame(width: 38, height: 38)
+                .frame(width: 52, height: 52)
                 .background(Circle().fill(new ? AnyShapeStyle(DS.Colors.ink) : AnyShapeStyle(DS.Colors.chip)))
                 .shadow(color: .black.opacity(new ? 0.18 : 0), radius: 10, y: 4)
             Group {
@@ -446,7 +445,7 @@ private struct FirstWordCard: View {
                 }
             }
             .font(.system(size: 17, weight: .semibold))
-            .padding(.top, 14)
+            .padding(.top, 10)
             Group {
                 switch result {
                 case .added(let word):
@@ -548,7 +547,7 @@ private struct MiniWordList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Dina ord").font(.system(size: 13, weight: .semibold))
+                CapsLabel(String(localized: "Dina ord"))
                 Spacer()
                 Text(verbatim: "\(entries.count)")
                     .font(.system(size: 13, weight: .semibold)).monospacedDigit()
@@ -570,7 +569,8 @@ private struct MiniWordList: View {
                 .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
                     .strokeBorder(DS.Colors.fieldStroke, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
-                .padding(.horizontal, 10)
+                // Its left edge on the same line as the words and dividers below.
+                .padding(.horizontal, 18)
                 .padding(.bottom, 4)
                 .transition(.opacity)
             } else if entries.isEmpty {
