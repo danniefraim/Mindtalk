@@ -12,7 +12,8 @@ import SwiftUI
 final class HUD {
     private var panel: NSPanel?
     /// The panel is a fixed stage; the pill animates inside it, centred at the bottom.
-    private static let stage = NSSize(width: 260, height: 64)
+    /// Wide enough for a message on two lines.
+    private static let stage = NSSize(width: 320, height: 64)
 
     func show() {
         if panel == nil {
@@ -66,6 +67,15 @@ private struct HUDView: View {
     static let stagePadding: CGFloat = 10
 
     private static let ink = Color(white: 0.07)
+    /// A message's widest line: the stage, less the pill's padding, the icon and the shadow.
+    static let textWidth: CGFloat = 250
+
+    private var showsMessage: Bool {
+        switch dictation.phase {
+        case .failed, .copied: return true
+        default: return false
+        }
+    }
 
     var body: some View {
         VStack {
@@ -81,7 +91,7 @@ private struct HUDView: View {
             switch dictation.phase {
             case .recording:
                 if dictation.handsFree {
-                    RoundButton(help: "Avbryt (esc)", filled: false) { dictation.cancelFromHUD() } label: {
+                    RoundButton(help: "Avbryt (Esc)", filled: false) { dictation.cancelFromHUD() } label: {
                         Image(systemName: "xmark").font(.system(size: 10, weight: .bold))
                     }
                     .transition(.scale(scale: 0.4).combined(with: .opacity))
@@ -118,12 +128,16 @@ private struct HUDView: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white)
                     .lineLimit(2)
-                    .frame(maxWidth: 220, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: Self.textWidth, alignment: .leading)
             case .copied:
                 Image(systemName: "doc.on.clipboard").foregroundStyle(.white.opacity(0.85))
-                Text("Kopierad. Klistra in med ⌘V")
+                Text("Inget textfält. Kopierad, klistra in med ⌘V.")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: Self.textWidth, alignment: .leading)
             case .saved:
                 Image(systemName: "lightbulb.fill").foregroundStyle(Color(red: 1, green: 0.84, blue: 0.4))
                 Text("Sparad i Tankar")
@@ -134,7 +148,9 @@ private struct HUDView: View {
             }
         }
         .padding(.horizontal, dictation.handsFree && dictation.phase == .recording ? 5 : 14)
-        .frame(height: 32)
+        // A message on two lines grows the pill (the stage has room).
+        .padding(.vertical, showsMessage ? 6 : 0)
+        .frame(minHeight: 32)
         .fixedSize()
         .background(Capsule().fill(Self.ink))
         .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 0.5))

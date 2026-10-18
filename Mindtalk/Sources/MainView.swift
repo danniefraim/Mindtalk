@@ -209,7 +209,7 @@ private struct DictationPage: View {
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle("Kom igång")
             VStack(spacing: 0) {
-                CardRow(title: "Mikrofon", detail: "Hör dig bara när du dikterar eller spelar in ett möte.") {
+                CardRow(title: "Mikrofon", detail: "Mindtalk lyssnar bara när du dikterar, säger en tanke eller spelar in ett möte.") {
                     if dictation.micGranted { GrantedLabel(text: "Tillåten") }
                     else { Button("Tillåt") { dictation.requestMicrophone() }.buttonStyle(.ink) }
                 }
@@ -219,7 +219,7 @@ private struct DictationPage: View {
                     else { Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.ink) }
                 }
                 CardDivider()
-                CardRow(title: String(localized: "Talmodell: \(dictation.engine.title.lowercased())"), detail: modelDetail(dictation.model, dictation.engine)) {
+                CardRow(title: String(localized: "Talmodell: \(dictation.engine.inlineTitle)"), detail: modelDetail(dictation.model, dictation.engine)) {
                     ModelControl(dictation: dictation)
                 }
             }
@@ -231,7 +231,7 @@ private struct DictationPage: View {
 private func modelDetail(_ model: Dictation.ModelState, _ engine: SpeechModel) -> String {
     switch model {
     case .missing: return String(localized: "\(engine.modelName), \(engine.sizeText). Laddas ned en gång och fungerar sedan utan internet.")
-    case .downloading(let p) where p >= 0.9: return String(localized: "Förbereder modellen för din Mac…")
+    case .downloading(let p) where p >= 0.9: return String(localized: "Förbereder talmodellen för din Mac…")
     case .downloading: return String(localized: "Laddar ned \(engine.modelName), bara den här gången.")
     case .loading: return String(localized: "Startar. Första gången tar det ungefär en halv minut.")
     // Downloaded but wouldn't start: said plainly, not as the system's error.
@@ -321,7 +321,7 @@ struct SettingsPage: View {
             // Without Hjälpmedel no shortcut works anywhere: said first, not at the bottom.
             if !dictation.accessibilityGranted {
                 CardRow(title: "Slå på Hjälpmedel för Mindtalk",
-                        detail: "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på. Det kräver macOS ibland efter en uppdatering.") {
+                        detail: "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen. Det kräver macOS ibland efter en uppdatering.") {
                     Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.ink)
                 }
                 .card()
@@ -361,7 +361,7 @@ struct SettingsPage: View {
             .staggered(2)
             VStack(spacing: 0) {
                 CardRow(title: "Genväg", detail: dictation.pickingKey
-                        ? String(localized: "Håll in en eller flera modifieringstangenter tillsammans och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
+                        ? String(localized: "Håll in en eller flera tangenter som ⌥ och ⌘ och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
                         : dictation.keyRefusal ?? dictation.hotkey.note) { ShortcutField(dictation: dictation) }
                 CardDivider()
                 CardRow(title: "Hur du dikterar", detail: dictation.mode.explanation(key: dictation.hotkey.inlineName)) {
@@ -369,7 +369,7 @@ struct SettingsPage: View {
                                selection: Binding(get: { dictation.mode }, set: { dictation.setMode($0) }))
                 }
                 CardDivider()
-                CardRow(title: "Ljud vid diktering", detail: "Ett diskret ljud när Mindtalk börjar lyssna och när texten klistras in.") {
+                CardRow(title: "Ljud vid diktering", detail: "Ett diskret ljud när Mindtalk börjar lyssna och när texten skrivs in.") {
                     InkToggle(label: "Ljud vid diktering", isOn: $prefs.sounds)
                 }
                 CardDivider()
@@ -791,22 +791,23 @@ private struct DictationKeyCard: View {
 
     private var how: String {
         switch dictation.mode {
-        case .hold: return String(localized: "Släpp när du är klar, så skrivs texten där markören står. Esc avbryter.")
-        case .toggle: return String(localized: "Tryck igen när du är klar, så skrivs texten där markören står. Esc avbryter.")
-        case .holdOrDoubleTap: return String(localized: "Släpp när du är klar, så skrivs texten där markören står. Dubbeltryck för att låsa och prata fritt. Esc avbryter.")
+        case .hold: return String(localized: "Släpp när du är klar, så skrivs texten där markören står. Utan textfält hamnar texten i urklipp. Esc avbryter.")
+        case .toggle: return String(localized: "Tryck igen när du är klar, så skrivs texten där markören står. Utan textfält hamnar texten i urklipp. Esc avbryter.")
+        case .holdOrDoubleTap: return String(localized: "Släpp när du är klar, så skrivs texten där markören står. Utan textfält hamnar texten i urklipp. Dubbeltryck för att låsa och prata fritt. Esc avbryter.")
         }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center, spacing: 20) {
+                // A big KeyChip: the same raised control fill, edge and shadow.
+                let cap = RoundedRectangle(cornerRadius: DS.Radius.control + 2, style: .continuous)
                 Text(verbatim: dictation.hotkey.chip)
-                    .font(.system(size: 20, weight: .medium, design: .rounded))
+                    .font(.system(size: 20, weight: .semibold))
                     .padding(.horizontal, 16)
                     .frame(minWidth: 64, minHeight: 56)
-                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.field))
-                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
-                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.fieldStroke).offset(y: 3))
+                    .background(cap.fill(DS.Colors.control).shadow(color: .black.opacity(0.08), radius: 0, y: 2))
+                    .overlay(cap.strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
                     .fixedSize()
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 5) {
@@ -816,7 +817,7 @@ private struct DictationKeyCard: View {
                     Button {
                         NotificationCenter.default.post(name: .showPage, object: Page.settings)
                     } label: {
-                        Text("Ändra tangent och sätt i Inställningar")
+                        Text("Ändra i Inställningar")
                             .font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted).underline()
                             .padding(.vertical, 4).contentShape(Rectangle())
                     }
@@ -843,7 +844,7 @@ private struct DictationKeyCard: View {
                                           lineWidth: practice.isEmpty ? 1 : 1.5))
                         .accessibilityLabel("Prova diktering här")
                     if practice.isEmpty {
-                        Text("Klicka här, håll in \(key) och säg något.")
+                        Text(dictation.mode == .toggle ? "Klicka här, tryck på \(key) och säg något." : "Klicka här, håll in \(key) och säg något.")
                             .font(.system(size: 17))
                             .foregroundStyle(DS.Colors.muted)
                             .padding(.horizontal, 17).padding(.vertical, 12)
@@ -865,8 +866,9 @@ private struct DictationFigures: View {
 
     var body: some View {
         let best = stats.bestDay
-        HStack(alignment: .top, spacing: 0) {
-            figure(Stats.number(stats.totalWords), "ord totalt",
+        // The numbers on one baseline, each with its label right under it.
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            figure(Stats.number(stats.totalWords), stats.totalWords == 1 ? "one|ord totalt" : "ord totalt",
                    detail: stats.totalSaved >= 60 ? String(localized: "Du har sluppit skriva i ungefär \(Stats.prose(stats.totalSaved, round: true)).") : nil)
             if let wpm = stats.wordsPerMinute {
                 figure(Stats.number(wpm), "ord i minuten",
@@ -883,13 +885,15 @@ private struct DictationFigures: View {
     }
 
     private func figure(_ value: String, _ label: LocalizedStringKey, detail: String?) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(verbatim: value).font(.system(size: 30, weight: .regular, design: .serif)).monospacedDigit()
-                .lineLimit(1).minimumScaleFactor(0.6)
-            Text(label).font(.system(size: 13, weight: .medium))
+        // The figure first and large, as Hem's; what it counts quietly under it.
+        VStack(alignment: .leading, spacing: 2) {
+            Text(verbatim: value).font(.system(size: 34, weight: .regular, design: .serif)).tracking(-0.6).monospacedDigit()
+                .lineLimit(1).fixedSize()
+            Text(label).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
             if let detail {
-                Text(verbatim: detail).font(.system(size: 12)).foregroundStyle(DS.Colors.muted).lineLimit(2)
+                Text(verbatim: detail).font(.system(size: 12)).foregroundStyle(DS.Colors.faint).lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2)
             }
         }
         .padding(.horizontal, 22)
@@ -929,7 +933,7 @@ struct RecentPage: View {
                     Button("Rensa", role: .destructive) { withAnimation(.snappy) { dictation.clearRecent() } }
                     Button("Avbryt", role: .cancel) {}
                 } message: {
-                    Text("De tas bort från din Mac och kan inte återställas. ⌃⌥V har då inget att klistra in.")
+                    Text("Dina senaste dikteringar tas bort från din Mac och går inte att få tillbaka. ⌃⌥V har då inget att klistra in.")
                 }
         }
     }
@@ -938,7 +942,7 @@ struct RecentPage: View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .firstTextBaseline) {
                 PageHeader(title: "Diktering",
-                           eyebrow: stats.today.words > 0 ? String(localized: "\(Stats.number(stats.today.words)) ord i dag")
+                           eyebrow: stats.today.words > 0 ? (stats.today.words == 1 ? String(localized: "1 ord i dag") : String(localized: "\(Stats.number(stats.today.words)) ord i dag"))
                                : stats.totalWords > 0 ? String(localized: "Inget sagt i dag än") : nil)
                     .staggered(0)
                 Spacer()
@@ -951,11 +955,13 @@ struct RecentPage: View {
                 DictationFigures(stats: stats).staggered(1)
             }
             if !dictation.recent.isEmpty {
+                // As Hem's shelves: the title 12 points over what it names.
                 SectionTitle("Det du dikterat").staggered(2)
+                    .padding(.bottom, -8)
                 ForEach(Self.days(dictation.recent), id: \.title) { day in
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(verbatim: day.title).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.muted)
-                            .accessibilityAddTraits(.isHeader)
+                        // In small capitals, as the days in the meeting archive.
+                        CapsLabel(day.title)
                         VStack(spacing: 0) {
                             ForEach(Array(day.items.enumerated()), id: \.element.id) { i, entry in
                                 if i > 0 { CardDivider() }
@@ -966,9 +972,14 @@ struct RecentPage: View {
                     }
                     .staggered(2)
                 }
-                Text("De 50 senaste sparas. ⌃⌥V klistrar in den senaste igen.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(DS.Colors.muted)
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text("De 50 senaste sparas.")
+                    KeyChip(text: "⌃⌥V", small: true)
+                    Text("klistrar in den senaste igen.")
+                }
+                .font(.system(size: 13))
+                .foregroundStyle(DS.Colors.muted)
+                .accessibilityElement(children: .combine)
             }
         }
     }
@@ -1172,7 +1183,7 @@ private struct TextCleanupCard: View {
                 InkToggle(label: "Röstkommandon", isOn: $prefs.voiceCommands)
             }
             CardDivider()
-            CardRow(title: "Lämna texten i urklipp", detail: "Texten skrivs in som vanligt och ligger sedan kvar i urklipp. Står markören inte i ett textfält hamnar den bara där.") {
+            CardRow(title: "Lämna texten i urklipp", detail: "Texten skrivs in som vanligt och ligger sedan kvar i urklipp. Aldrig lösenord.") {
                 InkToggle(label: "Lämna texten i urklipp", isOn: $prefs.keepInClipboard)
             }
             CardDivider()
