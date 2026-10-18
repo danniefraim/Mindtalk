@@ -112,9 +112,9 @@ enum TextCleanup {
         pattern: #"[ \t]*[,;]?[ \t]*(?<![\p{L}\p{N}])(?:ny[ \t]*rad|new[ \t]*line)(?![\p{L}\p{N}])[.,;:!?]?[ \t]*"#,
         options: [.caseInsensitive])
     /// The whole dictation is the command, said on its own. Short and alone, the speech
-    /// model often hears it as one word ("nyradet", "nytt stycket").
+    /// model often mishears it ("nyradet", "Ny rak.", "nytt stycket").
     private static let alone = try! NSRegularExpression(
-        pattern: #"^[ \t]*(?:(ny[ \t]*rad\p{L}{0,3}|new[ \t]*line)|(nytt?[ \t]*stycke\p{L}{0,2}|new[ \t]*paragraph))[.,;:!?]?[ \t]*$"#,
+        pattern: #"^[ \t]*(?:(ny[ \t]*ra[dkgt]\p{L}{0,3}|new[ \t]*line)|(nytt?[ \t]*stycke\p{L}{0,2}|new[ \t]*paragraph))[.,;:!?]?[ \t]*$"#,
         options: [.caseInsensitive])
 
     /// "en ny rad", "i ny rad", "a new line": the phrase used as words, not a command.

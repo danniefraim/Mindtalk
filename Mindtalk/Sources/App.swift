@@ -960,6 +960,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 ("Första punkten ny rad, andra punkten nytt stycke, tack.", "Första punkten\nAndra punkten\n\nTack."),
                 ("nyradet.", "\n"),
                 ("Ny rad.", "\n"),
+                ("Ny rak.", "\n"),
+                ("Den är ny, rak och fin.", "Den är ny, rak och fin."),
                 ("Nytt stycke.", "\n\n"),
                 ("Skriv en ny rad i listan.", "Skriv en ny rad i listan."),
             ]
