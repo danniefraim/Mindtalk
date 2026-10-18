@@ -95,21 +95,29 @@ final class Vocabulary: ObservableObject {
             return
         }
         #endif
+        // What's on disk couldn't be read in full: a copy is kept, and what could be
+        // read is written back, so the copy isn't made again at every launch.
+        var differsFromDisk = false
         if let data = defaults.data(forKey: Self.key) {
             if let saved = try? JSONDecoder().decode([Lenient].self, from: data) {
                 // One entry that can't be read is skipped, not the whole list.
                 loaded = saved.compactMap(\.entry)
-                if loaded.count < saved.count { defaults.set(data, forKey: Self.key + ".unreadable-\(Int(Date().timeIntervalSince1970))") }
+                if loaded.count < saved.count {
+                    defaults.set(data, forKey: Self.key + ".unreadable-\(Int(Date().timeIntervalSince1970))")
+                    differsFromDisk = true
+                }
             } else {
                 // Unreadable: keep a copy (one per time, never written over) rather than lose it.
                 defaults.set(data, forKey: Self.key + ".unreadable-\(Int(Date().timeIntervalSince1970))")
                 loaded = []
+                differsFromDisk = true
             }
         } else {
             loaded = [VocabularyEntry(word: "Mindtalk")]
         }
         matcher = Self.matcher(for: loaded)
         entries = loaded
+        if differsFromDisk { save() }
     }
 
     /// An entry, or nothing if it can't be read.
@@ -132,7 +140,7 @@ final class Vocabulary: ObservableObject {
     // MARK: Editing
 
     /// "Mind Talk", "mind-talk" and "Mindtalk" are the same entry.
-    private static func key(_ word: String) -> String {
+    static func key(_ word: String) -> String {
         word.lowercased().filter { $0.isLetter || $0.isNumber }
     }
 
@@ -152,35 +160,55 @@ final class Vocabulary: ObservableObject {
     /// Returns the entry's id (to highlight it).
     @discardableResult
     func add(word: String, heardAs: String) -> UUID? {
-        let word = Self.tidy(word)
-        guard Self.isValidWord(word) else { return nil }
+        let (updated, id) = Self.adding(word: word, heardAs: heardAs, to: entries)
+        if updated != entries { entries = updated }
+        return id
+    }
+
+    /// The list with a word added (or merged into the entry already there) — pure, so it
+    /// can be tested without the store. A word already on the list keeps the spelling
+    /// it has (rename changes it); only new variants are taken. A variant that is
+    /// another entry's word is left out: it would rewrite that word everywhere.
+    static func adding(word: String, heardAs: String, to entries: [VocabularyEntry]) -> (entries: [VocabularyEntry], id: UUID?) {
+        var entries = entries
+        let word = tidy(word)
+        guard isValidWord(word) else { return (entries, nil) }
         let variants = heardAs.split(separator: ",")
-            .map { Self.tidy(String($0)) }
-            .filter { Self.isValidWord($0) && Self.key($0) != Self.key(word) }
+            .map { tidy(String($0)) }
+            .filter { isValidWord($0) && key($0) != key(word) && !isOtherWord($0, than: word, in: entries) }
         // The word itself is no longer a mishearing of another entry ("Mathilda" heard as
         // "Matilda", then the other way round, would swap the two in every text).
-        for i in entries.indices where Self.key(entries[i].word) != Self.key(word)
-            && entries[i].heardAs.contains(where: { Self.key($0) == Self.key(word) }) {
-            entries[i].heardAs.removeAll { Self.key($0) == Self.key(word) }
+        for i in entries.indices where key(entries[i].word) != key(word)
+            && entries[i].heardAs.contains(where: { key($0) == key(word) }) {
+            entries[i].heardAs.removeAll { key($0) == key(word) }
         }
-        if let i = entries.firstIndex(where: { Self.key($0.word) == Self.key(word) }) {
-            entries[i].word = word
-            for v in variants where !entries[i].heardAs.contains(where: { Self.key($0) == Self.key(v) }) {
+        if let i = entries.firstIndex(where: { key($0.word) == key(word) }) {
+            for v in variants where !entries[i].heardAs.contains(where: { key($0) == key(v) }) {
                 entries[i].heardAs.append(v)
             }
-            return entries[i].id
+            return (entries, entries[i].id)
         }
         let entry = VocabularyEntry(word: word, heardAs: variants)
         entries.insert(entry, at: 0)
-        return entry.id
+        return (entries, entry.id)
     }
 
-    func addVariant(_ variant: String, to entry: VocabularyEntry) {
+    /// `variant` is the word of some other entry than `word`'s.
+    static func isOtherWord(_ variant: String, than word: String, in entries: [VocabularyEntry]) -> Bool {
+        entries.contains { key($0.word) == key(variant) && key($0.word) != key(word) }
+    }
+
+    /// False when the variant can't be added: not a word, the entry's own word, or
+    /// another entry's word.
+    @discardableResult
+    func addVariant(_ variant: String, to entry: VocabularyEntry) -> Bool {
         let v = Self.tidy(variant)
         guard Self.isValidWord(v), let i = entries.firstIndex(where: { $0.id == entry.id }),
               Self.key(v) != Self.key(entries[i].word),
-              !entries[i].heardAs.contains(where: { Self.key($0) == Self.key(v) }) else { return }
+              !Self.isOtherWord(v, than: entries[i].word, in: entries) else { return false }
+        guard !entries[i].heardAs.contains(where: { Self.key($0) == Self.key(v) }) else { return true }
         entries[i].heardAs.append(v)
+        return true
     }
 
     /// Fixes a typo in a word, keeping its variants and count.
@@ -214,13 +242,18 @@ final class Vocabulary: ObservableObject {
         }
     }
 
-    /// "Ångra" on the toast.
+    /// "Ångra" on the toast. The same change is also on ⌘Z's undo stack: taken off,
+    /// so it can't be put back a second time.
     func undoLast() {
         guard let before = undoSnapshot else { return }
         entries = before
         undoSnapshot = nil
         toast = nil
+        undoManager?.removeAllActions(withTarget: self)
     }
+
+    /// The window's undo manager, from the last removal — for taking the toast's undo off it.
+    private weak var undoManager: UndoManager?
 
     // MARK: Suggestions
 
@@ -263,13 +296,24 @@ final class Vocabulary: ObservableObject {
     /// The same format back in; returns how many words were added or got new variants.
     @discardableResult
     func importText(_ text: String) -> Int {
+        let (updated, n) = Self.importing(text, into: entries)
+        if updated != entries { entries = updated }
+        return n
+    }
+
+    /// Pure, for the self-test: the list after the import, and how many lines changed it.
+    static func importing(_ text: String, into entries: [VocabularyEntry]) -> (entries: [VocabularyEntry], changed: Int) {
+        var entries = entries
         var n = 0
         for line in text.split(whereSeparator: \.isNewline) {
             let parts = line.split(separator: ";", maxSplits: 1).map { String($0) }
-            guard let word = parts.first, Self.isValidWord(Self.tidy(word)) else { continue }
-            if add(word: word, heardAs: parts.count > 1 ? parts[1] : "") != nil { n += 1 }
+            guard let word = parts.first, isValidWord(tidy(word)) else { continue }
+            let (updated, _) = adding(word: word, heardAs: parts.count > 1 ? parts[1] : "", to: entries)
+            // A word already there, with nothing new to it, isn't counted.
+            if updated != entries { n += 1 }
+            entries = updated
         }
-        return n
+        return (entries, n)
     }
 
     /// Removes an entry; "Ångra" or ⌘Z puts it back where it was.
@@ -277,13 +321,22 @@ final class Vocabulary: ObservableObject {
         guard let i = entries.firstIndex(where: { $0.id == entry.id }) else { return }
         offerUndo(String(localized: "Tog bort ”\(entry.word)”"), before: entries)
         let removed = entries.remove(at: i)
+        undoManager = undo
         undo?.registerUndo(withTarget: self) { vocabulary in
             MainActor.assumeIsolated {
-                let at = min(i, vocabulary.entries.count)
-                vocabulary.entries.insert(removed, at: at)
+                vocabulary.entries = Self.restoring(removed, at: i, into: vocabulary.entries)
             }
         }
         undo?.setActionName(String(localized: "Ta bort \(removed.word)"))
+    }
+
+    /// The entry back where it was — unless it's already there ("Ångra" on the toast
+    /// first, then ⌘Z: never twice).
+    static func restoring(_ removed: VocabularyEntry, at i: Int, into entries: [VocabularyEntry]) -> [VocabularyEntry] {
+        guard !entries.contains(where: { $0.id == removed.id || key($0.word) == key(removed.word) }) else { return entries }
+        var entries = entries
+        entries.insert(removed, at: min(i, entries.count))
+        return entries
     }
 
     func removeVariant(_ variant: String, from entry: VocabularyEntry, undo: UndoManager?) {
@@ -292,13 +345,22 @@ final class Vocabulary: ObservableObject {
         offerUndo(String(localized: "Tog bort ”\(variant)”"), before: entries)
         entries[i].heardAs.remove(at: v)
         let id = entry.id
+        undoManager = undo
         undo?.registerUndo(withTarget: self) { vocabulary in
             MainActor.assumeIsolated {
-                guard let i = vocabulary.entries.firstIndex(where: { $0.id == id }) else { return }
-                vocabulary.entries[i].heardAs.insert(variant, at: min(v, vocabulary.entries[i].heardAs.count))
+                vocabulary.entries = Self.restoring(variant: variant, at: v, of: id, into: vocabulary.entries)
             }
         }
         undo?.setActionName(String(localized: "Ta bort \(variant)"))
+    }
+
+    /// The variant back on its entry — unless it's already there.
+    static func restoring(variant: String, at v: Int, of id: UUID, into entries: [VocabularyEntry]) -> [VocabularyEntry] {
+        guard let i = entries.firstIndex(where: { $0.id == id }),
+              !entries[i].heardAs.contains(where: { key($0) == key(variant) }) else { return entries }
+        var entries = entries
+        entries[i].heardAs.insert(variant, at: min(v, entries[i].heardAs.count))
+        return entries
     }
 
     // MARK: Fixing text
@@ -325,7 +387,7 @@ final class Vocabulary: ObservableObject {
         guard Self.hasOwnWords(entries) else { return }
         // 100 MB: fetched when you said yes (or already here) — never on its own.
         guard VocabularyBoost.isInstalled || Settings.listenerAllowed else { return }
-        Task { await VocabularyBoost.shared.prepare() }
+        startListener()
     }
 
     /// "Ladda ned" on the word list.
@@ -335,10 +397,38 @@ final class Vocabulary: ObservableObject {
     }
 
     /// The introduction and Modeller: fetched now, before there are words of your own —
-    /// it's small, and the words you add later are heard right away.
+    /// it's small, and the words you add later are heard right away. "Försök igen"
+    /// after a download that failed, too.
     func fetchListener() {
         Settings.listenerAllowed = true
         guard !VocabularyBoost.isInstalled else { return }
+        startListener()
+    }
+
+    /// "Ladda ned igen": the listener is here but wouldn't start — fetched afresh.
+    func refetchListener() {
+        Settings.listenerAllowed = true
+        Task {
+            await VocabularyBoost.shared.remove()
+            startListener()
+        }
+    }
+
+    /// "Ta bort" under Modeller: the folder goes, and it isn't fetched again until you say so.
+    func removeListener() {
+        Settings.listenerAllowed = false
+        Task { await VocabularyBoost.shared.remove() }
+    }
+
+    /// Room for the download, and for preparing it for this Mac, before anything is fetched.
+    private func startListener() {
+        if !VocabularyBoost.isInstalled {
+            let bytes = VocabularyBoost.bytes
+            guard BetterNotes.freeBytes > bytes * 2 + 500_000_000 else {
+                VocabularyBoostStatus.shared.set(.failed(String(localized: "Det behövs drygt \(RecommendedDownloads.size(bytes * 2)) ledigt på disken.")))
+                return
+            }
+        }
         Task { await VocabularyBoost.shared.prepare() }
     }
 
@@ -373,9 +463,22 @@ final class Vocabulary: ObservableObject {
         matcher.apply(to: text, isWord: Self.isDictionaryWord).text
     }
 
-    /// For the page's preview: the fixed text and where the fixes are.
+    /// Counts what the list fixes in a text without returning it — a meeting's words
+    /// are fixed as they're shown (reapply), so the count is taken once, when the
+    /// meeting is done.
+    func noteFixes(in text: String) {
+        let counts = matcher.apply(to: text, isWord: Self.isDictionaryWord).counts
+        guard !counts.isEmpty else { return }
+        var updated = entries
+        for (i, n) in counts where updated.indices.contains(i) { updated[i].fixes += n }
+        entries = updated
+    }
+
+    /// For the page's preview: the fixed text and where the fixes are — after the
+    /// same tidying a dictation gets first, so the preview reads as the text would.
     func preview(_ text: String) -> (text: String, ranges: [NSRange]) {
-        let result = matcher.apply(to: text, isWord: Self.isDictionaryWord)
+        let cleaned = TextCleanup.apply(text, fillers: Settings.removeFillers, commands: false)
+        let result = matcher.apply(to: cleaned, isWord: Self.isDictionaryWord)
         return (result.text, result.ranges)
     }
 

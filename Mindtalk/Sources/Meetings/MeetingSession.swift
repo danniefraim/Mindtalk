@@ -1627,6 +1627,12 @@ final class MeetingSession: ObservableObject {
                 Vocabulary.shared.noteHeard(heard.fixed)
                 #endif
             }
+            // What the list puts right in the text (as it's shown) counts too — once, here.
+            #if DEBUG
+            if simulation == nil { Vocabulary.shared.noteFixes(in: words.map(\.text).joined(separator: " ")) }
+            #else
+            Vocabulary.shared.noteFixes(in: words.map(\.text).joined(separator: " "))
+            #endif
             // Listened to again ("Gör klart", "Lyssna igenom på nytt"): the new pass numbers
             // the voices its own way — each takes the number of the voice it overlaps
             // most in the text you have, so names and merges stay where you put them.

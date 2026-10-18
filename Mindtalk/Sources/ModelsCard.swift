@@ -24,12 +24,13 @@ struct ModelsCard: View {
     @State private var confirmRemove: Removal?
 
     private enum Removal: Identifiable {
-        case speech(SpeechModel), voices, notes(NotesModel)
+        case speech(SpeechModel), voices, notes(NotesModel), listener
         var id: String {
             switch self {
             case .speech(let m): return "speech-\(m.rawValue)"
             case .voices: return "voices"
             case .notes(let m): return "notes-\(m.rawValue)"
+            case .listener: return "listener"
             }
         }
     }
@@ -46,7 +47,7 @@ struct ModelsCard: View {
             group("Röster i möten", "Håller isär vem som pratar och känner igen röster till nästa gång.") {
                 voicesRow
                 CardDivider()
-                row(name: "ReDimNet", detail: String(localized: "Känner igen röster mellan möten · följer med appen")) {
+                row(name: "ReDimNet2+", detail: String(localized: "Känner igen röster mellan möten · följer med appen")) {
                     Text("Inbyggd").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                 }
             }
@@ -58,18 +59,7 @@ struct ModelsCard: View {
                 }
             }
             group("Ordlistan", nil) {
-                row(name: "Parakeet CTC",
-                    detail: VocabularyBoost.isInstalled
-                        ? String(localized: "Hör orden i din ordlista · \(size(VocabularyBoost.directory, fallback: VocabularyBoost.sizeText))")
-                        : String(localized: "Hör orden i din ordlista, så de stavas rätt redan när du pratar · \(VocabularyBoost.sizeText)")) {
-                    if VocabularyBoost.isInstalled {
-                        finderMenu(VocabularyBoost.directory)
-                    } else if listener.state == .downloading {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Button("Ladda ned") { Vocabulary.shared.fetchListener() }.buttonStyle(.soft)
-                    }
-                }
+                listenerRow
             }
             HStack(spacing: 10) {
                 Text(verbatim: total.map { String(localized: "Modellerna tar \(BetterNotes.gigabytes($0)) på den här Macen.") }
@@ -81,13 +71,14 @@ struct ModelsCard: View {
             .padding(.top, 2)
         }
         .task(id: refreshKey) { await measure() }
+        .onAppear { listener.refresh() }      // the listener's folder deleted in Finder, or put back
         .confirmationDialog(confirmDownload.map { String(localized: "Ladda ned \($0.name) (\($0.sizeText))?") } ?? "",
                             isPresented: Binding(get: { confirmDownload != nil }, set: { if !$0 { confirmDownload = nil } }),
                             presenting: confirmDownload) { m in
             Button("Ladda ned") { notes.download(m) }
             Button("Avbryt", role: .cancel) {}
         } message: { m in
-            Text("Den laddas ned i bakgrunden medan du använder Mindtalk och fungerar sedan utan internet. Du har \(BetterNotes.freeBytes / 1_000_000_000) GB ledigt.")
+            Text("Den laddas ned i bakgrunden medan du använder Mindtalk och fungerar sedan utan internet. Du har \(BetterNotes.gigabytes(BetterNotes.freeBytes)) ledigt.")
                 + Text(verbatim: m.page.host.map { " " + String(localized: "Från \($0).") } ?? "")
         }
         .confirmationDialog(removalTitle, isPresented: Binding(get: { confirmRemove != nil }, set: { if !$0 { confirmRemove = nil } }),
@@ -99,6 +90,7 @@ struct ModelsCard: View {
             case .speech: Text("Den kan laddas ned igen senare.")
             case .voices: Text("Möten kan inte spelas in förrän den laddats ned igen.")
             case .notes: Text("Den kan laddas ned igen senare. Apple Intelligence skriver sammanfattningarna så länge.")
+            case .listener: Text("Dina ord rättas ändå i texten. Den kan laddas ned igen senare.")
             }
         }
     }
@@ -132,9 +124,11 @@ struct ModelsCard: View {
     private func speechRow(_ m: SpeechModel) -> some View {
         let inUse = dictation.engine == m && m.isInstalled
         let language = m == .swedish ? String(localized: "Svenska") : String(localized: "Flerspråkig")
-        return row(name: m.modelName,
-                   detail: language + " · " + (m.isInstalled ? size(m.ownDirectory, fallback: m.sizeText) : m.sizeText),
-                   badge: inUse ? String(localized: "Används") : nil) {
+        var detail = language + " · " + (m.isInstalled ? size(m.ownDirectory, fallback: m.sizeText) : m.sizeText)
+        // A download that failed says why, in plain words (Dictation.plainWords).
+        if let why = dictation.downloadErrors[m] { detail += "\n" + why }
+        else if meeting.isBusy, m.isInstalled, !inUse { detail += "\n" + String(localized: "Går att byta när mötet är klart.") }
+        return row(name: m.modelName, detail: detail, badge: inUse ? String(localized: "Används") : nil) {
             if let p = dictation.downloads[m] {
                 progress(p)
             } else if m.isInstalled {
@@ -142,13 +136,53 @@ struct ModelsCard: View {
                     Button("Visa i Finder") { reveal(m.ownDirectory) }
                     if !inUse, m.isOwnInstall {
                         Divider()
-                        Button("Ta bort…", role: .destructive) { confirmRemove = .speech(m) }
+                        // Not while a meeting may need it: the model is let go when the meeting is done.
+                        Button("Ta bort…", role: .destructive) { confirmRemove = .speech(m) }.disabled(meeting.isBusy)
                     }
                 } label: { moreLabel }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 .help(inUse ? "Den som används kan inte tas bort. Byt språk under Inspelning först." : "Mer")
             } else {
-                Button("Ladda ned") { dictation.downloadModel(m) }.buttonStyle(.soft)
+                Button(dictation.downloadErrors[m] == nil ? String(localized: "Ladda ned") : String(localized: "Försök igen")) { dictation.downloadModel(m) }.buttonStyle(.soft)
+            }
+        }
+    }
+
+    // MARK: The listener
+
+    private var listenerRow: some View {
+        let detail: String = {
+            switch listener.state {
+            case .failed(let why):
+                return why
+            case .downloading:
+                return String(localized: "Laddar ned lyssnaren (\(VocabularyBoost.sizeText)). Det sker bara en gång, sedan fungerar den utan internet.")
+            case .ready, .missing:
+                return VocabularyBoost.isInstalled
+                    ? String(localized: "Hör orden i din ordlista · \(size(VocabularyBoost.directory, fallback: VocabularyBoost.sizeText))")
+                    : String(localized: "Hör orden i din ordlista, så att de stavas rätt redan när du pratar · \(VocabularyBoost.sizeText)")
+            }
+        }()
+        return row(name: String(localized: "Lyssnaren (Parakeet CTC)"), detail: detail) {
+            if case .downloading = listener.state {
+                ProgressView().controlSize(.small)
+            } else if case .failed = listener.state {
+                // Here but wouldn't start: fetched afresh. Not here: fetched again.
+                if VocabularyBoost.isInstalled {
+                    Button("Ladda ned igen") { vocabulary.refetchListener() }.buttonStyle(.soft)
+                } else {
+                    Button("Försök igen") { vocabulary.fetchListener() }.buttonStyle(.soft)
+                }
+            } else if VocabularyBoost.isInstalled {
+                Menu {
+                    Button("Visa i Finder") { reveal(VocabularyBoost.directory) }
+                    Divider()
+                    Button("Ta bort…", role: .destructive) { confirmRemove = .listener }
+                } label: { moreLabel }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                .help("Mer")
+            } else {
+                Button("Ladda ned") { vocabulary.fetchListener() }.buttonStyle(.soft)
             }
         }
     }
@@ -156,8 +190,9 @@ struct ModelsCard: View {
     // MARK: Voices
 
     private var voicesRow: some View {
-        row(name: "Nemotron 3",
-            detail: String(localized: "Från NVIDIA · ") + (VoiceModels.isInstalled ? size(VoiceModels.directory, fallback: VoiceModels.sizeText) : VoiceModels.sizeText)) {
+        var detail = String(localized: "Från NVIDIA · ") + (VoiceModels.isInstalled ? size(VoiceModels.directory, fallback: VoiceModels.sizeText) : VoiceModels.sizeText)
+        if case .failed(let why) = voices.state { detail += "\n" + why }
+        return row(name: "Nemotron 3", detail: detail) {
             switch voices.state {
             case .downloading(let p):
                 progress(p)
@@ -169,24 +204,29 @@ struct ModelsCard: View {
                 } label: { moreLabel }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 .help("Mer")
-            case .missing, .failed:
+            case .missing:
                 Button("Ladda ned") { voices.download() }.buttonStyle(.soft)
+            case .failed:
+                Button("Försök igen") { voices.download() }.buttonStyle(.soft)
             }
         }
     }
 
     // MARK: Summaries
 
+    /// Where Apple Intelligence stands on this Mac — here, and under Möten.
+    static func appleDetail(_ status: Polisher.Status) -> String {
+        switch status {
+        case .available: return String(localized: "Inbyggd i macOS · alla Macar med Apple Intelligence")
+        case .notEnabled: return String(localized: "Slå på Apple Intelligence i Systeminställningar för att använda den.")
+        case .notReady: return String(localized: "macOS laddar fortfarande ned den.")
+        case .unsupported: return String(localized: "Finns inte på den här Macen.")
+        }
+    }
+
     private var appleRow: some View {
         let status = Polisher.status
-        let detail: String = {
-            switch status {
-            case .available: return String(localized: "Inbyggd i macOS · alla Macar med Apple Intelligence")
-            case .notEnabled: return String(localized: "Slå på Apple Intelligence i Systeminställningar för att använda den.")
-            case .notReady: return String(localized: "macOS laddar fortfarande ned den.")
-            case .unsupported: return String(localized: "Finns inte på den här Macen.")
-            }
-        }()
+        let detail = Self.appleDetail(status)
         return row(name: "Apple Intelligence", detail: detail, chooser: (notes.active == nil, status == .available, { notes.chosen = nil })) {
             EmptyView()
         }
@@ -329,6 +369,7 @@ struct ModelsCard: View {
         case .speech(let m): return String(localized: "Ta bort \(m.modelName)?")
         case .voices: return String(localized: "Ta bort Nemotron 3?")
         case .notes(let m): return String(localized: "Ta bort \(m.name)?")
+        case .listener: return String(localized: "Ta bort lyssnaren?")
         case nil: return ""
         }
     }
@@ -338,6 +379,7 @@ struct ModelsCard: View {
         case .speech(let m): dictation.removeModel(m)
         case .voices: voices.remove()
         case .notes(let m): notes.remove(m)
+        case .listener: vocabulary.removeListener()
         }
         confirmRemove = nil
     }
@@ -349,10 +391,14 @@ struct SummaryWriterRow: View {
 
     var body: some View {
         let ready = NotesModel.allCases.filter { notes.state($0) == .ready }
+        let status = Polisher.status
+        // Apple Intelligence off or missing: said as under Modeller, not as if it wrote them.
+        let apple = status == .available ? String(localized: "Apple Intelligence.")
+            : String(localized: "Apple Intelligence: ") + ModelsCard.appleDetail(status)
         CardRow(title: "Sammanfattningarna skrivs av",
                 detail: ready.isEmpty
-                    ? (NotesModel.recommended.map { String(localized: "Apple Intelligence. \($0.name) skriver mer träffsäkert och laddas ned under Modeller.") }
-                       ?? String(localized: "Apple Intelligence."))
+                    ? (NotesModel.recommended.map { apple + " " + String(localized: "\($0.name) skriver mer träffsäkert och laddas ned under Modeller.") }
+                       ?? apple)
                     : String(localized: "Fler val under Modeller.")) {
             if !ready.isEmpty {
                 MenuPicker(options: [(value: Optional<NotesModel>.none, title: "Apple Intelligence")] + ready.map { (value: Optional($0), title: $0.name) },
@@ -416,7 +462,7 @@ struct NotesModelOffer: View {
                         Image(systemName: "sparkle").font(.system(size: 15)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Mer träffsäkra sammanfattningar").font(.system(size: 14, weight: .semibold))
-                            Text("\(m.name) från Google hittar fler beslut och uppgifter och skriver dem på din Mac. Den laddas ned en gång (\(m.sizeText)) och fungerar sedan utan internet. Du har \(BetterNotes.freeBytes / 1_000_000_000) GB ledigt.")
+                            Text("\(m.name) från Google hittar fler beslut och uppgifter och skriver dem på din Mac. Den laddas ned en gång (\(m.sizeText)) och fungerar sedan utan internet. Du har \(BetterNotes.gigabytes(BetterNotes.freeBytes)) ledigt.")
                                 .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                                 .fixedSize(horizontal: false, vertical: true)
                         }

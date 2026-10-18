@@ -81,6 +81,20 @@ struct MeetingSummary: Codable, Equatable {
     /// (MeetingRecord.notesFingerprint): differ now, and the summary says so. Nil in
     /// summaries from before it was kept; they never say so.
     var notesFrom: String? = nil
+
+    /// Spelled your way: the Ordlista over every line the model wrote (the words it
+    /// read were fixed, but a model may spell a name as it likes). Strings only.
+    @MainActor mutating func applyVocabulary() {
+        let fix = { (text: String) in Vocabulary.shared.reapply(text) }
+        title = title.map(fix)
+        overview = fix(overview)
+        for keyPath in [\MeetingSummary.decisions, \MeetingSummary.tasks, \MeetingSummary.points] {
+            for i in self[keyPath: keyPath].indices {
+                self[keyPath: keyPath][i].text = fix(self[keyPath: keyPath][i].text)
+                self[keyPath: keyPath][i].owner = self[keyPath: keyPath][i].owner.map(fix)
+            }
+        }
+    }
 }
 
 struct MeetingAnswer: Codable, Equatable, Identifiable {
@@ -147,6 +161,7 @@ final class MeetingNotes: ObservableObject {
                     summary.tasks[i].done = true
                 }
                 summary.notesFrom = notesFrom
+                summary.applyVocabulary()
                 latest.summary = summary
                 if !latest.userTitled, let title = summary.title, !title.isEmpty { latest.title = title }
                 MeetingStore.shared.save(latest)

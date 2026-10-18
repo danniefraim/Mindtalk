@@ -28,6 +28,7 @@ actor VocabularyBoost {
     nonisolated static var directory: URL { SpeechModel.rootDirectory.appendingPathComponent("parakeet-ctc-110m-coreml") }
     nonisolated static var isInstalled: Bool { CtcModels.modelsExist(at: directory) }
     static let sizeText = "100 MB"
+    static let bytes: Int64 = 100_000_000
 
     private var models: CtcModels?
     private var ready: (terms: [String], spotter: CtcKeywordSpotter, rescorer: VocabularyRescorer, vocabulary: CustomVocabularyContext)?
@@ -50,9 +51,23 @@ actor VocabularyBoost {
             if !wasInstalled { Self.log.info("listener downloaded") }
             return loaded
         } catch {
-            await VocabularyBoostStatus.shared.set(.failed(error.localizedDescription))
+            Self.log.error("listener: \(error.localizedDescription, privacy: .public)")
+            // Said plainly: a download that failed, or a listener here that wouldn't start.
+            let why = await MainActor.run {
+                Self.isInstalled ? String(localized: "Lyssnaren startade inte.") : Dictation.plainWords(for: error)
+            }
+            await VocabularyBoostStatus.shared.set(.failed(why))
             throw error
         }
+    }
+
+    /// Lets go of the listener and deletes its folder ("Ta bort" under Modeller, or
+    /// before fetching it afresh).
+    func remove() async {
+        models = nil
+        ready = nil
+        try? FileManager.default.removeItem(at: Self.directory)
+        await VocabularyBoostStatus.shared.set(.missing)
     }
 
     enum ListenerError: Error { case busy, notLoaded }
@@ -277,4 +292,13 @@ final class VocabularyBoostStatus: ObservableObject {
     @Published private(set) var state: State = VocabularyBoost.isInstalled ? .ready : .missing
 
     func set(_ new: State) { state = new }
+
+    /// As the page or Modeller appears: a folder deleted in Finder (or put back) is
+    /// noticed. A download under way, or a failure, is left to say its piece.
+    func refresh() {
+        switch state {
+        case .downloading, .failed: break
+        case .ready, .missing: state = VocabularyBoost.isInstalled ? .ready : .missing
+        }
+    }
 }

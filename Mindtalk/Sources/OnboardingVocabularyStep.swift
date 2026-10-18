@@ -418,8 +418,8 @@ private struct FirstWordCard: View {
             field(String(localized: "t.ex. ett företagsnamn"), text: $word)
                 .focused($wordFocused)
             HStack(spacing: 8) {
-                // Its own words here; the Ordlista page keeps "Hörs ofta som".
-                field(String(localized: "Blir ofta fel som (valfritt)"), text: $heardAs)
+                // The same words as the Ordlista page's field.
+                field(String(localized: "Hörs ofta som (valfritt)"), text: $heardAs)
                     .focused($heardAsFocused)
                 Button("Lägg till", action: add)
                     .buttonStyle(.ink)

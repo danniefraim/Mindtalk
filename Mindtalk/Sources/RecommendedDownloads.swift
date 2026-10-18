@@ -11,6 +11,8 @@ struct RecommendedDownloads: View {
     @ObservedObject private var notes = BetterNotes.shared
     @ObservedObject private var listener = VocabularyBoostStatus.shared
     @ObservedObject private var vocabulary = Vocabulary.shared
+    /// "Inte nu" on the Ordlista page's offer: not offered here either.
+    @AppStorage("listenerOfferAnswered") private var listenerAnswered = false
 
     struct Item: Identifiable {
         let id: String
@@ -27,7 +29,8 @@ struct RecommendedDownloads: View {
             all.append(Item(id: "voices", name: "Nemotron 3", gives: String(localized: "Vem som säger vad i möten"),
                             bytes: 400_000_000, start: { VoiceModels.shared.download() }))
         }
-        if listener.state == .missing {
+        // As on the Ordlista page: once there are words of your own, and not after "Inte nu".
+        if listener.state == .missing, vocabulary.hasOwnWords, !listenerAnswered {
             all.append(Item(id: "listener", name: String(localized: "Lyssnaren"),
                             gives: String(localized: "Dina ord stavas rätt redan när du pratar"),
                             bytes: 100_000_000, start: { Vocabulary.shared.fetchListener() }))
@@ -119,7 +122,7 @@ struct ListenerOffer: View {
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "ear").font(.system(size: 15)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Stava rätt redan när du pratar").font(.system(size: 14, weight: .semibold))
+                            Text("Rätt stavat redan när du pratar").font(.system(size: 14, weight: .semibold))
                             Text("I dag rättas dina ord i texten efteråt. Med lyssnaren hör Mindtalk dem direkt, också namn som låter som vanliga ord. Den laddas ned en gång (\(VocabularyBoost.sizeText)) och körs på din Mac.")
                                 .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                                 .fixedSize(horizontal: false, vertical: true)

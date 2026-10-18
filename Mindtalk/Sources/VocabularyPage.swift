@@ -15,8 +15,9 @@ struct VocabularyPage: View {
     @FocusState private var wordFocused: Bool
     /// How the list is sorted — remembered.
     @AppStorage("vocabularySort") private var sort = Sort.newest.rawValue
-    /// A hint in the word field, set by an example chip.
+    /// Hints in the two fields, set by an example chip.
     @State private var example = String(localized: "t.ex. Mindtalk")
+    @State private var exampleHeard = String(localized: "t.ex. mind talk, mintalk")
     @State private var imported: Int?
 
     private enum Sort: String, CaseIterable {
@@ -30,7 +31,24 @@ struct VocabularyPage: View {
         }
     }
 
-    private var canAdd: Bool { Vocabulary.isValidWord(word) }
+    private var canAdd: Bool { Vocabulary.isValidWord(Vocabulary.tidy(word)) && problem == nil }
+
+    /// Why "Lägg till" can't be pressed — said under the fields.
+    private var problem: String? {
+        let word = Vocabulary.tidy(word)
+        if word.count > 60 { return String(localized: "Ordet är för långt. Högst 60 tecken.") }
+        if !word.isEmpty, !Vocabulary.isValidWord(word) { return String(localized: "Skriv ett ord med bokstäver eller siffror.") }
+        let variants = heardAs.split(separator: ",").map { Vocabulary.tidy(String($0)) }.filter { !$0.isEmpty }
+        if variants.contains(where: { $0.count > 60 }) { return String(localized: "Det som brukar bli fel är för långt. Högst 60 tecken.") }
+        if !word.isEmpty, variants.contains(where: { Vocabulary.key($0) == Vocabulary.key(word) }) {
+            return String(localized: "Skriv hur det brukar bli fel, inte samma ord en gång till.")
+        }
+        // Another word on the list as a variant would rewrite that word everywhere.
+        if let taken = variants.first(where: { Vocabulary.isOtherWord($0, than: word, in: vocabulary.entries) }) {
+            return String(localized: "”\(taken)” finns redan som eget ord.")
+        }
+        return nil
+    }
 
     private var shown: [VocabularyEntry] {
         let q = search.trimmingCharacters(in: .whitespaces)
@@ -58,20 +76,30 @@ struct VocabularyPage: View {
 
             SectionTitle("Lägg till")
             .staggered(0)
-            HStack(alignment: .bottom, spacing: 12) {
-                field("Ord", placeholder: example, text: $word)
-                    .focused($wordFocused)
-                field("Hörs ofta som (valfritt)", placeholder: "t.ex. mind talk, mintalk", text: $heardAs)
-                Button("Lägg till", action: add)
-                    .buttonStyle(.ink)
-                    .disabled(!canAdd)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .bottom, spacing: 12) {
+                    field("Ord", placeholder: example, text: $word)
+                        .focused($wordFocused)
+                    field("Hörs ofta som (valfritt)", placeholder: exampleHeard, text: $heardAs)
+                    Button("Lägg till", action: add)
+                        .buttonStyle(.ink)
+                        .disabled(!canAdd)
+                }
+                if let problem {
+                    Label(problem, systemImage: "exclamationmark.circle.fill")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(DS.Colors.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .transition(.opacity)
+                }
             }
+            .animation(.smooth(duration: 0.25), value: problem)
             .padding(20)
             .card()
             .staggered(0)
 
             HStack(alignment: .firstTextBaseline, spacing: 12) {
-                SectionTitle(vocabulary.entries.isEmpty ? "Dina ord" : "Dina ord · \(vocabulary.entries.count)")
+                SectionTitle(vocabulary.entries.isEmpty ? String(localized: "Dina ord") : String(localized: "Dina ord · \(vocabulary.entries.count)"))
                 Spacer()
                 if vocabulary.entries.count > 8 {
                     TextField("Sök i ordlistan", text: $search)
@@ -150,13 +178,14 @@ struct VocabularyPage: View {
                     .staggered(1)
             }
 
-            Text("Varianter rättas alltid, så lägg bara till sådant du inte också säger på riktigt. Skriv flera med komma emellan. Vanliga ord (som ”per” eller ”test”), text i versaler och e-post- och webbadresser lämnas orörda. Det går också att ersätta förkortningar: lägg ”btw” som variant till ”förresten”.")
+            Text("Varianter rättas alltid, så lägg bara till sådant du aldrig menar på riktigt. Skriv flera med komma emellan. Korta vanliga ord (som ”per” eller ”test”), text i versaler och e-post- och webbadresser lämnas orörda. Det går också att ersätta förkortningar: lägg ”btw” som variant till ”förresten”.")
                 .font(.system(size: 12))
                 .foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 4)
         }
         .modifier(PageScroll(on: !plain))
+        .onAppear { VocabularyBoostStatus.shared.refresh() }      // deleted in Finder, or put back
         .overlay(alignment: .bottom) {
             if let toast = vocabulary.toast {
                 HStack(spacing: 12) {
@@ -200,15 +229,15 @@ struct VocabularyPage: View {
                 .font(.system(size: 14, weight: .regular, design: .serif)).foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 520, alignment: .leading)
-            if let top, top.fixes > 0 {
-                Text(verbatim: String(localized: "Mest använt: \(top.word)")).font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
-            } else {
-                // Nothing fixed yet: what's worth adding.
+            if !vocabulary.hasOwnWords {
+                // No words of your own yet: what's worth adding, each with how it's heard.
                 HStack(spacing: 8) {
-                    exampleChip("Namn på kollegor", String(localized: "t.ex. en kollegas namn"))
-                    exampleChip("Företag och produkter", String(localized: "t.ex. Mindact"))
-                    exampleChip("Förkortningar", String(localized: "t.ex. förresten (hörs som btw)"))
+                    exampleChip("Namn på kollegor", String(localized: "t.ex. en kollegas namn"), String(localized: "t.ex. som namnet brukar höras"))
+                    exampleChip("Företag och produkter", String(localized: "t.ex. Mindact"), String(localized: "t.ex. mind act, min dakt"))
+                    exampleChip("Förkortningar", String(localized: "t.ex. förresten"), String(localized: "t.ex. btw"))
                 }
+            } else if let top, top.fixes > 0 {
+                Text(verbatim: String(localized: "Mest använt: \(top.word)")).font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
             }
         }
         .padding(24)
@@ -216,10 +245,11 @@ struct VocabularyPage: View {
         .tile()
     }
 
-    /// Something worth adding, as a soft chip: a press puts the example in the field.
-    private func exampleChip(_ title: LocalizedStringKey, _ hint: String) -> some View {
+    /// Something worth adding, as a soft chip: a press puts the example in both fields.
+    private func exampleChip(_ title: LocalizedStringKey, _ hint: String, _ heardHint: String) -> some View {
         Button {
             example = hint
+            exampleHeard = heardHint
             wordFocused = true
         } label: {
             Text(title).font(.system(size: 12.5, weight: .medium))
@@ -441,7 +471,10 @@ private struct VocabularyRow: View {
     private func commitVariant() {
         guard addingVariant else { return }
         addingVariant = false
-        for v in newVariant.split(separator: ",") { vocabulary.addVariant(String(v), to: entry) }
+        // One that can't be added (another word on the list, say) is left out, with a beep.
+        var refused = false
+        for v in newVariant.split(separator: ",") where !vocabulary.addVariant(String(v), to: entry) { refused = true }
+        if refused { NSSound.beep() }
     }
 }
 
@@ -520,6 +553,10 @@ struct FlowLayout: Layout {
 /// The listener that makes the speech model hear your words — and where it stands.
 private struct ListenerRow: View {
     @ObservedObject var status: VocabularyBoostStatus
+    @ObservedObject var vocabulary = Vocabulary.shared
+    /// The offer above (ListenerOffer) has been answered: only then is "Ladda ned"
+    /// here too, so the page never asks twice.
+    @AppStorage("listenerOfferAnswered") private var offerAnswered = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -529,15 +566,19 @@ private struct ListenerRow: View {
                 .frame(width: 20)
                 .padding(.top, 1)
             VStack(alignment: .leading, spacing: 4) {
-                Text("Talmodellen hör dina ord").font(.system(size: 13, weight: .semibold))
+                Text(title).font(.system(size: 13, weight: .semibold))
                 Text(detail).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
             if case .failed = status.state {
-                Button("Försök igen") { Vocabulary.shared.allowListener() }.buttonStyle(.soft)
-            } else if status.state == .missing, Vocabulary.shared.hasOwnWords {
-                Button("Ladda ned \(VocabularyBoost.sizeText)") { Vocabulary.shared.allowListener() }.buttonStyle(.soft)
+                if VocabularyBoost.isInstalled {
+                    Button("Ladda ned igen") { vocabulary.refetchListener() }.buttonStyle(.soft)
+                } else {
+                    Button("Försök igen") { vocabulary.fetchListener() }.buttonStyle(.soft)
+                }
+            } else if status.state == .missing, vocabulary.hasOwnWords, offerAnswered || Settings.listenerAllowed {
+                Button("Ladda ned \(VocabularyBoost.sizeText)") { vocabulary.allowListener() }.buttonStyle(.soft)
             }
         }
         .padding(18)
@@ -553,18 +594,27 @@ private struct ListenerRow: View {
         }
     }
 
+    private var title: LocalizedStringKey {
+        switch status.state {
+        case .ready: "Talmodellen hör dina ord"
+        case .downloading: "Lyssnaren laddas ned"
+        case .missing: "Låt talmodellen höra dina ord"
+        case .failed: "Lyssnaren kunde inte laddas"
+        }
+    }
+
     private var detail: String {
         switch status.state {
         case .ready:
-            return String(localized: "Liknar något du dikterar ett ord i listan lyssnar Mindtalk en gång till på just det stället, så att namnet stavas rätt.")
+            return String(localized: "När något du dikterar liknar ett ord i listan lyssnar Mindtalk en gång till just där, så att namnet stavas rätt.")
         case .downloading:
             return String(localized: "Laddar ned lyssnaren (\(VocabularyBoost.sizeText)). Det sker bara en gång, sedan fungerar den utan internet.")
         case .missing:
-            return Vocabulary.shared.hasOwnWords
+            return vocabulary.hasOwnWords
                 ? String(localized: "Med en liten lyssnare (\(VocabularyBoost.sizeText)) stavas namnen rätt redan när du pratar. Den laddas ned en gång och fungerar sedan utan internet. Utan den rättas dina ord ändå i texten.")
                 : String(localized: "Lägger du till ett eget ord kan du ladda ned en liten lyssnare (\(VocabularyBoost.sizeText)), så att namn stavas rätt redan när du pratar.")
-        case .failed:
-            return String(localized: "Lyssnaren kunde inte laddas ned. Dina ord rättas ändå i texten som vanligt.")
+        case .failed(let why):
+            return why + " " + String(localized: "Dina ord rättas ändå i texten som vanligt.")
         }
     }
 }

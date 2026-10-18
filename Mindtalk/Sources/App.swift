@@ -803,6 +803,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --render-settings out.png [--dark]`: Inställningar, as on this Mac.
+        // `Mindtalk --render-about out.png [--dark]`: the credits ("Tack till").
+        for flag in ["--render-settings", "--render-about"] {
+            guard let i = args.firstIndex(of: flag), i + 1 < args.count else { continue }
+            Task { @MainActor in
+                let dark = args.contains("--dark")
+                NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                let page: AnyView = flag == "--render-settings"
+                    ? AnyView(SettingsPage(dictation: .shared, prefs: .shared, plain: true))
+                    : AnyView(CreditsSheet(close: {}, plain: true))
+                let view = page.frame(width: 820).background(DS.Colors.paper)
+                    .environment(\.colorScheme, dark ? .dark : .light)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                _ = renderer.nsImage                       // starts counting the model sizes
+                try? await Task.sleep(for: .seconds(3))
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --render-moten-top out.png [--dark] [--armed]` and `--render-vocabulary out.png [--dark]`.
         for flag in ["--render-moten-top", "--render-vocabulary"] {
             guard let i = args.firstIndex(of: flag), i + 1 < args.count else { continue }
@@ -1120,6 +1145,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 let got = m.apply(to: input, isWord: { known.contains($0) }).text
                 if got != want { failed += 1; print("FEL  \(input) → \(got) (väntat: \(want))") } else { print("OK   \(input) → \(got)") }
             }
+            // The list's own rules (Vocabulary.adding and friends), on a list that is never saved.
+            func check(_ ok: Bool, _ what: String) {
+                if ok { print("OK   \(what)") } else { failed += 1; print("FEL  \(what)") }
+            }
+            let list = [VocabularyEntry(word: "Mindtalk", heardAs: ["mind talk"]), VocabularyEntry(word: "Mindact")]
+            // Adding a word again keeps its spelling; only new variants are taken.
+            var (out, id) = Vocabulary.adding(word: "MINDTALK", heardAs: "mind talk, mintalk", to: list)
+            check(out[0].word == "Mindtalk" && out[0].heardAs == ["mind talk", "mintalk"] && id == list[0].id, "ett ord igen behåller stavningen, tar nya varianter")
+            // A variant that is another entry's word is left out.
+            (out, _) = Vocabulary.adding(word: "Mindtalk", heardAs: "mindact", to: list)
+            check(out == list, "en variant som är ett annat ord tas inte")
+            check(Vocabulary.isOtherWord("Mind act", than: "Mindtalk", in: list) && !Vocabulary.isOtherWord("mindtalk", than: "Mindtalk", in: list), "isOtherWord")
+            // The word itself stops being a variant of another entry.
+            (out, _) = Vocabulary.adding(word: "Matilda", heardAs: "", to: [VocabularyEntry(word: "Mathilda", heardAs: ["matilda"])])
+            check(out.count == 2 && out[0].word == "Matilda" && out[1].heardAs.isEmpty, "ordet självt är inte längre en variant av något annat")
+            // Import counts only lines that changed something.
+            let imported = Vocabulary.importing("Mindtalk; mind talk\nMindact\nKlang; clang\n\nMindact; min dakt\n", into: list)
+            check(imported.changed == 2 && imported.entries.count == 3 && imported.entries.first?.word == "Klang", "import räknar bara verkliga ändringar (\(imported.changed))")
+            // Undo never puts an entry, or a variant, back twice.
+            let removed = list[1]
+            var rest = [list[0]]
+            rest = Vocabulary.restoring(removed, at: 1, into: rest)
+            check(rest.count == 2, "ångra sätter tillbaka ordet")
+            rest = Vocabulary.restoring(removed, at: 1, into: rest)
+            check(rest.count == 2, "ångra sätter inte tillbaka ordet två gånger")
+            rest = Vocabulary.restoring(variant: "mind talk", at: 0, of: list[0].id, into: rest)
+            check(rest[0].heardAs == ["mind talk"], "ångra sätter inte tillbaka varianten två gånger")
+            var bare = rest; bare[0].heardAs = []
+            bare = Vocabulary.restoring(variant: "mind talk", at: 0, of: list[0].id, into: bare)
+            check(bare[0].heardAs == ["mind talk"], "ångra sätter tillbaka varianten")
             print(failed == 0 ? "Matcher self-test passed." : "\(failed) fel")
             exit(failed == 0 ? 0 : 1)
         }

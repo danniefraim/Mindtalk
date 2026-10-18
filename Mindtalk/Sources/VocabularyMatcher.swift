@@ -9,9 +9,9 @@ import Foundation
 // Per entry:
 //   • Variants you added ("min dag" → Mindact): always fixed, any case.
 //   • The word itself, cased or joined differently ("mindtalk", "Mind-talk"),
-//     or — for words of six letters or more — split once into parts of at least
-//     three letters ("mind talk"). Short names are never pieced together from
-//     bits: "an na" stays, "två gånger per dag" stays.
+//     or — for words of eight letters or more — split once into parts of at least
+//     four letters ("mind talk"). Short names are never pieced together from
+//     bits: "an na" stays, "han sen" stays, "två gånger per dag" stays.
 //   • Endings: -s, -en, -et, -ens, -ets ("Mindtalks", "Mindtalken").
 // An unsplit match that is an ordinary dictionary word ("per", "klass", "test")
 // is left alone, as is text in capitals ("MINDTALK"). A lowercase entry keeps a
