@@ -361,7 +361,14 @@ actor SpeechEngine {
     static let shared = SpeechEngine()
 
     private var loaded: (model: SpeechModel, asr: AsrManager)?
-    private var loading: (model: SpeechModel, task: Task<AsrManager, Error>)?
+    private var loading: (model: SpeechModel, task: Task<Started, Error>)?
+    /// A loaded model, where it runs, and the Neural Engine one still being prepared
+    /// when the GPU had to step in.
+    private struct Started: @unchecked Sendable {
+        let asr: AsrManager
+        let onEngine: Bool
+        let pending: Task<AsrManager, Error>?
+    }
     /// Transcriptions running right now — a model is never unloaded under one.
     private var inFlight = 0
 
@@ -377,7 +384,7 @@ actor SpeechEngine {
 
     private func manager(for model: SpeechModel) async throws -> AsrManager {
         if let loaded, loaded.model == model { return loaded.asr }
-        if let loading, loading.model == model { return try await loading.task.value }
+        if let loading, loading.model == model { return try await loading.task.value.asr }
         guard let dir = model.directory else { throw ModelError.notInstalled }
         if let old = loaded {
             while inFlight > 0 { try await Task.sleep(for: .milliseconds(50)) }
@@ -390,17 +397,50 @@ actor SpeechEngine {
         // writes just as fast and the same words. So: the GPU first, the Neural Engine
         // prepared meanwhile and switched to between two dictations (it draws less power
         // over a long meeting). After that, the Neural Engine from the start.
-        let onEngine = Self.engineReady(model)
-        let task = Task { () async throws -> AsrManager in
-            try await Self.make(dir: dir, version: model.asrVersion, units: onEngine ? nil : .cpuAndGPU)
+        let ready = Self.engineReady(model)
+        let version = model.asrVersion
+        let task = Task { () async throws -> Started in
+            guard ready else { return Started(asr: try await Self.make(dir: dir, version: version, units: .cpuAndGPU), onEngine: false, pending: nil) }
+            return try await Self.engineOrGPU(dir: dir, version: version)
         }
         loading = (model, task)
         defer { if loading?.model == model { loading = nil } }
-        let asr = try await task.value
-        loaded = (model, asr)
-        onNeuralEngine = onEngine
-        if !onEngine { upgrade(model, dir: dir) }
-        return asr
+        let started = try await task.value
+        loaded = (model, started.asr)
+        onNeuralEngine = started.onEngine
+        if let pending = started.pending {
+            // The Neural Engine one, still being prepared: put in place when it's done.
+            upgrading?.cancel()
+            let since = Date()
+            upgrading = Task {
+                guard let asr = try? await pending.value else { return }
+                await self.swapIn(asr, for: model, after: Date().timeIntervalSince(since))
+            }
+        } else if !started.onEngine {
+            upgrade(model, dir: dir)
+        }
+        return started.asr
+    }
+
+    /// Prepared for the Neural Engine before, so normally ready in seconds. But macOS
+    /// throws its prepared models away now and then (after an update, or when the disk
+    /// runs low), and preparing again takes minutes (measured: 454 s). So: give it
+    /// fifteen seconds, then start the GPU one too and use it meanwhile.
+    private static func engineOrGPU(dir: URL, version: AsrModelVersion) async throws -> Started {
+        let done = OSAllocatedUnfairLock(initialState: false)
+        let engine = Task { () async throws -> AsrManager in
+            defer { done.withLock { $0 = true } }
+            return try await make(dir: dir, version: version, units: nil)
+        }
+        for _ in 0..<150 where !done.withLock({ $0 }) { try? await Task.sleep(for: .milliseconds(100)) }
+        if done.withLock({ $0 }), let asr = try? await engine.value {
+            return Started(asr: asr, onEngine: true, pending: nil)
+        }
+        log.notice("speech model: the Neural Engine is being prepared again, the GPU meanwhile")
+        let gpu = try await make(dir: dir, version: version, units: .cpuAndGPU)
+        // The Neural Engine one goes on, and takes over once it's ready (or, had it
+        // failed, the GPU one stays).
+        return Started(asr: gpu, onEngine: false, pending: engine)
     }
 
     /// One AsrManager, loaded and warmed with a silent pass (Core ML builds its plan
@@ -419,9 +459,16 @@ actor SpeechEngine {
         return asr
     }
 
-    /// Prepared for the Neural Engine on this Mac before (macOS keeps it) — kept per model.
+    /// Prepared for the Neural Engine on this Mac before (macOS keeps it) — kept per model,
+    /// and per version of Mindtalk and of macOS: after an update macOS prepares it again,
+    /// which takes minutes (measured: 454 s), so the GPU goes first then too.
     nonisolated static func engineReady(_ model: SpeechModel) -> Bool {
-        UserDefaults.standard.bool(forKey: "neuralEngineReady.\(model.rawValue)")
+        UserDefaults.standard.string(forKey: "neuralEngineReady.\(model.rawValue)") == engineStamp
+    }
+
+    nonisolated static var engineStamp: String {
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+        return "\(build) · \(ProcessInfo.processInfo.operatingSystemVersionString)"
     }
 
     /// The Neural Engine version, prepared in the background while the GPU one writes;
@@ -458,7 +505,7 @@ actor SpeechEngine {
             await asr.cleanup()
             return
         }
-        UserDefaults.standard.set(true, forKey: "neuralEngineReady.\(model.rawValue)")
+        UserDefaults.standard.set(Self.engineStamp, forKey: "neuralEngineReady.\(model.rawValue)")
         while inFlight > 0 { try? await Task.sleep(for: .milliseconds(50)) }
         guard let still = loaded, still.model == model else { await asr.cleanup(); return }
         loaded = (model, asr)

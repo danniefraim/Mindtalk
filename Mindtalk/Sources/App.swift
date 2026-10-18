@@ -72,6 +72,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
 
         #if DEBUG
+        // `Mindtalk --engine-fallback-test file.wav`: started as if the Neural Engine were
+        // prepared. Ready within fifteen seconds, or the GPU writes meanwhile and the
+        // Neural Engine takes over later; either way the first text comes quickly.
+        if let i = args.firstIndex(of: "--engine-fallback-test"), i + 1 < args.count {
+            Task {
+                do {
+                    UserDefaults.standard.set(SpeechEngine.engineStamp, forKey: "neuralEngineReady.swedish")
+                    let samples = try Recorder.load(URL(fileURLWithPath: args[i + 1]))
+                    let t0 = Date()
+                    _ = try await SpeechEngine.shared.transcribe(samples: samples, with: .swedish)
+                    let first = Date().timeIntervalSince(t0)
+                    let engine = await SpeechEngine.shared.onNeuralEngine
+                    print(String(format: "Första texten efter %.1f s, på %@", first, engine ? "Neural Engine" : "GPU"))
+                    print(first < 60 ? "Engine fallback self-test passed." : "Engine fallback self-test FAILED")
+                    exit(first < 60 ? 0 : 1)
+                } catch {
+                    print("Fel: \(error.localizedDescription)"); exit(1)
+                }
+            }
+            RunLoop.main.run()
+        }
+        #endif
+        #if DEBUG
         // `Mindtalk --engine-switch-test file.wav`: the speech model as on a first start — on
         // the GPU at once, the Neural Engine prepared meanwhile and switched to — with the
         // same words before and after. Clears the "prepared" mark for the Swedish model.
