@@ -5,7 +5,8 @@ import SwiftUI
 // Who spoke when, as one strip: a lane per speaker, their turns drawn in their
 // quiet colour — a monologue, a ping-pong, a four-way debate each look their own.
 // Decisions (diamonds) and tasks (rings) sit above it where they were said, and
-// the moments you marked as small flags in their colours. Point
+// the moments you marked as small flags in their colours. Your own notes are thin
+// ink ticks below it, where you began writing them. Point
 // at it to see who spoke then; click or drag to listen from there. In the list, a
 // small one tells meetings apart at a glance.
 
@@ -18,6 +19,8 @@ struct MeetingRibbon: View {
     var live = false
     /// Recording: how far it has come (seconds) — a line where "now" is.
     var now: Double? = nil
+    /// Renders: drawn as with the pointer at this moment (seconds).
+    var stillHovered: Double? = nil
     @ObservedObject private var player = MeetingPlayer.shared
     @State private var hover: CGFloat?
 
@@ -33,7 +36,11 @@ struct MeetingRibbon: View {
     private var laneHeight: CGFloat { compact ? max(2, (18 - CGFloat(lanes - 1) * 1.5) / CGFloat(lanes)) : 5 }
     private var laneGap: CGFloat { compact ? 1.5 : 3 }
     private var markerRow: CGFloat { compact ? 0 : 12 }
-    private var height: CGFloat { markerRow + CGFloat(lanes) * (laneHeight + laneGap) - laneGap }
+    /// Your notes with a time: ticks under the lanes, in a row of their own.
+    private var notes: [MeetingRecord.Note] { compact ? [] : record.notes.filter { $0.at != nil } }
+    private var noteRow: CGFloat { notes.isEmpty ? 0 : 7 }
+    private var lanesEnd: CGFloat { markerRow + CGFloat(lanes) * (laneHeight + laneGap) - laneGap }
+    private var height: CGFloat { lanesEnd + noteRow }
 
     var body: some View {
         GeometryReader { geo in
@@ -86,6 +93,12 @@ struct MeetingRibbon: View {
         }
         // The moments you marked.
         for mark in record.marks { flag(&ctx, x(mark.at), mark.kind.tint) }
+        // Where you wrote your own notes: a thin tick under the lanes.
+        for note in notes {
+            guard let at = note.at else { continue }
+            ctx.fill(Path(roundedRect: CGRect(x: x(at) - 0.6, y: lanesEnd + 2.5, width: 1.2, height: 4.5), cornerRadius: 0.6),
+                     with: .color(DS.Colors.ink.opacity(0.7)))
+        }
         // Listening: where you are.
         if player.meeting == record.id {
             let px = x(player.time)
@@ -118,15 +131,19 @@ struct MeetingRibbon: View {
     }
 
     /// "Anna · 3:12" over the strip where you point; on a mark you gave words,
-    /// "Beslut: Vi kör på fredag · 3:12".
+    /// "Beslut: Vi kör på fredag · 3:12"; on one of your notes, "Du · 12:04 · Fråga Erik".
     @ViewBuilder private func hoverLabel(width: CGFloat) -> some View {
-        if let hover {
+        if let hover = hover ?? stillHovered.map({ CGFloat($0 / duration) * width }) {
             let t = Double(hover / width) * duration
             let who = segments.last { $0.start <= t + 0.3 }.flatMap { $0.end + 1.5 >= t ? cast.name(of: $0.speaker) : nil }
-            let mark = record.marks
-                .filter { $0.text != nil && abs(CGFloat($0.at / duration) * width - hover) <= 6 }
-                .min { abs($0.at - t) < abs($1.at - t) }
-            let label = mark.flatMap { m in m.text.map { "\(m.kind.title): \($0) · \(MeetingView.duration(m.at))" } }
+            let near = { (at: Double) in abs(CGFloat(at / duration) * width - hover) <= 6 }
+            let mark = record.marks.filter { $0.text != nil && near($0.at) }.min { abs($0.at - t) < abs($1.at - t) }
+            let note = notes.filter { near($0.at ?? -1) }.min { abs(($0.at ?? 0) - t) < abs(($1.at ?? 0) - t) }
+            let markLabel = mark.flatMap { m in m.text.map { "\(m.kind.title): \($0) · \(MeetingView.duration(m.at))" } }
+            let noteLabel = note.flatMap { n in n.at.map { "\(String(localized: "Du")) · \(MeetingView.duration($0)) · \(n.text)" } }
+            // Both close by: the nearer one.
+            let label = (mark != nil && note != nil && abs((note?.at ?? 0) - t) < abs((mark?.at ?? 0) - t) ? noteLabel : markLabel)
+                ?? noteLabel
                 ?? [who, MeetingView.duration(t)].compactMap { $0 }.joined(separator: " · ")
             Text(verbatim: label)
                 .font(.system(size: 11.5, weight: .semibold)).monospacedDigit()

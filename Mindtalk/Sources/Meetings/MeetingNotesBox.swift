@@ -506,8 +506,14 @@ struct SavedNotes: View {
     let edit: MeetingEdits
     var startEditing = false
     let listen: (Double) -> Void
+    /// "Visa i texten" on a note with a time: its index in `record.notes`, to show where
+    /// in the text it was written.
+    var showInText: ((Int) -> Void)? = nil
+    /// Renders: the row drawn as under the pointer.
+    var stillHovered: Int? = nil
     @State private var editing = false
     @State private var text = ""
+    @State private var hovered: Int?
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -535,7 +541,7 @@ struct SavedNotes: View {
                     .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
             } else {
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array(record.notes.enumerated()), id: \.offset) { _, note in
+                    ForEach(Array(record.notes.enumerated()), id: \.offset) { i, note in
                         if !note.text.trimmingCharacters(in: .whitespaces).isEmpty {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
                                 Text("•").foregroundStyle(DS.Colors.faint)
@@ -549,8 +555,24 @@ struct SavedNotes: View {
                                     .buttonStyle(.plain)
                                     .help("Lyssna från när du skrev det")
                                 }
+                                // Where in the text you wrote it: shown under the pointer, so
+                                // the list stays a list.
+                                if note.at != nil, let showInText {
+                                    Spacer(minLength: 0)
+                                    Button { showInText(i) } label: {
+                                        Text("Visa i texten →")
+                                            .font(.system(size: 11.5, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+                                            .fixedSize()
+                                    }
+                                    .buttonStyle(.plain)
+                                    .opacity(hovered == i || stillHovered == i ? 1 : 0)
+                                    .help("Visa var i texten du skrev det")
+                                    .accessibilityLabel("Visa i texten")
+                                }
                             }
                             .font(.system(size: 14.5))
+                            .contentShape(Rectangle())
+                            .onHover { h in withAnimation(.easeOut(duration: 0.12)) { hovered = h ? i : (hovered == i ? nil : hovered) } }
                         }
                     }
                 }
@@ -691,6 +713,100 @@ struct MarkChips: View {
         let cut = text.prefix(count)
         let word = cut.lastIndex(of: " ").map { cut[..<$0] } ?? cut
         return word.trimmingCharacters(in: .punctuationCharacters.union(.whitespaces)) + "…"
+    }
+}
+
+/// Your own notes under the words being said when you wrote them: a pencil, "Du", the
+/// moment, and what you wrote. In the family of the mark chips, but yours: muted
+/// ink, no colour. Several from the same moment sit together.
+struct NoteLines: View {
+    let notes: [NotePlacement.Placed]
+    /// "Visa i texten" from the summary: the note to light for a moment.
+    var focused: Int? = nil
+    var listen: ((Double) -> Void)? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(notes) { placed in
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DS.Colors.muted)
+                    if let listen, let at = placed.note.at {
+                        Button { listen(at) } label: {
+                            Text(verbatim: "\(String(localized: "Du")) \(MeetingView.duration(at))")
+                                .fixedSize()
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Lyssna från strax innan du skrev det")
+                        .accessibilityLabel("Lyssna från när du skrev det, \(MeetingView.spoken(at))")
+                    } else {
+                        Text(verbatim: "\(String(localized: "Du")) \(placed.note.at.map(MeetingView.duration) ?? "")")
+                            .fixedSize()
+                    }
+                    Text(placed.note.text)
+                        .fontWeight(.regular)
+                        .foregroundStyle(DS.Colors.ink.opacity(0.8))
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .font(.system(size: 12.5, weight: .semibold)).monospacedDigit()
+                .foregroundStyle(DS.Colors.muted)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(focused == placed.id ? DS.Colors.ink.opacity(0.1) : DS.Colors.chip.opacity(0.55))
+                )
+                .animation(.easeOut(duration: 0.25), value: focused == placed.id)
+                .help("Du skrev det här under mötet")
+            }
+        }
+    }
+}
+
+/// Your notes with a time, each under the turn that was being said when you began
+/// it (the first turn for a note from before anything was said). Worked out once per
+/// change to the meeting, not at every redraw: the text is redrawn while you listen.
+enum NotePlacement {
+    struct Placed: Identifiable, Equatable {
+        /// Its index in `record.notes`: what "Visa i texten" points at.
+        let id: Int
+        let note: MeetingRecord.Note
+    }
+
+    private struct Key: Equatable {
+        let meeting: UUID
+        let notes: [MeetingRecord.Note]
+        let turns: Int
+    }
+    @MainActor private static var cache: (key: Key, placed: [Int: [Placed]])?
+
+    /// The notes by the id of the turn they sit under.
+    @MainActor static func place(_ record: MeetingRecord, turns: [MeetingTurn]) -> [Int: [Placed]] {
+        guard !turns.isEmpty, record.notes.contains(where: { $0.at != nil }) else { return [:] }
+        var hasher = Hasher()
+        for t in turns { hasher.combine(t.id); hasher.combine(t.start) }
+        let key = Key(meeting: record.id, notes: record.notes, turns: hasher.finalize())
+        if let cache, cache.key == key { return cache.placed }
+        var out: [Int: [Placed]] = [:]
+        for (i, note) in record.notes.enumerated() {
+            guard let at = note.at, !note.text.trimmingCharacters(in: .whitespaces).isEmpty else { continue }
+            out[turn(at: at, in: turns), default: []].append(Placed(id: i, note: note))
+        }
+        cache = (key, out)
+        return out
+    }
+
+    /// The id of the turn a moment falls in: as "Visa i texten" finds it from a source.
+    static func turn(at: Double, in turns: [MeetingTurn]) -> Int {
+        var lo = 0, hi = turns.count - 1
+        while lo < hi {
+            let mid = (lo + hi + 1) / 2
+            if turns[mid].start <= at + 0.05 { lo = mid } else { hi = mid - 1 }
+        }
+        return turns[lo].id
     }
 }
 

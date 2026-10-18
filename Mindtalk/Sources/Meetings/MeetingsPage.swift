@@ -1277,6 +1277,8 @@ struct MeetingView: View {
     @State private var tab: Tab = .summary
     /// "Visa i texten" from a source: the turn to scroll to.
     @State private var focusTurn: Int?
+    /// "Visa i texten" from one of your notes: its index in `record.notes`, lit under its turn.
+    @State private var focusNote: Int?
     /// Underline what the final pass changed.
     @State private var showChanges = false
     @FocusState private var editingTitle: Bool
@@ -1295,14 +1297,19 @@ struct MeetingView: View {
             ZStack {
                 if live || tab == .transcript {
                     TranscriptView(record: record, turns: turns, cast: cast, session: session, width: width,
-                                   edit: edit, focusTurn: $focusTurn,
+                                   edit: edit, focusTurn: $focusTurn, focusNote: $focusNote,
                                    changed: showChanges ? Set(record.heal?.changed ?? []) : [])
                         .transition(.opacity.combined(with: .offset(y: 6)))
                 } else {
-                    SummaryView(record: record, turns: turns, cast: cast, notes: notes, width: width, edit: edit) { at in
+                    SummaryView(record: record, turns: turns, cast: cast, notes: notes, width: width, edit: edit, showInText: { at in
                         focusTurn = turns.last { $0.start <= at + 0.05 }?.id
                         withAnimation(.spring(duration: 0.35, bounce: 0.15)) { tab = .transcript }
-                    }
+                    }, showNote: { i in
+                        guard record.notes.indices.contains(i), let at = record.notes[i].at, !turns.isEmpty else { return }
+                        focusNote = i
+                        focusTurn = NotePlacement.turn(at: at, in: turns)
+                        withAnimation(.spring(duration: 0.35, bounce: 0.15)) { tab = .transcript }
+                    })
                     .transition(.opacity.combined(with: .offset(y: 6)))
                 }
             }
@@ -1667,7 +1674,10 @@ private struct TranscriptView: View {
     let width: CGFloat
     let edit: MeetingEdits
     @Binding var focusTurn: Int?
+    @Binding var focusNote: Int?
     var changed: Set<Int> = []
+    /// Renders: the rows in a plain stack, no scroll view (ImageRenderer draws none).
+    var flat = false
     @ObservedObject private var player = MeetingPlayer.shared
     @State private var atBottom = true
     /// Following the newest text — until you scroll up yourself; back at the bottom
@@ -1679,41 +1689,57 @@ private struct TranscriptView: View {
     private var live: Bool { session != nil }
 
     var body: some View {
+        // Your notes under the turns they were written in (saved meetings: live, the
+        // island shows them as they come).
+        let notes = live ? [:] : NotePlacement.place(record, turns: turns)
+        if flat {
+            VStack(alignment: .leading, spacing: 0) { rows(notes) }.pageColumn(width).padding(.top, 8)
+        } else {
+            scrolling(notes)
+        }
+    }
+
+    @ViewBuilder private func rows(_ notes: [Int: [NotePlacement.Placed]]) -> some View {
+        if turns.isEmpty { empty }
+        ForEach(Array(turns.enumerated()), id: \.element.id) { i, turn in
+            let newSpeaker = i == 0 || turns[i - 1].speaker != turn.speaker
+            let end = i + 1 < turns.count ? turns[i + 1].id : record.words.count
+            let next = i + 1 < turns.count ? turns[i + 1].start : .infinity
+            let playing = isPlaying(turn, next: next)
+            TurnRow(turn: turn, cast: cast, showName: newSpeaker, live: live,
+                    isLast: i == turns.count - 1,
+                    playing: playing,
+                    words: live ? [] : Array(record.words[turn.id..<max(turn.id, end)]),
+                    firstIndex: turn.id,
+                    changed: changed,
+                    karaoke: playing ? player.time : nil,
+                    focused: focusTurn == turn.id,
+                    play: live || !record.hasAudio ? nil : { player.play(record.id, from: turn.start) },
+                    move: turn.id < end && turn.pending.isEmpty
+                        ? { speaker in
+                            // Their own words — someone else's "Mm" inside stays theirs.
+                            withAnimation(.snappy) { for run in turn.own(until: end) { edit.move(run, to: speaker) } }
+                        } : nil,
+                    marks: record.marks.filter { $0.at >= (i == 0 ? -.infinity : turn.start) && $0.at < next },
+                    removeMark: { id in withAnimation(.snappy) { edit.removeMark(id) } },
+                    notes: notes[turn.id] ?? [],
+                    focusedNote: focusNote,
+                    listen: record.hasAudio ? { at in player.play(record.id, from: max(0, at - 8)) } : nil,
+                    recognized: turn.speaker.map { record.recognized[String($0)] != nil } ?? false,
+                    rename: turn.speaker.flatMap { s in s >= 0 ? { edit.name(s, $0) } : nil },
+                    merge: turn.speaker.flatMap { s in
+                        s >= 0 ? { other in withAnimation(.snappy) { edit.merge(s, into: other) } } : nil
+                    })
+                .padding(.top, i == 0 ? 0 : newSpeaker ? 26 : 12)
+                .id(turn.id)
+        }
+        Color.clear.frame(height: 1).id("end")
+    }
+
+    private func scrolling(_ notes: [Int: [NotePlacement.Placed]]) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    if turns.isEmpty { empty }
-                    ForEach(Array(turns.enumerated()), id: \.element.id) { i, turn in
-                        let newSpeaker = i == 0 || turns[i - 1].speaker != turn.speaker
-                        let end = i + 1 < turns.count ? turns[i + 1].id : record.words.count
-                        let next = i + 1 < turns.count ? turns[i + 1].start : .infinity
-                        let playing = isPlaying(turn, next: next)
-                        TurnRow(turn: turn, cast: cast, showName: newSpeaker, live: live,
-                                isLast: i == turns.count - 1,
-                                playing: playing,
-                                words: live ? [] : Array(record.words[turn.id..<max(turn.id, end)]),
-                                firstIndex: turn.id,
-                                changed: changed,
-                                karaoke: playing ? player.time : nil,
-                                focused: focusTurn == turn.id,
-                                play: live || !record.hasAudio ? nil : { player.play(record.id, from: turn.start) },
-                                move: turn.id < end && turn.pending.isEmpty
-                                    ? { speaker in
-                                        // Their own words — someone else's "Mm" inside stays theirs.
-                                        withAnimation(.snappy) { for run in turn.own(until: end) { edit.move(run, to: speaker) } }
-                                    } : nil,
-                                marks: record.marks.filter { $0.at >= (i == 0 ? -.infinity : turn.start) && $0.at < next },
-                                removeMark: { id in withAnimation(.snappy) { edit.removeMark(id) } },
-                                recognized: turn.speaker.map { record.recognized[String($0)] != nil } ?? false,
-                                rename: turn.speaker.flatMap { s in s >= 0 ? { edit.name(s, $0) } : nil },
-                                merge: turn.speaker.flatMap { s in
-                                    s >= 0 ? { other in withAnimation(.snappy) { edit.merge(s, into: other) } } : nil
-                                })
-                            .padding(.top, i == 0 ? 0 : newSpeaker ? 26 : 12)
-                            .id(turn.id)
-                    }
-                    Color.clear.frame(height: 1).id("end")
-                }
+                LazyVStack(alignment: .leading, spacing: 0) { rows(notes) }
                 .pageColumn(width)
                 .padding(.top, 8)
             }
@@ -1757,7 +1783,7 @@ private struct TranscriptView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     withAnimation(.smooth(duration: 0.5)) { proxy.scrollTo(id, anchor: .center) }
                 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { if focusTurn == id { focusTurn = nil } }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { if focusTurn == id { focusTurn = nil; focusNote = nil } }
             }
             // The text slips away under the header rather than being cut off.
             .overlay(alignment: .top) {
@@ -1866,6 +1892,10 @@ private struct TurnRow: View {
     /// The moments you marked during this turn.
     var marks: [MeetingRecord.Mark] = []
     var removeMark: ((UUID) -> Void)? = nil
+    /// Your own notes written while this was said, and the one "Visa i texten" asked for.
+    var notes: [NotePlacement.Placed] = []
+    var focusedNote: Int? = nil
+    var listen: ((Double) -> Void)? = nil
     /// The name above the text: click it to name or correct them, as in the header.
     var recognized = false
     var rename: ((String) -> Void)? = nil
@@ -1887,6 +1917,11 @@ private struct TurnRow: View {
                 markRow
                     .padding(.top, 3)
                     .transition(.scale(scale: 0.6, anchor: .topLeading).combined(with: .opacity))
+            }
+            if !notes.isEmpty {
+                NoteLines(notes: notes, focused: focusedNote, listen: listen)
+                    .padding(.top, 3)
+                    .transition(.opacity)
             }
         }
         .padding(.leading, 16)
@@ -1975,6 +2010,8 @@ private struct TurnRow: View {
         .font(.system(size: 16))
         .lineSpacing(6)
         .textSelection(.enabled)
+        // All its lines, whatever sits under it (two of your notes made it one line and an ellipsis).
+        .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: 640, alignment: .leading)
         // The text grows with its words, rather than snapping to the new size.
         .animation(live ? .smooth(duration: 0.4) : nil, value: turn.text)
@@ -2042,6 +2079,8 @@ private struct SummaryView: View {
     let width: CGFloat
     let edit: MeetingEdits
     let showInText: (Double) -> Void
+    /// One of your notes: show where in the text it was written.
+    let showNote: (Int) -> Void
     @State private var addingNotes = false
 
     private var writing: Bool { notes.writing.contains(record.id) }
@@ -2097,9 +2136,9 @@ private struct SummaryView: View {
     /// What you wrote yourself — first, since it's what mattered to you.
     @ViewBuilder private var ownNotes: some View {
         if !record.notes.isEmpty || addingNotes {
-            SavedNotes(record: record, edit: edit, startEditing: addingNotes) { at in
+            SavedNotes(record: record, edit: edit, startEditing: addingNotes, listen: { at in
                 MeetingPlayer.shared.play(record.id, from: max(0, at - 8))
-            }
+            }, showInText: showNote)
         }
     }
 
@@ -2850,6 +2889,64 @@ struct MeetingsTopPreview: View {
             StartCard(session: .shared, voices: .shared, dictation: .shared)
             WeekRecap(meetings: MeetingStore.shared.meetings, all: MeetingStore.shared.meetings)
         }
+    }
+}
+
+/// `--render-transcript`: a saved meeting's Text tab, with your notes and the marks
+/// under the lines they were written in.
+struct TranscriptPreview: View {
+    let record: MeetingRecord
+    @State private var focusTurn: Int?
+    @State private var focusNote: Int?
+
+    /// `focusNote`: the row lit as after "Visa i texten" from the summary.
+    init(record: MeetingRecord, focusNote: Int? = nil) {
+        self.record = record
+        _focusNote = State(initialValue: focusNote)
+        let turns = MeetingText.turnsAllAnew(record.words, pending: [])
+        _focusTurn = State(initialValue: focusNote.flatMap { i in record.notes[i].at.map { NotePlacement.turn(at: $0, in: turns) } })
+    }
+
+    var body: some View {
+        TranscriptView(record: record, turns: MeetingText.turnsAllAnew(record.words, pending: []), cast: record.cast,
+                       session: nil, width: 760, edit: .saved(MeetingStore.shared, record.id),
+                       focusTurn: $focusTurn, focusNote: $focusNote, flat: true)
+    }
+
+    /// A short meeting with three voices, notes written during it (two at one moment,
+    /// one afterwards without a time) and marks with and without words.
+    static func sample() -> MeetingRecord {
+        let script: [(Int, String)] = [
+            (0, "Då kör vi. Välkomna allihop. Idag ska vi gå igenom lanseringen och bestämma vad som händer härnäst."),
+            (1, "Siffrorna ser riktigt bra ut. Vi hade fler nedladdningar första dagen än hela förra månaden."),
+            (0, "Vad kul! Vet vi var de flesta användarna kommer ifrån?"),
+            (2, "Mest från Sverige, men vi ser en del från Norge och Danmark också. Supporten får frågor på engelska redan nu."),
+            (1, "Jag tycker att vi ska prioritera mötesfunktionen. Det är det folk frågar mest om, både kunder och partner."),
+            (0, "Håller med. Kan du ta fram en plan till torsdag? Då hinner vi stämma av den innan styrelsen."),
+            (2, "Jag kan ta budgeten samtidigt, så vi har siffrorna på plats när planen är klar."),
+        ]
+        var r = MeetingRecord(title: "Veckomöte om lanseringen", date: ArchivePreview.now.addingTimeInterval(-3600), language: .swedish)
+        var t = 3.0
+        var starts: [Double] = []
+        for (speaker, line) in script {
+            starts.append(t)
+            for word in line.split(separator: " ") {
+                r.words.append(MeetingWord(text: String(word), start: t, end: t + 0.3, speaker: speaker))
+                t += 0.38
+            }
+            t += 1.2
+        }
+        r.names = ["0": "Anna", "1": "Erik", "2": "Sara"]
+        r.duration = t + 2
+        r.notes = [MeetingRecord.Note(text: "Kolla hur många som kom via nyhetsbrevet", at: starts[1] + 3),
+                   MeetingRecord.Note(text: "Norge: prata med Klang om säljstöd", at: starts[3] + 2),
+                   MeetingRecord.Note(text: "Danska översättningen är inte klar", at: starts[3] + 2),
+                   MeetingRecord.Note(text: "Planen ska med i styrelseunderlaget", at: starts[5] + 1),
+                   MeetingRecord.Note(text: "Skriven efteråt, utan tid", at: nil)]
+        r.marks = [MeetingRecord.Mark(at: starts[4] + 1, kind: .decision, text: "Mötesfunktionen först"),
+                   MeetingRecord.Mark(at: starts[5] + 2, kind: .task),
+                   MeetingRecord.Mark(at: starts[6] + 1, kind: .important, text: "Budgeten och planen hänger ihop")]
+        return r
     }
 }
 

@@ -585,6 +585,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        #if DEBUG
+        // `Mindtalk --render-transcript dir [--dark]`: a saved meeting's Text tab with your
+        // notes and marks under the lines (and lit from "Visa i texten"), its timeline with the
+        // pointer on a note, and "Dina anteckningar" with the link under the pointer.
+        if let i = args.firstIndex(of: "--render-transcript"), i + 1 < args.count {
+            Task { @MainActor in
+                let dark = args.contains("--dark")
+                NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                let dir = URL(fileURLWithPath: args[i + 1])
+                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                let record = TranscriptPreview.sample()
+                @MainActor func draw(_ name: String, _ view: some View) {
+                    let renderer = ImageRenderer(content: view.background(DS.Colors.paper).environment(\.colorScheme, dark ? .dark : .light))
+                    renderer.scale = 2
+                    if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                       let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                        let url = dir.appendingPathComponent(name)
+                        try? png.write(to: url)
+                        print("Ritad: \(url.path)")
+                    }
+                }
+                draw("text.png", TranscriptPreview(record: record).padding(.vertical, 24).frame(width: 760))
+                draw("text-fokus.png", TranscriptPreview(record: record, focusNote: 1).padding(.vertical, 24).frame(width: 760))
+                let segments = MeetingText.segments(record.words)
+                draw("tidslinje.png", VStack(alignment: .leading, spacing: 36) {
+                    MeetingRibbon(record: record, cast: record.cast, segments: segments)
+                    MeetingRibbon(record: record, cast: record.cast, segments: segments, stillHovered: record.notes[1].at)
+                    MeetingRibbon(record: record, cast: record.cast, segments: segments, stillHovered: record.marks[0].at)
+                }.padding(28).padding(.top, 10).frame(width: 720))
+                draw("anteckningar.png", SavedNotes(record: record, edit: .saved(MeetingStore.shared, record.id), listen: { _ in },
+                                                    showInText: { _ in }, stillHovered: 1)
+                    .padding(28).frame(width: 720))
+                let placed = NotePlacement.place(record, turns: MeetingText.turnsAllAnew(record.words, pending: []))
+                for (turn, notes) in placed.sorted(by: { $0.key < $1.key }) {
+                    print("Tur \(turn): \(notes.map { "\($0.id) \(MeetingView.duration($0.note.at ?? 0)) \($0.note.text)" }.joined(separator: " | "))")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
+        #endif
         // `Mindtalk --render-panel out.png [--dark]`: the menu bar panel, with your figures.
         // `Mindtalk --render-round-intro out.png [--armed]`: the start card ("Nytt möte"), waiting
         // for a press when opened from the menu bar, over the offer to save the voices.

@@ -5403,6 +5403,22 @@
         }
       }
     },
+    "Du": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du"
+          }
+        }
+      }
+    },
     "Du byter språk med ett klick i menyraden.": {
       "extractionState": "stale",
       "localizations": {
@@ -5594,6 +5610,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Du markerade det här under mötet"
+          }
+        }
+      }
+    },
+    "Du skrev det här under mötet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You wrote this during the meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du skrev det här under mötet"
           }
         }
       }
@@ -12587,6 +12619,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lyssna från när du skrev det"
+          }
+        }
+      }
+    },
+    "Lyssna från när du skrev det, %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listen from when you wrote it, %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssna från när du skrev det, %@"
+          }
+        }
+      }
+    },
+    "Lyssna från strax innan du skrev det": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listen from just before you wrote it"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssna från strax innan du skrev det"
           }
         }
       }
@@ -24003,6 +24067,22 @@
         }
       }
     },
+    "Visa i texten →": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in the text →"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa i texten →"
+          }
+        }
+      }
+    },
     "Visa inspelningen i Finder": {
       "localizations": {
         "en": {
@@ -24211,6 +24291,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa var det sades"
+          }
+        }
+      }
+    },
+    "Visa var i texten du skrev det": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show where in the text you wrote it"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa var i texten du skrev det"
           }
         }
       }
