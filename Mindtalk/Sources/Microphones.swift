@@ -124,9 +124,16 @@ final class Microphones: ObservableObject {
 
     var builtIn: InputDevice? { devices.first(where: \.isBuiltIn) }
 
+    /// The choice as it works on this Mac: "built in" on a Mac without a built-in mic
+    /// (Mac mini, Mac Studio) is the system input, in the picker as well as the recorder.
+    var effectiveChoice: MicChoice {
+        if case .builtIn = choice, builtIn == nil { return .system }
+        return choice
+    }
+
     /// The device to record from; nil means the system input.
     var selectedDeviceID: AudioDeviceID? {
-        switch choice {
+        switch effectiveChoice {
         case .builtIn: return builtIn?.id
         case .system: return nil
         case .device(let uid): return devices.first { $0.uid == uid }?.id
@@ -135,8 +142,8 @@ final class Microphones: ObservableObject {
 
     /// "Inbyggd mikrofon", "Automatiskt (AirPods)", "iPhone-mikrofon"…
     var selectionName: String {
-        switch choice {
-        case .builtIn: return builtIn == nil ? systemName : String(localized: "Inbyggd mikrofon")
+        switch effectiveChoice {
+        case .builtIn: return String(localized: "Inbyggd mikrofon")
         case .system: return systemName
         case .device(let uid):
             return devices.first { $0.uid == uid }?.name ?? String(localized: "Vald mikrofon saknas. Använder \(fallbackName) så länge.")

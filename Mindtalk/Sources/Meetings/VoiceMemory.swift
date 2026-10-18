@@ -594,11 +594,14 @@ actor VoicePrints {
     }
 }
 
-/// Settings → Möten: remembering voices — off until you switch it on, with the
-/// people it knows and a way to forget each of them.
+/// Settings → Möten: remembering voices — on for a fresh install, off where meetings
+/// were recorded before it existed (VoiceMemory.initialEnabled) — with the people it
+/// knows and a way to forget each of them.
 struct VoiceMemoryCard: View {
     @ObservedObject var memory: VoiceMemory
     @State private var confirmForgetAll = false
+    /// Someone to forget — asked first: there's no way back.
+    @State private var confirmForget: VoiceMemory.Person?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -617,7 +620,7 @@ struct VoiceMemoryCard: View {
                                                 color: SpeakerMark.fill(i), lineWidth: 1.2)
                                     .frame(width: 18, height: 18)
                                 Text(person.name).font(.system(size: 12.5, weight: .medium))
-                                Button { withAnimation(.snappy) { memory.forget(person) } } label: {
+                                Button { confirmForget = person } label: {
                                     Image(systemName: "xmark").font(.system(size: 8.5, weight: .bold)).foregroundStyle(DS.Colors.faint)
                                 }
                                 .buttonStyle(.plain)
@@ -643,6 +646,14 @@ struct VoiceMemoryCard: View {
             Button("Avbryt", role: .cancel) {}
         } message: {
             Text("Röstavtrycken tas bort. Namnen i dina möten finns kvar.")
+        }
+        .confirmationDialog(confirmForget.map { String(localized: "Glöm \($0.name)?") } ?? "",
+                            isPresented: Binding(get: { confirmForget != nil }, set: { if !$0 { confirmForget = nil } }),
+                            presenting: confirmForget) { person in
+            Button("Glöm", role: .destructive) { withAnimation(.snappy) { memory.forget(person) } }
+            Button("Avbryt", role: .cancel) {}
+        } message: { _ in
+            Text("Rösten känns inte igen nästa gång. Namnet i gamla möten finns kvar.")
         }
     }
 

@@ -172,9 +172,9 @@ final class BetterNotes: ObservableObject {
         return values?.volumeAvailableCapacityForImportantUsage ?? 0
     }
 
-    /// "6,9 GB".
+    /// "6,9 GB" — "6.9 GB" when the app runs in English.
     nonisolated static func gigabytes(_ bytes: Int64) -> String {
-        String(format: "%.1f GB", Double(bytes) / 1e9).replacingOccurrences(of: ".", with: ",")
+        (Double(bytes) / 1e9).formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.locale)) + " GB"
     }
 
     private init() {
@@ -231,7 +231,7 @@ final class BetterNotes: ObservableObject {
                 if generation == mine { states[model] = .missing }
             } catch {
                 Self.log.error("download: \(error.localizedDescription, privacy: .public)")
-                if generation == mine { states[model] = .failed(error.localizedDescription) }
+                if generation == mine { states[model] = .failed(Dictation.plainWords(for: error)) }
             }
         }
     }

@@ -123,6 +123,8 @@ extension Notification.Name {
     static let showIntroduction = Notification.Name("MindtalkShowIntroduction")
     /// Scroll Settings to "Om Mindtalk".
     static let showAbout = Notification.Name("MindtalkShowAbout")
+    /// Scroll Settings to "Modeller".
+    static let showModels = Notification.Name("MindtalkShowModels")
     /// A shortcut field in Settings stops waiting for keys (another one starts, or you left the app).
     static let stopChordPicking = Notification.Name("MindtalkStopChordPicking")
 }
@@ -277,9 +279,13 @@ private struct ModelControl: View {
 struct SettingsPage: View {
     @ObservedObject var dictation: Dictation
     @ObservedObject var prefs: AppPrefs
+    /// Screenshots: without the scroll view.
+    var plain = false
     @ObservedObject private var mics = Microphones.shared
     @ObservedObject private var updates = Updates.shared
     @State private var loginStatus = SMAppService.mainApp.status
+    /// Why "Starta vid inloggning" couldn't be switched, from macOS.
+    @State private var loginError: String?
     @ObservedObject private var meeting = MeetingSession.shared
     @ObservedObject private var importer = MeetingImport.shared
     @State private var showMicPicker = false
@@ -304,10 +310,11 @@ struct SettingsPage: View {
     /// Set before opening Settings to land on "Modeller" (Byt modell under a summary).
     static var jumpToModels = false
 
-    /// Settings, scrolled to the models.
+    /// Settings, scrolled to the models — also when Settings is already on screen.
     static func openModels() {
         jumpToModels = true
         NotificationCenter.default.post(name: .showPage, object: Page.settings)
+        NotificationCenter.default.post(name: .showModels, object: nil)
     }
 
     var body: some View {
@@ -321,7 +328,7 @@ struct SettingsPage: View {
             // Without Hjälpmedel no shortcut works anywhere: said first, not at the bottom.
             if !dictation.accessibilityGranted {
                 CardRow(title: "Slå på Hjälpmedel för Mindtalk",
-                        detail: "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen. Det kräver macOS ibland efter en uppdatering.") {
+                        detail: "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen. macOS kräver det ibland efter en uppdatering.") {
                     Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.ink)
                 }
                 .card()
@@ -350,10 +357,21 @@ struct SettingsPage: View {
             }
             .card()
             .staggered(1)
-            Text("Språket du pratar, när du dikterar och i möten. Byt snabbt i menyraden, eller med ⌘1 och ⌘2 när menyn är öppen.")
-                .font(.system(size: 12))
-                .foregroundStyle(DS.Colors.muted)
-                .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text("Språket du pratar, när du dikterar och i möten. Byt snabbt i menyraden, eller med ⌘1 och ⌘2 när menyn är öppen.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                // Size, Finder and removal live with the other models.
+                Button { Self.openModels() } label: {
+                    Text("Hantera i Modeller →")
+                        .font(.system(size: 12, weight: .medium)).foregroundStyle(DS.Colors.muted).underline()
+                        .padding(.vertical, 2).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .fixedSize()
+            }
 
             // MARK: Diktering
 
@@ -434,8 +452,17 @@ struct SettingsPage: View {
             SectionTitle("Allmänt")
             .staggered(4)
             VStack(spacing: 0) {
+                if !AppMover.isInApplications {
+                    // Outside Applications Mindtalk can't update itself or open at login reliably.
+                    CardRow(title: "Flytta till Program",
+                            detail: "Mindtalk behöver ligga i Program för att kunna uppdatera sig själv och starta vid inloggning.") {
+                        Button("Flytta") { AppMover.moveNow() }.buttonStyle(.ink)
+                            .disabled(dictation.phase != .idle || meeting.isBusy || importer.busy)
+                    }
+                    CardDivider()
+                }
                 CardRow(title: "Starta vid inloggning",
-                        detail: loginStatus == .requiresApproval ? "Godkänn Mindtalk under Allmänt → Inloggningsobjekt i Systeminställningar." : nil) {
+                        detail: loginError ?? (loginStatus == .requiresApproval ? String(localized: "Godkänn Mindtalk under Allmänt → Inloggningsobjekt och tillägg i Systeminställningar.") : nil)) {
                     HStack(spacing: 10) {
                         if loginStatus == .requiresApproval {
                             Button("Öppna") { SMAppService.openSystemSettingsLoginItems() }.buttonStyle(.soft)
@@ -445,8 +472,13 @@ struct SettingsPage: View {
                             set: { on in
                                 do {
                                     if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+                                    loginError = nil
                                 } catch {
                                     NSLog("Mindtalk: launch at login: \(error.localizedDescription)")
+                                    // Said in the row: usually that Mindtalk isn't in Applications.
+                                    loginError = AppMover.isInApplications
+                                        ? String(localized: "Det gick inte just nu: \(error.localizedDescription)")
+                                        : String(localized: "Mindtalk behöver ligga i Program för att starta vid inloggning.")
                                 }
                                 loginStatus = SMAppService.mainApp.status
                             }))
@@ -465,6 +497,7 @@ struct SettingsPage: View {
                         detail: appLanguage.resolved == AppLanguage.running ? nil
                             : meeting.isBusy ? "Mindtalk behöver startas om för att byta språk. Det går när mötet är klart."
                             : importer.busy ? "Mindtalk behöver startas om för att byta språk. Det går när inspelningen är nedskriven."
+                            : dictation.phase != .idle ? "Mindtalk behöver startas om för att byta språk. Det går när dikteringen är klar."
                             : "Mindtalk behöver startas om för att byta språk.") {
                     HStack(spacing: 10) {
                         if appLanguage.resolved != AppLanguage.running {
@@ -478,12 +511,14 @@ struct SettingsPage: View {
                     }
                 }
                 CardDivider()
-                CardRow(title: "Uppdateringar", detail: "Sök efter nya versioner automatiskt, en gång om dagen.") {
+                CardRow(title: "Uppdateringar",
+                        detail: AppMover.isInApplications ? "Sök efter nya versioner automatiskt, en gång om dagen."
+                            : "Mindtalk behöver ligga i Program för att uppdateras.") {
                     HStack(spacing: 12) {
                         Button("Sök nu") { Updates.shared.checkNow() }.buttonStyle(.soft)
                         InkToggle(label: "Sök automatiskt", isOn: $updates.automatic)
                     }
-                    .disabled(!Updates.isAvailable)
+                    .disabled(!Updates.isAvailable || !AppMover.isInApplications)
                 }
                 if dictation.accessibilityGranted {
                     CardDivider()
@@ -511,8 +546,18 @@ struct SettingsPage: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .showAbout)) { _ in showAbout(proxy, after: 0.1) }
+        .onReceive(NotificationCenter.default.publisher(for: .showModels)) { _ in
+            // Already on screen: scrolled now (a fresh page scrolls from onAppear instead).
+            guard Self.jumpToModels else { return }
+            Self.jumpToModels = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.spring(duration: 0.6)) { proxy.scrollTo("models", anchor: .top) }
+            }
         }
-        .pageLayout()
+        // A new dictation key moves the thought key's default (right ⌘ unless dictation has it).
+        .onChange(of: dictation.hotkey) { _, _ in thoughtShortcut = Settings.thoughtShortcut }
+        }
+        .modifier(PageScroll(on: !plain))
         .onAppear { loginStatus = SMAppService.mainApp.status; updates.refresh() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             loginStatus = SMAppService.mainApp.status
@@ -662,6 +707,9 @@ private struct ThoughtShortcutField: View {
     @State private var most: UInt64 = 0
     /// A key went down meanwhile: a chord, not a key held alone.
     @State private var typed = false
+    /// Modifiers already down when picking began (⇧ held while clicking the field):
+    /// not part of the choice, as for the dictation key.
+    @State private var heldOver: UInt64 = 0
 
     var body: some View {
         HStack(spacing: 8) {
@@ -710,6 +758,7 @@ private struct ThoughtShortcutField: View {
         refusal = nil
         most = 0
         typed = false
+        heldOver = KeyListener.shared.modifiersHeldNow() & Hotkey.allModifierMasks
         KeyListener.shared.pickingChord = true
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
             if event.type == .flagsChanged {
@@ -729,8 +778,10 @@ private struct ThoughtShortcutField: View {
     /// modifier, held with nothing else, is the key.
     private func modifiersChanged(_ event: NSEvent) {
         guard Hotkey.modifierMasks[event.keyCode] != nil else { return }
-        // NSEvent's flags carry the same sided bits as the event tap's.
-        let held = UInt64(event.modifierFlags.rawValue) & Hotkey.allModifierMasks
+        // NSEvent's flags carry the same sided bits as the event tap's. One let go
+        // since picking began stops being held over.
+        heldOver &= UInt64(event.modifierFlags.rawValue)
+        let held = UInt64(event.modifierFlags.rawValue) & Hotkey.allModifierMasks & ~heldOver
         if held.nonzeroBitCount > most.nonzeroBitCount { most = held }
         guard held == 0 else { return }
         defer { most = 0; typed = false }
@@ -1089,11 +1140,11 @@ private struct RecentRow: View {
 
 // MARK: - Språk
 
-/// One language: use it, download it, or remove it.
+/// One language: use it, or download it. Size, Finder and removal are under Modeller.
 private struct LanguageRow: View {
     let model: SpeechModel
     @ObservedObject var dictation: Dictation
-    @State private var confirmRemove = false
+    @ObservedObject private var meeting = MeetingSession.shared
 
     private var active: Bool { dictation.engine == model }
 
@@ -1108,7 +1159,7 @@ private struct LanguageRow: View {
                 Text(detail).font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                     .fixedSize(horizontal: false, vertical: true)
                 if dictation.downloadErrors[model] == nil {
-                    Text(String(localized: "\(model.modelName) av \(model.credit) · \(model.sizeText)"))
+                    Text(String(localized: "\(model.modelName) av \(model.credit)"))
                         .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
                 }
             }
@@ -1120,7 +1171,10 @@ private struct LanguageRow: View {
     }
 
     private var detail: String {
-        dictation.downloadErrors[model] ?? model.pitch
+        if let why = dictation.downloadErrors[model] { return why }
+        // Mid-meeting the model in use stays: said where the choice is.
+        if meeting.isBusy, !active, dictation.installed.contains(model) { return model.pitch + " " + String(localized: "Går att byta när mötet är klart.") }
+        return model.pitch
     }
 
     @ViewBuilder private var control: some View {
@@ -1146,33 +1200,14 @@ private struct LanguageRow: View {
                     .foregroundStyle(DS.Colors.accent)
             }
         } else {
-            HStack(spacing: 8) {
-                if model.isOwnInstall {
-                    Button {
-                        confirmRemove = true
-                    } label: {
-                        Image(systemName: "trash")
-                    }
-                    .confirmationDialog(String(localized: "Ta bort \(model.modelName) (\(model.sizeText))?"), isPresented: $confirmRemove) {
-                        Button("Ta bort", role: .destructive) { dictation.removeModel(model) }
-                        Button("Avbryt", role: .cancel) {}
-                    } message: {
-                        Text("Den kan laddas ned igen senare.")
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(DS.Colors.muted)
-                    .help("Ta bort \(model.modelName) (\(model.sizeText)) från din Mac")
-                    .accessibilityLabel("Ta bort \(model.modelName)")
-                }
-                Button("Använd") { dictation.setEngine(model) }.buttonStyle(.soft)
-            }
+            Button("Använd") { dictation.setEngine(model) }.buttonStyle(.soft)
+                .disabled(meeting.isBusy)
         }
     }
 }
 
-// MARK: - Om
+// MARK: - Text
 
-/// Credits and licenses — what CC BY 4.0 asks of us, said plainly.
 /// What happens to the text between the model and your cursor.
 private struct TextCleanupCard: View {
     @ObservedObject var prefs: AppPrefs
@@ -1226,7 +1261,7 @@ private struct TextCleanupCard: View {
 }
 
 /// The licence texts bundled with the app (Resources/Acknowledgements.txt).
-private struct LicensesSheet: View {
+struct LicensesSheet: View {
     let close: () -> Void
 
     private var text: String {

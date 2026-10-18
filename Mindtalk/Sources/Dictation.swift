@@ -584,7 +584,8 @@ final class Dictation: ObservableObject {
 
     /// Deletes Mindtalk's copy of a model to free up space.
     func removeModel(_ m: SpeechModel) {
-        guard m.isOwnInstall, !(MeetingSession.shared.isBusy && MeetingSession.shared.language == m) else { return }
+        // Not during a meeting: the model it uses, or the one it will switch to, stays.
+        guard m.isOwnInstall, !MeetingSession.shared.isBusy else { return }
         Task {
             await SpeechEngine.shared.unload(m)
             try? m.uninstall()
@@ -600,8 +601,9 @@ final class Dictation: ObservableObject {
         KeyListener.shared.capture = { [weak self] key in
             guard let self else { return }
             self.pickingKey = false
-            // The thought key's: one press can't be both. The old key stays.
-            if let why = ThoughtShortcut.refusal(dictation: key, besides: Settings.thoughtShortcut) {
+            // The thought key's: one press can't be both. The old key stays. A thought key
+            // you chose counts; the default (right ⌘) just moves out of the way (⌃⌥T).
+            if let why = ThoughtShortcut.refusal(dictation: key, besides: Settings.thoughtShortcut(in: .standard, besides: key)) {
                 return self.refuse(why)
             }
             self.hotkey = key

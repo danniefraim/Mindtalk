@@ -96,7 +96,7 @@ struct MicrophonePicker: View {
 
     private func option(_ choice: MicChoice, icon: String, title: String, detail: String?,
                         badge: String? = nil) -> some View {
-        let selected = mics.choice == choice
+        let selected = mics.effectiveChoice == choice
         return Button {
             withAnimation(.snappy(duration: 0.25)) { mics.choice = choice }
         } label: {

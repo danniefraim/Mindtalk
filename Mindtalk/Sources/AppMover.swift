@@ -64,7 +64,33 @@ enum AppMover {
     private static func isInApplications(_ url: URL) -> Bool {
         let path = url.resolvingSymlinksInPath().deletingLastPathComponent().path
         let userApps = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications").path
-        return path == applicationsFolder.resolvingSymlinksInPath().path || path == userApps
+        // In Applications, or in a folder inside it.
+        return [applicationsFolder.resolvingSymlinksInPath().path, userApps].contains { path == $0 || path.hasPrefix($0 + "/") }
+    }
+
+    /// Mindtalk runs from Applications (or a folder in it) — where it can update itself
+    /// and open at login. A debug build counts as there unless `--test-move` says otherwise.
+    static var isInApplications: Bool {
+        #if DEBUG
+        guard CommandLine.arguments.contains("--test-move") else { return true }
+        #endif
+        guard let source = originalBundleURL() else { return false }
+        return isInApplications(source)
+    }
+
+    /// "Flytta" under Inställningar → Allmänt: moves Mindtalk into Applications and
+    /// opens it from there; this instance quits. Says why if it couldn't.
+    static func moveNow() {
+        guard let source = originalBundleURL() else { return NSSound.beep() }
+        do {
+            let destination = try moveIntoApplications(from: source)
+            relaunch(destination, cleaningUp: source)
+        } catch {
+            let failed = NSAlert()
+            failed.messageText = String(localized: "Mindtalk kunde inte flyttas")
+            failed.informativeText = String(localized: "Dra Mindtalk till Program i Finder i stället. (\(error.localizedDescription))")
+            failed.runModal()
+        }
     }
 
     /// Where the app really is — not the hidden translocated copy macOS runs.
