@@ -497,10 +497,19 @@ struct InkSphere: View {
         let light = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) != .darkAqua
         Constellation(figure: nil, color: DS.Colors.ink, level: level, searching: listening, paused: !visible || paused, onLight: light)
             .opacity(light ? 0.5 : 0.42)
-            .onAppear { visible = AppDelegate.mainWindowVisible }
+            .onAppear {
+                visible = AppDelegate.mainWindowVisible
+                // Opened from the menu bar, the page can appear a moment before its window
+                // is shown: look again, or the sphere stays frozen on its first, faint frame.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { visible = AppDelegate.mainWindowVisible }
+            }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)) { note in
                 guard let window = note.object as? NSWindow, window.contentViewController is NSHostingController<MainView> else { return }
                 visible = window.occlusionState.contains(.visible)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
+                guard let window = note.object as? NSWindow, window.contentViewController is NSHostingController<MainView> else { return }
+                visible = true
             }
     }
 }
