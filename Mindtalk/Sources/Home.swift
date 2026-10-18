@@ -369,7 +369,7 @@ struct HomeHero: View {
         // Dictating or saying a thought holds the microphone; a moment after (a thought
         // saved, text copied) it is free again.
         let micBusy = dictation.phase == .recording || dictation.phase == .transcribing
-        let busy = String(localized: "Går när dikteringen är klar")
+        let busy = String(localized: "Går att göra när dikteringen är klar")
         tileButton("Säg en tanke", primary: false, keys: Settings.thoughtShortcut?.chip,
                    help: micBusy ? busy : String(localized: "Säg det du kommer på, så sparas det i Tankar")) { dictation.startThought() }
             .disabled(micBusy || !dictation.engine.isInstalled)
@@ -628,9 +628,9 @@ struct HomeShelves: View {
             shelf("Tankar", more: open.count > 4 ? "Alla \(open.count) tankar" : "Alla tankar", label: "Alla tankar", action: { page = .thoughts }) {
                 if open.isEmpty {
                     if let keys = Settings.thoughtShortcut?.inlineName {
-                        hint("lightbulb", "Det du kommer på mitt i något annat. Håll in \(keys) och säg det, så ligger det här.")
+                        hint("lightbulb", "Det du kommer på mitt i något annat. Håll in \(keys) och säg det, så hamnar det här.")
                     } else {
-                        hint("lightbulb", "Det du kommer på mitt i något annat. Säg det, så ligger det här.")
+                        hint("lightbulb", "Det du kommer på mitt i något annat. Säg det, så hamnar det här.")
                     }
                 } else {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: wide ? 2 : 1),

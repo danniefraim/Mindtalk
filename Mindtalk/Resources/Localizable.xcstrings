@@ -4017,6 +4017,7 @@
       }
     },
     "Börja lyssna. Tryck på ✓ i bubblan när du är klar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4276,6 +4277,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Deltagarna informerades om inspelningen kl. %@."
+          }
+        }
+      }
+    },
+    "Den går inte att få tillbaka.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It can’t be brought back."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den går inte att få tillbaka."
           }
         }
       }
@@ -4572,7 +4589,40 @@
         }
       }
     },
+    "Det du kommer på mitt i något annat. Håll in %@ och säg det, så hamnar det här, inte i appen du är i.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What comes to mind in the middle of something else. Hold %@ and say it, and it lands here, not in the app you’re in."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det du kommer på mitt i något annat. Håll in %@ och säg det, så hamnar det här, inte i appen du är i."
+          }
+        }
+      }
+    },
+    "Det du kommer på mitt i något annat. Håll in %@ och säg det, så hamnar det här.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What comes to mind in the middle of something else. Hold %@ and say it, and it lands here."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det du kommer på mitt i något annat. Håll in %@ och säg det, så hamnar det här."
+          }
+        }
+      }
+    },
     "Det du kommer på mitt i något annat. Håll in %@ och säg det, så ligger det här.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4605,7 +4655,24 @@
         }
       }
     },
+    "Det du kommer på mitt i något annat. Säg det, så hamnar det här.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What comes to mind in the middle of something else. Say it, and it lands here."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det du kommer på mitt i något annat. Säg det, så hamnar det här."
+          }
+        }
+      }
+    },
     "Det du kommer på mitt i något annat. Säg det, så ligger det här.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5995,6 +6062,22 @@
         }
       }
     },
+    "Ett möte spelas in, så tankar får vänta.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A meeting is recording, so thoughts have to wait."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ett möte spelas in, så tankar får vänta."
+          }
+        }
+      }
+    },
     "Ett par steg kvar": {
       "localizations": {
         "en": {
@@ -6080,7 +6163,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Export all as Markdown…"
+            "value": "Export All as Markdown…"
           }
         },
         "sv": {
@@ -7779,6 +7862,22 @@
         }
       }
     },
+    "Går att göra när dikteringen är klar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available once the dictation is done"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Går att göra när dikteringen är klar"
+          }
+        }
+      }
+    },
     "Går att öppna när mötet är klart": {
       "localizations": {
         "en": {
@@ -7812,6 +7911,7 @@
       }
     },
     "Går när dikteringen är klar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8379,6 +8479,7 @@
       }
     },
     "Håll in %@ och prata medan du håller den.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8441,6 +8542,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in %@ och prata."
+          }
+        }
+      }
+    },
+    "Håll in %@ och prata. Släpp när du är klar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold %@ and talk. Let go when you’re done."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in %@ och prata. Släpp när du är klar."
           }
         }
       }
@@ -8728,6 +8845,7 @@
       }
     },
     "Håll in knappen och prata medan du håller den.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8739,6 +8857,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in knappen och prata medan du håller den."
+          }
+        }
+      }
+    },
+    "Håll in knappen och prata. Släpp när du är klar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold the button and talk. Let go when you’re done."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in knappen och prata. Släpp när du är klar."
           }
         }
       }
@@ -8760,11 +8894,12 @@
       }
     },
     "Håll in och säg det du kommer på": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hold it and say what comes to mind"
+            "value": "Hold the key and say what comes to mind"
           }
         },
         "sv": {
@@ -8840,6 +8975,7 @@
       }
     },
     "Håll in tangenterna samtidigt och prata medan du håller dem.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8851,6 +8987,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in tangenterna samtidigt och prata medan du håller dem."
+          }
+        }
+      }
+    },
+    "Håll in tangenterna samtidigt och prata. Släpp när du är klar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold the keys together and talk. Let go when you’re done."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in tangenterna samtidigt och prata. Släpp när du är klar."
           }
         }
       }
@@ -9653,6 +9805,7 @@
       }
     },
     "Inga tankar innehåller det.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9680,6 +9833,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inga tankar än"
+          }
+        }
+      }
+    },
+    "Inga träffar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matches."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inga träffar."
           }
         }
       }
@@ -11075,6 +11244,7 @@
       }
     },
     "Kom på något mitt i något annat? Säg det, så hamnar det i Tankar, inte i texten.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11086,6 +11256,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kom på något mitt i något annat? Säg det, så hamnar det i Tankar, inte i texten."
+          }
+        }
+      }
+    },
+    "Kommer du på något mitt i något annat? Säg det, så hamnar det i Tankar, inte i texten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Do you think of something in the middle of something else? Say it, and it lands in Thoughts, not in the text."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kommer du på något mitt i något annat? Säg det, så hamnar det i Tankar, inte i texten."
           }
         }
       }
@@ -12886,6 +13072,22 @@
         }
       }
     },
+    "Lyssnar tills du trycker på ✓ i bubblan.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listens until you press ✓ in the bubble."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssnar tills du trycker på ✓ i bubblan."
+          }
+        }
+      }
+    },
     "Lyssnaren": {
       "localizations": {
         "en": {
@@ -13943,6 +14145,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mellanslag"
+          }
+        }
+      }
+    },
+    "Mellanslag bockar av,": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Space ticks off,"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mellanslag bockar av,"
           }
         }
       }
@@ -16030,6 +16248,22 @@
         }
       }
     },
+    "Ny tanke": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New thought"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ny tanke"
+          }
+        }
+      }
+    },
     "Nyligen raderade": {
       "localizations": {
         "en": {
@@ -16051,7 +16285,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recently deleted (%lld)"
+            "value": "Recently Deleted (%lld)"
           }
         },
         "sv": {
@@ -16935,7 +17169,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Try it: press Say a thought and say “Call back about the quote”."
+            "value": "Try it: press Say a Thought and say “Call back about the quote”."
           }
         },
         "sv": {
@@ -18606,7 +18840,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Typing…"
+            "value": "Writing…"
           }
         },
         "sv": {
@@ -19258,7 +19492,6 @@
       }
     },
     "Spara tanken": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -19275,6 +19508,7 @@
       }
     },
     "Sparad i Tankar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -21988,7 +22222,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The thoughts were merged"
+            "value": "Thoughts merged"
           }
         },
         "sv": {
@@ -22032,7 +22266,24 @@
         }
       }
     },
+    "Tanken kunde inte skrivas ned. Försök igen i Tankar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The thought couldn’t be written down. Try again in Thoughts."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tanken kunde inte skrivas ned. Försök igen i Tankar."
+          }
+        }
+      }
+    },
     "Tanken sparades utan text. Försök igen i Tankar.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -22053,7 +22304,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Thought deleted"
+            "value": "Thought removed"
           }
         },
         "sv": {
@@ -22480,7 +22731,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Back to the thoughts"
+            "value": "Back to Thoughts"
           }
         },
         "sv": {
@@ -23199,7 +23450,24 @@
         }
       }
     },
+    "Töm listan…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empty the list…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Töm listan…"
+          }
+        }
+      }
+    },
     "Töm…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -24994,6 +25262,22 @@
         }
       }
     },
+    "edit|Ändra": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ändra"
+          }
+        }
+      }
+    },
     "flerspråkig": {
       "comment": "The multilingual speech model, mid-sentence",
       "localizations": {
@@ -25089,6 +25373,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "för korta meddelanden"
+          }
+        }
+      }
+    },
+    "genvägen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "the shortcut"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "genvägen"
           }
         }
       }
@@ -25548,6 +25848,22 @@
         }
       }
     },
+    "och säg det du kommer på": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "and say what comes to mind"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "och säg det du kommer på"
+          }
+        }
+      }
+    },
     "one|ord i dag": {
       "extractionState": "manual",
       "localizations": {
@@ -25707,6 +26023,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fortsätt mötet"
+          }
+        }
+      }
+    },
+    "pin|Fäst": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pin"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fäst"
           }
         }
       }
@@ -26016,6 +26348,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "t.ex. ”Ring tillbaka om offerten”"
+          }
+        }
+      }
+    },
+    "tar bort, retur ändrar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "removes, Return edits."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tar bort, retur ändrar."
           }
         }
       }
@@ -26369,7 +26717,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Reset"
+            "value": "Restore"
           }
         },
         "sv": {
@@ -26541,6 +26889,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna mötet där det sades"
+          }
+        }
+      }
+    },
+    "Öppnar Tankar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens Thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppnar Tankar"
           }
         }
       }
