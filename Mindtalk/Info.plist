@@ -61,7 +61,7 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Mindact Solutions AB. Taligenkänning: Klang Pianissimo av Klang AI AB och Parakeet Ultra av Moondream (CC BY 4.0).</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Mindtalk använder mikrofonen när du dikterar och när du spelar in möten. Allt tolkas på din Mac – inget ljud lämnar datorn.</string>
+	<string>Mindtalk använder mikrofonen när du dikterar och när du spelar in möten. Allt tolkas på din Mac, och inget ljud lämnar datorn.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>SUEnableAutomaticChecks</key>
