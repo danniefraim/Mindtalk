@@ -102,6 +102,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             Task {
                 do {
                     UserDefaults.standard.removeObject(forKey: "neuralEngineReady.swedish")
+                    // As at launch: the voice models are made ready first, and the speech
+                    // model's Neural Engine waits for them (SpeechEngine.upgrade) — without
+                    // this the test waits out that twenty-minute limit instead.
+                    VoiceModels.warmUp()
                     let samples = try Recorder.load(URL(fileURLWithPath: args[i + 1]))
                     let t0 = Date()
                     let gpu = try await SpeechEngine.shared.transcribe(samples: samples, with: .swedish)
