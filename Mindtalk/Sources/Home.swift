@@ -14,14 +14,13 @@ import SwiftUI
 enum HomeGreeting {
     static func greeting(_ date: Date) -> String {
         switch Calendar.current.component(.hour, from: date) {
-        case 5..<10: return String(localized: "God morgon")
-        case 10..<13: return String(localized: "God förmiddag")
-        case 13..<18: return String(localized: "God eftermiddag")
+        case 5..<12: return String(localized: "God morgon")
+        case 12..<18: return String(localized: "God eftermiddag")
         default: return String(localized: "God kväll")
         }
     }
 
-    /// "Mathias" — the first name the Mac knows you by; nil if it knows none.
+    /// The first name the Mac knows you by; nil if it knows none.
     static let firstName: String? = {
         let first = NSFullUserName().split(separator: " ").first.map(String.init) ?? ""
         return first.isEmpty ? nil : first
@@ -256,8 +255,8 @@ struct HomeHero: View {
         if today > 0 { return today == 1 ? String(localized: "1 ord i dag") : String(localized: "\(Stats.number(today)) ord i dag") }
         if weekWords > 0 { return weekWords == 1 ? String(localized: "1 ord i veckan") : String(localized: "\(Stats.number(weekWords)) ord i veckan") }
         if !fresh { return String(localized: "Inget sagt i dag än") }
-        return dictation.mode == .toggle ? String(localized: "Tryck på \(dictation.hotkey.inlineName) och prata")
-                                         : String(localized: "Håll in \(dictation.hotkey.inlineName) och prata")
+        return dictation.mode == .toggle ? String(localized: "Tryck på \(dictation.hotkey.shortName) och prata")
+                                         : String(localized: "Håll in \(dictation.hotkey.shortName) och prata")
     }
 
     private func subline(week: [Stats.WeekDay], weekWords: Int, fresh: Bool) -> String {
@@ -413,11 +412,11 @@ struct HomeHero: View {
                 withAnimation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15)) { session.cancelStop() }
             }
         } else {
-            tileButton("Avsluta", icon: "stop.fill", primary: false, keys: meetingKeys, help: String(localized: "Avsluta mötet")) {
+            tileButton("stop|Avsluta", icon: "stop.fill", primary: false, keys: meetingKeys, help: String(localized: "Avsluta mötet")) {
                 withAnimation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15)) { _ = session.requestStop() }
             }
             if session.isPaused {
-                tileButton("Fortsätt", icon: "play.fill", primary: true, keys: "⌥⌘P", help: String(localized: "Fortsätt spela in")) {
+                tileButton("resume|Fortsätt", icon: "play.fill", primary: true, keys: "⌥⌘P", help: String(localized: "Fortsätt spela in")) {
                     withAnimation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15)) { session.resume() }
                 }
                 .keyboardShortcut("p", modifiers: [.command, .option])

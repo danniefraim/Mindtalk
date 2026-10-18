@@ -326,17 +326,15 @@ struct StatusPanelView: View {
                 default:
                     if dictation.isReady {
                         if dictation.hotkey.modifierKeys.count > 1 {
+                            // The chip on a line of its own: "Diktera med", then the keys.
                             VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 5) {
-                                    Text(LocalizedStringKey(dictation.mode == .toggle ? "Tryck" : "Håll"))
-                                    Text("för att diktera")
-                                }
+                                Text("Diktera med")
                                 KeyChip(text: dictation.hotkey.chip)
                                     .lineLimit(nil)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         } else {
-                            Text(LocalizedStringKey(dictation.mode == .toggle ? "Tryck" : "Håll"))
+                            Text(LocalizedStringKey(dictation.mode == .toggle ? "Tryck" : "Håll in"))
                             KeyChip(text: dictation.hotkey.chip)
                                 .fixedSize()
                                 .layoutPriority(1)

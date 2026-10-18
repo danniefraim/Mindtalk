@@ -148,7 +148,7 @@ struct FirstDayCard: View {
                 KeyChip(text: dictation.hotkey.chip, small: true)
                 Text("i vilken app som helst och prata")
             }
-            row(2, done: s.thought, title: "Säg en tanke", link: ("Öppna Tankar →", { page = .thoughts })) {
+            row(2, done: s.thought, title: "step|Säg en tanke", link: ("Öppna Tankar →", { page = .thoughts })) {
                 if let keys = Settings.thoughtShortcut?.chip {
                     Text("Håll in")
                     KeyChip(text: keys, small: true)
@@ -158,7 +158,7 @@ struct FirstDayCard: View {
                 }
             }
             row(3, done: s.meeting, title: "Spela in ett möte", link: ("Öppna Möten →", { page = .meetings })) {
-                Text("Här eller från menyraden")
+                Text("Med knappen Starta möte ovanför, eller från menyraden.")
             }
 
             // Where Mindtalk goes when the window closes — said before you close it.
