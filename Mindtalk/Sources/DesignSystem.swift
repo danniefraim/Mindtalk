@@ -43,6 +43,11 @@ enum DS {
         static let pill = dynamic(light: 0xFFFFFF, dark: 0x585858)
         /// Dividers inside cards.
         static let divider = dynamic(light: 0xE0E0E0, dark: 0x303030)
+        /// The week's charts (Hem, the menu bar panel): a day before today with words, and
+        /// the baseline the bars stand on. Today is ink, a day to come `divider`, a day
+        /// gone by without words `fieldStroke`.
+        static let barPast = dynamic(light: 0xADADAD, dark: 0x5E5E5E)
+        static let barBase = dynamic(light: 0xC8C8C8, dark: 0x444444)
         /// Secondary text: explanations, labels, timestamps. Darker than the system's
         /// secondary grey, so it keeps at least 6:1 contrast on paper and cards.
         static let muted = dynamic(light: 0x5C5C5C, dark: 0xA9A9A9)
@@ -296,23 +301,26 @@ struct SoftButtonStyle: ButtonStyle {
     }
 }
 
-/// The soft button on a light tile, as "Starta direkt" and Hem's: chip grey, no edge
-/// or shadow, as tall as the tile's other buttons.
+/// The button on a light tile, as "Starta direkt" and Hem's: chip grey with no edge or
+/// shadow, or `primary` in ink with paper text, as tall as the tile's other buttons.
 struct TileButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View { Styled(configuration: configuration) }
+    var primary = false
+
+    func makeBody(configuration: Configuration) -> some View { Styled(configuration: configuration, primary: primary) }
 
     private struct Styled: View {
         let configuration: ButtonStyle.Configuration
+        let primary: Bool
         @Environment(\.isEnabled) private var enabled
         var body: some View {
             let shape = RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
             configuration.label
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(primary ? AnyShapeStyle(DS.Colors.onInk) : AnyShapeStyle(.primary))
                 .lineLimit(1)
                 .padding(.horizontal, 15)
                 .frame(height: 34)
-                .background(shape.fill(DS.Colors.chip.opacity(configuration.isPressed ? 0.7 : 1)))
+                .background(shape.fill((primary ? DS.Colors.ink : DS.Colors.chip).opacity(configuration.isPressed ? (primary ? 0.8 : 0.7) : 1)))
                 .opacity(enabled ? 1 : 0.45)
                 .contentShape(shape)
         }

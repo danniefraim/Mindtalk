@@ -45,7 +45,7 @@ struct HomeHero: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Ink: the tile is light, so its text is the page's own.
-    private var ink: Color { .primary }
+    private var ink: Color { DS.Colors.ink }
     private var meetingKeys: String? { Settings.meetingShortcut.map { $0.chip.replacingOccurrences(of: " ", with: "") } }
 
     var body: some View {
@@ -63,7 +63,7 @@ struct HomeHero: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Above the line: the figure, the week, and the sphere in a column of
                 // its own, so nothing is ever written over it.
-                HStack(alignment: .top, spacing: 28) {
+                HStack(alignment: needsSetup ? .center : .top, spacing: 28) {
                     top {
                         headline(week: week, weekWords: weekWords, fresh: fresh)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -151,15 +151,18 @@ struct HomeHero: View {
                 Text("Nästan klart").font(.system(size: 40, weight: .regular, design: .serif)).foregroundStyle(ink)
                 TimelineView(.periodic(from: since, by: 30)) { context in
                     let minutes = Int(context.date.timeIntervalSince(since) / 60)
-                    // The same words as the introduction's: half a minute at first, then the minutes so far.
-                    Text(verbatim: String(localized: "Talmodellen görs redo för din Mac") + ". "
-                         + (minutes < 1 ? String(localized: "Det tar ungefär en halv minut, bara första gången.")
-                                        : String(localized: "Det tar en liten stund, bara första gången. \(minutes) min hittills.")))
-                        .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted).monospacedDigit()
-                        .fixedSize(horizontal: false, vertical: true)
+                    // The same words as the introduction's: half a minute at first, then the
+                    // minutes so far, with a small ring going round in front.
+                    HStack(alignment: .center, spacing: 10) {
+                        LoadingRing(color: ink)
+                        Text(verbatim: String(localized: "Talmodellen görs redo för din Mac") + ". "
+                             + (minutes < 1 ? String(localized: "Det tar ungefär en halv minut, bara första gången.")
+                                            : String(localized: "Det tar en liten stund, bara första gången. \(minutes) min hittills.")))
+                            .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted).monospacedDigit()
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .padding(.top, 8)
-                SettlingLine(color: ink).frame(width: 60, alignment: .leading).padding(.top, 14).accessibilityHidden(true)
             } else if welcoming(fresh) {
                 // Nothing said yet and the first-day card below says how: the hero
                 // welcomes rather than saying the key a third time.
@@ -296,18 +299,19 @@ struct HomeHero: View {
                                   : String(localized: "Vecka \(stats.weekNumber)")
         return VStack(alignment: .leading, spacing: 14) {
             Text(verbatim: title.uppercased())
-                .font(.system(size: 10.5, weight: .semibold)).tracking(1.3).monospacedDigit()
+                .font(.system(size: 11, weight: .semibold)).tracking(1.4).monospacedDigit()
                 .foregroundStyle(DS.Colors.muted).lineLimit(1).fixedSize()
             VStack(spacing: 0) {
                 HStack(alignment: .bottom, spacing: gap) {
                     ForEach(Array(week.enumerated()), id: \.offset) { _, day in
                         RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                            .fill(ink.opacity(day.isFuture ? 0.07 : day.stat.words > 0 ? (day.isToday ? 1 : 0.3) : 0.13))
+                            .fill(day.isFuture ? DS.Colors.divider
+                                  : day.stat.words > 0 ? (day.isToday ? DS.Colors.ink : DS.Colors.barPast) : DS.Colors.fieldStroke)
                             .frame(width: bar, height: max(3, tall * CGFloat(day.stat.words) / CGFloat(top)))
                             .help(Text(verbatim: weekday(day.date) + ": " + Self.words(day.stat.words)))
                     }
                 }
-                Rectangle().fill(ink.opacity(0.18)).frame(width: 7 * bar + 6 * gap, height: 1).padding(.top, 3)
+                Rectangle().fill(DS.Colors.barBase).frame(width: 7 * bar + 6 * gap, height: 1).padding(.top, 3)
                 HStack(spacing: gap) {
                     ForEach(Array(week.enumerated()), id: \.offset) { _, day in
                         Text(verbatim: names[cal.component(.weekday, from: day.date) - 1].lowercased())
@@ -442,36 +446,41 @@ struct HomeHero: View {
         .buttonStyle(.plain)
     }
 
-    /// A button on the tile: ink with paper text, or soft grey. Its shortcut is in the
-    /// tooltip and for VoiceOver, not beside it.
+    /// A button on the tile (TileButtonStyle): ink with paper text, or soft grey. Its
+    /// shortcut is in the tooltip and for VoiceOver, not beside it.
     private func tileButton(_ title: LocalizedStringKey, icon: String? = nil, dot: Bool = false, primary: Bool,
                             keys: String?, help: String, action: @escaping () -> Void) -> some View {
-        let shape = RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
-        return Button(action: action) {
+        Button(action: action) {
             HStack(spacing: 7) {
                 if dot { Circle().fill(DS.Colors.recording).frame(width: 7, height: 7).accessibilityHidden(true) }
                 if let icon { Image(systemName: icon).font(.system(size: 10.5, weight: .semibold)).accessibilityHidden(true) }
-                Text(title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                Text(title)
             }
-            .padding(.horizontal, 15)
-            .frame(height: 34)
-            .background(shape.fill(primary ? DS.Colors.ink : DS.Colors.chip))
-            .foregroundStyle(primary ? DS.Colors.onInk : ink)
-            .contentShape(shape)
         }
-        .buttonStyle(PressStyle())
+        .buttonStyle(TileButtonStyle(primary: primary))
         .help(Text(verbatim: help + (keys.map { "  " + $0 } ?? "")))
         .accessibilityHint(keys.map { Text(verbatim: $0) } ?? Text(verbatim: ""))
     }
+}
 
-    private struct PressStyle: ButtonStyle {
-        @Environment(\.isEnabled) private var enabled
-        func makeBody(configuration: Configuration) -> some View {
-            configuration.label
-                .opacity(enabled ? (configuration.isPressed ? 0.8 : 1) : 0.4)
-                .scaleEffect(configuration.isPressed ? 0.98 : 1)
-                .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+/// A small ring going round while the speech model is made ready: the tile's
+/// "Avslutas om" ring, with no end to count down to. Still with Reduce Motion.
+private struct LoadingRing: View {
+    let color: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.animation(paused: reduceMotion)) { context in
+            let turn = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.2) / 1.2
+            ZStack {
+                Circle().stroke(color.opacity(0.2), lineWidth: 2)
+                Circle().trim(from: 0, to: 0.28)
+                    .stroke(color, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .rotationEffect(.degrees(-90 + (reduceMotion ? 0 : turn * 360)))
+            }
         }
+        .frame(width: 14, height: 14)
+        .accessibilityHidden(true)
     }
 }
 
@@ -716,7 +725,6 @@ struct HomeShelves: View {
         let locked: Bool
         @Binding var page: Page
         @State private var hovering = false
-        @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
         var body: some View {
             let m = record
@@ -750,8 +758,7 @@ struct HomeShelves: View {
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, minHeight: 168, alignment: .topLeading)
-                .raised(cornerRadius: DS.Radius.card)
-                .scaleEffect(hovering && !reduceMotion && !locked ? 1.012 : 1)
+                .background(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous).fill(hovering && !locked ? DS.Colors.chip : DS.Colors.card))
                 .contentShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
             }
             .buttonStyle(.plain)

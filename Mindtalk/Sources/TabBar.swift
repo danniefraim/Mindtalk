@@ -91,7 +91,7 @@ struct FloatingTabBar: View {
     /// Ready or not, at the foot of the bar: a dot, and the words when open.
     private var status: some View {
         HStack(spacing: 12) {
-            Circle().fill(meeting.isRecording ? DS.Colors.recording : dictation.needsSetup ? Color.orange : DS.Colors.good)
+            Circle().fill(meeting.isRecording ? DS.Colors.recording : dictation.needsSetup ? DS.Colors.warning : DS.Colors.good)
                 .frame(width: 7, height: 7)
                 .frame(width: 40, height: 22)
             if expanded {

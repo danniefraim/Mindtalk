@@ -127,9 +127,7 @@ struct FirstDayCard: View {
         let s = steps
         return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 12) {
-                Text(verbatim: String(localized: "Din första dag").uppercased())
-                    .font(.system(size: 11, weight: .semibold)).tracking(1.4).foregroundStyle(DS.Colors.muted)
-                    .accessibilityAddTraits(.isHeader)
+                CapsLabel(String(localized: "Din första dag"))
                 Spacer(minLength: 8)
                 if celebrating {
                     Text("Allt klart, nu kör du.").font(.system(size: 13, weight: .medium))
@@ -141,14 +139,14 @@ struct FirstDayCard: View {
                     CloseButton { withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) { closed = true } }
                 }
             }
-            .padding(.horizontal, 24).padding(.top, 18).padding(.bottom, 12)
+            .padding(.horizontal, 28).padding(.top, 18).padding(.bottom, 12)
 
             row(1, done: s.dictated, title: "Diktera", link: nil) {
                 Text(verbatim: pressVerb)
                 KeyChip(text: dictation.hotkey.chip, small: true)
                 Text("i vilken app som helst och prata")
             }
-            row(2, done: s.thought, title: "step|Säg en tanke", link: ("Öppna Tankar →", { page = .thoughts })) {
+            row(2, done: s.thought, title: "step|Säg en tanke", link: ("Öppna Tankar", { page = .thoughts })) {
                 if let keys = Settings.thoughtShortcut?.chip {
                     Text("Håll in")
                     KeyChip(text: keys, small: true)
@@ -157,7 +155,7 @@ struct FirstDayCard: View {
                     Text("Säg den på sidan Tankar")
                 }
             }
-            row(3, done: s.meeting, title: "Spela in ett möte", link: ("Öppna Möten →", { page = .meetings })) {
+            row(3, done: s.meeting, title: "Spela in ett möte", link: ("Öppna Möten", { page = .meetings })) {
                 Text("Med knappen Starta möte ovanför, eller från menyraden.")
             }
 
@@ -170,8 +168,8 @@ struct FirstDayCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 24).padding(.vertical, 13)
-            .background(alignment: .top) { Rectangle().fill(DS.Colors.divider).frame(height: 1).padding(.horizontal, 24) }
+            .padding(.horizontal, 28).padding(.vertical, 13)
+            .background(alignment: .top) { Rectangle().fill(DS.Colors.divider).frame(height: 1).padding(.horizontal, 28) }
             .padding(.top, 10)
         }
         .padding(.bottom, 4)
@@ -205,12 +203,19 @@ struct FirstDayCard: View {
             .accessibilityValue(done ? Text("Klart") : Text("Inte gjort än"))
             Spacer(minLength: 12)
             if !done, let link {
-                Button(link.title, action: link.action).buttonStyle(.plain)
+                Button(action: link.action) {
+                    HStack(spacing: 4) {
+                        Text(link.title)
+                        Image(systemName: "arrow.right").font(.system(size: 10, weight: .semibold)).accessibilityHidden(true)
+                    }
                     .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.ink)
-                    .fixedSize()
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .fixedSize()
             }
         }
-        .padding(.horizontal, 24).padding(.vertical, 7)
+        .padding(.horizontal, 28).padding(.vertical, 7)
     }
 
     /// A ring with the step's number, then an ink disc with a check when it's done.
@@ -219,7 +224,7 @@ struct FirstDayCard: View {
         let done: Bool
         var body: some View {
             ZStack {
-                Circle().strokeBorder(DS.Colors.fieldStroke, lineWidth: 1.5).opacity(done ? 0 : 1)
+                Circle().strokeBorder(DS.Colors.faint, lineWidth: 1.25).opacity(done ? 0 : 1)
                 Text(verbatim: "\(number)").font(.system(size: 10, weight: .semibold)).monospacedDigit()
                     .foregroundStyle(DS.Colors.muted).opacity(done ? 0 : 1)
                 Circle().fill(DS.Colors.ink).scaleEffect(done ? 1 : 0.4).opacity(done ? 1 : 0)

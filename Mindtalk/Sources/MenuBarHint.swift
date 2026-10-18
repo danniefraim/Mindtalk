@@ -116,7 +116,7 @@ struct MenuBarHintBubble: View {
         .foregroundStyle(DS.Colors.onInk)
         .padding(.horizontal, 16).padding(.vertical, 13)
         .frame(width: Self.width, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(DS.Colors.ink))
+        .background(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous).fill(DS.Colors.ink))
         .overlay(alignment: .topLeading) {
             Arrow().fill(DS.Colors.ink)
                 .frame(width: Self.arrow.width, height: Self.arrow.height)

@@ -722,7 +722,7 @@ private struct ThoughtRow: View {
                     }
             } else {
                 Text(thought.text)
-                    .font(.system(size: 14))
+                    .font(.system(size: 15, design: .serif))
                     .foregroundStyle(thought.done ? DS.Colors.muted : Color.primary)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)

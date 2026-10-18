@@ -26319,7 +26319,6 @@
       }
     },
     "Öppna Möten": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -26336,6 +26335,7 @@
       }
     },
     "Öppna Möten →": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -26352,7 +26352,6 @@
       }
     },
     "Öppna Tankar": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -26369,6 +26368,7 @@
       }
     },
     "Öppna Tankar →": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

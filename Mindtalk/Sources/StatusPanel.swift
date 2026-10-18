@@ -187,7 +187,7 @@ struct StatusPanelView: View {
             // A thought, from wherever you are — kept in Tankar.
             if !meeting.isRecording, dictation.engine.isInstalled {
                 PanelRow(title: "Säg en tanke", icon: "lightbulb",
-                         shortcut: Settings.thoughtShortcut?.chip) {
+                         shortcut: Settings.thoughtShortcut?.chip, chip: true) {
                     (NSApp.delegate as? AppDelegate)?.closeStatusPanel(immediately: true)
                     Dictation.shared.startThought()
                 }
@@ -205,7 +205,7 @@ struct StatusPanelView: View {
         .background(DS.Colors.paper.opacity(flat ? 1 : 0.97))
         .modifier(Glass(on: !flat))
         .clipShape(RoundedRectangle(cornerRadius: PanelMetrics.corner, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: PanelMetrics.corner, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 0.5))
+        .overlay(RoundedRectangle(cornerRadius: PanelMetrics.corner, style: .continuous).strokeBorder(DS.Colors.divider, lineWidth: 0.5))
         .fixedSize(horizontal: false, vertical: true)
         .background(shortcuts)
     }
@@ -349,7 +349,7 @@ struct StatusPanelView: View {
                                 dictation.fix(issue)
                             } label: {
                                 HStack(spacing: 5) {
-                                    Circle().fill(Color.orange).frame(width: 6, height: 6)
+                                    Circle().fill(DS.Colors.warning).frame(width: 6, height: 6)
                                     Text(issue.title).foregroundStyle(.primary)
                                     Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold))
                                 }
@@ -372,9 +372,11 @@ struct StatusPanelView: View {
 
     private var today: some View {
         let weekSaved = stats.week.reduce(0) { $0 + $1.stat.savedSeconds }
-        // The bars step aside when big numbers or a long language need the room.
+        // The bars once two days have words (one bar isn't a chart), and they step aside
+        // when big numbers or a long language need the room.
+        let enoughDays = stats.week.filter { $0.stat.words > 0 }.count >= 2
         return ViewThatFits(in: .horizontal) {
-            todayRow(bars: true)
+            if enoughDays { todayRow(bars: true) }
             todayRow(bars: false)
         }
         .font(.system(size: 12.5))
@@ -458,7 +460,7 @@ private struct HoverRow<Content: View>: View {
                 .padding(.horizontal, PanelMetrics.inset - PanelMetrics.highlightInset)
                 .frame(maxWidth: .infinity, minHeight: height, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.primary.opacity(hovering ? 0.08 : 0)))
+                    .fill(DS.Colors.chip.opacity(hovering ? 0.7 : 0)))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -473,6 +475,8 @@ private struct PanelRow: View {
     /// The recording dot, for "Starta möte".
     var dot = false
     var shortcut: String? = nil
+    /// The shortcut as a keycap (the thought key), as in the header's hint.
+    var chip = false
     var muted = false
     let action: () -> Void
 
@@ -493,7 +497,9 @@ private struct PanelRow: View {
                 Text(LocalizedStringKey(title))
                     .foregroundStyle(muted ? AnyShapeStyle(DS.Colors.muted) : AnyShapeStyle(.primary))
                 Spacer(minLength: 12)
-                if let shortcut { Text(shortcut).font(.system(size: 13)).foregroundStyle(DS.Colors.faint) }
+                if let shortcut {
+                    if chip { KeyChip(text: shortcut, small: true) } else { Text(shortcut).font(.system(size: 13)).foregroundStyle(DS.Colors.faint) }
+                }
             }
             .font(.system(size: 14))
         }
@@ -571,8 +577,8 @@ private struct PanelSeparator: View {
     }
 }
 
-/// Monday to Sunday in seven slim bars: today in ink, other days grey,
-/// days without words a hairline.
+/// Monday to Sunday in seven slim bars: today in ink, other days grey, days without
+/// words a hairline. The same four colours as Hem's chart.
 private struct WeekBars: View {
     let week: [Stats.WeekDay]
 
@@ -582,7 +588,7 @@ private struct WeekBars: View {
             ForEach(week.indices, id: \.self) { i in
                 let day = week[i]
                 RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                    .fill(DS.Colors.ink.opacity(day.isToday ? 1 : day.stat.words > 0 ? 0.3 : day.isFuture ? 0.08 : 0.15))
+                    .fill(day.isToday ? DS.Colors.ink : day.stat.words > 0 ? DS.Colors.barPast : day.isFuture ? DS.Colors.divider : DS.Colors.fieldStroke)
                     .frame(width: 6, height: day.stat.words > 0 ? max(3, CGFloat(day.stat.words) / CGFloat(peak) * 20) : 2)
             }
         }
