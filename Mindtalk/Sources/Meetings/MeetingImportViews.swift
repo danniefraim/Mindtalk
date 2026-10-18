@@ -291,12 +291,9 @@ struct SourceLink: View {
         Button(action: reveal) {
             HStack(spacing: 4) {
                 Text(verbatim: "·")
-                Text("importerad från")
-                Text(source.file)
-                    .underline(hovering)
-                    .foregroundStyle(hovering ? DS.Colors.ink : DS.Colors.muted)
-                    .lineLimit(1).truncationMode(.middle)
-                    .frame(maxWidth: 320, alignment: .leading)
+                // One sentence to translate, the file's name in it styled as the link.
+                Text("importerad från \(Text(verbatim: Self.shortened(source.file)).underline(hovering).foregroundStyle(hovering ? DS.Colors.ink : DS.Colors.muted))")
+                    .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
                 Image(systemName: missing ? "questionmark.folder" : "arrow.up.forward.square")
                     .font(.system(size: 10.5, weight: .semibold))
@@ -308,8 +305,15 @@ struct SourceLink: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .help(missing ? "Filen hittades inte. Den kan ha tagits bort" : "Visa filen i Finder")
+        .help(missing ? Text("Filen hittades inte. Den kan ha tagits bort.") : Text("Visa filen i Finder"))
         .accessibilityLabel("Importerad från \(source.file). Visa filen i Finder")
+    }
+
+    /// A long name shortened in the middle, its extension kept: "Khraftpodden … #197.mp3".
+    static func shortened(_ name: String, to limit: Int = 44) -> String {
+        guard name.count > limit else { return name }
+        let half = (limit - 1) / 2
+        return String(name.prefix(half)) + "…" + String(name.suffix(limit - 1 - half))
     }
 
     private func reveal() {
@@ -319,7 +323,7 @@ struct SourceLink: View {
                 NSWorkspace.shared.activateFileViewerSelecting([url])
             } else {
                 withAnimation(.snappy) { missing = true }
-                NSSound.beep()
+                if !MeetingSession.shared.isRecording { NSSound.beep() }     // nothing into a headset mid-meeting
             }
         }
     }

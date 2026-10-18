@@ -603,8 +603,8 @@ final class MeetingSession: ObservableObject {
         }
         guard saved.finished, saved.hasAudio else {
             lastError = saved.hasAudio
-                ? String(localized: "Gör klart mötet först, sedan kan du fortsätta det.")
-                : String(localized: "Inspelningen av mötet är borttagen, så mötet går inte att fortsätta.")
+                ? String(localized: "Tryck Gör klart först, sedan kan du spela in mer.")
+                : String(localized: "Inspelningen är borttagen, så det går inte att spela in mer i mötet.")
             return
         }
         language = saved.language
@@ -1543,7 +1543,7 @@ final class MeetingSession: ObservableObject {
             let slow = Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(8))
                 guard !Task.isCancelled, let self, self.phase == .finishing(listening) else { return }
-                self.phase = .finishing(String(localized: "Talmodellen förbereds. Det kan ta någon minut…"))
+                self.phase = .finishing(String(localized: "Talmodellen förbereds. Det kan ta någon minut."))
             }
             defer { slow.cancel() }
             let timed = try await SpeechEngine.shared.transcribeFile(url, with: language)

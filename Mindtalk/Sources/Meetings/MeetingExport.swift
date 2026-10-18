@@ -219,7 +219,7 @@ enum MeetingExport {
             case .meta(let t): out += "\(t)\n\n"
             case .heading(let t): out += "\n\(t.uppercased())\n\n"
             case .paragraph(let t): out += "\(t)\n\n"
-            case .item(let t, let done): out += done.map { "\($0 ? "[x]" : "[ ]") \(t)\n" } ?? "– \(t)\n"
+            case .item(let t, let done): out += done.map { "\($0 ? "[x]" : "[ ]") \(t)\n" } ?? "• \(t)\n"
             case .speaker(let who, let at): out += who.isEmpty ? "[\(at)]\n" : "\(who) [\(at)]\n"
             }
         }
@@ -231,10 +231,10 @@ enum MeetingExport {
         var lines = text.components(separatedBy: "\n")
         var out: [String] = []
         for (i, line) in lines.enumerated() {
-            let isItem = line.hasPrefix("- ") || line.hasPrefix("– ") || line.hasPrefix("[x] ") || line.hasPrefix("[ ] ")
+            let isItem = line.hasPrefix("- ") || line.hasPrefix("• ") || line.hasPrefix("[x] ") || line.hasPrefix("[ ] ")
             out.append(line)
             let next = i + 1 < lines.count ? lines[i + 1] : ""
-            let nextIsItem = next.hasPrefix("- ") || next.hasPrefix("– ") || next.hasPrefix("[x] ") || next.hasPrefix("[ ] ")
+            let nextIsItem = next.hasPrefix("- ") || next.hasPrefix("• ") || next.hasPrefix("[x] ") || next.hasPrefix("[ ] ")
             if isItem, !nextIsItem, !next.isEmpty { out.append("") }
         }
         lines = []

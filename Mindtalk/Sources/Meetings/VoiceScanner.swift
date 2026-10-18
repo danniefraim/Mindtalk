@@ -132,7 +132,7 @@ struct VoiceScanner: View {
                 // update): recording already, but nothing to listen with yet.
                 if scanner.session.phase == .starting {
                     return (String(localized: "Förbereder"), String(localized: "Strax klart"),
-                            String(localized: "Röstmodellen görs redo, bara första gången. Inspelningen är igång och inget går förlorat."))
+                            String(localized: "Talmodellen förbereds. Det händer bara första gången. Inspelningen är igång och inget går förlorat."))
                 }
                 switch round.phase {
                 // Asked until someone starts talking — not only for the moment the turn opens.
@@ -144,17 +144,17 @@ struct VoiceScanner: View {
                     }
                     return round.turn == 1
                         ? (String(localized: "Person 1"), String(localized: "Vem vill börja?"), String(localized: "Säg hej och ditt namn, en i taget."))
-                        : (String(localized: "Person \(round.turn)"), String(localized: "Nästa, säg ditt namn"), String(localized: "Hej och namnet räcker."))
+                        : (String(localized: "Person \(round.turn)"), String(localized: "Nästa, säg ditt namn"), String(localized: "Det räcker med hej och ditt namn."))
                 case .listening:
                     return round.quiet
                         ? (String(localized: "Hör inget"), String(localized: "Kom lite närmare"), String(localized: "Mikrofonen hör dig knappt."))
-                        : (String(localized: "Person \(round.turn)"), String(localized: "Jag lyssnar…"), String(localized: "Fortsätt prata en liten stund."))
+                        : (String(localized: "Person \(round.turn)"), String(localized: "Jag lyssnar…"), String(localized: "Säg ditt namn, så går vi vidare."))
                 case .known(let name):
                     return (String(localized: "Känd röst"), String(localized: "Välkommen tillbaka, \(name)"), String(localized: "Jag känner igen rösten."))
                 case .new:
                     let name = round.draft.trimmingCharacters(in: .whitespaces)
                     return (String(localized: "Ny röst"), name.isEmpty ? String(localized: "Vad heter du?") : name,
-                            name.isEmpty ? String(localized: "Säg ditt namn, eller skriv det i rutan.") : String(localized: "Stämmer det? Annars ändra i rutan."))
+                            name.isEmpty ? String(localized: "Säg ditt namn, eller skriv det i rutan.") : String(localized: "Stämmer det? Annars kan du ändra i rutan."))
                 case .same(let name):
                     return (String(localized: "Samma röst"), String(localized: "Det är \(name) igen"), String(localized: "Nästa person, varsågod."))
                 case .closing:
@@ -239,7 +239,7 @@ struct VoiceScanner: View {
                         .onSubmit { round.save() }
                     if let at = round.autoSaveAt {
                         TimelineView(.periodic(from: .now, by: 0.25)) { _ in
-                            Text("Sparas om \(max(0, Int(ceil(at.timeIntervalSinceNow)))) s, skriv om det blev fel")
+                            Text("Sparas om \(max(0, Int(ceil(at.timeIntervalSinceNow)))) s. Blev det fel? Skriv rätt namn.")
                                 .font(.system(size: 12)).foregroundStyle(.white.opacity(0.55))
                         }
                     }
@@ -270,7 +270,7 @@ struct VoiceScanner: View {
 
     func continueButton(_ round: IntroRound) -> some View {
         Button(action: leave) {
-            Text(round.captures.isEmpty ? "Hoppa över, börja mötet" : "Alla är här")
+            (round.captures.isEmpty ? Text("Hoppa över namnrundan") : Text("Alla är här"))
                 .font(.system(size: 14, weight: .semibold))
                 .padding(.horizontal, 10)
                 .frame(minHeight: 32)
@@ -366,7 +366,7 @@ struct RememberVoicesOffer: View {
                 Image(systemName: "person.wave.2").font(.system(size: 16)).foregroundStyle(DS.Colors.muted)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Spara rösterna så att \(Self.list(names)) känns igen nästa gång?")
+                    Text("Spara rösterna så att Mindtalk känner igen \(Self.list(names)) nästa gång?")
                         .font(.system(size: 14, weight: .semibold))
                     Text("Bara ett röstavtryck sparas på din Mac, aldrig ljud. Fråga de andra i rummet först.")
                         .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)

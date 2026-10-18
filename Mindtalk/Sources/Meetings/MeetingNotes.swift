@@ -275,7 +275,7 @@ final class MeetingNotes: ObservableObject {
     }
 
     @Generable struct Todo {
-        @Guide(description: "Something a person will actually do after the meeting — an action, not a thought, opinion or feeling. A short sentence in your own words.") var text: String
+        @Guide(description: "Something a person will actually do after the meeting: an action, not a thought, opinion or feeling. A short sentence in your own words.") var text: String
         @Guide(description: "Who will do it: the name of the one who says they will, or who is asked to and agrees, exactly as written before the colon in the transcript. Empty if unclear.")
         var owner: String
         @Guide(description: "The number in brackets of the line where this is agreed.") var line: Int
@@ -291,7 +291,7 @@ final class MeetingNotes: ObservableObject {
     @Generable struct Overview {
         @Guide(description: "A short title for the meeting: two to five words, no date, no quotation marks.")
         var title: String
-        @Guide(description: "What the meeting was about and what came out of it, in one to three sentences, in the third person, naming people only as they are named before the colon in the transcript — never other names. One sentence if the meeting was short.")
+        @Guide(description: "What the meeting was about and what came out of it, in one to three sentences, in the third person, naming people only as they are named before the colon in the transcript, never other names. One sentence if the meeting was short.")
         var summary: String
         @Guide(description: "Important facts, figures, concerns or ideas that came up. Empty for a short or casual conversation.", .maximumCount(6))
         var points: [Item]
@@ -309,6 +309,7 @@ final class MeetingNotes: ObservableObject {
         You read a meeting transcript. Each line is "[n] Name: what they said". Write in \(language), in your own words, short. \
         Only use what was actually said: never invent names, numbers, dates or decisions. Give the line number n for every item. \
         Refer to people by their names as written in the transcript, never as "you". \
+        Never use dashes (– or —): write commas or full sentences instead. \
         \(task)
         """
     }
@@ -498,7 +499,7 @@ final class MeetingNotes: ObservableObject {
         case .important: "something important"
         }
         let how = kind == .task
-            ? "Write the task as a short action in \(language), without saying who does it (that is shown next to it) — " +
+            ? "Write the task as a short action in \(language), without saying who does it (that is shown next to it): " +
               "no I, he, she or name, just what is to be done."
             : "Write it as one short sentence in \(language). Name people as the lines name them (for example " +
               "\"\(language == "English" ? "Speaker 1" : "Talare 1")\"); never write I, he, she or they for a person." +
@@ -582,7 +583,7 @@ final class MeetingNotes: ObservableObject {
             // Gemma 4, or Apple's model refusing structure: plain text, sources on a last line.
             if !(error is LocalAnswer) { log.error("answer: \(String(describing: error), privacy: .public)") }
             let ask = instructions(language, """
-                Answer the question about the meeting in one to three full sentences, in your own words — don't copy \
+                Answer the question about the meeting in one to three full sentences, in your own words. Don't copy \
                 the transcript. If the transcript doesn't answer it, say so. \
                 On a last line write "SOURCES:" and the numbers of the lines the answer comes from.
                 """)
@@ -770,7 +771,15 @@ final class MeetingNotes: ObservableObject {
     }
 
     /// Drops a sentence said twice (small models sometimes loop).
+    /// No dashes in what's shown (the models like them): a comma instead. (A range
+    /// such as 10–12 has no spaces and stays.)
+    nonisolated static func undash(_ text: String) -> String {
+        text.replacingOccurrences(of: " – ", with: ", ").replacingOccurrences(of: " — ", with: ", ")
+            .replacingOccurrences(of: "—", with: ", ")
+    }
+
     nonisolated static func tidy(_ text: String) -> String {
+        let text = undash(text)
         var seen = Set<String>()
         var out: [String] = []
         text.enumerateSubstrings(in: text.startIndex..., options: .bySentences) { s, _, _, _ in
@@ -932,7 +941,7 @@ struct Lines: Sendable {
     var guidance: String {
         guard !notes.isEmpty else { return "" }
         return "The note-taker wrote these notes during the meeting. They show what mattered most to them: " +
-            "make sure each one is covered, with the details from the transcript — " +
+            "make sure each one is covered, with the details from the transcript, " +
             "besides everything else in the meeting worth noting.\nNotes:\n" +
             notes.map { "- " + $0 }.joined(separator: "\n") + "\n\n"
     }
@@ -978,6 +987,7 @@ struct Lines: Sendable {
     /// The item, with the moment it was said — if the line the model named (or one
     /// close to it) really says it. `strict`: without a matching line, drop the item.
     func checked(_ text: String, line: Int, strict: Bool = false) -> MeetingSummary.Item? {
+        let text = MeetingNotes.undash(text)
         if translating {
             guard let at = start(ofLine: line) else { return strict || text.isEmpty ? nil : MeetingSummary.Item(text: text) }
             return MeetingSummary.Item(text: text, at: at)

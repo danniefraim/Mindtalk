@@ -602,8 +602,8 @@ struct VoiceMemoryCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            CardRow(title: "Känn igen röster", detail: detail) {
-                InkToggle(label: "Känn igen röster", isOn: $memory.enabled)
+            CardRow(title: "Kom ihåg röster", detail: detail) {
+                InkToggle(label: "Kom ihåg röster", isOn: $memory.enabled)
             }
             // Shown also when switched off: what's remembered can always be seen and forgotten.
             if !memory.people.isEmpty {
@@ -650,7 +650,7 @@ struct VoiceMemoryCard: View {
         if case .failed(let why) = memory.state, memory.enabled {
             return String(localized: "Röstmodellen kunde inte startas: \(why)")
         }
-        return String(localized: "Ge en talare ett namn en gång, så känner Mindtalk igen rösten i kommande möten. Bara ett röstavtryck sparas, inget ljud, och det stannar på din Mac. Fråga dem du spelar in om det är okej.")
+        return String(localized: "Namnge en talare en gång, så känner Mindtalk igen rösten i kommande möten. Bara ett röstavtryck sparas på din Mac, aldrig ljud. Fråga de andra i rummet först.")
     }
 }
 

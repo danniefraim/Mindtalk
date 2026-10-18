@@ -252,12 +252,12 @@ private struct MeetingList: View {
         .animation(.spring(duration: 0.35, bounce: 0.12), value: folders.selected)
         .confirmationDialog("Ta bort mötet?", isPresented: Binding(get: { confirmDelete != nil },
                                                                    set: { if !$0 { confirmDelete = nil } })) {
-            Button("Ta bort", role: .destructive) {
+            Button("meeting|Ta bort", role: .destructive) {
                 if let id = confirmDelete?.id { withAnimation(.snappy) { store.delete(id) } }
             }
             Button("Avbryt", role: .cancel) {}
         } message: {
-            Text("Inspelningen, texten och sammanfattningen flyttas till papperskorgen. Där finns de kvar tills du tömmer den.")
+            Text("Inspelningen, texten, dina anteckningar och sammanfattningen flyttas till papperskorgen.")
         }
     }
 
@@ -1166,7 +1166,7 @@ struct SpeakerChip: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .help(recognized ? "Mindtalk kände igen rösten. Klicka för att ändra" : "Ge talaren ett namn")
+        .help(recognized ? Text("Mindtalk kände igen rösten. Klicka för att ändra.") : Text("Ge talaren ett namn"))
         .accessibilityHint("Ge talaren ett namn")
         .popover(isPresented: $editing, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 12) {
@@ -1336,12 +1336,12 @@ struct MeetingView: View {
         }
         .onChange(of: record.title) { _, t in if !editingTitle { title = t } }
         .confirmationDialog("Ta bort mötet?", isPresented: $confirmDelete) {
-            Button("Ta bort", role: .destructive) {
+            Button("meeting|Ta bort", role: .destructive) {
                 if case .saved(let store, let id) = edit { back?(); store.delete(id) }
             }
             Button("Avbryt", role: .cancel) {}
         } message: {
-            Text("Inspelningen, texten och sammanfattningen flyttas till papperskorgen. Där finns de kvar tills du tömmer den.")
+            Text("Inspelningen, texten, dina anteckningar och sammanfattningen flyttas till papperskorgen.")
         }
         .sheet(isPresented: $changingDate) { MeetingDateSheet(record: record) { changingDate = false } }
         .confirmationDialog("Ta bort inspelningen?", isPresented: $confirmRemoveAudio) {
@@ -1390,7 +1390,7 @@ struct MeetingView: View {
                 .focused($editingTitle)
                 .onSubmit(commitTitle)
                 .onChange(of: editingTitle) { _, editing in if !editing { commitTitle() } }
-                .help("Byt namn på mötet")
+                .help("Ändra mötets titel")
             HStack(alignment: .center, spacing: 12) {
                 FlowLayout(spacing: 8) {
                     Text(meta).font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
@@ -1469,12 +1469,21 @@ struct MeetingView: View {
         }
     }
 
+    /// Whole sentences, each its own string (English counts words and changes itself).
     static func healText(_ heal: MeetingRecord.Heal) -> String {
-        var parts: [String] = []
-        if heal.words > 0 { parts.append(String(localized: "rättade \(heal.words) ord")) }
-        if heal.speakers == 1 { parts.append(String(localized: "justerade 1 talarbyte")) }
-        if heal.speakers > 1 { parts.append(String(localized: "justerade \(heal.speakers) talarbyten")) }
-        return String(localized: "Mindtalk lyssnade igenom mötet och \(parts.joined(separator: String(localized: " och ")))")
+        let words = heal.words, changes = heal.speakers
+        switch (words > 0, changes) {
+        case (true, 0):
+            return String(localized: "Mindtalk lyssnade igenom mötet igen och rättade \(words) ord.")
+        case (false, 1):
+            return String(localized: "Mindtalk lyssnade igenom mötet igen och justerade ett talarbyte.")
+        case (false, _):
+            return String(localized: "Mindtalk lyssnade igenom mötet igen och justerade \(changes) talarbyten.")
+        case (true, 1):
+            return String(localized: "Mindtalk lyssnade igenom mötet igen. \(words) ord rättades och ett talarbyte justerades.")
+        case (true, _):
+            return String(localized: "Mindtalk lyssnade igenom mötet igen. \(words) ord rättades och \(changes) talarbyten justerades.")
+        }
     }
 
     /// A meeting that didn't get its final pass: say so, and offer it.
@@ -1796,7 +1805,7 @@ private struct TranscriptView: View {
                 Text("Inspelningen är igång, inget går förlorat.")
             } else if live {
                 Text("Lyssnar").font(.system(size: 15, weight: .semibold))
-                Text("Börja prata, så skrivs texten medan ni pratar.")
+                Text("Börja prata, så kommer texten här.")
             } else {
                 Text("Inget hördes").font(.system(size: 15, weight: .semibold))
             }
@@ -2133,7 +2142,7 @@ private struct SummaryView: View {
                     // Who writes the summaries is chosen in Settings → Modeller: one click away.
                     Button("Byt modell") { SettingsPage.openModels() }
                         .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.accent)
-                        .help("Välj vem som skriver sammanfattningarna i Inställningar → Modeller")
+                        .help("Välj vilken modell som skriver sammanfattningarna i Inställningar → Modeller.")
                     Text("Stämmer något inte? Klicka på en tid och lyssna själv.")
                     Spacer(minLength: 16)
                     if MeetingNotes.isAvailable {
@@ -2592,7 +2601,7 @@ private struct LiveBar: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .help("Avsluta mötet. Du kan ångra i några sekunder")
+        .help("Avsluta mötet. Du kan ångra i några sekunder.")
         .accessibilityLabel("Avsluta mötet")
     }
 }
@@ -2797,7 +2806,7 @@ private struct RewriteBanner: View {
                     .transition(.scale.combined(with: .opacity))
             }
             VStack(alignment: .leading, spacing: 3) {
-                Text(writing ? String(localized: "\(writer) skriver om sammanfattningen…") : String(localized: "Den nya sammanfattningen är klar"))
+                Text(writing ? String(localized: "\(writer) skriver en ny sammanfattning…") : String(localized: "Den nya sammanfattningen är klar"))
                     .font(.system(size: 14, weight: .semibold))
                 if writing {
                     Text("Det tar några sekunder. Den gamla syns tills den nya är klar.")

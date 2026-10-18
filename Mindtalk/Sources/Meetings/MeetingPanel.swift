@@ -393,13 +393,13 @@ private struct LivePanel: View {
             }
             Spacer(minLength: 8)
             PanelIconButton(symbol: panel.onTop ? "pin.fill" : "pin",
-                            help: panel.onTop ? "Ligger överst. Klicka så kan andra fönster lägga sig över panelen"
+                            help: panel.onTop ? "Ligger överst. Klicka för att släppa."
                                               : "Håll panelen överst, över alla fönster") {
                 panel.onTop.toggle()
             }
             .accessibilityAddTraits(panel.onTop ? .isSelected : [])
             PanelIconButton(symbol: "pip.exit", help: "Visa i Mindtalks fönster", action: expand)
-            PanelIconButton(symbol: "xmark", help: "Stäng panelen. Inspelningen fortsätter", action: close)
+            PanelIconButton(symbol: "xmark", help: "Stäng panelen. Inspelningen fortsätter.", action: close)
         }
         .padding(.leading, 18)
         .padding(.trailing, 12)
@@ -489,7 +489,7 @@ private struct LivePanel: View {
                 Text("Inspelningen är igång, inget går förlorat.")
             } else {
                 Text("Lyssnar").font(.system(size: 14, weight: .semibold))
-                Text("Börja prata, så skrivs texten medan ni pratar.")
+                Text("Börja prata, så kommer texten här.")
             }
         }
         .font(.system(size: 12.5))
@@ -608,7 +608,7 @@ private struct DonePanel: View {
                                 .contentShape(Capsule())
                         }
                         .buttonStyle(.plain)
-                        .help("Spela in mer i samma möte. Texten fortsätter och sammanfattningen skrivs om")
+                        .help("Spela in mer i samma möte. Texten fortsätter och sammanfattningen skrivs om.")
                     }
                 case .nothingHeard:
                     Image(systemName: "waveform.slash").font(.system(size: 28)).foregroundStyle(DS.Colors.faint)
