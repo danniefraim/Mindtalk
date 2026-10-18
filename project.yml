@@ -82,7 +82,7 @@ targets:
             UTTypeDescription: Mindtalk thought
             UTTypeConformsTo: [public.data]
             UTTypeTagSpecification: {}
-        NSMicrophoneUsageDescription: "Mindtalk använder mikrofonen när du dikterar och när du spelar in möten. Allt tolkas på din Mac – inget ljud lämnar datorn."
+        NSMicrophoneUsageDescription: "Mindtalk använder mikrofonen när du dikterar och när du spelar in möten. Allt tolkas på din Mac, och inget ljud lämnar datorn."
     entitlements:
       path: Mindtalk/Mindtalk.entitlements
       properties:
