@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import Combine
+import CoreAudio
 import SwiftUI
 import os
 
@@ -184,13 +185,16 @@ final class Dictation: ObservableObject {
         case accessibility, microphone, modelMissing, modelDownloading(Double), modelFailed
 
         @MainActor var title: String {
-            let model = Dictation.shared.engine.title.lowercased()
+            let engine = Dictation.shared.engine
+            let model = engine.inlineTitle
             switch self {
             case .accessibility: return String(localized: "Slå på Hjälpmedel för Mindtalk")
             case .microphone: return String(localized: "Tillåt mikrofonen")
             case .modelMissing: return String(localized: "Ladda ned talmodellen (\(model))")
             case .modelDownloading(let p): return String(localized: "Laddar ned talmodellen (\(Int(p * 100)) %)")
-            case .modelFailed: return String(localized: "Talmodellen startade inte. Försök igen")
+            case .modelFailed:
+                return engine.isInstalled ? String(localized: "Starta talmodellen igen")
+                                          : String(localized: "Ladda ned talmodellen igen")
             }
         }
 
@@ -198,7 +202,7 @@ final class Dictation: ObservableObject {
         var why: String {
             switch self {
             case .accessibility:
-                return String(localized: "Behövs för att känna av tangenten och skriva in texten. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på.")
+                return String(localized: "Behövs för att känna av tangenten och skriva in texten. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen.")
             case .microphone: return String(localized: "Behövs för att höra vad du säger.")
             case .modelMissing, .modelDownloading, .modelFailed:
                 return String(localized: "Taligenkänningen behöver talmodellen. Den laddas ned en gång.")
@@ -263,6 +267,41 @@ final class Dictation: ObservableObject {
     /// No audio at all for this long means the mic is gone — AirPods take about a
     /// second to switch to their headset mode, so not sooner.
     private static let deadMic: TimeInterval = 2.5
+    /// Writing never takes this long: the speech model is stuck (busy with another
+    /// language, say). The HUD and the key are let go of.
+    private static let maxWriting: TimeInterval = 90
+
+    /// Which press the delayed confirm belongs to — a stale one never confirms the next.
+    private var pressGeneration = 0
+    /// The thought was started with its key held alone (right ⌘), not a click or a chord.
+    private var thoughtByKey = false
+    /// The key went down again while the last one was being written: once that's done,
+    /// and if it's still held, a new recording starts.
+    private var pressWhileWriting = false
+    private var thoughtPressWhileWriting = false
+    /// When that press went down: the new recording counts from it.
+    private var heldSince: Date?
+    /// Said in the HUD once the text is in: why the recording ended by itself.
+    private enum ClosingNote { case micWentQuiet, timeUp }
+    private var closingNote: ClosingNote?
+    /// The transcription going on; one let go of (Esc, too slow) has its result dropped.
+    private var transcription = 0
+    /// The screen is locked, or another user is on the Mac: nothing is typed.
+    private(set) var away = false
+
+    /// The mic is opened and closed on a queue of its own, never on the main thread:
+    /// a Bluetooth headset can take a moment, and the key tap lives on the main run
+    /// loop — every key on the Mac would wait meanwhile. One queue, so a stop never
+    /// overtakes the start before it.
+    private static let micQueue = DispatchQueue(label: "ai.mindact.mindtalk.mic", qos: .userInitiated)
+    private var micGeneration = 0
+    /// A Bluetooth mic is opened only once the press is confirmed: opening it switches
+    /// AirPods to their headset mode (and the music with them), which ⌥2 for @ mustn't.
+    private var micWaiting = false
+    private var micChoice: AudioDeviceID?
+    /// This recording's mic or the Mac's sound is a Bluetooth headset: no sound is
+    /// played while it records, it can cost the headset its mic.
+    private var headsetInUse = false
 
     private init() {
         recorder.onLevel = { [weak self] value in
@@ -274,19 +313,44 @@ final class Dictation: ObservableObject {
         keys.onChord = { [weak self] in
             guard let self else { return }
             self.pendingProblem = nil
-            guard self.phase == .recording, !self.handsFree else { return }
+            self.pressWhileWriting = false
+            guard self.phase == .recording, !self.handsFree, !self.forThought else { return }
             self.cancel()
         }
         recorder.onInterrupted = { [weak self] in
             // The mic went away (AirPods off, device switched): keep what was said.
             Task { @MainActor in if self?.phase == .recording { self?.finish() } }
         }
+        recorder.onSignalLost = { [weak self] in
+            // A headset whose link was taken by another device sends nothing but
+            // zeros: what was said before that is kept, and the HUD says why it ended.
+            Task { @MainActor in
+                guard let self, self.phase == .recording else { return }
+                self.closingNote = .micWentQuiet
+                self.finish()
+            }
+        }
         let workspace = NSWorkspace.shared.notificationCenter
         workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { if Dictation.shared.phase == .recording { Dictation.shared.cancel() } }
+            MainActor.assumeIsolated { Dictation.shared.leaving() }
         }
         workspace.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { KeyListener.shared.resync() }
+            MainActor.assumeIsolated { Dictation.shared.back() }
+        }
+        // The screen locked, or another user took over the Mac (fast user switching):
+        // nothing is typed where you can't see it.
+        workspace.addObserver(forName: NSWorkspace.sessionDidResignActiveNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { Dictation.shared.leaving(locking: true) }
+        }
+        workspace.addObserver(forName: NSWorkspace.sessionDidBecomeActiveNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { Dictation.shared.back() }
+        }
+        let distributed = DistributedNotificationCenter.default()
+        distributed.addObserver(forName: NSNotification.Name("com.apple.screenIsLocked"), object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { Dictation.shared.leaving(locking: true) }
+        }
+        distributed.addObserver(forName: NSNotification.Name("com.apple.screenIsUnlocked"), object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { Dictation.shared.back() }
         }
         keys.onSpaceWhileHeld = { [weak self] in self?.spaceWhileHeld() ?? false }
         keys.onThoughtPress = { [weak self] in self?.thoughtPressed() }
@@ -297,6 +361,12 @@ final class Dictation: ObservableObject {
             guard let self else { return false }
             if self.phase == .recording {
                 self.cancel()
+                return true
+            }
+            // Writing takes longer than it should (the speech model busy elsewhere):
+            // Esc lets go of it. A thought is still written down, in Tankar.
+            if self.phase == .transcribing {
+                self.abandonTranscription(saying: nil)
                 return true
             }
             // Esc also closes the menu bar panel.
@@ -312,8 +382,12 @@ final class Dictation: ObservableObject {
     }
 
     func refreshPermissions() {
+        let hadAccessibility = accessibilityGranted
         micGranted = Recorder.micAuthorized
         accessibilityGranted = AXIsProcessTrusted()
+        // Accessibility taken away and given back while running: the old tap is deaf
+        // for good, so a new one. Otherwise one that macOS switched off is switched on.
+        if accessibilityGranted { KeyListener.shared.ensureTap(recreate: !hadAccessibility) }
         if accessibilityGranted, KeyListener.shared.start(), micGranted {
             permissionPoll?.invalidate(); permissionPoll = nil; return
         }
@@ -528,6 +602,9 @@ final class Dictation: ObservableObject {
             self.hotkey = key
             Settings.hotkey = key
             KeyListener.shared.hotkey = key
+            // The thought key's default depends on the dictation key (right ⌘ unless
+            // that's taken): the listener gets the one that goes with the new key.
+            KeyListener.shared.thoughtShortcut = Settings.thoughtShortcut
             KeyListener.shared.reset()
         }
     }
@@ -572,7 +649,13 @@ final class Dictation: ObservableObject {
             awaitingSecondTap = false
             secondTapDown = true
         case .idle, .failed, .copied, .saved:
+            freshStart()
             begin()
+        case .transcribing:
+            // Still writing the last one: this press starts the next once that's in,
+            // if the key is still held by then.
+            pressWhileWriting = true
+            heldSince = Date()
         default:
             break
         }
@@ -580,14 +663,21 @@ final class Dictation: ObservableObject {
 
     private func keyReleased() {
         keyIsDown = false
-        if let problem = pendingProblem {
+        pressWhileWriting = false
+        if !forThought, let problem = pendingProblem {
             pendingProblem = nil
             if mode == .toggle { problem() }   // a tap is a real press in this mode
             return
         }
         if ignoreNextRelease { ignoreNextRelease = false; return }
+        // A thought is going on: its own key is the one that counts.
+        if forThought { secondTapDown = false; return }
+        guard phase == .recording, !handsFree else { secondTapDown = false; return }
+        // A key typed with it that the tap never saw (a password field hides keys from
+        // it): ⌥2 for @, typed slowly. A shortcut, dropped without a sound.
+        if KeyListener.shared.keyTypedSincePress { return cancel() }
         if secondTapDown { secondTapDown = false; return lock() }
-        guard phase == .recording, !handsFree, let pressedAt else { return }
+        guard let pressedAt else { return }
         let wasTap = Date().timeIntervalSince(pressedAt) < tapThreshold
         switch mode {
         case .toggle:
@@ -607,9 +697,10 @@ final class Dictation: ObservableObject {
         }
     }
 
-    /// Space while holding the key locks the dictation (like Wispr Flow).
+    /// Space while holding the key locks the dictation (like Wispr Flow) — once the
+    /// hold is confirmed: ⌥ and Space typed together is a character of its own.
     private func spaceWhileHeld() -> Bool {
-        guard phase == .recording else { return false }
+        guard phase == .recording, !forThought, startCuePlayed || handsFree else { return false }
         if !handsFree, mode != .hold {
             ignoreNextRelease = true
             lock()
@@ -633,10 +724,16 @@ final class Dictation: ObservableObject {
             ignoreNextRelease = true
             finish()
         case .idle, .failed, .copied, .saved:
+            freshStart()
             forThought = true
+            thoughtByKey = KeyListener.shared.thoughtShortcut?.isModifier == true
             keyIsDown = true
             begin()
-            if phase != .recording, pendingProblem == nil { forThought = false }
+            if phase != .recording, pendingProblem == nil { forThought = false; thoughtByKey = false }
+        case .transcribing:
+            thoughtPressWhileWriting = true
+            heldSince = Date()
+            keyIsDown = true
         default:
             break           // a dictation is going on: it's left alone
         }
@@ -646,6 +743,7 @@ final class Dictation: ObservableObject {
     /// tap (or ✓ in the bubble).
     private func thoughtReleased() {
         keyIsDown = false
+        thoughtPressWhileWriting = false
         if thoughtStopPending {
             thoughtStopPending = false
             if phase == .recording, forThought, handsFree { finish() }
@@ -654,10 +752,13 @@ final class Dictation: ObservableObject {
         if let problem = pendingProblem {
             pendingProblem = nil
             forThought = false
+            thoughtByKey = false
             return problem()
         }
         if ignoreNextRelease { ignoreNextRelease = false; return }
         guard phase == .recording, forThought, !handsFree, let pressedAt else { return }
+        // ⌘ and a key the tap never saw (secure input): a shortcut, not a thought.
+        if thoughtByKey, KeyListener.shared.keyTypedSinceThoughtPress { return cancel() }
         if Date().timeIntervalSince(pressedAt) < tapThreshold { lock() } else { finish() }
     }
 
@@ -665,8 +766,9 @@ final class Dictation: ObservableObject {
     /// A shortcut, not a thought — dropped silently, like the dictation key's ⌥2 → @.
     private func thoughtJoined() {
         thoughtStopPending = false
+        thoughtPressWhileWriting = false
         // A problem waiting to be said (the model starting) — it was never a thought.
-        if pendingProblem != nil, phase != .recording, phase != .transcribing { forThought = false }
+        if pendingProblem != nil, phase != .recording, phase != .transcribing { forThought = false; thoughtByKey = false }
         pendingProblem = nil
         guard phase == .recording, forThought, !handsFree else { return }
         cancel()
@@ -676,6 +778,7 @@ final class Dictation: ObservableObject {
     func startThought() {
         switch phase {
         case .idle, .failed, .copied, .saved:
+            freshStart()
             forThought = true
             begin()
             if phase == .recording { lock() } else {
@@ -686,7 +789,7 @@ final class Dictation: ObservableObject {
                 lastReport = nil
             }
         default:
-            NSSound.beep()
+            beep()
         }
     }
 
@@ -709,12 +812,21 @@ final class Dictation: ObservableObject {
     private var lastLanguage: SpeechModel?
 
     private func lock() {
+        awaitingSecondTap = false
+        doubleTapTimer?.cancel()
         handsFree = true
         confirmStart()
     }
 
     /// The press is a real dictation (held, or locked) — show the HUD, play the cue.
     private func confirmStart() {
+        guard phase == .recording else { return }
+        // A Bluetooth mic waited for this moment.
+        if micWaiting {
+            micWaiting = false
+            recordingStarted = Date()
+            openMic(micChoice)
+        }
         if !startCuePlayed, installed.count > 1, let last = lastLanguage, last != engine {
             showsLanguage = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in self?.showsLanguage = false }
@@ -728,14 +840,41 @@ final class Dictation: ObservableObject {
         if !startCuePlayed {
             startCuePlayed = true
             // Not into a Bluetooth headset (MeetingSession.start says why).
-            if !recorder.usesBluetooth { Cue.start() }
+            if !(headsetInUse || Recorder.outputIsBluetooth) { Cue.start() }
         }
+    }
+
+    /// A new press while the last one's message is still up (copied, saved, failed):
+    /// nothing of that recording carries over — not that it was a thought, not that
+    /// its cue was played (which is also when the music is paused). The HUD stays up
+    /// for the new one.
+    private func freshStart() {
+        if engineSwitchPending {
+            engineSwitchPending = false
+            if engine.isInstalled { loadModel() } else { refreshModels() }
+        }
+        recordingEngine = nil
+        handsFree = false
+        forThought = false
+        thoughtByKey = false
+        thoughtStopPending = false
+        startCuePlayed = false
+        awaitingSecondTap = false
+        secondTapDown = false
+        doubleTapTimer?.cancel()
+        closingNote = nil
+        pressedAt = nil
+        recordingStarted = nil
     }
 
     private func begin() {
         // One microphone, one model: a meeting being recorded has both.
         if MeetingSession.shared.isRecording {
             return report { $0.fail(String(localized: "Ett möte spelas in, så dikteringen är pausad.")) }
+        }
+        // One speech model at a time: an import writing in the other language has it.
+        if MeetingImport.shared.jobs.contains(where: { ($0.stage == .reading || $0.stage == .writing) && $0.language != engine }) {
+            return report { $0.fail(String(localized: "Vänta tills importen är klar.")) }
         }
         switch model {
         case .ready: break
@@ -744,41 +883,40 @@ final class Dictation: ObservableObject {
             // minutes — said the same way as in the introduction.
             let long = firstPreparation && Date().timeIntervalSince(loadingSince) > 5
             return report {
-                $0.fail(long ? String(localized: "Talmodellen görs redo, strax klar.")
-                             : String(localized: "Talmodellen startar, ett ögonblick…"))
+                $0.fail(long ? String(localized: "Talmodellen görs redo för din Mac, bara första gången.")
+                             : String(localized: "Talmodellen startar…"))
             }
-        case .downloading: return report { $0.fail(String(localized: "Talmodellen laddas fortfarande ned…")) }
+        case .downloading: return report { $0.fail(String(localized: "Talmodellen laddas fortfarande ned.")) }
         case .missing, .failed:
             return report {
                 if AppDelegate.isOnboarding {
                     $0.fail($0.engine.isInstalled ? String(localized: "Talmodellen startade inte.")
-                                                   : String(localized: "\($0.engine.title) är inte nedladdad än."))
+                                                   : String(localized: "Talmodellen är inte nedladdad än."))
                 }
-                else { AppDelegate.showWindow() }
+                else { $0.openingWindow(String(localized: "Talmodellen är inte redo. Öppnar Mindtalk.")) }
             }
         }
         guard micGranted else {
             return report {
                 if AppDelegate.isOnboarding { $0.fail(String(localized: "Mindtalk behöver tillgång till mikrofonen.")) }
-                else { AppDelegate.showWindow() }
+                else { $0.openingWindow(String(localized: "Mindtalk behöver mikrofonen. Öppnar Mindtalk.")) }
             }
         }
         let chosen = Microphones.shared.selectedDeviceID
-        do {
-            do {
-                try recorder.start(device: chosen)
-            } catch where chosen != nil {
-                // The chosen mic won't open (just unplugged, reconnecting) — the
-                // system input will do rather than nothing.
-                Self.log.error("chosen microphone failed, using the system input")
-                try recorder.start(device: nil)
-            }
-        } catch {
-            return report { $0.fail(error.localizedDescription) }
-        }
+        let system = Recorder.defaultInput()
+        let bluetooth = (chosen ?? system).map(Recorder.isBluetooth) ?? false
+        // The system input is the fallback if the chosen mic won't open: counted too.
+        headsetInUse = bluetooth || (system.map(Recorder.isBluetooth) ?? false)
         phase = .recording
+        // A key heard means you're at the Mac, unlocked (in case a notice went missing).
+        away = false
         recordingEngine = engine
         peakLevel = 0
+        micChoice = chosen
+        // The built-in mic opens at once, so the first word isn't clipped. A Bluetooth
+        // one waits for the press to be confirmed: AirPods take a second to switch
+        // anyway, and ⌥2 for @ mustn't switch them at all.
+        if bluetooth { micWaiting = true } else { micWaiting = false; openMic(chosen) }
         startWatchdog()
         if Settings.aiPolish { Task { await Polisher.shared.prepare() } }
         handsFree = false
@@ -787,10 +925,77 @@ final class Dictation: ObservableObject {
         // Show the HUD once the press is clearly a hold (or it got locked) — a
         // quick tap or a shortcut like ⌥2 → @ shouldn't flash it. A thought waits a
         // little longer: its key is ⌘, held a moment before ⌘C more often than ⌥.
+        pressGeneration += 1
+        let press = pressGeneration
         DispatchQueue.main.asyncAfter(deadline: .now() + (forThought ? 0.4 : 0.2)) { [weak self] in
-            guard let self, self.phase == .recording, self.keyIsDown || self.handsFree || self.mode == .toggle else { return }
+            guard let self, press == self.pressGeneration, self.phase == .recording,
+                  self.keyIsDown || self.handsFree || self.mode == .toggle else { return }
+            // A key typed with it that the tap never saw (secure input): a shortcut.
+            if !self.handsFree, self.typedSincePress { return self.cancel() }
             self.confirmStart()
         }
+    }
+
+    /// A key went down after this press, by the keyboard's own account.
+    private var typedSincePress: Bool {
+        forThought ? thoughtByKey && KeyListener.shared.keyTypedSinceThoughtPress
+                   : KeyListener.shared.keyTypedSincePress
+    }
+
+    /// Opens the mic on its own queue; a failure comes back here.
+    private func openMic(_ chosen: AudioDeviceID?) {
+        micGeneration += 1
+        let generation = micGeneration
+        let recorder = recorder
+        let log = Self.log
+        Self.micQueue.async {
+            do {
+                do {
+                    try recorder.start(device: chosen)
+                } catch where chosen != nil {
+                    // The chosen mic won't open (just unplugged, reconnecting) — the
+                    // system input will do rather than nothing.
+                    log.error("chosen microphone failed, using the system input")
+                    try recorder.start(device: nil)
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated { Dictation.shared.micFailed(error, generation: generation) }
+                }
+            }
+        }
+    }
+
+    /// Stops the mic — after a start still on its way — and hands back what it heard.
+    private func stopMic() -> [Float] {
+        micGeneration += 1
+        micWaiting = false
+        let recorder = recorder
+        return Self.micQueue.sync { recorder.stop() }
+    }
+
+    private func micFailed(_ error: Error, generation: Int) {
+        guard generation == micGeneration, phase == .recording else { return }
+        Self.log.error("microphone did not open: \(String(describing: error), privacy: .public)")
+        let locked = handsFree
+        let message = error.localizedDescription
+        cancel()
+        if locked { fail(message) } else { report { $0.fail(message) } }
+    }
+
+    /// No sound while a Bluetooth headset records (the dictation's or a meeting's):
+    /// it can cost the headset its mic.
+    private func beep() {
+        let dictating = phase == .recording && (headsetInUse || Recorder.outputIsBluetooth)
+        let meeting = MeetingSession.shared.isRecording && MeetingSession.shared.soundsReachBluetooth
+        if !dictating && !meeting { NSSound.beep() }
+    }
+
+    /// After the introduction, a problem that needs the window: said first, then the
+    /// window opens.
+    private func openingWindow(_ message: String) {
+        fail(message)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { AppDelegate.showWindow() }
     }
 
     /// Reports a problem only if the press is held a moment (or in toggle mode, on
@@ -808,6 +1013,8 @@ final class Dictation: ObservableObject {
             guard let self, self.keyIsDown, let problem = self.pendingProblem else { return }
             self.pendingProblem = nil
             problem()
+            // It never became a recording: not a thought any more either.
+            if self.phase != .recording { self.forThought = false; self.thoughtByKey = false }
         }
     }
 
@@ -818,10 +1025,16 @@ final class Dictation: ObservableObject {
             MainActor.assumeIsolated {
                 let d = Dictation.shared
                 guard d.phase == .recording else { d.watchdog?.invalidate(); d.watchdog = nil; return }
-                if let start = d.recordingStarted, Date().timeIntervalSince(start) > Self.maxRecording { return d.finish() }
+                if let start = d.recordingStarted, Date().timeIntervalSince(start) > Self.maxRecording {
+                    d.closingNote = .timeUp
+                    return d.finish()
+                }
                 // A mic that went quiet without saying so (unplugged, Bluetooth dropped):
                 // finish with what was heard instead of recording nothing.
-                if d.recorder.silentFor > Self.deadMic { return d.finish() }
+                if d.recorder.silentFor > Self.deadMic {
+                    d.closingNote = .micWentQuiet
+                    return d.finish()
+                }
                 // A thought is held whatever the dictation mode.
                 if d.keyIsDown, !d.handsFree, d.mode != .toggle || d.forThought { KeyListener.shared.resync() }
             }
@@ -829,7 +1042,7 @@ final class Dictation: ObservableObject {
     }
 
     private func finish() {
-        let samples = recorder.stop()
+        let samples = stopMic()
         let lasted = recordingStarted.map { Date().timeIntervalSince($0) } ?? 0
         watchdog?.invalidate(); watchdog = nil
         MediaControl.shared.end()
@@ -838,6 +1051,8 @@ final class Dictation: ObservableObject {
         secondTapDown = false
         doubleTapTimer?.cancel()
         pressedAt = nil
+        let note = closingNote
+        closingNote = nil
         // Held a while and not a sound: the mic never delivered — say so.
         if samples.isEmpty, lasted > 1 {
             return fail(String(localized: "Hittar ingen fungerande mikrofon."))
@@ -846,79 +1061,200 @@ final class Dictation: ObservableObject {
         guard samples.count > 4_000 else { return reset() }
         phase = .transcribing
         hud.show()
+        transcription += 1
+        let job = transcription
         let language = recordingEngine ?? engine
-        let heard = peakLevel
         let thought = forThought
         // A thought is on the page at once, its sound kept until the text is there —
         // a failed transcription is "Försök igen", not a lost thought.
         let pending = thought && !TextInserter.dryRun ? Thoughts.shared.hold(samples, language: language) : nil
-        // Where you are when you stop talking is where the text goes — or nowhere,
-        // if you switch app while it's being written.
-        let target = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        writingThought = pending
+        let take = Take(samples: samples, job: job, language: language, heard: peakLevel, thought: thought,
+                        byKey: thoughtByKey, pending: pending,
+                        // Where you are when you stop talking is where the text goes — or
+                        // nowhere, if you switch app while it's being written.
+                        target: NSWorkspace.shared.frontmostApplication?.processIdentifier,
+                        // A password field now, or by the time the text is in: secret.
+                        secret: !TextInserter.dryRun && SecureInput.isActive,
+                        note: note)
+        // Writing never takes a minute and a half: the model is stuck. Let go of it.
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.maxWriting) { [weak self] in
+            guard let self, self.phase == .transcribing, self.transcription == job else { return }
+            Self.log.error("transcription still going after \(Int(Self.maxWriting)) s: let go of")
+            self.abandonTranscription(saying: String(localized: "Det gick inte att göra text av det. Försök igen."))
+        }
         Task {
-            do {
-                let terms = VocabularyBoost.terms(from: Vocabulary.shared.entries.map(\.word))
-                let (raw, heardTerms) = try await SpeechEngine.shared.transcribe(samples: samples, with: language, listeningFor: terms)
-                // The debug self-test leaves your vocabulary counts, stats and history alone.
-                let selfTest = TextInserter.dryRun
-                if !selfTest { Vocabulary.shared.noteHeard(heardTerms) }
-                // A password field: typed, never kept or polished.
-                let secret = !selfTest && SecureInput.isActive
-                // Rules, then your vocabulary, then (if on) the on-device polish —
-                // with the vocabulary once more so your spellings win.
-                let cleaned = TextCleanup.apply(raw, fillers: Settings.removeFillers, commands: Settings.voiceCommands)
-                var text = selfTest ? cleaned : Vocabulary.shared.apply(cleaned)
-                if Settings.aiPolish, !secret, let polished = await Polisher.shared.polish(text) {
-                    let fixed = Vocabulary.shared.reapply(polished)
-                    // A name from your list split by the polish: the text before it is kept.
-                    if Vocabulary.shared.keepsWords(of: text, in: fixed) { text = fixed }
-                }
-                // Only "ny rad" or "nytt stycke", said on its own: the break itself is typed.
-                let onlyBreak = !thought && !text.isEmpty && text.allSatisfy(\.isNewline)
-                guard onlyBreak || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    if let pending { Thoughts.shared.discard(pending) }
-                    return heard < 0.03 ? fail(String(localized: "Hörde inget. Kontrollera mikrofonen.")) : reset()
-                }
-                // A thought: kept in Tankar — nothing typed anywhere.
-                if thought {
-                    if !selfTest { Stats.shared.record(text: text, seconds: Double(samples.count) / 16_000) }
-                    if let pending { Thoughts.shared.fill(pending, text: text) } else { Thoughts.shared.add(text) }
-                    Cue.done()
-                    return saved()
-                }
-                if !selfTest && !secret && !onlyBreak {
-                    Stats.shared.record(text: text, seconds: Double(samples.count) / 16_000)
-                    var updated = recent
-                    updated.insert(Entry(text: text, date: Date()), at: 0)
-                    recent = Array(updated.prefix(Self.recentLimit))
-                }
-                // You switched app while it was being written: don't type into the
-                // wrong one. It's on Diktering, one ⌃⌥V away.
-                if !selfTest, let target, NSWorkspace.shared.frontmostApplication?.processIdentifier != target {
-                    return fail(secret ? String(localized: "Du bytte app, så texten skrevs inte in.")
-                                       : String(localized: "Du bytte app. Tryck ⌃⌥V för att klistra in texten."))
-                }
-                if !selfTest, !secret, let target, FocusedField.kind(in: target) == .none {
-                    return copied(text)
-                }
-                // A spoken line break at the end is the separator; otherwise a space.
-                // Never a password in the clipboard, whatever the setting.
-                TextInserter.insert(text.hasSuffix("\n") ? text : text + " ",
-                                    keeping: Settings.keepInClipboard && !secret ? text : nil)
-                Cue.done()
-                reset()
-            } catch {
-                if let pending {
-                    Thoughts.shared.failWriting(pending)
-                    return fail(String(localized: "Tanken kunde inte skrivas ned. Den finns under Tankar, där du kan försöka igen."))
-                }
-                fail(error.localizedDescription)
-            }
+            await write(take)
+            if job == transcription { resumeHeldPress() }
         }
     }
 
+    /// One recording on its way to text.
+    private struct Take {
+        let samples: [Float]
+        let job: Int
+        let language: SpeechModel
+        let heard: Float
+        let thought: Bool
+        let byKey: Bool
+        let pending: UUID?
+        let target: pid_t?
+        let secret: Bool
+        let note: ClosingNote?
+    }
+
+    /// The thought being written right now, in Tankar.
+    private var writingThought: UUID?
+
+    private func write(_ take: Take) async {
+        let selfTest = TextInserter.dryRun
+        let raw: String
+        do {
+            let terms = VocabularyBoost.terms(from: Vocabulary.shared.entries.map(\.word))
+            let result = try await SpeechEngine.shared.transcribe(samples: take.samples, with: take.language, listeningFor: terms)
+            raw = result.text
+            // The debug self-test leaves your vocabulary counts, stats and history alone.
+            if !selfTest { Vocabulary.shared.noteHeard(result.fixed) }
+        } catch {
+            Self.log.error("transcription failed: \(String(describing: error), privacy: .public)")
+            if let pending = take.pending { Thoughts.shared.failWriting(pending) }
+            guard take.job == transcription else { return }
+            return fail(take.pending != nil ? Self.thoughtWithoutText
+                                            : String(localized: "Det gick inte att göra text av det. Försök igen."))
+        }
+        // A password field: typed, never kept or polished.
+        let secret = !selfTest && (take.secret || SecureInput.isActive)
+        // Rules, then your vocabulary, then (if on) the on-device polish —
+        // with the vocabulary once more so your spellings win.
+        let cleaned = TextCleanup.apply(raw, fillers: Settings.removeFillers, commands: Settings.voiceCommands)
+        var text = selfTest ? cleaned : Vocabulary.shared.apply(cleaned)
+        if Settings.aiPolish, !secret, let polished = await Polisher.shared.polish(text) {
+            let fixed = Vocabulary.shared.reapply(polished)
+            // A name from your list split by the polish: the text before it is kept.
+            if Vocabulary.shared.keepsWords(of: text, in: fixed) { text = fixed }
+        }
+        // Let go of meanwhile (Esc, or it took too long): a thought is still written
+        // down in Tankar, a dictation is dropped.
+        let current = take.job == transcription
+        // Only "ny rad" or "nytt stycke", said on its own: the break itself is typed.
+        let onlyBreak = !take.thought && !text.isEmpty && text.allSatisfy(\.isNewline)
+        guard onlyBreak || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            if let pending = take.pending { Thoughts.shared.discard(pending) }
+            guard current else { return }
+            // The thought key held alone and not a word: ⌘ held for something else.
+            if take.thought && take.byKey { return reset() }
+            return fail(take.heard < 0.03 ? String(localized: "Hörde inget. Kontrollera mikrofonen.")
+                                          : String(localized: "Uppfattade inga ord. Försök igen."))
+        }
+        // A thought: kept in Tankar — nothing typed anywhere.
+        if take.thought {
+            if !selfTest { Stats.shared.record(text: text, seconds: Double(take.samples.count) / 16_000) }
+            if let pending = take.pending { Thoughts.shared.fill(pending, text: text) } else { Thoughts.shared.add(text) }
+            guard current else { return }
+            Cue.done()
+            if take.note == .micWentQuiet { return fail(Self.micWentQuiet) }
+            return saved()
+        }
+        guard current else { return }
+        if !selfTest && !secret && !onlyBreak {
+            Stats.shared.record(text: text, seconds: Double(take.samples.count) / 16_000)
+            var updated = recent
+            updated.insert(Entry(text: text, date: Date()), at: 0)
+            recent = Array(updated.prefix(Self.recentLimit))
+        }
+        // The screen locked or another user took over meanwhile: typed nowhere. It's
+        // on Diktering, one ⌃⌥V away.
+        if !selfTest, away { return reset() }
+        // You switched app while it was being written: don't type into the
+        // wrong one. It's on Diktering, one ⌃⌥V away. A bare line break isn't
+        // worth a word.
+        if !selfTest, let target = take.target, NSWorkspace.shared.frontmostApplication?.processIdentifier != target {
+            if onlyBreak { return reset() }
+            return fail(secret ? String(localized: "Du bytte app, så texten skrevs inte in.")
+                               : String(localized: "Du bytte app. Klistra in med ⌃⌥V."))
+        }
+        if !selfTest, !secret, let target = take.target, FocusedField.kind(in: target) == .none {
+            // A line break in the clipboard is no use to anyone.
+            if onlyBreak { return reset() }
+            return copied(text)
+        }
+        // A spoken line break at the end is the separator; otherwise a space.
+        // Never a password in the clipboard, whatever the setting, nor a bare break.
+        TextInserter.insert(text.hasSuffix("\n") ? text : text + " ",
+                            keeping: Settings.keepInClipboard && !secret && !onlyBreak ? text : nil)
+        Cue.done()
+        switch take.note {
+        case .micWentQuiet: fail(Self.micWentQuiet)
+        case .timeUp: fail(String(localized: "Stannade efter tio minuter. Texten är inskriven."))
+        case nil: reset()
+        }
+    }
+
+    private static var micWentQuiet: String { String(localized: "Mikrofonen tystnade. Det du hann säga är kvar.") }
+    private static var thoughtWithoutText: String { String(localized: "Tanken sparades utan text. Försök igen i Tankar.") }
+
+    /// Esc while writing, or writing that never ends: the HUD and the key are free
+    /// again. A thought gets its text if it comes, or "Försök igen" in Tankar.
+    private func abandonTranscription(saying message: String?) {
+        guard phase == .transcribing else { return }
+        transcription += 1
+        if message != nil, let pending = writingThought {
+            Thoughts.shared.failWriting(pending)
+            fail(Self.thoughtWithoutText)
+        } else if let message {
+            fail(message)
+        } else {
+            reset()
+        }
+        resumeHeldPress()
+    }
+
+    /// The key went down while the last one was being written and is still held:
+    /// the next recording starts now, counted from that press.
+    private func resumeHeldPress() {
+        writingThought = nil
+        let since = heldSince
+        heldSince = nil
+        if pressWhileWriting {
+            pressWhileWriting = false
+            guard keyIsDown, KeyListener.shared.keyPhysicallyDown else { return }
+            keyPressed()
+        } else if thoughtPressWhileWriting {
+            thoughtPressWhileWriting = false
+            guard keyIsDown else { return }
+            thoughtPressed()
+        } else {
+            return
+        }
+        if phase == .recording, let since { pressedAt = since }
+    }
+
+    /// Sleep, the screen locking, another user taking over: a hands-free recording is
+    /// finished (kept, but typed nowhere), a held one or a very short one cancelled.
+    private func leaving(locking: Bool = false) {
+        away = true
+        if phase == .recording {
+            let lasted = recordingStarted.map { Date().timeIntervalSince($0) } ?? 0
+            if handsFree, lasted >= 1 { finish() } else { cancel() }
+        }
+        if locking { KeyListener.shared.reset() }
+    }
+
+    /// Back at the Mac (awake and unlocked, or the session yours again).
+    private func back() {
+        away = Self.screenLocked
+        KeyListener.shared.ensureTap()
+        KeyListener.shared.resync()
+    }
+
+    /// The lock screen is up.
+    static var screenLocked: Bool {
+        guard let session = CGSessionCopyCurrentDictionary() as? [String: Any] else { return false }
+        return session["CGSSessionScreenIsLocked"] as? Bool ?? false
+    }
+
     private func cancel() {
-        _ = recorder.stop()
+        _ = stopMic()
         ignoreNextRelease = false
         reset()
     }
@@ -934,11 +1270,15 @@ final class Dictation: ObservableObject {
         }
         handsFree = false
         forThought = false
+        thoughtByKey = false
         thoughtStopPending = false
         startCuePlayed = false
         awaitingSecondTap = false
         secondTapDown = false
         doubleTapTimer?.cancel()
+        closingNote = nil
+        micWaiting = false
+        headsetInUse = false
         pressedAt = nil
         recordingStarted = nil
         level = 0
@@ -946,23 +1286,30 @@ final class Dictation: ObservableObject {
         hud.hide()
     }
 
-    private func fail(_ message: String) {
-        phase = .failed(message)
+    /// Which message is up — a newer one isn't taken down by an older one's timer.
+    private var messageShown = 0
+
+    /// Shown until `seconds` have passed, unless something else has come since.
+    private func showUntilReset(after seconds: Double, while still: @escaping (Phase) -> Bool) {
         hud.show()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
-            guard let self, case .failed = self.phase else { return }
+        messageShown += 1
+        let shown = messageShown
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
+            guard let self, shown == self.messageShown, still(self.phase) else { return }
             self.reset()
         }
+    }
+
+    private func fail(_ message: String) {
+        phase = .failed(message)
+        // Two lines take longer to read.
+        showUntilReset(after: message.count > 34 ? 4.5 : 3) { if case .failed = $0 { return true }; return false }
     }
 
     /// A thought kept: the bubble says where it went, for a moment.
     private func saved() {
         phase = .saved
-        hud.show()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            guard let self, self.phase == .saved else { return }
-            self.reset()
-        }
+        showUntilReset(after: 2) { $0 == .saved }
     }
 
     /// No text field where you are (the desktop, a web page): the text goes to the
@@ -971,21 +1318,27 @@ final class Dictation: ObservableObject {
         TextInserter.copy(text)
         Cue.done()
         phase = .copied
-        hud.show()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
-            guard let self, self.phase == .copied else { return }
-            self.reset()
-        }
+        showUntilReset(after: 3.5) { $0 == .copied }
     }
 
     /// ⌃⌥V: the last dictation, typed again where the cursor is now — for when
     /// it landed in the wrong place. Waits for ⌃ and ⌥ to be let go, so the
     /// paste isn't read as ⌃⌥⌘V.
     func pasteLast() {
-        let failed: Bool = { if case .failed = phase { return true }; return false }()
-        guard phase == .idle || phase == .recording || phase == .copied || failed, let last = recent.first else { NSSound.beep(); return }
-        if failed || phase == .copied { reset() }
-        if phase == .recording { cancel() }
+        switch phase {
+        case .recording where handsFree || forThought:
+            // Never in the middle of one, it would be lost: a beep (not into a headset).
+            return beep()
+        case .transcribing:
+            return beep()
+        case .recording:
+            cancel()               // the key held as part of ⌃⌥V: not a dictation
+        case .failed, .copied, .saved:
+            reset()
+        case .idle:
+            break
+        }
+        guard let last = recent.first else { return fail(String(localized: "Inget att klistra in än.")) }
         Task { @MainActor in
             for _ in 0..<40 {
                 let held = CGEventSource.flagsState(.combinedSessionState).intersection([.maskControl, .maskAlternate])

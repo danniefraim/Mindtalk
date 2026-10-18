@@ -19,9 +19,10 @@ enum TextInserter {
         }
         let pb = NSPasteboard.general
         // Two pastes close together (a dictation, then ⌃⌥V): keep the clipboard
-        // from before the first one, not our own text.
+        // from before the first one, not our own text — as long as the clipboard
+        // still holds that paste. Copied over meanwhile, what's there now is yours.
         let saved: [NSPasteboardItem]?
-        if let pending = pendingRestore { saved = pending.items } else { saved = snapshot(pb) }
+        if let pending = pendingRestore, pb.changeCount == pending.change { saved = pending.items } else { saved = snapshot(pb) }
         pendingRestore?.work.cancel()
         pb.clearContents()
         pb.setString(text, forType: .string)
@@ -52,7 +53,7 @@ enum TextInserter {
             pb.clearContents()
             if let saved, !saved.isEmpty { pb.writeObjects(saved) }
         }
-        pendingRestore = (saved, work)
+        pendingRestore = (saved, ourChange, work)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: work)
     }
 
@@ -66,7 +67,7 @@ enum TextInserter {
         pb.setString(text, forType: .string)
     }
 
-    @MainActor private static var pendingRestore: (items: [NSPasteboardItem]?, work: DispatchWorkItem)?
+    @MainActor private static var pendingRestore: (items: [NSPasteboardItem]?, change: Int, work: DispatchWorkItem)?
 
     /// A copy of the clipboard to restore — nil (restore nothing) when it holds
     /// something secret or short-lived.

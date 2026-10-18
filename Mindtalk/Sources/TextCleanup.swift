@@ -31,13 +31,26 @@ enum TextCleanup {
     // MARK: What the speech model gets wrong
 
     /// "kubeh" → "kub": a hesitation the speech model wrote onto the word before it.
-    /// Only "eh" after three letters or more — no ordinary word ends that way.
+    /// Only "eh" after three letters or more, and only when what's left is an ordinary
+    /// word — a name from your list, or one that happens to end that way, stays.
     private static let gluedFiller = try! NSRegularExpression(
         pattern: #"(?<![\p{L}\p{N}])(\p{L}{3,})eh(?![\p{L}\p{N}])"#)
 
     static func removeGluedFillers(_ text: String) -> String {
-        gluedFiller.stringByReplacingMatches(in: text, range: NSRange(location: 0, length: (text as NSString).length),
-                                             withTemplate: "$1")
+        let ns = NSMutableString(string: text)
+        for m in gluedFiller.matches(in: text, range: NSRange(location: 0, length: ns.length)).reversed() {
+            let whole = ns.substring(with: m.range).lowercased()
+            let word = ns.substring(with: m.range(at: 1))
+            if inVocabulary(whole) || !isOrdinaryWord(word.lowercased(), in: text) { continue }
+            ns.replaceCharacters(in: m.range, with: word)
+        }
+        return ns as String
+    }
+
+    /// One of the words in your Ordlista (any case).
+    private static func inVocabulary(_ lower: String) -> Bool {
+        guard Thread.isMainThread else { return true }      // unsure: leave the word alone
+        return MainActor.assumeIsolated { Vocabulary.shared.entries.contains { $0.word.lowercased() == lower } }
     }
 
     /// Words a sentence never ends on — "av", "och", "att" … A full stop right after
@@ -83,9 +96,9 @@ enum TextCleanup {
     // MARK: Fillers
 
     /// Sounds, not words: eh, eeh, ehm, öh, öhm, äh, uh, uhm, um, hm, hmm, erm.
-    /// ("er", "mm" and "ah" are left alone — they're words or units too.)
+    /// ("er", "mm", "ah" and "öm" are left alone — they're words or units too.)
     private static let filler = try! NSRegularExpression(
-        pattern: #",?[ \t]*(?<![\p{L}\p{N}])(?:e+h+m*|e{2,}|ö+h+m*|ö+m+|ä+h+m*|u+h+m*|u+m+|h+m+|e+r+m+)(?![\p{L}\p{N}])(?:[ \t]*,)?"#,
+        pattern: #",?[ \t]*(?<![\p{L}\p{N}])(?:e+h+m*|e{2,}|ö+h+m*|ä+h+m*|u+h+m*|u+m+|h+m+|e+r+m+)(?![\p{L}\p{N}])(?:[ \t]*,)?"#,
         options: [.caseInsensitive])
 
     static func removeFillers(_ text: String) -> String {
@@ -112,9 +125,10 @@ enum TextCleanup {
         pattern: #"[ \t]*[,;]?[ \t]*(?<![\p{L}\p{N}])(?:ny[ \t]*rad|new[ \t]*line)(?![\p{L}\p{N}])[.,;:!?]?[ \t]*"#,
         options: [.caseInsensitive])
     /// The whole dictation is the command, said on its own. Short and alone, the speech
-    /// model often mishears it ("nyradet", "Ny rak.", "nytt stycket").
+    /// model often mishears it ("nyradet", "Ny rak.", "nytt stycket") — but "Ny radio"
+    /// is words.
     private static let alone = try! NSRegularExpression(
-        pattern: #"^[ \t]*(?:(ny[ \t]*ra[dkgt]\p{L}{0,3}|new[ \t]*line)|(nytt?[ \t]*stycke\p{L}{0,2}|new[ \t]*paragraph))[.,;:!?]?[ \t]*$"#,
+        pattern: #"^[ \t]*(?:(ny[ \t]*ra[dkg](?:et)?|new[ \t]*line)|(nytt?[ \t]*stycke(?:t)?|new[ \t]*paragraph))[.,;:!?]?[ \t]*$"#,
         options: [.caseInsensitive])
 
     /// "en ny rad", "i ny rad", "a new line": the phrase used as words, not a command.

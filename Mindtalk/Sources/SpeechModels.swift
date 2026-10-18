@@ -32,6 +32,14 @@ enum SpeechModel: String, CaseIterable, Identifiable, Codable, Sendable {
         }
     }
 
+    /// Mid-sentence: "Ladda ned talmodellen (svenska)".
+    var inlineTitle: String {
+        switch self {
+        case .swedish: return String(localized: "svenska", comment: "The Swedish speech model, mid-sentence")
+        case .multilingual: return String(localized: "flerspråkig", comment: "The multilingual speech model, mid-sentence")
+        }
+    }
+
     /// Short tag for Swedish ("SV"); the multilingual model shows a globe instead (see `ModelBadge`).
     var code: String {
         switch self {
@@ -361,7 +369,7 @@ actor SpeechEngine {
     static let shared = SpeechEngine()
 
     private var loaded: (model: SpeechModel, asr: AsrManager)?
-    private var loading: (model: SpeechModel, task: Task<Started, Error>)?
+    private var loading: (model: SpeechModel, id: UUID, task: Task<Started, Error>)?
     /// A loaded model, where it runs, and the Neural Engine one still being prepared
     /// when the GPU had to step in.
     private struct Started: @unchecked Sendable {
@@ -383,15 +391,36 @@ actor SpeechEngine {
     }
 
     private func manager(for model: SpeechModel) async throws -> AsrManager {
-        if let loaded, loaded.model == model { return loaded.asr }
-        if let loading, loading.model == model { return try await loading.task.value.asr }
-        guard let dir = model.directory else { throw ModelError.notInstalled }
-        if let old = loaded {
-            while inFlight > 0 { try await Task.sleep(for: .milliseconds(50)) }
-            upgrading?.cancel(); upgrading = nil
-            await old.asr.cleanup()
-            loaded = nil
+        // One model at a time, one load at a time. Every wait below lets other calls
+        // in (an actor), so the state is looked at afresh after each.
+        while true {
+            if let loaded, loaded.model == model { return loaded.asr }
+            if let current = loading {
+                // A load on its way — this one, or another language: let it land first.
+                // Whoever wakes first puts it in place; another language is then
+                // switched from in the next turn.
+                do {
+                    settle(current.id, current.model, try await current.task.value)
+                } catch {
+                    if loading?.id == current.id { loading = nil }
+                    if current.model == model { throw error }
+                }
+                continue
+            }
+            if let old = loaded {
+                // Never under a transcription.
+                if inFlight > 0 { try await Task.sleep(for: .milliseconds(50)); continue }
+                // Gone before the wait for its cleanup, so nobody is handed it meanwhile;
+                // the Neural Engine one being prepared for it is let go of with it.
+                loaded = nil
+                onNeuralEngine = false
+                upgrading?.cancel(); upgrading = nil
+                await old.asr.cleanup()
+                continue
+            }
+            break
         }
+        guard let dir = model.directory else { throw ModelError.notInstalled }
         // The first time on a Mac, preparing the encoder for the Neural Engine takes
         // minutes (measured: 316 s); on the GPU it's ready in about half a minute and
         // writes just as fast and the same words. So: the GPU first, the Neural Engine
@@ -403,23 +432,36 @@ actor SpeechEngine {
             guard ready else { return Started(asr: try await Self.make(dir: dir, version: version, units: .cpuAndGPU), onEngine: false, pending: nil) }
             return try await Self.engineOrGPU(dir: dir, version: version)
         }
-        loading = (model, task)
-        defer { if loading?.model == model { loading = nil } }
-        let started = try await task.value
+        let id = UUID()
+        loading = (model, id, task)
+        do {
+            settle(id, model, try await task.value)
+        } catch {
+            if loading?.id == id { loading = nil }
+            throw error
+        }
+        // Normally in place now; if another language took over meanwhile, loaded again.
+        return try await manager(for: model)
+    }
+
+    /// A finished load put in place — once, by whichever caller wakes first.
+    private func settle(_ id: UUID, _ model: SpeechModel, _ started: Started) {
+        guard loading?.id == id else { return }
+        loading = nil
         loaded = (model, started.asr)
         onNeuralEngine = started.onEngine
         if let pending = started.pending {
-            // The Neural Engine one, still being prepared: put in place when it's done.
+            // The Neural Engine one, still being prepared: put in place when it's done
+            // (or thrown away, if the language has changed by then — see swapIn).
             upgrading?.cancel()
             let since = Date()
             upgrading = Task {
                 guard let asr = try? await pending.value else { return }
                 await self.swapIn(asr, for: model, after: Date().timeIntervalSince(since))
             }
-        } else if !started.onEngine {
+        } else if !started.onEngine, let dir = model.directory {
             upgrade(model, dir: dir)
         }
-        return started.asr
     }
 
     /// Prepared for the Neural Engine before, so normally ready in seconds. But macOS
@@ -524,10 +566,12 @@ actor SpeechEngine {
 
     func unload(_ model: SpeechModel) async {
         while inFlight > 0 { try? await Task.sleep(for: .milliseconds(50)) }
-        if loaded?.model == model { upgrading?.cancel(); upgrading = nil }
         guard let current = loaded, current.model == model else { return }
-        await current.asr.cleanup()
+        // Gone before the wait for its cleanup, so nobody is handed it meanwhile.
         loaded = nil
+        onNeuralEngine = false
+        upgrading?.cancel(); upgrading = nil
+        await current.asr.cleanup()
     }
 
     /// Like `transcribe`, with each word's time in seconds from the start of `samples`

@@ -977,6 +977,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 ("Vi ses på tisdag, nej jag menar onsdag", "Vi ses på onsdag", true),
                 ("Blir det fel? Eller är det jag som läser fel?", "Blir det fel eller är det jag som läser fel?", false),
                 ("Den är bättre så vi borde ha den", "Den är bättre, så vi borde ha den", true),
+                // Spoken punctuation goes only where its symbol now stands.
+                ("Hej komma hur mår du", "Hej, hur mår du", true),
+                ("Det var allt för i dag punkt", "Det var allt för i dag.", true),
+                ("Är du klar question mark", "Är du klar?", true),
+                ("Jag kan inte komma imorgon", "Jag kan inte imorgon", false),
+                // A correction cue needs the correction after it.
+                ("Skicka det till Per, förlåt, till Anna", "Skicka det till Anna", true),
+                ("Ring mamma och säg förlåt", "Ring mamma.", false),
+                ("Ring mamma och säg sorry", "Ring mamma och säg", false),
             ]
             let ruleCases: [(String, String)] = [
                 ("Erik vill bygga med kubeh.", "Erik vill bygga med kub."),
@@ -992,6 +1001,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 ("Den är ny, rak och fin.", "Den är ny, rak och fin."),
                 ("Nytt stycke.", "\n\n"),
                 ("Skriv en ny rad i listan.", "Skriv en ny rad i listan."),
+                ("Ny radio.", "Ny radio."),
+                ("Nytt stycket.", "\n\n"),
+                ("Ny stycken.", "Ny stycken."),
+                ("Jag är öm i nacken.", "Jag är öm i nacken."),
+                ("Öhm, jag tänkte på det.", "Jag tänkte på det."),
             ]
             let nameCases: [(String, String?)] = [
                 ("Hej, jag heter Erik och jobbar med försäljningen.", "Erik"),
@@ -1675,6 +1689,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     // MARK: Status item
 
     @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
+        // A look at the permissions (and the key tap) whenever the panel is opened:
+        // Accessibility may have been taken away, or given back, meanwhile.
+        if !statusPanel.isShown { dictation.refreshPermissions() }
         statusPanel.toggle(from: sender)
     }
 
