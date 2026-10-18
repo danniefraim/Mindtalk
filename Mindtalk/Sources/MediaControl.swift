@@ -15,7 +15,7 @@ import os
 //   start by itself: nothing playing, nothing sent.
 // - Anything else making sound (a call, a game) can't be paused, so the
 //   volume is faded down while you speak and back up after.
-// - "Tona ner" fades everything down; "Låt vara" leaves the sound alone.
+// - "Tona ned" fades everything down; "Låt vara" leaves the sound alone.
 
 enum MediaMode: String, CaseIterable, Identifiable {
     case pause, duck, off
@@ -24,15 +24,15 @@ enum MediaMode: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .pause: return String(localized: "Pausa")
-        case .duck: return String(localized: "Tona ner")
+        case .duck: return String(localized: "Tona ned")
         case .off: return String(localized: "Låt vara")
         }
     }
 
     var explanation: String {
         switch self {
-        case .pause: return String(localized: "Musik och video pausas medan du pratar och fortsätter sedan. Annat ljud tonas ner.")
-        case .duck: return String(localized: "Allt ljud tonas ner medan du pratar och upp igen efteråt.")
+        case .pause: return String(localized: "Musik och video pausas medan du pratar och fortsätter sedan. Annat ljud tonas ned.")
+        case .duck: return String(localized: "Allt ljud tonas ned medan du pratar och upp igen efteråt.")
         case .off: return String(localized: "Mindtalk rör inte ljudet.")
         }
     }
