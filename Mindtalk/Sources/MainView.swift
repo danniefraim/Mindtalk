@@ -1302,40 +1302,98 @@ extension SettingsPage {
     }
 }
 
+/// Om Mindtalk: the version and who makes it, the introduction again, and the
+/// credits — the models and code Mindtalk is built on — in a window of their own.
 private struct AboutCard: View {
-    @State private var showsLicenses = false
-    private static let ccBy = URL(string: "https://creativecommons.org/licenses/by/4.0/deed.sv")!
-    private static let parakeet = URL(string: "https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3")!
-    private static let fluidAudio = URL(string: "https://github.com/FluidInference/FluidAudio")!
-    private static let apache = URL(string: "https://www.apache.org/licenses/LICENSE-2.0")!
-    private static let redimnet = URL(string: "https://huggingface.co/lab260/redimnet2-plus")!
-    private static let nemotron = URL(string: "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml")!
-    private static let openMDW = URL(string: "https://openmdw.ai/license/")!
-    private static let parakeetCTC = URL(string: "https://huggingface.co/nvidia/parakeet-tdt_ctc-110m")!
-    private static let gemma = URL(string: "https://huggingface.co/google/gemma-4-26B-A4B-it")!
-    private static let scbNames = URL(string: "https://doi.org/10.5878/fc4h-rp11")!
-    private static let sparkle = URL(string: "https://github.com/sparkle-project/Sparkle")!
+    @State private var showsCredits = false
 
     private var version: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            row(title: "Mindtalk \(version)", detail: "© 2026 Mindact Solutions AB") {
+        CardRow(title: "Mindtalk \(version)", detail: "© 2026 Mindact Solutions AB") {
+            HStack(spacing: 10) {
                 Button("Visa introduktionen") { AppDelegate.showIntroduction() }
                     .buttonStyle(.soft)
+                Button("Tack till och licenser…") { showsCredits = true }
+                    .buttonStyle(.soft)
             }
-            ForEach(SpeechModel.allCases) { m in
+        }
+        .card()
+        .sheet(isPresented: $showsCredits) { CreditsSheet(close: { showsCredits = false }) }
+        #if DEBUG
+        .task {   // screenshots
+            if CommandLine.arguments.contains("--show-licenses") { try? await Task.sleep(for: .seconds(1.5)); showsCredits = true }
+        }
+        #endif
+    }
+}
+
+/// "Tack till": every model and library Mindtalk is built on, with where to find
+/// it and under what licence — what CC BY 4.0 asks of us, said plainly.
+struct CreditsSheet: View {
+    let close: () -> Void
+    /// Screenshots: the rows alone, without the window's frame.
+    var plain = false
+    @State private var showsLicenses = false
+    private static let ccBy = URL(string: "https://creativecommons.org/licenses/by/4.0/deed.sv")!
+    private static let parakeet = URL(string: "https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3")!
+    private static let fluidAudio = URL(string: "https://github.com/FluidInference/FluidAudio")!
+    private static let apache = URL(string: "https://www.apache.org/licenses/LICENSE-2.0")!
+    private static let mit = URL(string: "https://opensource.org/license/mit")!
+    private static let redimnet = URL(string: "https://huggingface.co/lab260/redimnet2-plus")!
+    private static let nemotron = URL(string: "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml")!
+    private static let openMDW = URL(string: "https://openmdw.ai/license/")!
+    private static let parakeetCTC = URL(string: "https://huggingface.co/nvidia/parakeet-tdt_ctc-110m")!
+    private static let parakeetCTCCoreML = URL(string: "https://huggingface.co/FluidInference/parakeet-ctc-110m-coreml")!
+    private static let scbNames = URL(string: "https://doi.org/10.5878/fc4h-rp11")!
+    private static let sparkle = URL(string: "https://github.com/sparkle-project/Sparkle")!
+    private static let mlxSwift = URL(string: "https://github.com/ml-explore/mlx-swift")!
+    private static let mlxSwiftLM = URL(string: "https://github.com/ml-explore/mlx-swift-lm")!
+    private static let swiftTransformers = URL(string: "https://github.com/huggingface/swift-transformers")!
+
+    var body: some View {
+        if plain {
+            rows.padding(28).background(DS.Colors.paper)
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text("Tack till").font(.system(size: 20, weight: .semibold))
+                    Spacer()
+                    Button("Klar", action: close)
+                        .buttonStyle(.ink)
+                        .keyboardShortcut(.defaultAction)
+                }
+                .padding(20)
                 CardDivider()
+                ScrollView {
+                    rows.padding(20)
+                }
+            }
+            .frame(width: 680, height: 600)
+            .background(DS.Colors.paper)
+            .sheet(isPresented: $showsLicenses) { LicensesSheet { showsLicenses = false } }
+            #if DEBUG
+            .task {   // screenshots
+                if CommandLine.arguments.contains("--show-licenses") { try? await Task.sleep(for: .seconds(1)); showsLicenses = true }
+            }
+            #endif
+        }
+    }
+
+    private var rows: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
+                if i > 0 { CardDivider() }
                 row(title: m.modelName,
                     detail: String(localized: "Av \(m.credit), byggd på NVIDIA Parakeet. CC BY 4.0.")) {
-                    links([("Modell", m.modelPage), (String(localized: "Core ML (\(m.conversionCredit))"), m.conversionPage), ("Licens", Self.ccBy)])
+                    links([("Modell", m.modelPage), ("Core ML", m.conversionPage), ("Licens", Self.ccBy)])
                 }
             }
             CardDivider()
             row(title: "NVIDIA Parakeet TDT 0.6B v3",
-                detail: "Grundmodellen båda bygger på, av NVIDIA. CC BY 4.0.") {
+                detail: "Grundmodellen som båda talmodellerna bygger på. Av NVIDIA. CC BY 4.0.") {
                 links([("Modell", Self.parakeet), ("Licens", Self.ccBy)])
             }
             CardDivider()
@@ -1347,12 +1405,12 @@ private struct AboutCard: View {
                 links([("Modell", Self.nemotron), ("Licens", Self.openMDW)])
             }
             CardDivider()
-            row(title: "Parakeet TDT-CTC 110M", detail: "Lyssnar en gång till efter orden i Ordlistan. Av NVIDIA. CC BY 4.0.") {
-                links([("Modell", Self.parakeetCTC), ("Licens", Self.ccBy)])
+            row(title: "Lyssnaren (Parakeet TDT-CTC 110M)", detail: "Lyssnar en gång till efter orden i Ordlistan. Av NVIDIA, Core ML av FluidInference. CC BY 4.0.") {
+                links([("Modell", Self.parakeetCTC), ("Core ML", Self.parakeetCTCCoreML), ("Licens", Self.ccBy)])
             }
             CardDivider()
-            row(title: "Gemma 4", detail: "Skriver sammanfattningar och svar, om du väljer den. Av Google. Apache 2.0.") {
-                links([("Modell", Self.gemma), ("Licens", Self.apache)])
+            row(title: "Gemma 4", detail: "Skriver sammanfattningar och svar, om du väljer den. Av Google DeepMind, MLX-versioner av lmstudio-community. Apache 2.0.") {
+                links([("26B-A4B-it", NotesModel.large.page), ("E4B-it", NotesModel.small.page), ("Licens", Self.apache)])
             }
             CardDivider()
             row(title: "Förnamn", detail: "Namn som presentationsrundan känner igen. Statistiska centralbyrån (SCB), 2020. CC BY 4.0.") {
@@ -1363,22 +1421,24 @@ private struct AboutCard: View {
                 links([("Källkod", Self.fluidAudio), ("Licens", Self.apache)])
             }
             CardDivider()
+            row(title: "MLX Swift och mlx-swift-lm", detail: "Kör Gemma på din Mac. Av Apple. MIT-licens.") {
+                links([("MLX Swift", Self.mlxSwift), ("mlx-swift-lm", Self.mlxSwiftLM), ("Licens", Self.mit)])
+            }
+            CardDivider()
+            row(title: "swift-transformers", detail: "Läser modellernas ordförråd. Av Hugging Face. Apache 2.0.") {
+                links([("Källkod", Self.swiftTransformers), ("Licens", Self.apache)])
+            }
+            CardDivider()
             row(title: "Sparkle", detail: "Håller Mindtalk uppdaterad. Öppen källkod, MIT-licens.") {
                 links([("Källkod", Self.sparkle)])
             }
             CardDivider()
-            row(title: "Licenser", detail: "Alla licenstexter som följer med Mindtalk.") {
+            row(title: "Licenser", detail: "Licenstexterna och länkarna som följer med Mindtalk.") {
                 Button("Visa licenser…") { showsLicenses = true }
                     .buttonStyle(.soft)
             }
         }
         .card()
-        .sheet(isPresented: $showsLicenses) { LicensesSheet { showsLicenses = false } }
-        #if DEBUG
-        .task {   // screenshots
-            if CommandLine.arguments.contains("--show-licenses") { try? await Task.sleep(for: .seconds(1.5)); showsLicenses = true }
-        }
-        #endif
     }
 
     private func row<Trailing: View>(title: String, detail: String, @ViewBuilder trailing: () -> Trailing) -> some View {
@@ -1397,10 +1457,10 @@ private struct AboutCard: View {
 
     private func links(_ items: [(String, URL)]) -> some View {
         HStack(spacing: 12) {
-            ForEach(items, id: \.0) { title, url in
-                Link(destination: url) {
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                Link(destination: item.1) {
                     HStack(spacing: 2) {
-                        Text(LocalizedStringKey(title))
+                        Text(LocalizedStringKey(item.0))
                         Image(systemName: "arrow.up.right").font(.system(size: 9, weight: .semibold))
                     }
                 }
@@ -1408,5 +1468,6 @@ private struct AboutCard: View {
                 .foregroundStyle(DS.Colors.accent)
             }
         }
+        .fixedSize()
     }
 }
