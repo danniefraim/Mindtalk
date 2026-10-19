@@ -1090,6 +1090,22 @@
         }
       }
     },
+    "%@. Går att byta när mötet är klart.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@. You can switch once the meeting is done."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@. Går att byta när mötet är klart."
+          }
+        }
+      }
+    },
     "%@. Kräver minst %lld GB minne.": {
       "localizations": {
         "en": {

@@ -537,7 +537,7 @@ struct SettingsPage: View {
     /// What both dictation and meetings hear with.
     private var microphoneRow: some View {
         CardRow(title: "Mikrofon", detail: !dictation.micGranted ? "Mindtalk behöver få använda mikrofonen."
-                : meeting.isBusy ? String(localized: "\(mics.selectionName) · går att byta när mötet är klart") : mics.selectionName) {
+                : meeting.isBusy ? String(localized: "\(mics.selectionName). Går att byta när mötet är klart.") : mics.selectionName) {
             if dictation.micGranted {
                 Button("Ändra") { showMicPicker = true }.buttonStyle(.soft)
                     .disabled(meeting.isBusy || dictation.phase == .recording || dictation.phase == .transcribing)
