@@ -302,6 +302,16 @@ enum BridgeTest {
         check("nivå tankar: tankarna går att läsa", rows(r.result, "thoughts").count == 3)
         sharing.level = .everything
 
+        // "Utan mapp" unticked: the loose meeting is gone, the folder's stay.
+        sharing.shareUnfiled = false
+        r = await call("mindtalk_list_meetings")
+        check("utan mapp avbockat: det lösa mötet syns inte", !ids(rows(r.result, "meetings")).contains(m4) && !rows(r.result, "meetings").isEmpty)
+        r = await call("mindtalk_get_meeting", ["meeting_id": m4])
+        check("utan mapp avbockat: det lösa mötet nekas", r.error?.hasPrefix("No such meeting") == true)
+        r = await call("mindtalk_list_folders")
+        check("utan mapp avbockat: inga möten utan mapp", r.result?["meetings_without_folder"] as? Int == 0)
+        sharing.shareUnfiled = true
+
         // Off: every tool says so.
         sharing.enabled = false
         for tool in ["mindtalk_list_folders", "mindtalk_list_meetings", "mindtalk_get_meeting", "mindtalk_get_transcript",

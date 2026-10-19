@@ -67,6 +67,10 @@ final class ClaudeSharing: ObservableObject {
         didSet { if !previewing { defaults.set(level.rawValue, forKey: "claude.level") } }
     }
     /// Folders kept away from every program. Meetings in no folder are shared.
+    /// Meetings in no folder (or in a folder since removed). Shared unless switched off.
+    @Published var shareUnfiled: Bool {
+        didSet { if !previewing { defaults.set(shareUnfiled, forKey: "claude.shareUnfiled") } }
+    }
     @Published var excludedFolders: Set<UUID> {
         didSet { if !previewing { defaults.set(excludedFolders.map(\.uuidString), forKey: "claude.excludedFolders") } }
     }
@@ -113,6 +117,7 @@ final class ClaudeSharing: ObservableObject {
         enabled = defaults.bool(forKey: "claude.enabled")
         level = Level(rawValue: defaults.string(forKey: "claude.level") ?? "") ?? .everything
         excludedFolders = Set((defaults.stringArray(forKey: "claude.excludedFolders") ?? []).compactMap(UUID.init))
+        shareUnfiled = defaults.object(forKey: "claude.shareUnfiled") as? Bool ?? true
         connectedOnce = defaults.bool(forKey: "claude.connectedOnce")
         enableExplained = defaults.bool(forKey: "claude.enableExplained")
         if let data = try? Data(contentsOf: Self.logURL),
@@ -124,9 +129,10 @@ final class ClaudeSharing: ObservableObject {
         Self.io.async { Self.setMarker(on) }
     }
 
-    /// Whether this folder's meetings may be read. nil is "no folder": shared.
+    /// Whether this folder's meetings may be read. No folder, or one since removed:
+    /// the "Utan mapp" choice.
     func allows(folder: UUID?) -> Bool {
-        guard let folder else { return true }
+        guard let folder, MeetingFolders.shared.folder(folder) != nil else { return shareUnfiled }
         return !excludedFolders.contains(folder)
     }
 
@@ -160,6 +166,7 @@ final class ClaudeSharing: ObservableObject {
         enabled = on
         self.level = level
         excludedFolders = []
+        shareUnfiled = true
         connectedOnce = !demo.isEmpty
         enableExplained = on
         entries = demo

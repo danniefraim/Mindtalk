@@ -304,10 +304,8 @@ struct ClaudeSettingsCard: View {
         if !sharing.level.includesMeetings {
             Text("Med Bara tankar läses inga möten, oavsett mapp.")
                 .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-        } else if folders.sorted.isEmpty {
-            Text("Du har inga mappar än. Alla möten får läsas.")
-                .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
         } else {
+            VStack(alignment: .leading, spacing: 8) {
             FlowLayout(spacing: 16) {
                 ForEach(folders.sorted) { folder in
                     Toggle(isOn: Binding(
@@ -319,8 +317,14 @@ struct ClaudeSettingsCard: View {
                     }
                     .toggleStyle(InkCheckboxStyle())
                 }
-                Text("Möten utan mapp får alltid läsas.")
-                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                // Meetings in no folder: a choice like the folders, not a rule.
+                Toggle(isOn: $sharing.shareUnfiled) {
+                    Text("Utan mapp").font(.system(size: 13))
+                }
+                .toggleStyle(InkCheckboxStyle())
+            }
+            Text("Bocka ur det som ska stanna privat.")
+                .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
             }
         }
     }

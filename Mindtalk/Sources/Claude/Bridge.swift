@@ -271,6 +271,8 @@ final class Bridge: @unchecked Sendable {
         let parts = path.split(separator: "/").map(String.init)
         if let app = parts.first(where: { $0.hasSuffix(".app") && $0.count > 4 }) { return String(app.dropLast(4)) }
         guard let last = parts.last, !last.isEmpty else { return nil }
+        // `mindtalk folders` typed in a shell: the shell is the parent.
+        if ["zsh", "bash", "sh", "fish", "dash", "tcsh", "ksh", "nu", "login"].contains(last) { return String(localized: "Terminalen") }
         return last
     }
 
