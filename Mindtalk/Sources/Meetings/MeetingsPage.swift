@@ -781,7 +781,7 @@ struct StartCard: View {
             return String(localized: "Utan Apple Intelligence eller Gemma 4 blir det text men ingen sammanfattning.")
         }
         if BetterNotes.shared.isActive {
-            return String(localized: "\(dictation.engine.modelName) och Gemma 4")
+            return String(localized: "\(dictation.engine.modelName) och \(BetterNotes.shared.writerName)")
         }
         return String(localized: "\(dictation.engine.modelName) och Apple Intelligence")
     }
@@ -2520,14 +2520,17 @@ private struct Receipt: View {
 /// While the notes are being written: the shape of what's coming.
 private struct WritingPlaceholder: View {
     @State private var sweep = false
+    /// Your own model says where it is: starting, reading, writing.
+    @ObservedObject private var servers = LocalServers.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 30) {
             HStack(spacing: 8) {
                 SettlingLine(color: DS.Colors.ink).scaleEffect(0.8)
-                Text(BetterNotes.shared.isActive ? String(localized: "\(BetterNotes.shared.writerName) skriver sammanfattningen…")
-                                                 : String(localized: "Skriver sammanfattningen…"))
+                Text(servers.phase.map { "\(BetterNotes.shared.writerName) · \($0.title)" }
+                     ?? (BetterNotes.shared.isActive ? String(localized: "\(BetterNotes.shared.writerName) skriver sammanfattningen…")
+                                                     : String(localized: "Skriver sammanfattningen…")))
             }
             .font(.system(size: 13, weight: .medium))
             .foregroundStyle(DS.Colors.muted)
@@ -2863,6 +2866,7 @@ private struct RewriteBanner: View {
     @State private var started = Date()
 
     private var writer: String { BetterNotes.shared.writerName }
+    @ObservedObject private var servers = LocalServers.shared
 
     var body: some View {
         HStack(spacing: 14) {
@@ -2876,7 +2880,8 @@ private struct RewriteBanner: View {
                 Text(writing ? String(localized: "\(writer) skriver en ny sammanfattning…") : String(localized: "Den nya sammanfattningen är klar"))
                     .font(.system(size: 14, weight: .semibold))
                 if writing {
-                    Text("Det tar några sekunder. Den gamla syns tills den nya är klar.")
+                    Text(servers.phase.map { $0.title + " " + String(localized: "Den gamla syns tills den nya är klar.") }
+                         ?? String(localized: "Det tar några sekunder. Den gamla syns tills den nya är klar."))
                         .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                 }
             }

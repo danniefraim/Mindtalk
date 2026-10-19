@@ -14,6 +14,7 @@ struct ModelsCard: View {
     @ObservedObject var dictation: Dictation
     @ObservedObject private var voices = VoiceModels.shared
     @ObservedObject private var notes = BetterNotes.shared
+    @ObservedObject private var servers = LocalServers.shared
     @ObservedObject private var meeting = MeetingSession.shared
     @ObservedObject private var listener = VocabularyBoostStatus.shared
     @ObservedObject private var vocabulary = Vocabulary.shared
@@ -59,6 +60,8 @@ struct ModelsCard: View {
                     CardDivider()
                     notesRow(m)
                 }
+                CardDivider()
+                ServerWriterRow()
             }
             group(String(localized: "Ordlista"), nil) {
                 listenerRow
@@ -73,6 +76,7 @@ struct ModelsCard: View {
             .padding(.top, 2)
         }
         .task(id: refreshKey) { await measure() }
+        .task { await servers.refresh() }     // Ollama and LM Studio: here, running, and their models
         .onAppear { listener.refresh() }      // the listener's folder deleted in Finder, or put back
         .confirmationDialog(confirmDownload.map { String(localized: "Ladda ned \($0.name) (\($0.sizeText))?") } ?? "",
                             isPresented: Binding(get: { confirmDownload != nil }, set: { if !$0 { confirmDownload = nil } }),
@@ -241,7 +245,7 @@ struct ModelsCard: View {
     private var appleRow: some View {
         let status = Polisher.status
         let detail = Self.appleDetail(status)
-        return row(name: "Apple Intelligence", detail: detail, chooser: (notes.active == nil, status == .available, { notes.chosen = nil })) {
+        return row(name: "Apple Intelligence", detail: detail, chooser: (!notes.isActive, status == .available, { notes.choice = .apple })) {
             EmptyView()
         }
     }
@@ -431,23 +435,278 @@ struct ModelsCard: View {
 struct SummaryWriterRow: View {
     @ObservedObject private var notes = BetterNotes.shared
 
-    var body: some View {
+    /// Apple, the Gemmas that are here, and the server model chosen, if one is.
+    private var options: [(value: String, title: String)] {
         let ready = NotesModel.allCases.filter { notes.state($0) == .ready }
+        var options: [(value: String, title: String)] = [("apple", "Apple Intelligence")] + ready.map { ("gemma:\($0.rawValue)", $0.name) }
+        if let server = notes.server {
+            options.append((SummaryWriterChoice.server(server.backend, server.model).stored, notes.writerName))
+        }
+        return options
+    }
+
+    var body: some View {
         let status = Polisher.status
         // Apple Intelligence off or missing: said as under Modeller, not as if it wrote them.
         let apple = status == .available ? String(localized: "Apple Intelligence.")
             : String(localized: "Apple Intelligence: ") + ModelsCard.appleDetail(status)
+        let options = options
         CardRow(title: "Sammanfattningarna skrivs av",
-                detail: ready.isEmpty
+                detail: options.count == 1
                     ? (NotesModel.recommended.map { apple + " " + String(localized: "\($0.name) skriver mer träffsäkert och laddas ned under Modeller.") }
                        ?? apple)
                     : String(localized: "Fler val under Modeller.")) {
-            if !ready.isEmpty {
-                MenuPicker(options: [(value: Optional<NotesModel>.none, title: "Apple Intelligence")] + ready.map { (value: Optional($0), title: $0.name) },
-                           selection: Binding(get: { notes.active }, set: { notes.chosen = $0 }))
+            if options.count > 1 {
+                WriterPicker(options: options, selection: Binding(
+                    get: { notes.isActive ? notes.choice.stored : "apple" },
+                    set: { if let c = SummaryWriterChoice(stored: $0) { notes.choice = c } }))
             }
         }
         .card()
+    }
+}
+
+/// The pop-up over the writers, their names as they are ("Ollama · qwen3.5:9b" isn't a
+/// string to translate).
+private struct WriterPicker: View {
+    let options: [(value: String, title: String)]
+    @Binding var selection: String
+
+    var body: some View {
+        Menu {
+            ForEach(options, id: \.value) { option in
+                Button { selection = option.value } label: {
+                    if option.value == selection {
+                        Label { Text(verbatim: option.title) } icon: { Image(systemName: "checkmark") }
+                    } else {
+                        Text(verbatim: option.title)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 7) {
+                Text(verbatim: options.first { $0.value == selection }?.title ?? "")
+                    .font(.system(size: 12.5, weight: .semibold))
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(DS.Colors.muted)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 13)
+            .frame(height: 30)
+            .background(Capsule().fill(DS.Colors.control).shadow(color: .black.opacity(0.06), radius: 2, y: 1))
+            .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+    }
+}
+
+// MARK: - Ollama or LM Studio
+
+/// The third choice under Sammanfattningar: your own model in Ollama or LM Studio. Each
+/// is shown as running, installed but not running, or not here, with its models to pick
+/// from, a Testa button, and the ports under Avancerat.
+struct ServerWriterRow: View {
+    @ObservedObject private var notes = BetterNotes.shared
+    @ObservedObject private var servers = LocalServers.shared
+    @State private var advanced = false
+
+    /// The writer chosen is one of these.
+    private var isOn: Bool { notes.server != nil }
+
+    /// The model this backend's picker shows: the chosen one, or the one picked last time.
+    private func picked(_ backend: ServerBackend) -> String? {
+        if let server = notes.server, server.backend == backend { return server.model }
+        #if DEBUG
+        if LocalServers.demo != nil { return servers.models[backend]?.first?.id }
+        #endif
+        let remembered = UserDefaults.standard.string(forKey: "serverModel.\(backend.rawValue)")
+        let models = servers.models[backend] ?? []
+        if let remembered, models.contains(where: { $0.id == remembered }) { return remembered }
+        return nil
+    }
+
+    /// Something to choose: a backend running with a model picked, or any model at all.
+    private var canChoose: Bool {
+        ServerBackend.allCases.contains { servers.state($0) == .running && !(servers.models[$0] ?? []).isEmpty }
+    }
+
+    private func choose() {
+        for backend in ServerBackend.allCases where servers.state(backend) == .running {
+            if let model = picked(backend) ?? servers.models[backend]?.first?.id {
+                notes.choice = .server(backend, model)
+                return
+            }
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Button(action: choose) {
+                Image(systemName: isOn ? "largecircle.fill.circle" : "circle")
+                    .font(.system(size: 16))
+                    .foregroundStyle(isOn ? DS.Colors.accent : DS.Colors.muted)
+            }
+            .buttonStyle(.plain)
+            .disabled(!canChoose && !isOn)
+            .opacity(canChoose || isOn ? 1 : 0.35)
+            .help(canChoose || isOn ? "Använd för sammanfattningarna" : "Starta Ollama eller LM Studio först")
+            .accessibilityLabel(Text("Använd Ollama eller LM Studio"))
+            .accessibilityAddTraits(isOn ? .isSelected : [])
+            .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Ollama eller LM Studio").font(.system(size: 14, weight: .semibold))
+                    Text(verbatim: notes.server.map { "\($0.backend.name) · \($0.model)" } ?? String(localized: "Din egen modell, på din Mac"))
+                        .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(ServerBackend.allCases) { backend in
+                        backendLine(backend)
+                    }
+                }
+                Text("Allt körs på din Mac. Mindtalk pratar bara med den här datorn.")
+                    .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                if let test = servers.test { testView(test) }
+                DisclosureGroup(isExpanded: $advanced) {
+                    HStack(spacing: 14) {
+                        ForEach(ServerBackend.allCases) { backend in
+                            HStack(spacing: 6) {
+                                Text(verbatim: backend.name).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                                TextField("", value: Binding(get: { servers.ports[backend] ?? backend.defaultPort },
+                                                             set: { servers.ports[backend] = $0 }),
+                                          format: .number.grouping(.never))
+                                    .textFieldStyle(.roundedBorder).frame(width: 66)
+                                    .font(.system(size: 12.5)).monospacedDigit()
+                                    .accessibilityLabel(Text("Port för \(backend.name)"))
+                                    .onSubmit { Task { await servers.probe(backend) } }
+                            }
+                        }
+                        Button("Återställ") { servers.resetPorts(); Task { await servers.refresh() } }
+                            .buttonStyle(.soft)
+                            .disabled(ServerBackend.allCases.allSatisfy { servers.ports[$0] == $0.defaultPort })
+                        Spacer()
+                    }
+                    .padding(.top, 8)
+                } label: {
+                    Text("Avancerat").font(.system(size: 12, weight: .medium)).foregroundStyle(DS.Colors.muted)
+                }
+                .disclosureGroupStyle(.automatic)
+                .font(.system(size: 12))
+            }
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 16)
+    }
+
+    /// "Ollama  ● Igång  [ qwen3.5:9b ⌄ ]  [ Testa ]"
+    private func backendLine(_ backend: ServerBackend) -> some View {
+        let state = servers.state(backend)
+        let models = servers.models[backend] ?? []
+        let model = picked(backend)
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 10) {
+                Text(verbatim: backend.name).font(.system(size: 13, weight: .medium)).frame(width: 74, alignment: .leading)
+                Circle().fill(state == .running ? DS.Colors.ink : Color.clear)
+                    .overlay(Circle().strokeBorder(state == .running ? Color.clear : DS.Colors.muted, lineWidth: 1.2))
+                    .frame(width: 8, height: 8)
+                    .accessibilityHidden(true)
+                Text(verbatim: state.title).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                    .frame(width: 80, alignment: .leading)
+                if state == .running, !models.isEmpty {
+                    ServerModelPicker(models: models, selection: Binding(
+                        get: { model },
+                        set: { if let id = $0 { notes.choice = .server(backend, id) } }))
+                    if let model, let m = models.first(where: { $0.id == model }), m.goodAtSwedish {
+                        Text("Bra på svenska").font(.system(size: 11, weight: .semibold))
+                            .padding(.horizontal, 7).padding(.vertical, 2)
+                            .background(Capsule().fill(DS.Colors.chip))
+                    }
+                }
+                Spacer(minLength: 8)
+                switch state {
+                case .running:
+                    if servers.testing == backend {
+                        ProgressView().controlSize(.small)
+                    } else if let model {
+                        Button("Testa") { servers.runTest(backend, model) }.buttonStyle(.soft)
+                    }
+                case .installedNotRunning:
+                    if servers.probing.contains(backend) {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Button(backend.openTitle) { servers.open(backend) }.buttonStyle(.soft)
+                    }
+                case .notInstalled:
+                    Button("Läs mer") { NSWorkspace.shared.open(backend.site) }.buttonStyle(.soft)
+                }
+            }
+            if let note = servers.notes[backend] {
+                Text(verbatim: note).font(.system(size: 12)).foregroundStyle(DS.Colors.muted).padding(.leading, 84)
+            }
+        }
+    }
+
+    /// What Testa gave: the answer with how long it took and how much the model reads, or the error.
+    private func testView(_ test: LocalServers.TestResult) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            if let answer = test.answer {
+                Text(verbatim: "“\(answer)”").font(.system(size: 12.5)).fixedSize(horizontal: false, vertical: true)
+                Text(verbatim: "\(test.model) · \(test.seconds.formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.locale))) s · "
+                     + String(localized: "läser \(test.context.formatted(.number.locale(AppLanguage.locale))) ord-delar åt gången"))
+                    .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+            } else {
+                Text(verbatim: test.error ?? "").font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, 12).padding(.vertical, 9)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(DS.Colors.paper.opacity(0.6)))
+    }
+}
+
+/// The models one backend has: name, size and how much each reads; the ones good at
+/// Swedish say so. Names as they are, never translated.
+private struct ServerModelPicker: View {
+    let models: [ServerModel]
+    @Binding var selection: String?
+
+    var body: some View {
+        Menu {
+            ForEach(models) { m in
+                Button { selection = m.id } label: {
+                    let title = m.title + (m.goodAtSwedish ? " · " + String(localized: "Bra på svenska") : "")
+                    if m.id == selection {
+                        Label { Text(verbatim: title) } icon: { Image(systemName: "checkmark") }
+                    } else {
+                        Text(verbatim: title)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 7) {
+                Text(verbatim: selection ?? String(localized: "Välj modell"))
+                    .font(.system(size: 12.5, weight: .semibold)).lineLimit(1)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(DS.Colors.muted)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 13)
+            .frame(height: 30)
+            .background(Capsule().fill(DS.Colors.control).shadow(color: .black.opacity(0.06), radius: 2, y: 1))
+            .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel(Text("Modell"))
     }
 }
 
@@ -486,7 +745,7 @@ struct NotesModelOffer: View {
     @AppStorage("notesOfferAnswered") private var answered = false
 
     var body: some View {
-        if let m = NotesModel.recommended, notes.active == nil {
+        if let m = NotesModel.recommended, !notes.isActive {
             switch notes.state(m) {
             case .downloading(let p):
                 HStack(spacing: 12) {
