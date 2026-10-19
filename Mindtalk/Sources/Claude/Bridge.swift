@@ -50,6 +50,11 @@ final class Bridge: @unchecked Sendable {
     static let room = 16
     /// A connection that neither sends nor takes an answer for this long is dropped.
     static let timeout: Int = 30
+    /// Another copy holds the socket: looked at again this often, so that when it quits
+    /// (a build from Xcode, stopped) this one takes the bridge over.
+    static let retry: Int = 10
+    /// The socket another copy held when this one last looked: said once in the log, not every time.
+    private var waitingAt: String?
 
     /// At launch: the socket, and the fixed path to the helper.
     @MainActor static func launch() {
@@ -59,7 +64,8 @@ final class Bridge: @unchecked Sendable {
 
     /// Listens at `url` (the real socket unless a self-test says otherwise). An old
     /// socket file from a crash is replaced; one that answers belongs to another copy
-    /// of the app (the installed one, while a build from Xcode runs) and is left alone.
+    /// of the app (the installed one, while a build from Xcode runs) and is left alone,
+    /// and looked at again every `retry` seconds until it is gone.
     func start(at url: URL = Bridge.socketURL) {
         guard listener < 0 else { return }
         let path = url.path
@@ -71,12 +77,18 @@ final class Bridge: @unchecked Sendable {
             return
         }
         if Self.answers(&address) {
-            Self.log.notice("another Mindtalk listens at \(path, privacy: .public): this one leaves the bridge to it")
-            #if DEBUG
-            print("Bryggan: en annan Mindtalk lyssnar redan på \(path), den här tar inte över.")
-            #endif
+            if waitingAt != path {
+                waitingAt = path
+                Self.log.notice("another Mindtalk listens at \(path, privacy: .public): this one leaves the bridge to it until it quits")
+                #if DEBUG
+                print("Bryggan: en annan Mindtalk lyssnar redan på \(path), den här tar över när den slutar.")
+                #endif
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(Self.retry)) { [weak self] in self?.start(at: url) }
             return
         }
+        if waitingAt == path { Self.log.notice("the other Mindtalk is gone: this one takes the bridge over") }
+        waitingAt = nil
         unlink(path)
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { Self.log.error("socket: \(String(cString: strerror(errno)), privacy: .public)"); return }
