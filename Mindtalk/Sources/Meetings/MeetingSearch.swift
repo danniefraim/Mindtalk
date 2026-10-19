@@ -349,30 +349,38 @@ final class MeetingLibrary: ObservableObject {
         }
         asking = true
         failed = nil
-        let context = LibraryContext(question: question, meetings: meetings,
-                                     budget: local ? 12_000 : Lines.appleBudget)
         // The questions before, in the same folder — not what was asked about others.
         let history = answers.filter { $0.folderID == folder }.suffix(2).map { "Q: \($0.question)\nA: \($0.answer)" }.joined(separator: "\n")
         Task {
             defer { asking = false }
             do {
                 let t0 = Date()
-                let reply = try await MeetingNotes.answerAcross(question, context: context, history: history, local: local)
-                let titles = Dictionary(meetings.map { ($0.id, $0.title) }, uniquingKeysWith: { a, _ in a })
-                var seen = Set<String>()
-                let sources: [LibraryAnswer.Source] = reply.lines.compactMap { n in
-                    guard let s = context.sources[n], let title = titles[s.meeting] else { return nil }
-                    let source = LibraryAnswer.Source(meeting: s.meeting, title: title, at: s.at)
-                    return seen.insert(source.id).inserted ? source : nil
-                }
-                answers.append(LibraryAnswer(question: question, answer: reply.answer, sources: sources, read: context.meetings,
-                                             folder: folderName, folderID: folder))
-                Self.log.info("answered across \(context.meetings) meetings in \(Date().timeIntervalSince(t0), format: .fixed(precision: 1)) s")
+                let answer = try await Self.answer(question, meetings: meetings, folder: folder, folderName: folderName,
+                                                   history: history, local: local)
+                answers.append(answer)
+                Self.log.info("answered across \(answer.read) meetings in \(Date().timeIntervalSince(t0), format: .fixed(precision: 1)) s")
             } catch {
                 Self.log.error("ask across: \(error.localizedDescription, privacy: .public)")
                 failed = MeetingNotes.explainError(error)
             }
         }
+    }
+
+    /// A question about `meetings` (a folder's, or all), answered — saves nothing.
+    static func answer(_ question: String, meetings: [MeetingRecord], folder: UUID?, folderName: String?,
+                       history: String, local: Bool, now: Date = Date()) async throws -> LibraryAnswer {
+        let context = LibraryContext(question: question, meetings: meetings,
+                                     budget: local ? 12_000 : Lines.appleBudget, now: now)
+        let reply = try await MeetingNotes.answerAcross(question, context: context, history: history, local: local)
+        let titles = Dictionary(meetings.map { ($0.id, $0.title) }, uniquingKeysWith: { a, _ in a })
+        var seen = Set<String>()
+        let sources: [LibraryAnswer.Source] = reply.lines.compactMap { n in
+            guard let s = context.sources[n], let title = titles[s.meeting] else { return nil }
+            let source = LibraryAnswer.Source(meeting: s.meeting, title: title, at: s.at)
+            return seen.insert(source.id).inserted ? source : nil
+        }
+        return LibraryAnswer(question: question, answer: reply.answer, sources: sources, read: context.meetings,
+                             folder: folderName, folderID: folder)
     }
 
     #if DEBUG
@@ -383,3 +391,89 @@ final class MeetingLibrary: ObservableObject {
     func forget(_ answer: LibraryAnswer) { answers.removeAll { $0.id == answer.id } }
     func clear() { answers = []; failed = nil }
 }
+
+#if DEBUG
+// MARK: - Self-test: questions at three levels, read-only
+
+/// `Mindtalk --ask-test [--store dir] [--model apple|gemma] [--now 2026-10-16T16:00:00Z]
+/// [--title "del av titel"] [--folder "namn"] [--one "fråga|fråga"] [--lib "fråga|fråga"]`:
+/// questions about one meeting, a folder's meetings and all meetings, with each model
+/// there is, printed with how many meetings were read and the sources. The meetings
+/// are read from their meeting.json files into memory only: nothing is saved, moved or
+/// trashed, and the app's own store is never loaded.
+enum AskTest {
+    @MainActor static func run() async {
+        let args = CommandLine.arguments
+        func value(_ flag: String) -> String? { args.firstIndex(of: flag).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } }
+        let root = value("--store").map { URL(fileURLWithPath: $0) } ?? MeetingStore.root
+        let meetings = read(root).filter { !$0.words.isEmpty }.sorted { $0.date > $1.date }
+        let names = folderNames(root)
+        let now = value("--now").flatMap { ISO8601DateFormatter().date(from: $0) } ?? Date()
+        var models: [Bool] = []
+        if BetterNotes.shared.isActive, value("--model") != "apple" { models.append(true) }
+        if Polisher.status == .available, value("--model") != "gemma" { models.append(false) }
+        print("\(meetings.count) möten i \(root.path) · Apple Intelligence: \(Polisher.status) · Gemma: \(BetterNotes.shared.writerName)")
+        guard !meetings.isEmpty, !models.isEmpty else { return print("Inget att fråga med.") }
+
+        // One meeting: the one named, or the longest with notes.
+        let one = value("--title").flatMap { t in meetings.first { $0.title.localizedCaseInsensitiveContains(t) } }
+            ?? meetings.filter { $0.summary != nil }.max { $0.words.count < $1.words.count } ?? meetings[0]
+        // A folder: the one named, or the one with the most meetings.
+        let counts = Dictionary(grouping: meetings.compactMap(\.folder), by: { $0 }).mapValues(\.count)
+        let folder = value("--folder").flatMap { n in names.first { $0.value.localizedCaseInsensitiveContains(n) }?.key }
+            ?? counts.max { $0.value < $1.value }?.key
+        let oneQuestions = value("--one")?.split(separator: "|").map(String.init)
+            ?? ["Sammanfatta mötet.", "Vad bestämdes?", "Vem ska göra vad?"]
+        let libQuestions = value("--lib")?.split(separator: "|").map(String.init)
+            ?? ["Vad hände i mötena den senaste veckan?", "Vilka beslut har vi tagit?", "Vad ska jag göra?", "Vem har lovat vad?"]
+
+        for local in models {
+            print("\n════ \(local ? BetterNotes.shared.writerName : "Apple Intelligence") ════")
+            print("\n── Ett möte: \"\(one.title)\" (\(one.words.count) ord) ──")
+            for q in oneQuestions {
+                let t0 = Date()
+                do {
+                    let a = try await MeetingNotes.answer(q, from: Lines(one), local: local)
+                    print(String(format: "\n? %@  (%.1f s)\n  %@\n  källor: %@", q, Date().timeIntervalSince(t0), a.answer,
+                                 a.sources.map { MeetingView.duration($0) }.joined(separator: ", ")))
+                } catch { print("\n? \(q)\n  Fel: \(MeetingNotes.explainError(error)) (\(error))") }
+            }
+            var levels: [(String, UUID?, String?, [MeetingRecord])] = []
+            if let folder {
+                let name = names[folder] ?? "Mappen"
+                levels.append(("Mappen \"\(name)\"", folder, name, meetings.filter { $0.folder == folder }))
+            }
+            levels.append(("Alla möten", nil, nil, meetings))
+            for (label, id, name, scope) in levels {
+                print("\n── \(label) (\(scope.count) möten) ──")
+                for q in libQuestions {
+                    let t0 = Date()
+                    do {
+                        let a = try await MeetingLibrary.answer(q, meetings: scope, folder: id, folderName: name,
+                                                                history: "", local: local, now: now)
+                        print(String(format: "\n? %@  (%.1f s, läste %d möten)\n  %@", q, Date().timeIntervalSince(t0), a.read, a.answer))
+                        for s in a.sources { print("  källa: \(s.title) \(s.at.map { MeetingView.duration($0) } ?? "")") }
+                    } catch { print("\n? \(q)\n  Fel: \(MeetingNotes.explainError(error)) (\(error))") }
+                }
+            }
+        }
+    }
+
+    /// Every meeting.json under `root`, decoded — nothing else is touched.
+    private static func read(_ root: URL) -> [MeetingRecord] {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let folders = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
+        return folders.compactMap { folder in
+            (try? Data(contentsOf: folder.appendingPathComponent("meeting.json"))).flatMap { try? decoder.decode(MeetingRecord.self, from: $0) }
+        }
+    }
+
+    private static func folderNames(_ root: URL) -> [UUID: String] {
+        struct Folder: Decodable { let id: UUID; let name: String }
+        guard let data = try? Data(contentsOf: root.appendingPathComponent("Folders.json")),
+              let folders = try? JSONDecoder().decode([Folder].self, from: data) else { return [:] }
+        return Dictionary(folders.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
+    }
+}
+#endif

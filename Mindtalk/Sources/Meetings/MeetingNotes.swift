@@ -598,7 +598,7 @@ final class MeetingNotes: ObservableObject {
         return summary
     }
 
-    nonisolated private static func answer(_ question: String, from lines: Lines, history: String = "",
+    nonisolated static func answer(_ question: String, from lines: Lines, history: String = "",
                                            local: Bool = false) async throws -> MeetingAnswer {
         // A short question ("vad?") is in the language of the meeting.
         let language = question.split(separator: " ").count >= 3 ? Lines.languageName(of: question) ?? lines.language : lines.language

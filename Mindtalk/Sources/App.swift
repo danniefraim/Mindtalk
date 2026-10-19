@@ -263,6 +263,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        // `Mindtalk --ask-test`: questions about one meeting, a folder and all meetings,
+        // read-only (MeetingSearch.swift, AskTest).
+        if args.contains("--ask-test") {
+            Task { @MainActor in
+                await AskTest.run()
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --test-turns`: the kept-and-regrouped turns equal turns grouped all anew,
         // on all meetings joined into one long one, as it grows.
         if args.contains("--test-turns") {
