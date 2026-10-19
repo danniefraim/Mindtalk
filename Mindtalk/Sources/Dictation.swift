@@ -106,6 +106,9 @@ final class Dictation: ObservableObject {
     @Published private(set) var pickingKey = false
     @Published private(set) var accessibilityGranted = AXIsProcessTrusted()
     @Published private(set) var micGranted = Recorder.micAuthorized
+    /// Tillåt for Hjälpmedel was pressed this session: if it's still off, Kom igång
+    /// says how to switch it off and on again.
+    @Published private(set) var accessibilityAsked = false
     /// The last dictations, kept on this Mac (Application Support, readable only by you)
     /// so a paste that landed nowhere can be copied — never a password field's.
     @Published private(set) var recent: [Entry] = Dictation.loadRecent() {
@@ -416,6 +419,16 @@ final class Dictation: ObservableObject {
         }
     }
 
+    #if DEBUG
+    /// Renders (--render-window): permissions and the model as given, nothing asked of macOS.
+    func preview(mic: Bool, accessibility: Bool, asked: Bool, model: ModelState? = nil) {
+        micGranted = mic
+        accessibilityGranted = accessibility
+        accessibilityAsked = asked
+        if let model { self.model = model }
+    }
+    #endif
+
     /// Mindtalk has been trusted under Hjälpmedel at some point on this Mac.
     private static let everTrustedKey = "accessibilityEverTrusted"
 
@@ -428,6 +441,7 @@ final class Dictation: ObservableObject {
     }
 
     func requestAccessibility() {
+        accessibilityAsked = true
         // Value of kAXTrustedCheckOptionPrompt.
         _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
         refreshPermissions()

@@ -1683,6 +1683,22 @@
         }
       }
     },
+    "%lld steg kvar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld steps left"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld steg kvar"
+          }
+        }
+      }
+    },
     "%lld talare": {
       "localizations": {
         "en": {
@@ -7414,6 +7430,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ett par steg kvar"
+          }
+        }
+      }
+    },
+    "Ett steg kvar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One step left"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ett steg kvar"
           }
         }
       }
@@ -20826,6 +20858,22 @@
         }
       }
     },
+    "Om Mindtalk %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About Mindtalk %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Om Mindtalk %@"
+          }
+        }
+      }
+    },
     "Ord": {
       "localizations": {
         "en": {
@@ -28008,6 +28056,22 @@
         }
       }
     },
+    "Tillbaka till %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tillbaka till %@"
+          }
+        }
+      }
+    },
     "Tillbaka till tankarna": {
       "localizations": {
         "en": {
@@ -29701,6 +29765,22 @@
         }
       }
     },
+    "Visa Kom igång på Hem": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Get started on Home"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa Kom igång på Hem"
+          }
+        }
+      }
+    },
     "Visa alla": {
       "extractionState": "stale",
       "localizations": {
@@ -30219,6 +30299,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa →"
+          }
+        }
+      }
+    },
+    "Visar Kom igång på Hem.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows Get started on Home."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visar Kom igång på Hem."
           }
         }
       }

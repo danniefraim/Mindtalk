@@ -47,6 +47,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             NSApplication.shared.run()
             return
         }
+        // `Mindtalk --render-window out.png --page settings [--section language] [--dark]
+        // [--size 1000x620]`: the whole window's content as drawn (WindowRender.swift).
+        if let i = args.firstIndex(of: "--render-window"), i + 1 < args.count {
+            NSApplication.shared.setActivationPolicy(.accessory)
+            Task { @MainActor in
+                await WindowRender.run(out: args[i + 1], args: args)
+                exit(0)
+            }
+            NSApplication.shared.run()
+            return
+        }
         // Exercise microphone startup and device switching without loading a
         // speech model, listening for hotkeys, or typing into another app.
         if args.contains("--record-test") {
@@ -2140,9 +2151,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         statusPanel.toggle(from: sender)
     }
 
-    /// Settings on "Om Mindtalk" (credits and licences).
+    /// Om Mindtalk: the version, the introduction again, and the credits and licences.
     static func showAbout() {
-        SettingsPage.open(.about)
+        SettingsPage.showAbout()
     }
 
     /// The introduction again. With the main window open it plays inside that

@@ -46,10 +46,18 @@ enum Page: String, CaseIterable, Identifiable {
 enum SettingsSection: String, CaseIterable, Identifiable {
     case general, microphone, dictation, thoughts, meetings, models, integrations, about
 
-    /// Where the section last shown is kept (SettingsPage).
+    /// Where the section last shown is kept (SettingsPage and the tab bar).
     static let storageKey = "settings.section"
+    /// Renders: this section, whatever was shown last.
+    static var preview: SettingsSection?
 
     var id: String { rawValue }
+
+    /// The section kept under `storageKey`; one from an older Mindtalk is read as the
+    /// nearest one now.
+    init(stored raw: String) {
+        self = SettingsSection(rawValue: raw) ?? .general
+    }
 
     var title: String {
         switch self {
@@ -82,6 +90,8 @@ struct MainView: View {
     @ObservedObject var dictation: Dictation
     @ObservedObject var prefs: AppPrefs
     @State private var page: Page = MainView.startPage
+    /// The page before Inställningar, where its "Tillbaka" leads.
+    @State private var returnPage: Page = .dictation
     @State private var introduction = false
     /// Where the window opens (Settings after a language switch).
     static var startPage: Page = .dictation
@@ -90,10 +100,15 @@ struct MainView: View {
     /// The introduction is playing over the window — it counts as the introduction
     /// for the dictation key, too (AppDelegate.isOnboarding).
     static var introductionShown = false
+    /// The tab bar's top: its first row level with the pages' top line, clear of the
+    /// traffic lights.
+    static let barTop: CGFloat = DS.Layout.pageTop - 8
+    /// Renders: the window drawn without asking macOS about permissions.
+    static var rendering = false
 
     var body: some View {
-        // The page gets the whole window; a tab bar floats at the leading edge.
-        ZStack(alignment: .leading) {
+        // The page gets the whole window; a tab bar floats at the leading edge, at the top.
+        ZStack(alignment: .topLeading) {
             ZStack(alignment: .top) {
                 // A soft wash of the brand's warm light behind the page headers.
                 WarmGlow(intensity: 0.32)
@@ -118,16 +133,20 @@ struct MainView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(DS.Colors.paper)
 
-            FloatingTabBar(page: $page, dictation: dictation)
+            FloatingTabBar(page: $page, returnPage: returnPage, dictation: dictation)
                 .padding(.leading, 16)
+                .padding(.top, Self.barTop)
+        }
+        .onChange(of: page) { old, new in
+            if new == .settings, old != .settings { returnPage = old }
         }
         .ignoresSafeArea()
         // Minska rörelse: no springs, slides or scaling anywhere in the window.
         .transaction { t in if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { t.animation = nil } }
         .frame(minWidth: 940, minHeight: 580)
-        .onAppear { dictation.refreshPermissions() }
+        .onAppear { if !Self.rendering { dictation.refreshPermissions() } }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            dictation.refreshPermissions()
+            if !Self.rendering { dictation.refreshPermissions() }
         }
         .overlay {
             if introduction {
@@ -159,8 +178,6 @@ extension Notification.Name {
     static let showPage = Notification.Name("MindtalkShowPage")
     /// Play the introduction inside the main window.
     static let showIntroduction = Notification.Name("MindtalkShowIntroduction")
-    /// Show a section of Settings (object: SettingsSection), when Settings is already on screen.
-    static let showSettingsSection = Notification.Name("MindtalkShowSettingsSection")
 }
 
 /// The introduction over the whole main window, with a way out in the corner.
@@ -317,6 +334,8 @@ struct SettingsPage: View {
     var plain = false
     /// Screenshots: this section, whatever was shown last.
     var fixedSection: SettingsSection? = nil
+    /// Renders: Allmänt with Mer open.
+    static var previewMore = false
     @ObservedObject private var mics = Microphones.shared
     @ObservedObject private var updates = Updates.shared
     @State private var loginStatus = SMAppService.mainApp.status
@@ -343,27 +362,18 @@ struct SettingsPage: View {
 
     // MARK: Sections
 
-    /// The section on screen, kept across launches (the menu bar's Inställningar… opens it again).
+    /// The section on screen, kept across launches (the menu bar's Inställningar… opens it
+    /// again). The sections themselves are listed in the tab bar.
     @AppStorage(SettingsSection.storageKey) private var sectionRaw = SettingsSection.general.rawValue
-    /// The page's width: under `narrowWidth` the sections are chips above the section.
-    @State private var width: CGFloat = 900
-    @FocusState private var listFocused: Bool
-
-    private static let narrowWidth: CGFloat = 800
-    private static let listWidth: CGFloat = 188
-    private static let columnGap: CGFloat = 28
-    private static let trailing: CGFloat = 32
-    private var narrow: Bool { width < Self.narrowWidth }
 
     private var section: SettingsSection {
-        fixedSection ?? SettingsSection(rawValue: sectionRaw) ?? .general
+        fixedSection ?? SettingsSection.preview ?? SettingsSection(stored: sectionRaw)
     }
 
     /// Settings on that section, also when Settings is already on screen.
     static func open(_ section: SettingsSection) {
         UserDefaults.standard.set(section.rawValue, forKey: SettingsSection.storageKey)
         AppDelegate.showWindow(page: .settings)
-        NotificationCenter.default.post(name: .showSettingsSection, object: section)
     }
 
     /// Settings → Modeller (Byt modell under a summary, Hantera i Modeller).
@@ -372,19 +382,27 @@ struct SettingsPage: View {
     /// Settings → Integrationer, where MCP is (mindtalk://settings/mcp).
     static func openMCP() { open(.integrations) }
 
-    private var version: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+    /// Om Mindtalk: the popover from the version line in the tab bar.
+    static func showAbout() {
+        AppDelegate.showWindow(page: .settings)
+        NotificationCenter.default.post(name: .showAbout, object: nil)
     }
 
     var body: some View {
         Group {
-            if narrow { narrowLayout } else { wideLayout }
+            if plain {
+                sectionContent.padding(28)
+            } else {
+                // The same column as every other page, so the left edge stays put;
+                // a new section starts at its top.
+                sectionContent
+                    .pageLayout()
+                    .id(section)
+                    .transition(.opacity)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: plain ? nil : .infinity, alignment: .topLeading)
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-        .onReceive(NotificationCenter.default.publisher(for: .showSettingsSection)) { note in
-            if let target = note.object as? SettingsSection { select(target) }
-        }
+        .animation(.easeOut(duration: 0.18), value: section)
         // The dictation key's field is only in Diktering: picking stops when it's left.
         .onChange(of: sectionRaw) { _, _ in dictation.stopPickingKey(reason: "Settings section changed") }
         // A new dictation key moves the thought key's default (left ⌥ unless dictation has it).
@@ -400,165 +418,12 @@ struct SettingsPage: View {
         }
     }
 
-    // MARK: Layout
-
-    /// The list on the left, the section beside it. On a big window the two stay
-    /// together in the middle, as the other pages' column does.
-    private var wideLayout: some View {
-        let inset = max(24, (width - (Self.listWidth + Self.columnGap + DS.Layout.readingWidth + Self.trailing)) / 2)
-        return HStack(alignment: .top, spacing: 0) {
-            sectionList
-                .frame(width: Self.listWidth, alignment: .leading)
-                .padding(.top, DS.Layout.pageTop - 2)
-                .padding(.leading, inset)
-                .staggered(0)
-            scrolling(content: sectionContent
-                .padding(.leading, Self.columnGap)
-                .padding(.trailing, Self.trailing)
-                .padding(.top, DS.Layout.pageTop))
-        }
-    }
-
-    /// Too narrow for two columns: the sections as chips over the section.
-    private var narrowLayout: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
-                CapsLabel(String(localized: "Inställningar"))
-                FlowLayout(spacing: 6) {
-                    ForEach(SettingsSection.allCases) { chip($0) }
-                }
-            }
-            .padding(.horizontal, DS.Layout.pageHorizontal)
-            .padding(.top, DS.Layout.pageTop - 2)
-            .padding(.bottom, 4)
-            .modifier(SectionKeys(focus: $listFocused, step: step))
-            .staggered(0)
-            scrolling(content: sectionContent
-                .padding(.horizontal, DS.Layout.pageHorizontal)
-                .padding(.top, 24))
-        }
-    }
-
-    /// The section scrolls on its own; a new section starts at its top.
-    @ViewBuilder private func scrolling<Content: View>(content: Content) -> some View {
-        let column = content
-            .frame(maxWidth: DS.Layout.readingWidth + (narrow ? 2 * DS.Layout.pageHorizontal : Self.columnGap + Self.trailing), alignment: .leading)
-            .padding(.bottom, 40)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        if plain {
-            column
-        } else {
-            ScrollView { column }
-                .scrollContentBackground(.hidden)
-                .id(section)
-                .transition(.opacity)
-                .staggered(1)
-        }
-    }
-
-    /// INSTÄLLNINGAR, the sections, and the version under them.
-    private var sectionList: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            CapsLabel(String(localized: "Inställningar"))
-                .padding(.leading, 10)
-                .padding(.bottom, 12)
-            ForEach(SettingsSection.allCases) { row($0) }
-            Text(verbatim: "Mindtalk \(version)")
-                .font(.system(size: 11.5))
-                .foregroundStyle(DS.Colors.muted)
-                .padding(.leading, 10)
-                .padding(.top, 14)
-        }
-        .padding(.bottom, 40)
-        .modifier(SectionKeys(focus: $listFocused, step: step))
-    }
-
-    private func row(_ s: SettingsSection) -> some View {
-        let selected = s == section
-        return Button { select(s, focusList: true) } label: {
-            HStack(spacing: 10) {
-                Image(systemName: s.icon)
-                    .font(.system(size: 15))
-                    .foregroundStyle(selected ? DS.Colors.ink : DS.Colors.muted)
-                    .frame(width: 22)
-                    .overlay(alignment: .topTrailing) { attentionDot(s) }
-                Text(verbatim: s.title)
-                    .font(.system(size: 13.5, weight: selected ? .semibold : .regular))
-                    .foregroundStyle(DS.Colors.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .frame(minHeight: 34)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(SectionRowStyle(selected: selected, shape: RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)))
-        .accessibilityLabel(s.title)
-        .accessibilityHint(needsAttention(s) ? Text("Något behöver ordnas här.") : Text(verbatim: ""))
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-
-    private func chip(_ s: SettingsSection) -> some View {
-        let selected = s == section
-        return Button { select(s, focusList: true) } label: {
-            HStack(spacing: 7) {
-                Image(systemName: s.icon)
-                    .font(.system(size: 13))
-                    .foregroundStyle(selected ? DS.Colors.ink : DS.Colors.muted)
-                    .overlay(alignment: .topTrailing) { attentionDot(s) }
-                Text(verbatim: s.title)
-                    .font(.system(size: 13, weight: selected ? .semibold : .regular))
-                    .foregroundStyle(DS.Colors.ink)
-                    .fixedSize()
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 32)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(SectionRowStyle(selected: selected, shape: RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)))
-        .accessibilityLabel(s.title)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-
-    /// The microphone isn't allowed, or the speech model isn't there yet: both are put
-    /// right in Mikrofon och språk. (Without Hjälpmedel its card is over every section.)
-    private func needsAttention(_ s: SettingsSection) -> Bool {
-        guard s == .microphone else { return false }
-        switch dictation.model {
-        case .missing, .failed: return true
-        default: return !dictation.micGranted
-        }
-    }
-
-    @ViewBuilder private func attentionDot(_ s: SettingsSection) -> some View {
-        if needsAttention(s) {
-            Circle().fill(DS.Colors.ink)
-                .frame(width: 6, height: 6)
-                .offset(x: 3, y: -1)
-                .accessibilityHidden(true)
-        }
-    }
-
-    private func select(_ s: SettingsSection, focusList: Bool = false) {
-        if focusList { listFocused = true }
-        guard s != section else { return }
-        withAnimation(.easeOut(duration: 0.18)) { sectionRaw = s.rawValue }
-    }
-
-    /// ↑ and ↓ in the list: the section before or after.
-    private func step(_ by: Int) {
-        let all = SettingsSection.allCases
-        guard let i = all.firstIndex(of: section), all.indices.contains(i + by) else { return }
-        select(all[i + by])
-    }
-
     // MARK: The section
 
     private var sectionContent: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(verbatim: section.title)
-                .font(DS.sectionPageTitle)
+                .font(DS.pageTitle)
                 .accessibilityAddTraits(.isHeader)
                 .padding(.bottom, 10)
 
@@ -610,7 +475,7 @@ struct SettingsPage: View {
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             // Size, Finder and removal live with the other models.
-            Button { select(.models) } label: {
+            Button { withAnimation(.easeOut(duration: 0.18)) { sectionRaw = SettingsSection.models.rawValue } } label: {
                 Text("Hantera i Modeller →")
                     .font(.system(size: 12, weight: .medium)).foregroundStyle(DS.Colors.muted).underline()
                     .padding(.vertical, 2).contentShape(Rectangle())
@@ -759,48 +624,6 @@ struct SettingsPage: View {
             }
         }
         .card()
-    }
-}
-
-/// ↑ and ↓ move between sections while the list (or the chips) has focus. A click on
-/// a section gives the list focus.
-private struct SectionKeys: ViewModifier {
-    var focus: FocusState<Bool>.Binding
-    let step: (Int) -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .focusable()
-            .focused(focus)
-            .focusEffectDisabled()
-            .onKeyPress(.upArrow) { step(-1); return .handled }
-            .onKeyPress(.downArrow) { step(1); return .handled }
-            .onKeyPress(.leftArrow) { step(-1); return .handled }
-            .onKeyPress(.rightArrow) { step(1); return .handled }
-    }
-}
-
-/// A section in the list: the chip grey under the chosen one, a lighter grey under the pointer.
-private struct SectionRowStyle<S: Shape>: ButtonStyle {
-    let selected: Bool
-    let shape: S
-
-    func makeBody(configuration: Configuration) -> some View {
-        Row(configuration: configuration, selected: selected, shape: shape)
-    }
-
-    private struct Row: View {
-        let configuration: ButtonStyle.Configuration
-        let selected: Bool
-        let shape: S
-        @State private var hovering = false
-        var body: some View {
-            configuration.label
-                .background(shape.fill(DS.Colors.chip.opacity(selected ? 1 : hovering ? 0.55 : 0)))
-                .opacity(configuration.isPressed ? 0.8 : 1)
-                .animation(.easeOut(duration: 0.12), value: hovering)
-                .onHover { hovering = $0 }
-        }
     }
 }
 
