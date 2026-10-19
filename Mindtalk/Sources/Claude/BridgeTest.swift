@@ -168,7 +168,7 @@ enum BridgeTest {
               (r.result?["summary"] as? [String: Any])?["overview"] as? String == fixture.overview
                 && decisions.first?["t_seconds"] as? Int == 120 && decisions.first?["time"] as? String == "2:00"
                 && tasks.count == 2 && tasks.first?["owner"] as? String == "Anna" && tasks.first?["done"] as? Bool == false
-                && rows(r.result, "notes").count == 2 && rows(r.result, "marks").count == 1)
+                && rows(r.result, "notes").count == 2 && rows(r.result, "marks").count == 2)
         check("get_meeting: aldrig texten", r.result?["segments"] == nil && r.result?["transcript"] == nil)
         r = await call("mindtalk_get_meeting", ["meeting_id": m1, "include": ["tasks"], "response_format": "detailed"])
         check("get_meeting: include och detailed", r.result?["decisions"] == nil && rows(r.result, "tasks").first?["link"] as? String == "mindtalk://meeting/\(m1)?t=300")
@@ -186,6 +186,8 @@ enum BridgeTest {
         check("get_transcript: sida två, annan text", !page2.isEmpty && page2 != page1)
         check("get_transcript: en instruktion i det sagda är data, ord för ord",
               (page1 + page2).contains(Fixture.injection))
+        r = await call("mindtalk_get_transcript", ["meeting_id": m1, "cursor": tCursor ?? "", "speaker": "erik"])
+        check("get_transcript: en cursor från en annan filtrering nekas", r.error == "Invalid cursor, start again without a cursor.", r.error ?? "inget fel")
         r = await call("mindtalk_get_transcript", ["meeting_id": m1, "speaker": "erik", "start_sec": 1000, "end_sec": 1200])
         segments = r.result?["segments"] as? [String] ?? []
         check("get_transcript: talare och tid", !segments.isEmpty && segments.allSatisfy { $0.contains("] Erik: ") }
@@ -209,11 +211,19 @@ enum BridgeTest {
             r.error.map { "fel: \($0)" } ?? rows(r.result, "tasks").map { "\($0["task"] ?? "") (\($0["owner"] ?? "ingen"), \($0["done"] as? Bool == true ? "klar" : "öppen"), \((($0["meeting"] as? [String: Any])?["title"]) ?? ""))" }.joined(separator: "; ")
         }
         r = await call("mindtalk_list_tasks")
-        check("list_tasks: öppna", rows(r.result, "tasks").count == 2 && rows(r.result, "tasks").allSatisfy { $0["done"] as? Bool == false }, taskRows(r))
+        check("list_tasks: öppna, med en markerad uppgift som inte står i sammanfattningen",
+              rows(r.result, "tasks").count == 3 && rows(r.result, "tasks").allSatisfy { $0["done"] as? Bool == false }
+              && rows(r.result, "tasks").contains { $0["task"] as? String == "Boka möte med Klang" }
+              && rows(r.result, "tasks").filter { $0["task"] as? String == "Kontakta leverantören" }.count == 1, taskRows(r))
         r = await call("mindtalk_list_tasks", ["status": "done"])
         check("list_tasks: klara", rows(r.result, "tasks").count == 1, taskRows(r))
         r = await call("mindtalk_list_tasks", ["status": "all", "owner": "anna"])
         check("list_tasks: alla med ägare", rows(r.result, "tasks").count == 2 && rows(r.result, "tasks").first?["t_seconds"] as? Int == 300, taskRows(r))
+        r = await call("mindtalk_list_tasks", ["limit": 2])
+        let taskCursor = r.result?["nextCursor"] as? String
+        check("list_tasks: sida 1", rows(r.result, "tasks").count == 2 && taskCursor != nil && r.result?["total"] as? Int == 3, taskRows(r))
+        r = await call("mindtalk_list_tasks", ["limit": 2, "cursor": taskCursor ?? ""])
+        check("list_tasks: sida 2, slut", rows(r.result, "tasks").count == 1 && r.result?["nextCursor"] == nil, taskRows(r))
 
         // Thoughts.
         r = await call("mindtalk_list_thoughts")
@@ -230,7 +240,7 @@ enum BridgeTest {
         let logged = sharing.entries
         print("     loggen: \(logged.count) inlägg: " + logged.reversed().map { "\($0.tool.dropFirst(9)) \($0.scope) \($0.items)/\($0.characters)" }.joined(separator: ", "))
         let answered = logged.filter { !$0.wasRefused }, refused = logged.filter(\.wasRefused)
-        check("loggen: ett inlägg per besvarat anrop, med verktyg och omfång", answered.count == 25
+        check("loggen: ett inlägg per besvarat anrop, med verktyg och omfång", answered.count == 27
               && answered.contains { $0.tool == "mindtalk_get_transcript" && $0.scope == "Budgetmöte" && $0.characters > 20_000 }
               && answered.contains { $0.tool == "mindtalk_list_thoughts" && $0.items == 3 },
               "\(answered.count) besvarade")
@@ -341,7 +351,8 @@ enum BridgeTest {
                                                   .init(text: "Uppdatera budgeten", owner: "Erik", at: 900, done: true)],
                                           points: [.init(text: "Tempot i leveransen", at: 50)])
             long.notes = [.init(text: "Fråga om rabatten", at: 400), .init(text: "Klart till fredag", at: nil)]
-            long.marks = [.init(at: 120, kind: .decision, text: "Vi kör på Klang")]
+            // A task marked with the words the summary took up: listed once.
+            long.marks = [.init(at: 120, kind: .decision, text: "Vi kör på Klang"), .init(at: 300, kind: .task, text: "Kontakta leverantören")]
 
             var short = MeetingRecord(title: "Kort avstämning", date: day(2026, 10, 11, 9), language: .swedish)
             short.folder = f.folderA
@@ -351,6 +362,8 @@ enum BridgeTest {
                 short.words.append(MeetingWord(text: String(w), start: Double(k), end: Double(k) + 0.5, speaker: 0))
             }
             short.summary = MeetingSummary(overview: "Kort avstämning av projektet.", tasks: [.init(text: "Skicka protokollet", owner: "Anna", at: 10)])
+            // A task marked but not in the summary: listed too.
+            short.marks = [.init(at: 5, kind: .task, text: "Boka möte med Klang")]
 
             var secret = MeetingRecord(title: "Hemligt möte", date: day(2026, 10, 13, 15), language: .swedish)
             secret.folder = f.folderB

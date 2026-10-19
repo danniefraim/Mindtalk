@@ -192,17 +192,24 @@ https://sparkle-project.org
 
 """ + open(os.path.join(SPARKLE, "LICENSE")).read().strip())
 
-# Everything else compiled in for "Bättre anteckningar" (MLX and the tokenizer),
-# with its licence, from the resolved packages. swift-syntax only builds macros.
+# Everything else compiled in for "Bättre anteckningar" (MLX and the tokenizer) and
+# for the helper `mindtalk` (the MCP SDK and what it links), with its licence, from
+# the resolved packages. swift-syntax only builds macros; swift-nio and swift-atomics
+# are resolved for the SDK's example servers but never linked into the helper
+# (checked with nm on Contents/Helpers/mindtalk: no NIO or Atomics symbols).
 import json
 resolved = next(iter(glob.glob(os.path.join(ROOT, "Mindtalk.xcodeproj", "**", "Package.resolved"), recursive=True)), None)
 pins = json.load(open(resolved))["pins"] if resolved else []
 purpose = {"mlx-swift": "Runs the notes model on the Mac's GPU.",
            "mlx-swift-lm": "Loads and runs language models with MLX.",
-           "swift-transformers": "Reads the notes model's tokenizer."}
+           "swift-transformers": "Reads the notes model's tokenizer.",
+           "swift-sdk": "Speaks MCP in the helper mindtalk.",
+           "swift-log": "Logging for the helper mindtalk.",
+           "swift-system": "System calls for the helper mindtalk.",
+           "eventsource": "Server-sent events for the MCP SDK in the helper mindtalk."}
 for pin in sorted(pins, key=lambda p: p["identity"]):
     name = pin["identity"]
-    if name in ("fluidaudio", "sparkle", "swift-syntax"):
+    if name in ("fluidaudio", "sparkle", "swift-syntax", "swift-nio", "swift-atomics"):
         continue
     folder = next((d for d in glob.glob(os.path.join(os.path.dirname(FLUID), "*")) if os.path.basename(d).lower() == name), None)
     lic = next(iter(sorted(glob.glob(os.path.join(folder, "LICENSE*")))), None) if folder else None

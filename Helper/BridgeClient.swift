@@ -96,9 +96,12 @@ enum BridgeClient {
         if let fd = tryConnect() { return .success(fd) }
         guard mayOpenApp else { return .failure(Failure(message: notRunning)) }
         guard FileManager.default.fileExists(atPath: markerPath) else { return .failure(Failure(message: off)) }
+        // The installed app by its path when it is there, so a build left under
+        // another folder is never the one that gets started; else by its identifier.
         let open = Process()
         open.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        open.arguments = ["-gjb", bundleID]
+        let installed = "/Applications/Mindtalk.app"
+        open.arguments = FileManager.default.fileExists(atPath: installed) ? ["-gj", "-a", installed] : ["-gjb", bundleID]
         try? open.run()
         open.waitUntilExit()
         let deadline = Date().addingTimeInterval(8)

@@ -88,10 +88,11 @@ enum ToolCatalog {
                 """,
             output: """
                 {"type": "object", "properties": {
-                  "id": {"type": "string"}, "title": {"type": "string"}, "date": {"type": "string"},
+                  "id": {"type": "string"}, "title": {"type": "string"}, "date": {"type": "string"}, "start": {"type": "string"},
                   "duration_seconds": {"type": "integer"},
                   "folder": {"type": "object", "properties": {"id": {"type": "string"}, "name": {"type": "string"}}},
                   "speakers": {"type": "array", "items": {"type": "string"}}, "link": {"type": "string"},
+                  "gist": {"type": "string"}, "has_summary": {"type": "boolean"}, "has_transcript": {"type": "boolean"},
                   "summary": {"type": ["object", "null"], "properties": {"overview": {"type": "string"}, "written": {"type": "string"},
                     "written_by": {"type": "string"}, "notes_changed_since": {"type": "boolean"},
                     "points": {"type": "array", "items": {"type": "object"}}}},
@@ -155,20 +156,21 @@ enum ToolCatalog {
         Definition(
             name: "mindtalk_list_tasks",
             title: "List tasks",
-            description: "Tasks from the meetings' summaries: what, who, whether it is done, in which meeting and at what moment. Open ones by default; narrow by folder, dates or owner.",
+            description: "Tasks from the meetings' summaries, and moments the user marked as tasks: what, who, whether it is done, in which meeting and at what moment. Open ones by default; narrow by folder, dates or owner. Paged: follow nextCursor.",
             input: """
                 {"type": "object", "properties": {
                   "status": {"type": "string", "enum": ["open", "done", "all"], "default": "open"},
                   \(folderID), \(from), \(to),
-                  "owner": {"type": "string", "description": "Only tasks whose owner contains this name."}},
-                  "additionalProperties": false}
+                  "owner": {"type": "string", "description": "Only tasks whose owner contains this name."},
+                  "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50},
+                  \(cursor)}, "additionalProperties": false}
                 """,
             output: """
                 {"type": "object", "properties": {
                   "tasks": {"type": "array", "items": {"type": "object", "properties": {
                     "task": {"type": "string"}, "owner": {"type": "string"}, "done": {"type": "boolean"},
                     "meeting": \(meetingRef), "t_seconds": {"type": "integer"}, "link": {"type": "string"}}}},
-                  "total": {"type": "integer"}, "note": {"type": "string"}}}
+                  "total": {"type": "integer"}, \(nextCursor)}}
                 """),
         Definition(
             name: "mindtalk_list_thoughts",

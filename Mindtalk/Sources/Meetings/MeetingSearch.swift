@@ -42,18 +42,21 @@ enum MeetingSearch {
     /// Every meeting with all the words of `query` somewhere in it, newest first, and
     /// where — the title, the summary, your notes, what was said. Case doesn't matter;
     /// å, ä and ö do ("bäst" isn't "bast").
-    @MainActor static func find(_ query: String, in meetings: [MeetingRecord], limit: Int = 4) -> [MeetingMatch] {
+    /// `transcripts` false: only the title, the summary and the notes are looked in, never
+    /// what was said (the assistant at a level without the text).
+    @MainActor static func find(_ query: String, in meetings: [MeetingRecord], limit: Int = 4, transcripts: Bool = true) -> [MeetingMatch] {
         let words = query.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init).filter { !$0.isEmpty }
         guard !words.isEmpty else { return [] }
         func has(_ text: String, _ word: String) -> Bool { text.range(of: word, options: [.caseInsensitive]) != nil }
 
         var out: [MeetingMatch] = []
         for record in meetings {
-            let sentences = sentences(of: record)
+            let sentences = transcripts ? sentences(of: record) : []
             let summary = summaryLines(of: record)
             let notes = record.notes.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
-            // All the words, anywhere in the meeting.
-            let everything = ([record.title] + summary.map(\.text) + notes.map(\.text) + sentences.map(\.text)).joined(separator: " ")
+            // All the words, anywhere in the meeting (the sentences as one string, kept).
+            let everything = ([record.title] + summary.map(\.text) + notes.map(\.text)).joined(separator: " ")
+                + (transcripts ? " " + said(of: record) : "")
             guard words.allSatisfy({ has(everything, $0) }) else { continue }
 
             var hits: [MeetingHit] = []
@@ -82,19 +85,43 @@ enum MeetingSearch {
 
     /// The meeting sentence by sentence, with who said it and when. Kept per meeting
     /// until its words or names change, so typing a search doesn't redo every meeting.
-    @MainActor static func sentences(of record: MeetingRecord) -> [Sentence] {
+    @MainActor static func sentences(of record: MeetingRecord) -> [Sentence] { cached(record).sentences }
+
+    /// Everything said in the meeting as one lowercased string, kept with the sentences:
+    /// "are all the words in it?" is asked of every meeting at every keystroke.
+    @MainActor static func said(of record: MeetingRecord) -> String { cached(record).said }
+
+    @MainActor private static func cached(_ record: MeetingRecord) -> Cached {
         // Who said each word too: a merge or a move changes the speakers, not the count.
         var speakers = Hasher()
         for w in record.words { speakers.combine(w.speaker) }
         for m in record.moves { speakers.combine(m.speaker) }
         let key = "\(record.words.count)-\(record.words.last?.end ?? 0)-\(record.names.sorted { $0.key < $1.key })-\(speakers.finalize())"
-        if let cached = cache[record.id], cached.key == key { return cached.sentences }
+        tick += 1
+        if let hit = cache[record.id], hit.key == key {
+            cache[record.id]?.used = tick
+            return hit
+        }
         let made = makeSentences(of: record)
-        if cache.count > 500 { cache.removeAll() }
-        cache[record.id] = (key, made)
-        return made
+        let entry = Cached(key: key, sentences: made, said: made.map(\.text).joined(separator: " ").lowercased(), used: tick)
+        // Full: the ones not looked at for longest go, the rest stay (not everything at
+        // once, which would redo every meeting on the next keystroke).
+        if cache.count >= kept {
+            for (id, _) in cache.sorted(by: { $0.value.used < $1.value.used }).prefix(cache.count - kept + 1) { cache[id] = nil }
+        }
+        cache[record.id] = entry
+        return entry
     }
-    @MainActor private static var cache: [UUID: (key: String, sentences: [Sentence])] = [:]
+    private struct Cached {
+        let key: String
+        let sentences: [Sentence]
+        let said: String
+        var used: Int
+    }
+    @MainActor private static var cache: [UUID: Cached] = [:]
+    @MainActor private static var tick = 0
+    /// How many meetings' sentences are kept at most.
+    private static let kept = 500
 
     /// The word list or the filler setting changed (MeetingText.forget): cleaned afresh.
     @MainActor static func forget() { cache.removeAll() }

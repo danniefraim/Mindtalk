@@ -59,6 +59,10 @@ case "mcp":
         .init(tools: ToolCatalog.tools)
     }
     await server.withMethodHandler(CallTool.self) { params in
+        // A tool that isn't ours is a protocol error, not an answer from the app.
+        guard ToolCatalog.tools.contains(where: { $0.name == params.name }) else {
+            throw MCPError.invalidParams("Unknown tool \"\(params.name)\". The tools are: " + ToolCatalog.tools.map(\.name).joined(separator: ", ") + ".")
+        }
         let started = Date()
         let outcome = await BridgeClient.call(tool: params.name, arguments: params.arguments ?? [:])
         let ms = Int(Date().timeIntervalSince(started) * 1000)

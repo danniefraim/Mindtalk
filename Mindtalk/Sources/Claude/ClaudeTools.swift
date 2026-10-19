@@ -29,7 +29,10 @@ enum ClaudeTools {
     /// A meeting must be over before it can be read: finished this long ago, so the owner
     /// has a moment to put it in a folder that is kept away.
     static let grace: TimeInterval = 120
-    static let moreNote = "More available: narrow with from/to, folder_id or query, or follow nextCursor."
+    /// A list or a search that didn't fit, or has another page.
+    static let moreNote = "More hits than shown: narrow with meeting_id, folder_id, from/to or more specific words, or follow nextCursor where there is one."
+    /// A meeting's notes that didn't fit.
+    static let moreNotesNote = "Not all notes fit; use mindtalk_search with meeting_id to find a specific one."
     private static let meetingsLevelMessage =
         "Meetings are not shared: the level in Mindtalk under Settings → Integrations → MCP is \"Only thoughts\". Thoughts can be read with mindtalk_list_thoughts and mindtalk_search."
     private static let transcriptsLevelMessage =
@@ -164,12 +167,19 @@ enum ClaudeTools {
             return n
         }
         func uuid(_ key: String) throws -> UUID? { try string(key).flatMap(UUID.init) }
-        /// An offset from an opaque cursor.
-        func offset() throws -> Int {
+        /// An offset from an opaque cursor. `stamp`: what the pages are cut from (the
+        /// transcript's filters and length): a cursor from another cut is refused, so
+        /// a page never starts in the middle of a different list.
+        func offset(stamp: String? = nil) throws -> Int {
             guard let c = try string("cursor") else { return 0 }
             guard let data = Data(base64Encoded: c), let text = String(data: data, encoding: .utf8),
-                  text.hasPrefix("o="), let n = Int(text.dropFirst(2)), n >= 0
+                  text.hasPrefix("o=") else { throw Failure(message: "Invalid cursor. Use the nextCursor from the previous answer.") }
+            let fields = text.dropFirst(2).split(separator: ";", maxSplits: 1).map(String.init)
+            guard let first = fields.first, let n = Int(first), n >= 0
             else { throw Failure(message: "Invalid cursor. Use the nextCursor from the previous answer.") }
+            if let stamp, fields.count < 2 || fields[1] != stamp {
+                throw Failure(message: "Invalid cursor, start again without a cursor.")
+            }
             return n
         }
         /// "2026-10-19" or "2026-10-19T14:00:00+02:00". `to` as a bare date reaches its end.
@@ -185,7 +195,9 @@ enum ClaudeTools {
         }
     }
 
-    static func cursor(offset: Int) -> String { Data("o=\(offset)".utf8).base64EncodedString() }
+    static func cursor(offset: Int, stamp: String? = nil) -> String {
+        Data(("o=\(offset)" + (stamp.map { ";" + $0 } ?? "")).utf8).base64EncodedString()
+    }
 
     static let iso: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
@@ -293,7 +305,7 @@ enum ClaudeTools {
             "title": title(of: m),
             "start": iso.string(from: m.date),
             "duration_seconds": clampedInt(seconds(m)),
-            "speakers": m.speakers.map { m.name(of: $0) },
+            "speakers": { let cast = m.cast; return m.speakers.map { cast.name(of: $0) } }(),
             "has_summary": m.summary != nil,
             "has_transcript": !m.words.isEmpty,
             "link": link(meeting: m.id),
@@ -363,7 +375,7 @@ enum ClaudeTools {
     /// `transcripts` are shared.
     private static func everything(of m: MeetingRecord, transcripts: Bool) -> String {
         var parts = [title(of: m)] + MeetingSearch.summaryLines(of: m).map(\.text) + m.notes.map(\.text) + m.marks.compactMap(\.text)
-        if transcripts { parts += MeetingSearch.sentences(of: m).map(\.text) }
+        if transcripts { parts.append(MeetingSearch.said(of: m)) }
         return parts.joined(separator: " ")
     }
 
@@ -454,7 +466,7 @@ enum ClaudeTools {
         if include.contains("notes") {
             var notes = m.notes.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
                 .map { ["text": $0.text].merging(moment($0.at)) { a, _ in a } }
-            if fit(&notes, in: result, key: "notes", budget: meetingBudget) { result["note"] = moreNote }
+            if fit(&notes, in: result, key: "notes", budget: meetingBudget) { result["note"] = moreNotesNote }
             result["notes"] = notes
         }
         if include.contains("marks") {
@@ -471,10 +483,13 @@ enum ClaudeTools {
 
     private struct Line { let at: Double; let speaker: String?; let text: String }
 
+    /// The meeting as turns, grouped anew: the live view keeps a prefix of the meeting
+    /// it shows, and a whole transcript read here must not replace it.
     private static func lines(of m: MeetingRecord) -> [Line] {
-        MeetingText.turns(m.words, paragraphs: true).compactMap { turn in
+        let cast = m.cast
+        return MeetingText.turnsAllAnew(m.words, pending: []).compactMap { turn in
             guard !turn.text.isEmpty else { return nil }
-            let who = turn.speaker.flatMap { $0 >= 0 ? m.name(of: $0) : nil }
+            let who = turn.speaker.flatMap { $0 >= 0 ? cast.name(of: $0) : nil }
             return Line(at: turn.start, speaker: who, text: turn.text)
         }
     }
@@ -485,13 +500,14 @@ enum ClaudeTools {
     private static func getTranscript(_ args: Args) throws -> ([String: Any], String, Int) {
         let m = try meeting(args)
         var all = lines(of: m)
-        if let from = try args.double("start_sec") { all.removeAll { $0.at < from } }
-        if let to = try args.double("end_sec") { all.removeAll { $0.at > to } }
-        if let who = try args.string("speaker") {
-            all.removeAll { !($0.speaker?.localizedCaseInsensitiveContains(who) ?? false) }
-        }
+        let from = try args.double("start_sec"), to = try args.double("end_sec"), who = try args.string("speaker")
+        if let from { all.removeAll { $0.at < from } }
+        if let to { all.removeAll { $0.at > to } }
+        if let who { all.removeAll { !($0.speaker?.localizedCaseInsensitiveContains(who) ?? false) } }
         let rendered = all.map(render)
-        let offset = try args.offset()
+        // The cut the pages are of: the filters and the meeting's length.
+        let stamp = "\(m.words.count)-\(from.map { String($0) } ?? "")-\(to.map { String($0) } ?? "")-\(who?.lowercased() ?? "")"
+        let offset = try args.offset(stamp: stamp)
         var page: [String] = []
         var chars = 0
         var i = offset
@@ -511,7 +527,7 @@ enum ClaudeTools {
         if let first = all.dropFirst(offset).first { result["from_seconds"] = clampedInt(first.at, .down) }
         if i > offset { result["to_seconds"] = clampedInt(all[i - 1].at, .down) }
         if i < rendered.count {
-            result["nextCursor"] = cursor(offset: i)
+            result["nextCursor"] = cursor(offset: i, stamp: stamp)
             result["note"] = moreNote
         }
         return (result, title(of: m), page.count)
@@ -554,17 +570,19 @@ enum ClaudeTools {
         if kinds.contains("summaries") || kinds.contains("transcripts"), level.includesMeetings {
             let scope = try scope(args)
             label = scope.label
+            let inText = kinds.contains("transcripts") && level.includesTranscripts
             for m in scope.meetings {
+                // As the app: every word somewhere in the meeting, asked of the whole
+                // first (cheap, cached), before any line is ranked.
+                guard hasAll(everything(of: m, transcripts: inText), words) else { continue }
                 struct Candidate { let rank: Int; let at: Double?; let hit: [String: Any] }
                 var found: [Candidate] = []
-                var everything: [String] = []
                 func rank(_ text: String) -> Int { words.filter { has(text, $0) }.count }
                 if kinds.contains("summaries") {
                     var parts: [(part: String, text: String, at: Double?)] = [("title", title(of: m), nil)]
                     parts += MeetingSearch.summaryLines(of: m).map { ($0.kind, $0.text, $0.at) }
                     parts += m.notes.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }.map { ("note", $0.text, $0.at) }
                     parts += m.marks.compactMap { mark in mark.text.map { ("mark", "\(mark.kind.rawValue): \($0)", mark.at) } }
-                    everything += parts.map(\.text)
                     for p in parts {
                         let r = rank(p.text)
                         guard r > 0 else { continue }
@@ -574,10 +592,8 @@ enum ClaudeTools {
                         found.append(Candidate(rank: r, at: p.at, hit: hit))
                     }
                 }
-                if kinds.contains("transcripts"), level.includesTranscripts {
-                    let sentences = MeetingSearch.sentences(of: m)
-                    everything += sentences.map(\.text)
-                    for s in sentences {
+                if inText {
+                    for s in MeetingSearch.sentences(of: m) {
                         let r = rank(s.text)
                         guard r > 0 else { continue }
                         var hit: [String: Any] = ["kind": "transcript", "text": excerpt(s.text, around: words), "meeting": brief(m),
@@ -586,8 +602,7 @@ enum ClaudeTools {
                         found.append(Candidate(rank: r, at: s.start, hit: hit))
                     }
                 }
-                // As the app: every word somewhere in the meeting, then the lines with the most of them first.
-                guard hasAll(everything.joined(separator: " "), words) else { continue }
+                // The lines with the most of the words first, then in order.
                 found.sort { a, b in a.rank != b.rank ? a.rank > b.rank : (a.at ?? -1) < (b.at ?? -1) }
                 hits += found.map(\.hit)
             }
@@ -609,14 +624,19 @@ enum ClaudeTools {
         let status = try args.string("status")?.lowercased() ?? "open"
         guard ["open", "done", "all"].contains(status) else { throw Failure(message: "status must be open, done or all.") }
         let owner = try args.string("owner")
+        let limit = try args.limit(default: 50, max: 200)
+        let offset = try args.offset()
         var rows: [[String: Any]] = []
         for m in scope.meetings {
+            // The summary's tasks, and the moments you marked as tasks with words the
+            // summary didn't take up (as the app's own notes, LibraryContext.notes).
             var tasks: [(text: String, owner: String?, done: Bool, at: Double?)] = []
-            if let s = m.summary {
-                tasks = s.tasks.map { ($0.text, $0.owner, $0.done == true, $0.at) }
-            } else {
-                // No summary yet: the moments you marked as tasks.
-                tasks = m.marks.filter { $0.kind == .task }.compactMap { mark in mark.text.map { ($0, nil, false, mark.at) } }
+            if let s = m.summary { tasks = s.tasks.map { ($0.text, $0.owner, $0.done == true, $0.at) } }
+            let written = Set(tasks.map { $0.text.lowercased() })
+            for mark in m.marks where mark.kind == .task {
+                guard let words = mark.text?.trimmingCharacters(in: .whitespaces), !words.isEmpty,
+                      !written.contains(words.lowercased()) else { continue }
+                tasks.append((words, nil, false, mark.at))
             }
             for t in tasks {
                 if status == "open", t.done { continue }
@@ -629,10 +649,14 @@ enum ClaudeTools {
             }
         }
         let total = rows.count
+        rows = Array(rows.dropFirst(offset).prefix(limit))
         var result: [String: Any] = ["total": total]
         let cut = fit(&rows, in: result, key: "tasks", budget: listBudget)
         result["tasks"] = rows
-        if cut { result["note"] = moreNote }
+        if cut || offset + rows.count < total {
+            result["nextCursor"] = cursor(offset: offset + rows.count)
+            result["note"] = moreNote
+        }
         return (result, scope.label, rows.count)
     }
 

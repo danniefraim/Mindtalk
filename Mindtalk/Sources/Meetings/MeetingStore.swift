@@ -405,11 +405,11 @@ enum MeetingText {
         return folded(head + raw(words[open.id...], pending: pending, paragraphs: true, seed: open.speaker))
     }
 
-    #if DEBUG
+    /// Every turn grouped anew, without the kept prefix: for a whole meeting read once
+    /// (the helper's transcript, the self-tests), so the live view's cache stays its own.
     @MainActor static func turnsAllAnew(_ words: [MeetingWord], pending: [MeetingWord]) -> [MeetingTurn] {
         folded(raw(ArraySlice(words), pending: pending, paragraphs: true))
     }
-    #endif
 
     private struct PrefixKey: Equatable {
         let count: Int

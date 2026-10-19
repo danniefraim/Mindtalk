@@ -58,22 +58,29 @@ final class Bridge: @unchecked Sendable {
     }
 
     /// Listens at `url` (the real socket unless a self-test says otherwise). An old
-    /// socket file from a crash is replaced.
+    /// socket file from a crash is replaced; one that answers belongs to another copy
+    /// of the app (the installed one, while a build from Xcode runs) and is left alone.
     func start(at url: URL = Bridge.socketURL) {
         guard listener < 0 else { return }
         let path = url.path
         let fm = FileManager.default
         try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true,
                                 attributes: [.posixPermissions: 0o700])
+        guard var address = Self.address(path) else {
+            Self.log.error("socket path too long: \(path, privacy: .public)")
+            return
+        }
+        if Self.answers(&address) {
+            Self.log.notice("another Mindtalk listens at \(path, privacy: .public): this one leaves the bridge to it")
+            #if DEBUG
+            print("Bryggan: en annan Mindtalk lyssnar redan på \(path), den här tar inte över.")
+            #endif
+            return
+        }
         unlink(path)
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { Self.log.error("socket: \(String(cString: strerror(errno)), privacy: .public)"); return }
         _ = fcntl(fd, F_SETFD, FD_CLOEXEC)
-        guard var address = Self.address(path) else {
-            Self.log.error("socket path too long: \(path, privacy: .public)")
-            close(fd)
-            return
-        }
         let bound = withUnsafePointer(to: &address) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
         }
@@ -102,6 +109,18 @@ final class Bridge: @unchecked Sendable {
         close(listener)
         listener = -1
         unlink(path)
+    }
+
+    /// Someone accepts connections at this address right now. A socket file left by a
+    /// crash refuses, and is then safe to replace.
+    private static func answers(_ address: inout sockaddr_un) -> Bool {
+        let probe = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard probe >= 0 else { return false }
+        defer { close(probe) }
+        let connected = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(probe, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+        }
+        return connected == 0
     }
 
     /// The path as a `sockaddr_un`, or nil when it doesn't fit (104 bytes on macOS).
@@ -263,7 +282,9 @@ final class Bridge: @unchecked Sendable {
     // MARK: The fixed path
 
     /// `bin/mindtalk` → the helper in this bundle. Replaced when it points elsewhere
-    /// (an older copy, a moved app).
+    /// (an older copy, a moved app) by the app in /Applications, or by any copy when
+    /// there is no working link: a build run from Xcode never takes the link away from
+    /// the installed app, which the assistant's configuration should keep reaching.
     static func installHelperLink() {
         let fm = FileManager.default
         let link = helperLinkURL, target = bundledHelperURL
@@ -271,7 +292,15 @@ final class Bridge: @unchecked Sendable {
             log.notice("no helper in the bundle at \(target.path, privacy: .public)")
             return
         }
-        if let current = try? fm.destinationOfSymbolicLink(atPath: link.path), current == target.path { return }
+        if let current = try? fm.destinationOfSymbolicLink(atPath: link.path) {
+            if current == target.path { return }
+            let installed = Bundle.main.bundleURL.standardizedFileURL.path.hasPrefix("/Applications/")
+            // A link that still leads somewhere is another copy's: left, unless we are the installed app.
+            guard installed || !fm.fileExists(atPath: current) else {
+                log.notice("helper link stays at \(current, privacy: .public): this copy is not in /Applications")
+                return
+            }
+        }
         do {
             try fm.createDirectory(at: link.deletingLastPathComponent(), withIntermediateDirectories: true,
                                    attributes: [.posixPermissions: 0o700])
