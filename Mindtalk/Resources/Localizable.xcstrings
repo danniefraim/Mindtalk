@@ -13075,6 +13075,22 @@
         }
       }
     },
+    "Klistra in i Terminalen, så kan ChatGPT:s Codex använda Mindtalk. Eller i ChatGPT-appen: Inställningar → MCP servers → Add server, välj STDIO. Inte under Pluginer, där går bara servrar på internet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste into Terminal, and ChatGPT’s Codex can use Mindtalk. Or in the ChatGPT app: Settings → MCP servers → Add server, choose STDIO. Not under Plugins, which only takes servers on the internet."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klistra in i Terminalen, så kan ChatGPT:s Codex använda Mindtalk. Eller i ChatGPT-appen: Inställningar → MCP servers → Add server, välj STDIO. Inte under Pluginer, där går bara servrar på internet."
+          }
+        }
+      }
+    },
     "Klistra in i Terminalen.": {
       "localizations": {
         "en": {

@@ -254,7 +254,7 @@ enum ClaudeInstall {
             switch self {
             case .claude: return String(localized: "Claude-appen öppnas och frågar om du vill lägga till Mindtalk.")
             case .claudeCode: return String(localized: "Klistra in i Terminalen.")
-            case .codex: return String(localized: "Klistra in i Terminalen. Gäller ChatGPT:s Codex-läge. I ChatGPT-appen: Inställningar → MCP servers → Add server, typ STDIO.")
+            case .codex: return String(localized: "Klistra in i Terminalen, så kan ChatGPT:s Codex använda Mindtalk. Eller i ChatGPT-appen: Inställningar → MCP servers → Add server, välj STDIO. Inte under Pluginer, där går bara servrar på internet.")
             case .gemini: return String(localized: "Klistra in i Terminalen.")
             case .zed: return String(localized: "Klistra in i Zeds settings.json.")
             case .other: return String(localized: "Klistra in i programmets MCP-inställningar.")
