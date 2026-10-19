@@ -5883,6 +5883,22 @@
         }
       }
     },
+    "Det som saknas står här nedanför.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What's missing is listed below."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det som saknas står här nedanför."
+          }
+        }
+      }
+    },
     "Det tar en liten stund, bara första gången. %lld min hittills.": {
       "localizations": {
         "en": {
@@ -18645,6 +18661,7 @@
       }
     },
     "Mindtalk gör sig redo.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -25765,6 +25782,22 @@
         }
       }
     },
+    "Står Mindtalk redan på under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Is Mindtalk already on under Privacy & Security → Accessibility? Turn it off and on again."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Står Mindtalk redan på under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen."
+          }
+        }
+      }
+    },
     "Svarade på %@ s. Orkar ungefär %@ ord åt gången.": {
       "localizations": {
         "en": {
@@ -29411,6 +29444,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Utan Apple Intelligence eller Gemma 4 blir det text men ingen sammanfattning."
+          }
+        }
+      }
+    },
+    "Utan Hjälpmedel fungerar inga genvägar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Without Accessibility, no shortcuts work."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utan Hjälpmedel fungerar inga genvägar."
           }
         }
       }

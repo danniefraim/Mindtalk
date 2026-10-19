@@ -266,7 +266,12 @@ private struct DictationPage: View {
                     else { Button("Tillåt") { dictation.requestMicrophone() }.buttonStyle(.ink) }
                 }
                 CardDivider()
-                CardRow(title: "Hjälpmedel", detail: "Behövs för att märka när du håller in tangenten och för att skriva texten där markören står.") {
+                // The one place Hjälpmedel is asked for. The tip once Tillåt has been
+                // pressed and it's still off: macOS sometimes needs it switched off and on.
+                CardRow(title: "Hjälpmedel", detail: dictation.accessibilityAsked && !dictation.accessibilityGranted
+                        ? String(localized: "Utan Hjälpmedel fungerar inga genvägar.") + " "
+                            + String(localized: "Står Mindtalk redan på under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen.")
+                        : String(localized: "Utan Hjälpmedel fungerar inga genvägar.")) {
                     if dictation.accessibilityGranted { GrantedLabel() }
                     else { Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.ink) }
                 }
@@ -606,6 +611,7 @@ struct SettingsPage: View {
                     : meetingShortcut?.warning ?? String(localized: "Startar och avslutar ett möte i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.")) {
             MeetingShortcutField(chord: $meetingShortcut, picking: $pickingMeetingKey, taken: [thoughtShortcut?.chord])
                 .disabled(!dictation.accessibilityGranted)
+                .help(dictation.accessibilityGranted ? Text(verbatim: "") : Text("Slå på Hjälpmedel för Mindtalk först."))
         }
         .card()
     }

@@ -140,9 +140,10 @@ struct HomeHero: View {
                          : dictation.engine.progressText(p, started: dictation.downloadStarted[dictation.engine]))
                         .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted).monospacedDigit().padding(.top, 8)
                 } else {
-                    // Not ready yet: the steps are in the card below, not a promise here.
-                    Text("Ett par steg kvar").font(.system(size: 40, weight: .regular, design: .serif)).foregroundStyle(ink)
-                    Text(verbatim: setupIssue.map(issueLine) ?? String(localized: "Mindtalk gör sig redo."))
+                    // Not ready yet: the steps are asked for in Kom igång below, and only there.
+                    Text(FloatingTabBar.stepsLeft(dictation) == 1 ? "Ett steg kvar" : "Ett par steg kvar")
+                        .font(.system(size: 40, weight: .regular, design: .serif)).foregroundStyle(ink)
+                    Text("Det som saknas står här nedanför.")
                         .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted).padding(.top, 8)
                 }
             } else if let since = slowStart {
@@ -233,17 +234,9 @@ struct HomeHero: View {
         return fresh && firstDay.showing
     }
 
-    /// The issue in Hem's words: one name for the model — "talmodellen".
     /// "12 ord", "1 word".
     static func words(_ n: Int) -> String {
         n == 1 ? String(localized: "1 ord") : String(localized: "\(Stats.number(n)) ord")
-    }
-
-    private func issueLine(_ issue: Dictation.SetupIssue) -> String {
-        switch issue {
-        case .modelMissing: return String(localized: "Ladda ned talmodellen (\(dictation.engine.inlineTitle))")
-        default: return issue.title
-        }
     }
 
     /// "Håll in" or "Tryck på", as the dictation key works.

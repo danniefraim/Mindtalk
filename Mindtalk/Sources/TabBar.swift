@@ -268,8 +268,10 @@ struct FloatingTabBar: View {
         switch dictation.model {
         case .downloading(let p) where SpeechModel.isPreparing(p): return String(localized: "Förbereder…")
         case .downloading(let p): return String(localized: "Laddar ned \(Int(min(1, p / 0.9) * 100)) %")
-        case .loading: return String(localized: "Startar…")
-        default: return stepsLeft > 0 ? Self.stepsText(stepsLeft) : String(localized: "Redo")
+        default:
+            // What you must do comes before what Mindtalk is busy with.
+            if stepsLeft > 0 { return Self.stepsText(stepsLeft) }
+            return dictation.model == .loading ? String(localized: "Startar…") : String(localized: "Redo")
         }
     }
 }

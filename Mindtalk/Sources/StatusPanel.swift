@@ -342,20 +342,22 @@ struct StatusPanelView: View {
                             Text("för att diktera")
                         }
                     } else {
-                        if let issue = dictation.setupIssue {
-                            // Says what's missing, and a click fixes it.
+                        let left = FloatingTabBar.stepsLeft(dictation)
+                        if left > 0 {
+                            // As at the foot of the window's tab bar: short, and a click goes
+                            // to Hem, where Kom igång asks for what's missing.
                             Button {
                                 close()
-                                dictation.fix(issue)
+                                AppDelegate.showWindow(page: .dictation)
                             } label: {
                                 HStack(spacing: 5) {
                                     Circle().fill(DS.Colors.warning).frame(width: 6, height: 6)
-                                    Text(issue.title).foregroundStyle(.primary)
+                                    Text(verbatim: FloatingTabBar.stepsText(left)).foregroundStyle(.primary)
                                     Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold))
                                 }
                             }
                             .buttonStyle(.plain)
-                            .help(issue.why)
+                            .help("Visa Kom igång på Hem")
                         }
                     }
                 }
