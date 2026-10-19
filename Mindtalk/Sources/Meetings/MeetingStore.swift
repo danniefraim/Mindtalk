@@ -903,10 +903,21 @@ final class MeetingStore: ObservableObject {
             && max($0.date.addingTimeInterval($0.duration), $0.source?.importedAt ?? $0.date) < limit }.map(\.id)
     }
 
-    /// Keeps recordings no longer than you chose. At launch and after each meeting.
+    /// Keeps recordings no longer than you chose. At launch, after each meeting, and
+    /// once a day while Mindtalk runs (applyRetentionIfDue).
     func applyRetention() {
         guard loaded else { retentionWaiting = true; return }
+        retentionApplied = Date()
         for id in recordingsPast(days: MeetingAudio.keepDays) { removeAudio(of: id) }
+    }
+
+    /// When the recordings were last looked at.
+    private var retentionApplied: Date?
+    /// A day since the recordings were last looked at: looked at now. Asked every hour,
+    /// so a Mac that sleeps through the night still gets it.
+    func applyRetentionIfDue() {
+        guard let last = retentionApplied, Date().timeIntervalSince(last) >= 86_400 else { return }
+        applyRetention()
     }
 
     /// When it really was (a file whose own date was wrong, or that had none). The

@@ -1602,8 +1602,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // a red dot and the time — wherever you are. Put away, a notification says
         // when it's written.
         MeetingPanel.shared.watch()
-        // Recordings kept no longer than you chose (Inställningar → Möten).
+        // Recordings kept no longer than you chose (Inställningar → Möten), also when
+        // Mindtalk runs for days.
         DispatchQueue.main.asyncAfter(deadline: .now() + 30) { MeetingStore.shared.applyRetention() }
+        Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in
+            Task { @MainActor in MeetingStore.shared.applyRetentionIfDue() }
+        }
         UNUserNotificationCenter.current().delegate = self
         MeetingSession.shared.$phase.combineLatest(MeetingSession.shared.$warning.removeDuplicates(),
                                                    MeetingSession.shared.$pausedAt.map { $0 != nil }.removeDuplicates())
