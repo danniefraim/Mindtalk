@@ -17437,6 +17437,22 @@
         }
       }
     },
+    "Nästa person: ”Hej, jag heter …”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next person: “Hi, my name is …”"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nästa person: ”Hej, jag heter …”"
+          }
+        }
+      }
+    },
     "Nästa, säg ditt namn": {
       "localizations": {
         "en": {

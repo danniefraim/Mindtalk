@@ -350,7 +350,7 @@ struct VoiceScanner: View {
                     if let last = round.captures.last,
                        revealing != nil || round.thankedAt.map({ Date().timeIntervalSince($0) < 2.5 }) == true {
                         return (String(localized: "Person \(round.turn)"), String(localized: "Tack, \(last.name)"),
-                                String(localized: "Nästa person, säg hej och vad du heter."))
+                                String(localized: "Nästa person: ”Hej, jag heter …”"))
                     }
                     return round.turn == 1
                         ? (String(localized: "Person 1"), String(localized: "”Hej, jag heter …”"), String(localized: "Säg det med ditt namn. En i taget, vem som helst kan börja."))
