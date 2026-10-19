@@ -1,13 +1,15 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Inställningar → Mindtalk i Claude
+// MARK: - Inställningar → Integrationer → MCP
 //
-// Off by default. Switched on, the card says what Claude may read (everything is the
+// Off by default. Switched on, the card says what may be read (everything is the
 // default: the owner chose that the connection, once on, reads it all), which
-// folders, how to get the connection into the Claude app and Claude Code, and what
-// Claude has read so far. Switched off, only the switch, the privacy text and a line
-// saying so: nothing to set for something that isn't on.
+// folders, how to get the connection into the program the user picks (the Claude app,
+// Claude Code, ChatGPT on Mac or any other that speaks MCP), and what has been read so
+// far. Switched off, only the switch, the privacy text and a line saying so: nothing
+// to set for something that isn't on. The app never assumes Claude: the user chooses
+// the assistant.
 
 struct ClaudeSettingsCard: View {
     @ObservedObject var sharing: ClaudeSharing
@@ -35,7 +37,7 @@ struct ClaudeSettingsCard: View {
                 CardDivider()
                 log
             } else {
-                Text("Av. Claude kan inte läsa något.")
+                Text("Av. Inga program kan läsa något.")
                     .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 22).padding(.vertical, 16)
@@ -59,7 +61,7 @@ struct ClaudeSettingsCard: View {
             Button("Rensa", role: .destructive) { withAnimation(.snappy) { sharing.clearLog() } }
             Button("Avbryt", role: .cancel) {}
         } message: {
-            Text("Listan över vad Claude har läst tas bort från din Mac.")
+            Text("Listan över vad som har lästs tas bort från din Mac.")
         }
     }
 
@@ -68,14 +70,14 @@ struct ClaudeSettingsCard: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 20) {
-                Text("Mindtalk i Claude").font(.system(size: 14, weight: .semibold))
+                Text("MCP").font(.system(size: 14, weight: .semibold))
                 Spacer(minLength: 12)
-                InkToggle(label: "Mindtalk i Claude", isOn: $sharing.enabled)
+                InkToggle(label: "MCP", isOn: $sharing.enabled)
             }
-            Text("När du frågar Claude om dina möten skickas texten till Anthropic, enligt villkoren för ditt Claude-konto. Mindtalk skickar inget själv, Claude läser bara när du frågar. Ljud och röstavtryck delas aldrig.")
+            Text("Ett öppet sätt för AI-program att läsa dina möten och tankar. Du väljer vilket program: Claude, ChatGPT på Mac eller andra som stöder MCP.")
                 .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Fungerar också med andra program som stöder MCP, som ChatGPT på Mac.")
+            Text("När du frågar skickas texten till det programmets leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud och röstavtryck delas aldrig.")
                 .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -83,11 +85,11 @@ struct ClaudeSettingsCard: View {
         .padding(.horizontal, 22).padding(.vertical, 18)
     }
 
-    // MARK: Claude får läsa
+    // MARK: Får läsa
 
     private var levels: some View {
         VStack(alignment: .leading, spacing: 10) {
-            CapsLabel(String(localized: "Claude får läsa"))
+            CapsLabel(String(localized: "Får läsa"))
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(ClaudeSharing.Level.allCases) { level in
                     InkRadio(title: level.title, on: sharing.level == level) {
@@ -123,7 +125,7 @@ struct ClaudeSettingsCard: View {
                 Text("Möten utan mapp delas.")
                     .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
             } else {
-                Text("Med Bara tankar läser Claude inga möten, oavsett mapp.")
+                Text("Med Bara tankar läses inga möten, oavsett mapp.")
                     .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
             }
         }
@@ -131,7 +133,7 @@ struct ClaudeSettingsCard: View {
         .padding(.horizontal, 22).padding(.vertical, 16)
     }
 
-    // MARK: Lägg till i Claude, Kopiera för Claude Code
+    // MARK: Lägg till i Claude, Kopiera för Claude Code, Kopiera för andra program
 
     private var install: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -140,6 +142,11 @@ struct ClaudeSettingsCard: View {
                 Button("Kopiera för Claude Code") {
                     ClaudeInstall.copyClaudeCodeCommand()
                     show(String(localized: "Kopierat. Klistra in i Terminalen."))
+                }
+                .buttonStyle(.soft)
+                Button("Kopiera för andra program") {
+                    ClaudeInstall.copyServerConfig()
+                    show(String(localized: "Kopierat. Klistra in i programmets MCP-inställningar."))
                 }
                 .buttonStyle(.soft)
             }
@@ -153,11 +160,11 @@ struct ClaudeSettingsCard: View {
                     .buttonStyle(.plain)
                 }
             } else if sharing.entries.isEmpty {
-                // Until Claude has read something there is no way to know it's installed.
-                Text("Tryck Lägg till i Claude, så öppnas tillägget i Claude-appen.")
+                // Until something has been read there is no way to know a program is connected.
+                Text("Tryck Lägg till i Claude, eller kopiera inställningen till ditt program.")
                     .font(.system(size: 12.5)).foregroundStyle(.primary)
             }
-            Text("Claude-appen på Macen och Claude Code. Inte claude.ai på webben eller i mobilen.")
+            Text("Claude-appen på Macen, Claude Code, ChatGPT på Mac och andra program som stöder MCP. Inte webben eller mobilen.")
                 .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -185,11 +192,11 @@ struct ClaudeSettingsCard: View {
         }
     }
 
-    // MARK: Senast läst av Claude
+    // MARK: Senast läst
 
     private var log: some View {
         VStack(alignment: .leading, spacing: 10) {
-            CapsLabel(String(localized: "Senast läst av Claude"))
+            CapsLabel(String(localized: "Senast läst"))
             if sharing.entries.isEmpty {
                 Text("Inget läst än.").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
             } else {
@@ -228,7 +235,7 @@ enum ClaudeLogLine {
         return parts.joined(separator: " · ")
     }
 
-    /// What Claude did, with where ("Sökte i Klang", "Läste Styrelsemöte 14 okt · sammanfattning").
+    /// What the program did, with where ("Sökte i Klang", "Läste Styrelsemöte 14 okt · sammanfattning").
     private static func action(_ entry: ClaudeSharing.Entry) -> String {
         let scope = entry.scope.trimmingCharacters(in: .whitespaces)
         switch entry.tool {

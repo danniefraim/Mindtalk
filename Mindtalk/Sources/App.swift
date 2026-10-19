@@ -869,13 +869,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     print(String(decoding: try ClaudeInstall.manifestJSON(), as: UTF8.self))
                     print("Skrev: \(url.path)")
                     print("Claude Code: \(ClaudeInstall.claudeCodeCommand())")
-                    // The links the helper puts in Claude's answers, read back.
+                    print("Andra program:\n\(ClaudeInstall.serverConfig())")
+                    // The links the helper puts in the answers, read back.
                     let id = UUID()
                     let checks: [(URL, MindtalkLink?)] = [
                         (MindtalkLink.url(meeting: id, at: 754), .meeting(id, at: 754)),
                         (MindtalkLink.url(meeting: id), .meeting(id, at: nil)),
                         (MindtalkLink.url(thought: id), .thought(id)),
-                        (MindtalkLink.claudeSettingsURL, .claudeSettings),
+                        (MindtalkLink.mcpSettingsURL, .mcpSettings),
+                        (URL(string: "mindtalk://settings/claude")!, .mcpSettings),
                         (URL(string: "mindtalk://meeting/not-an-id")!, nil),
                         (URL(string: "mindtalk://settings/other")!, nil),
                         (URL(string: "https://example.com/meeting/\(id.uuidString)")!, nil),
@@ -892,9 +894,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
-        // `Mindtalk --render-claude out.png [--dark] [--on]`: Settings → Mindtalk i Claude, off
-        // or on, with made-up folders and a made-up log (nothing saved).
-        if let i = args.firstIndex(of: "--render-claude"), i + 1 < args.count {
+        // `Mindtalk --render-mcp out.png [--dark] [--on]`: Settings → Integrationer → MCP, off
+        // or on, with made-up folders and a made-up log (nothing saved). `--render-claude`
+        // is the old name of the same flag.
+        if let i = args.firstIndex(of: "--render-mcp") ?? args.firstIndex(of: "--render-claude"), i + 1 < args.count {
             Task { @MainActor in
                 let dark = args.contains("--dark")
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
@@ -1512,7 +1515,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         MediaControl.shared.restoreAfterCrash()
         SpeechModel.removeLeftoverDownloads()
         Updates.shared.start()
-        // Mindtalk i Claude: the socket the helper asks over, and the fixed path to the helper.
+        // Integrationer → MCP: the socket the helper asks over, and the fixed path to the helper.
         Bridge.launch()
         // The voice models, ready before the first meeting (after an update macOS can
         // take a minute to prepare them — better now, quietly, than when you press start).
@@ -1929,9 +1932,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             showWindow(page: .thoughts)
             ThoughtsPage.pendingShow = id
             NotificationCenter.default.post(name: .showThought, object: id)
-        case .claudeSettings:
+        case .mcpSettings:
             showWindow(page: .settings)
-            SettingsPage.openClaude()
+            SettingsPage.openMCP()
         }
     }
     @objc func menuSettings() { Self.showWindow(page: .settings) }

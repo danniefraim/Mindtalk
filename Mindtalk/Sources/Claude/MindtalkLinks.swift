@@ -2,12 +2,13 @@ import Foundation
 
 // MARK: - mindtalk:// links
 //
-// Every answer Claude gives carries a link back into the app, so "Styrelsemöte 14 okt,
+// Every answer the helper gives carries a link back into the app, so "Styrelsemöte 14 okt,
 // 12:04" opens that meeting at that second:
 //
 //   mindtalk://meeting/<uuid>?t=<seconds>     Möten, the meeting, its text at t (and played from there)
 //   mindtalk://thought/<uuid>                 Tankar, scrolled to the thought
-//   mindtalk://settings/claude                Inställningar, scrolled to "Mindtalk i Claude"
+//   mindtalk://settings/mcp                   Inställningar, scrolled to Integrationer → MCP
+//                                             (mindtalk://settings/claude still works, the old name)
 //
 // The scheme is registered in Info.plist (CFBundleURLTypes); AppDelegate hands the
 // URLs here. Anything else is ignored, with a line in the log.
@@ -15,7 +16,8 @@ import Foundation
 enum MindtalkLink: Equatable {
     case meeting(UUID, at: Double?)
     case thought(UUID)
-    case claudeSettings
+    /// Inställningar → Integrationer → MCP.
+    case mcpSettings
 
     static let scheme = "mindtalk"
 
@@ -35,7 +37,10 @@ enum MindtalkLink: Equatable {
             guard let id = rest.first.flatMap(UUID.init(uuidString:)) else { return nil }
             return .thought(id)
         case "settings":
-            return rest.first?.lowercased() == "claude" ? .claudeSettings : nil
+            switch rest.first?.lowercased() {
+            case "mcp", "claude": return .mcpSettings
+            default: return nil
+            }
         default:
             return nil
         }
@@ -55,7 +60,7 @@ enum MindtalkLink: Equatable {
         URL(string: "\(scheme)://thought/\(id.uuidString)")!
     }
 
-    static let claudeSettingsURL = URL(string: "\(scheme)://settings/claude")!
+    static let mcpSettingsURL = URL(string: "\(scheme)://settings/mcp")!
 }
 
 extension Notification.Name {
@@ -63,6 +68,6 @@ extension Notification.Name {
     static let openMeeting = Notification.Name("MindtalkOpenMeeting")
     /// Show a thought on the Tankar page (object: UUID).
     static let showThought = Notification.Name("MindtalkShowThought")
-    /// Scroll Settings to "Mindtalk i Claude".
-    static let showClaude = Notification.Name("MindtalkShowClaude")
+    /// Scroll Settings to Integrationer → MCP.
+    static let showMCP = Notification.Name("MindtalkShowMCP")
 }

@@ -2,16 +2,18 @@ import AppKit
 import Foundation
 import os
 
-// MARK: - Mindtalk i Claude: getting the connection into Claude
+// MARK: - Integrationer → MCP: getting the connection into the program the user picks
 //
-// Two ways in, both from the settings card:
+// Three ways in, all from the settings card:
 //
 //   • "Lägg till i Claude": a .mcpb bundle (a zip with manifest.json at its root, the
 //     Claude desktop app's extension format) that Mindtalk writes and opens. The Claude
 //     app registers the .mcpb type and shows the extension for installation.
 //   • "Kopiera för Claude Code": one `claude mcp add` line, copied to the clipboard.
+//   • "Kopiera för andra program": the `mcpServers` JSON snippet most MCP clients
+//     (ChatGPT on Mac, Cursor, Zed and others) accept, copied to the clipboard.
 //
-// Both point at the helper through its fixed path under Application Support
+// All point at the helper through its fixed path under Application Support
 // (`~/Library/Application Support/Mindtalk/bin/mindtalk`, a link the app refreshes at
 // every start), never at the app bundle itself. So the bundle holds no binary, is a
 // few hundred bytes, and keeps working when the app is moved or updated. (Bear's
@@ -57,7 +59,7 @@ enum ClaudeInstall {
             "display_name": "Mindtalk",
             "version": version,
             "description": "Your meetings and thoughts from Mindtalk, read only when you ask. Audio and voiceprints are never shared.",
-            "long_description": "Ask Claude about one meeting, a folder or all your meetings: summaries, decisions, tasks and, if you allow it, the whole text. Mindtalk decides what may be read, in Inställningar → Mindtalk i Claude, and keeps a log of every call.",
+            "long_description": "Ask about one meeting, a folder or all your meetings: summaries, decisions, tasks and, if you allow it, the whole text. Mindtalk decides what may be read, in Inställningar → Integrationer → MCP, and keeps a log of every call.",
             "author": ["name": "Mindact Solutions AB"],
             "homepage": "https://mindact.ai",
             "icon": "icon.png",
@@ -178,6 +180,40 @@ enum ClaudeInstall {
         board.clearContents()
         board.setString(claudeCodeCommand(), forType: .string)
         log.notice("copied the Claude Code command")
+    }
+
+    // MARK: Kopiera för andra program
+
+    /// The `mcpServers` snippet most MCP clients accept in their settings (ChatGPT on
+    /// Mac, Cursor, Zed, Claude Code's own JSON and others):
+    ///
+    ///     { "mcpServers": { "mindtalk": { "command": "<path>", "args": ["mcp"] } } }
+    ///
+    /// Laid out by hand, `command` before `args` and no space before the colons, so it
+    /// reads like the examples in every client's documentation. Only the path is run
+    /// through the encoder, for the quoting.
+    static func serverConfig(helperPath: String = helperLinkURL.path) -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .withoutEscapingSlashes
+        let path = (try? encoder.encode(helperPath)).map { String(decoding: $0, as: UTF8.self) } ?? "\"\(helperPath)\""
+        return """
+        {
+          "mcpServers": {
+            "mindtalk": {
+              "command": \(path),
+              "args": ["mcp"]
+            }
+          }
+        }
+        """
+    }
+
+    @MainActor
+    static func copyServerConfig() {
+        let board = NSPasteboard.general
+        board.clearContents()
+        board.setString(serverConfig(), forType: .string)
+        log.notice("copied the MCP server config")
     }
 
     static let downloadURL = URL(string: "https://claude.ai/download")!

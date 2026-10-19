@@ -316,14 +316,14 @@ struct SettingsPage: View {
         NotificationCenter.default.post(name: .showModels, object: nil)
     }
 
-    /// Set before opening Settings to land on "Mindtalk i Claude" (mindtalk://settings/claude).
-    static var jumpToClaude = false
+    /// Set before opening Settings to land on Integrationer → MCP (mindtalk://settings/mcp).
+    static var jumpToMCP = false
 
-    /// Settings, scrolled to "Mindtalk i Claude" — also when Settings is already on screen.
-    static func openClaude() {
-        jumpToClaude = true
+    /// Settings, scrolled to Integrationer → MCP, also when Settings is already on screen.
+    static func openMCP() {
+        jumpToMCP = true
         NotificationCenter.default.post(name: .showPage, object: Page.settings)
-        NotificationCenter.default.post(name: .showClaude, object: nil)
+        NotificationCenter.default.post(name: .showMCP, object: nil)
     }
 
     var body: some View {
@@ -456,10 +456,10 @@ struct SettingsPage: View {
             ModelsCard(dictation: dictation)
                 .staggered(4)
 
-            // MARK: Mindtalk i Claude
+            // MARK: Integrationer
 
-            SectionTitle("Mindtalk i Claude")
-                .id("claude")
+            SectionTitle("Integrationer")
+                .id("integrations")
                 .staggered(4)
             ClaudeSettingsCard(sharing: .shared)
                 .staggered(4)
@@ -561,18 +561,18 @@ struct SettingsPage: View {
                     withAnimation(.spring(duration: 0.6)) { proxy.scrollTo("models", anchor: .top) }
                 }
             }
-            if Self.jumpToClaude {
-                Self.jumpToClaude = false
+            if Self.jumpToMCP {
+                Self.jumpToMCP = false
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                    withAnimation(.spring(duration: 0.6)) { proxy.scrollTo("claude", anchor: .top) }
+                    withAnimation(.spring(duration: 0.6)) { proxy.scrollTo("integrations", anchor: .top) }
                 }
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .showClaude)) { _ in
-            guard Self.jumpToClaude else { return }
-            Self.jumpToClaude = false
+        .onReceive(NotificationCenter.default.publisher(for: .showMCP)) { _ in
+            guard Self.jumpToMCP else { return }
+            Self.jumpToMCP = false
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.spring(duration: 0.6)) { proxy.scrollTo("claude", anchor: .top) }
+                withAnimation(.spring(duration: 0.6)) { proxy.scrollTo("integrations", anchor: .top) }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .showAbout)) { _ in showAbout(proxy, after: 0.1) }

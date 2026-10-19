@@ -2,22 +2,22 @@ import Foundation
 import Combine
 import os
 
-// MARK: - Mindtalk i Claude: what may be read, and what was
+// MARK: - Integrationer → MCP: what may be read, and what was
 //
-// Claude (and other programs that speak MCP) read meetings and thoughts through the
-// helper `mindtalk` in the app bundle. The helper never reads the disk itself: it asks
+// The program the user picks (Claude, ChatGPT on Mac or any other that speaks MCP)
+// reads meetings and thoughts through the helper `mindtalk` in the app bundle. The helper never reads the disk itself: it asks
 // the running app over a local socket, and the app answers only what these settings
 // allow. So one place decides, the log sees every call, and switching off is instant.
 //
 // Off until switched on. Audio and voiceprints are never shared.
 
-/// The owner's choices under Inställningar → Mindtalk i Claude.
+/// The owner's choices under Inställningar → Integrationer → MCP.
 @MainActor
 final class ClaudeSharing: ObservableObject {
     static let shared = ClaudeSharing()
     private static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "Claude")
 
-    /// How much Claude may read. Each level includes the ones before it.
+    /// How much may be read. Each level includes the ones before it.
     enum Level: String, CaseIterable, Identifiable, Codable {
         /// Only Tankar.
         case thoughts
@@ -50,16 +50,16 @@ final class ClaudeSharing: ObservableObject {
     @Published var level: Level {
         didSet { if !previewing { defaults.set(level.rawValue, forKey: "claude.level") } }
     }
-    /// Folders kept away from Claude. Meetings in no folder are shared.
+    /// Folders kept away from every program. Meetings in no folder are shared.
     @Published var excludedFolders: Set<UUID> {
         didSet { if !previewing { defaults.set(excludedFolders.map(\.uuidString), forKey: "claude.excludedFolders") } }
     }
 
-    /// One call Claude made: what it read, how much, when. The newest first.
+    /// One call a program made: what it read, how much, when. The newest first.
     struct Entry: Codable, Identifiable, Equatable {
         var id = UUID()
         var date = Date()
-        /// The tool, as Claude names it ("mindtalk_search").
+        /// The tool, as the program names it ("mindtalk_search").
         var tool: String
         /// Where it looked, in words: a meeting title, a folder name, "Alla möten", "Tankar".
         var scope: String
@@ -91,7 +91,7 @@ final class ClaudeSharing: ObservableObject {
         return !excludedFolders.contains(folder)
     }
 
-    /// Noted after every answer to Claude. Kept to the last 200.
+    /// Noted after every answer. Kept to the last 200.
     func record(tool: String, scope: String, items: Int, characters: Int) {
         entries.insert(Entry(tool: tool, scope: scope, items: items, characters: characters), at: 0)
         if entries.count > 200 { entries.removeLast(entries.count - 200) }
@@ -109,7 +109,7 @@ final class ClaudeSharing: ObservableObject {
     }
 
     #if DEBUG
-    /// Screenshots (`--render-claude`): on or off with a made-up log, in memory only.
+    /// Screenshots (`--render-mcp`): on or off with a made-up log, in memory only.
     /// Nothing is written: the settings and the log on disk are left as they are.
     func preview(enabled on: Bool, level: Level = .everything, entries demo: [Entry]) {
         previewing = true
