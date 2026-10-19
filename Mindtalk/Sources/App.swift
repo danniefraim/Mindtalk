@@ -245,8 +245,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 let question = args[i + 1]
                 let local = BetterNotes.shared.isActive
                 let meetings = MeetingStore.shared.meetings.filter { !$0.words.isEmpty }
-                let context = LibraryContext(question: question, meetings: meetings, budget: local ? 12_000 : Lines.appleBudget)
-                print("Modell: \(local ? "Gemma 4" : "Apple Intelligence") · läser \(context.meetings) möten, \(context.text.split(separator: " ").count) ord")
+                let context = LibraryContext(question: question, meetings: meetings, local: local)
+                print("Modell: \(local ? "Gemma 4" : "Apple Intelligence") · \(context.broad ? "bred" : "särskild") fråga · läser \(context.meetings) av \(context.total) möten, \(context.text.split(separator: " ").count) ord, \(context.parts.count) del(ar)")
                 if args.contains("--show-context") { print(context.text) }
                 let t0 = Date()
                 do {

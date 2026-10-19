@@ -199,12 +199,13 @@ final class MeetingNotes: ObservableObject {
         answering.insert(id)
         failed[id] = nil
         let lines = Lines(record)
+        let summary = record.summary
         // The last questions, so "och vem?" knows what it follows.
         let history = record.answers.suffix(2).map { "Q: \($0.question)\nA: \($0.answer)" }.joined(separator: "\n")
         Task {
             defer { answering.remove(id) }
             do {
-                let answer = try await Self.answer(question, from: lines, history: history, local: local)
+                let answer = try await Self.answer(question, from: lines, summary: summary, history: history, local: local)
                 // Continued meanwhile: the answer goes with the meeting being recorded.
                 if MeetingSession.shared.record?.id == id {
                     MeetingSession.shared.addAnswer(answer)
@@ -259,7 +260,7 @@ final class MeetingNotes: ObservableObject {
             }
             show("Beslut:", s.decisions); show("Att göra:", s.tasks); show("Viktigt:", s.points)
             let t1 = Date()
-            let a = try await answer(question, from: lines, local: BetterNotes.shared.isActive)
+            let a = try await answer(question, from: lines, summary: record.summary, local: BetterNotes.shared.isActive)
             print(String(format: "\nFråga: %@\nSvar (%.1f s): %@  %@", question, Date().timeIntervalSince(t1), a.answer,
                          a.sources.map { MeetingView.duration($0) }.joined(separator: ", ")))
         } catch {
@@ -338,6 +339,10 @@ final class MeetingNotes: ObservableObject {
     }
 
     private static let options = GenerationOptions(sampling: .greedy)
+    /// Answers and condensed notes are short: a model that loops stops long before the
+    /// context is full.
+    private static let answerOptions = GenerationOptions(sampling: .greedy, maximumResponseTokens: 450)
+    private static let condenseOptions = GenerationOptions(sampling: .greedy, maximumResponseTokens: 350)
 
     /// The notes transform what was said in the meeting — Apple's guardrails for
     /// that, so a meeting about, say, security or health isn't refused as a topic.
@@ -598,88 +603,248 @@ final class MeetingNotes: ObservableObject {
         return summary
     }
 
-    nonisolated static func answer(_ question: String, from lines: Lines, history: String = "",
-                                           local: Bool = false) async throws -> MeetingAnswer {
+    /// A question about one meeting. The model reads the transcript (all of it when it
+    /// fits, otherwise the lines that matter) and the meeting's notes: for a broad
+    /// question ("Vad bestämdes?", "Sammanfatta") the notes first and the lines where
+    /// they were said; for a particular one the lines that say it first, then what the
+    /// meeting was about and the notes that match.
+    nonisolated static func answer(_ question: String, from lines: Lines, summary: MeetingSummary? = nil, history: String = "",
+                                   local: Bool = false) async throws -> MeetingAnswer {
         // A short question ("vad?") is in the language of the meeting.
         let language = question.split(separator: " ").count >= 3 ? Lines.languageName(of: question) ?? lines.language : lines.language
-        let context = lines.relevant(to: history + " " + question, budget: local ? Lines.localBudget : Lines.appleBudget)
+        let broad = QuestionKind.isBroad(question)
+        let budget = local ? Lines.localBudget : Lines.appleBudget
+        // The notes, numbered after the transcript's lines: each leads to its moment.
+        let keys = Lines.keys(history + " " + question)
+        var notes: [(text: String, at: Double?)] = []
+        if let summary {
+            if !summary.overview.isEmpty { notes.append(("Summary: " + summary.overview, nil)) }
+            for d in summary.decisions { notes.append(("Decision: \(d.text)", d.at)) }
+            for t in summary.tasks {
+                notes.append(("Task: \(t.text)\(t.owner.map { " (\($0))" } ?? "")\(t.done == true ? " (done)" : "")", t.at))
+            }
+            for p in summary.points { notes.append(("Point: \(p.text)", p.at)) }
+        }
+        for n in lines.notes { notes.append(("Your note: \(n)", nil)) }
+        for m in lines.marks {
+            guard let text = m.text, !notes.contains(where: { $0.text.hasSuffix(": " + text) }) else { continue }
+            let kind = switch m.kind {
+            case .decision: "a decision"
+            case .task: "a task"
+            case .important: "something important"
+            }
+            notes.append(("You marked \(kind): \(text)", m.at))
+        }
+        // A particular question with Apple's small model: what it was about and the notes
+        // that match, not all of them.
+        if !broad, !local {
+            notes = notes.filter { $0.text.hasPrefix("Summary:") || Lines.overlap(keys, Lines.keys($0.text)) > 0 }
+        }
+        var noteWords = 0
+        var shown: [(text: String, at: Double?)] = []
+        for note in notes {
+            let n = note.text.split(separator: " ").count
+            // At most half the room: the transcript is what answers.
+            if noteWords + n > budget / 2 { break }
+            noteWords += n
+            shown.append(note)
+        }
+        var extra: [Int: Double] = [:]
+        let first = lines.lines.count + 1
+        let numbered = shown.enumerated().map { k, note in
+            if let at = note.at { extra[first + k] = at }
+            return "[\(first + k)] \(note.text)"
+        }.joined(separator: "\n")
+        // The lines where the notes' items were said: for a broad question, the right parts
+        // of a long meeting.
+        let anchors = broad ? shown.compactMap(\.at) : []
+        let transcript = lines.relevant(to: history + " " + question, budget: budget - noteWords, anchors: anchors)
+        let notesPart = shown.isEmpty ? "" : "Meeting notes (written from this meeting, and the note-taker's own):\n\(numbered)"
+        let context = broad || shown.isEmpty
+            ? [notesPart, "Transcript:\n\(transcript)"].filter { !$0.isEmpty }.joined(separator: "\n\n")
+            : "Transcript:\n\(transcript)\n\n\(notesPart)"
         let earlier = history.isEmpty ? "" : "\n\nEarlier questions and answers:\n\(history)"
-        let prompt = "Transcript:\n\(context)\(earlier)\n\nQuestion: \(question)"
+        let prompt = "\(context)\(earlier)\n\nQuestion: \(question)"
+        let about = shown.isEmpty ? "" : " The meeting notes are numbered too: use them, and the lines that say it."
         let reply: Reply
         do {
             if local { throw LocalAnswer() }
-            reply = try await session(instructions(
-                language, "Answer the question about the meeting. If the transcript doesn't answer it, say so."))
-                .respond(to: prompt, generating: Reply.self, options: options).content
+            let session = session(instructions(language, (broad
+                ? "Answer the question about the whole meeting, in two to five full sentences. For a task, say who does it."
+                : "Answer the question about the meeting. If the transcript doesn't answer it, say so.") + about))
+            if broad {
+                let r = try await session.respond(to: prompt, generating: BroadReply.self, options: answerOptions).content
+                reply = Reply(answer: r.answer, lines: r.lines)
+            } else {
+                reply = try await session.respond(to: prompt, generating: Reply.self, options: answerOptions).content
+            }
         } catch {
             // Gemma 4, or Apple's model refusing structure: plain text, sources on a last line.
             if !(error is LocalAnswer) { log.error("answer: \(String(describing: error), privacy: .public)") }
             let ask = instructions(language, """
-                Answer the question about the meeting in one to three full sentences, in your own words. Don't copy \
-                the transcript. If the transcript doesn't answer it, say so. \
+                Answer the question about the meeting in \(broad ? "two to five" : "one to three") full sentences, in your own \
+                words. Don't copy the transcript. If the transcript doesn't answer it, say so.\(about) \
                 On a last line write "SOURCES:" and the numbers of the lines the answer comes from.
                 """)
             let text = local
-                ? try await LocalWriter.shared.respond(ask + "\n\n" + prompt, maxTokens: 300)
-                : try await session(ask).respond(to: prompt, options: options).content
-            var answer: [String] = []
-            var sources: [Int] = []
-            for line in text.components(separatedBy: .newlines) {
-                if line.uppercased().contains("SOURCES:") || line.uppercased().contains("KÄLLOR:") {
-                    sources = line.split { !$0.isNumber }.compactMap { Int($0) }
-                } else if !line.trimmingCharacters(in: .whitespaces).isEmpty {
-                    answer.append(line)
-                }
-            }
-            reply = Reply(answer: Plain.unmark(answer.joined(separator: " ")), lines: Array(sources.prefix(4)))
+                ? try await LocalWriter.shared.respond(ask + "\n\n" + prompt, maxTokens: broad ? 450 : 300)
+                : try await session(ask).respond(to: prompt, options: answerOptions).content
+            reply = parseSources(text, keep: broad ? 6 : 4)
         }
         // Lines quoted as "[4] Anna: …" read as the answer's words, not its references.
         let cleaned = reply.answer.replacingOccurrences(of: #"\[\d+\]\s*([^:\n]{1,40}:\s*)?"#, with: "",
                                                         options: .regularExpression)
         // An answer is often a name or a yes, sharing no words with its line: the
         // lines it names are its sources, as long as they exist.
-        let sources = reply.lines.compactMap { lines.start(ofLine: $0) }
-        return MeetingAnswer(question: question, answer: Self.firstSentences(Self.tidy(cleaned), 3),
+        let sources = reply.lines.compactMap { lines.start(ofLine: $0) ?? extra[$0] }
+        return MeetingAnswer(question: question, answer: Self.firstSentences(Self.tidy(Self.unnumbered(cleaned)), broad ? 5 : 3),
                              sources: Array(Set(sources)).sorted())
     }
 
     /// A question across meetings (MeetingSearch.swift): answered from the meetings the
-    /// context picked, with the numbers of the lines it used.
+    /// context picked, with the numbers of the lines it used. A broad question that
+    /// doesn't fit Apple's model at once: each part condensed first (keeping the
+    /// decisions, the tasks with who does them, the days and the line numbers), then
+    /// answered from the condensed notes.
     nonisolated static func answerAcross(_ question: String, context: LibraryContext, history: String,
                                          local: Bool) async throws -> (answer: String, lines: [Int]) {
         let language = context.language
         let earlier = history.isEmpty ? "" : "\n\nEarlier questions and answers:\n\(history)"
-        let prompt = "Today is \(context.today).\n\nMeetings:\n\(context.text)\(earlier)\n\nQuestion: \(question)"
-        let task = "You read notes and transcripts from several meetings. Each meeting starts with its title and date; " +
-            "each line is \"[n] …\". Answer the question across the meetings in \(language), in one to four full sentences, " +
-            "in your own words, speaking to the person who recorded them. Say which meeting when it matters (by its title or " +
-            "day). Only use what the lines say; " +
-            "if they don't answer it, say so plainly. Never invent names, numbers, dates or decisions."
+        var meetings = context.text
+        if context.broad, !local, context.parts.count > 1 {
+            var condensed: [String] = []
+            for part in context.parts.prefix(LibraryContext.appleParts) {
+                condensed.append(await condense(part, for: question, language: language))
+            }
+            // Back under their meetings, by the numbers they kept: the titles and the days
+            // as they are, not as the model retold them.
+            var order: [String] = []
+            var under: [String: [String]] = [:]
+            for line in condensed.joined(separator: "\n").components(separatedBy: .newlines) {
+                guard let r = line.range(of: #"\[(\d+)\]"#, options: .regularExpression),
+                      let n = Int(line[r].filter(\.isNumber)), let heading = context.headings[n] else { continue }
+                // "[n] what", as the lines were: a number at the end reads like a date.
+                var text = line.replacingOccurrences(of: #"\s*\[\d+\]"#, with: "", options: .regularExpression)
+                    .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "-•*")))
+                if text.hasPrefix("Meeting "), let colon = text.firstIndex(of: ":") { text = String(text[text.index(after: colon)...]) }
+                if under[heading] == nil { order.append(heading) }
+                under[heading, default: []].append("[\(n)] " + text.trimmingCharacters(in: .whitespaces))
+            }
+            if !order.isEmpty {
+                meetings = order.sorted { a, b in
+                    (Int(a.dropFirst(8).prefix { $0.isNumber }) ?? 0) < (Int(b.dropFirst(8).prefix { $0.isNumber }) ?? 0)
+                }.map { $0 + "\n" + (under[$0] ?? []).joined(separator: "\n") }.joined(separator: "\n\n")
+            }
+        }
+        let prompt = "Today is \(context.today).\n\nMeetings:\n\(meetings)\(earlier)\n\nQuestion: \(question)"
+        let task = context.broad
+            ? "You read the notes of several meetings, newest first. Each meeting starts with its title and date, then lines " +
+              "\"[n] …\": what it was about, decisions, tasks with who does them in brackets, the note-taker's own notes and marks. " +
+              "Answer the question across the meetings in \(language), in two to six full sentences, in your own words, " +
+              "directly, without a greeting. Name the meeting (by its title or day) for what you mention, and leave out " +
+              "meetings that have nothing for the question; put the newest first. " +
+              "For a task, say who does it; a task marked (done) is finished. When asked what I or we should do, give the " +
+              "open tasks and who has each. Only use what the lines say; if they don't answer it, say so plainly. " +
+              "Never invent names, numbers, dates or decisions. Never use dashes."
+            : "You read notes and transcripts from several meetings. Each meeting starts with its title and date; " +
+              "each line is \"[n] …\". Answer the question across the meetings in \(language), in one to four full sentences, " +
+              "in your own words, speaking to the person who recorded them. Say which meeting when it matters (by its title or " +
+              "day). Only use what the lines say; " +
+              "if they don't answer it, say so plainly. Never invent names, numbers, dates or decisions."
         let reply: Reply
         do {
             if local { throw LocalAnswer() }
-            reply = try await LanguageModelSession(model: model, instructions: task)
-                .respond(to: prompt, generating: Reply.self, options: options).content
+            if context.broad {
+                let r = try await LanguageModelSession(model: model, instructions: task)
+                    .respond(to: prompt, generating: BroadReply.self, options: answerOptions).content
+                reply = Reply(answer: r.answer, lines: r.lines)
+            } else {
+                reply = try await LanguageModelSession(model: model, instructions: task)
+                    .respond(to: prompt, generating: Reply.self, options: answerOptions).content
+            }
         } catch {
             if !(error is LocalAnswer) { log.error("answer across: \(String(describing: error), privacy: .public)") }
             let ask = task + " On a last line write \"SOURCES:\" and the numbers of the lines the answer comes from."
             let text = local
-                ? try await LocalWriter.shared.respond(ask + "\n\n" + prompt, maxTokens: 400)
-                : try await LanguageModelSession(model: model, instructions: ask).respond(to: prompt, options: options).content
-            var answer: [String] = []
-            var sources: [Int] = []
-            for line in text.components(separatedBy: .newlines) {
-                if line.uppercased().contains("SOURCES:") || line.uppercased().contains("KÄLLOR:") {
-                    sources = line.split { !$0.isNumber }.compactMap { Int($0) }
-                } else if !line.trimmingCharacters(in: .whitespaces).isEmpty {
-                    answer.append(line)
-                }
-            }
-            reply = Reply(answer: Plain.unmark(answer.joined(separator: " ")), lines: Array(sources.prefix(4)))
+                ? try await LocalWriter.shared.respond(ask + "\n\n" + prompt, maxTokens: context.broad ? 600 : 400)
+                : try await LanguageModelSession(model: model, instructions: ask).respond(to: prompt, options: answerOptions).content
+            reply = parseSources(text, keep: context.broad ? 6 : 4)
         }
         let cleaned = reply.answer.replacingOccurrences(of: #"\[\d+\]\s*([^:\n]{1,40}:\s*)?"#, with: "",
                                                         options: .regularExpression)
-        return (Self.firstSentences(Self.tidy(cleaned), 4), reply.lines)
+        let answer = Self.firstSentences(Self.tidy(Self.unnumbered(cleaned)), context.broad ? 6 : 4)
+        // Nothing written (it happens): said as a failure, not shown as an empty answer.
+        guard !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw EmptyAnswer() }
+        return (answer, reply.lines)
+    }
+
+    @Generable struct BroadReply {
+        @Guide(description: "The answer in two to six full sentences, in your own words, only from what you read. No numbers in brackets: those go in lines. If it doesn't say, say so plainly.")
+        var answer: String
+        @Guide(description: "The numbers in brackets of the lines the answer comes from. Empty if the notes don't say.", .maximumCount(6))
+        var lines: [Int]
+    }
+
+    /// One part of many meetings' notes, condensed by Apple's model for a broad question:
+    /// short lines that keep each meeting's title and day, its decisions, tasks with who
+    /// does them, and the line numbers. Refused or failed: the decisions and tasks as
+    /// they are, cut short — the part is never left out.
+    nonisolated private static func condense(_ part: String, for question: String, language: String) async -> String {
+        let ask = "You condense notes from meetings so that a question about them can be answered later. Each meeting " +
+            "starts with its title and date, then lines \"[n] …\". Write in \(language), at most 140 words, one short line " +
+            "for each thing that matters for the question, each ending with the number in brackets [n] of the line it comes " +
+            "from. Keep every decision, every task with who does it. Leave out small talk and meetings with nothing for " +
+            "the question. Never invent anything. Never use dashes."
+        do {
+            let text = try await LanguageModelSession(model: model, instructions: ask)
+                .respond(to: "Question: \(question)\n\nNotes:\n\(part)", options: condenseOptions).content
+            if text.range(of: #"\[\d+\]"#, options: .regularExpression) != nil {
+                // Longer than asked: cut at a line, so the parts together still fit the answer.
+                var kept: [String] = []
+                var words = 0
+                for line in text.components(separatedBy: .newlines) where !line.trimmingCharacters(in: .whitespaces).isEmpty {
+                    words += line.split(separator: " ").count
+                    if words > 170, !kept.isEmpty { break }
+                    kept.append(line)
+                }
+                return kept.joined(separator: "\n")
+            }
+            log.error("condense: no line numbers kept")
+        } catch {
+            log.error("condense: \(String(describing: error), privacy: .public)")
+        }
+        // Without the model: each meeting's title, what it was about, decisions and tasks.
+        var out: [String] = []
+        var words = 0
+        for line in part.components(separatedBy: .newlines) {
+            let keep = line.hasPrefix("Meeting ") || line.contains("] Summary:") || line.contains("] Decision:")
+                || line.contains("] Task:") || line.contains("] You marked")
+            guard keep else { continue }
+            let short = line.contains("] Summary:") ? firstSentences(line, 1) : line
+            words += short.split(separator: " ").count
+            if words > 220 { break }
+            out.append(short)
+        }
+        return out.joined(separator: "\n")
+    }
+
+    /// A plain answer with its sources on a last line ("SOURCES: 3, 7").
+    nonisolated private static func parseSources(_ text: String, keep: Int = 4) -> Reply {
+        var answer: [String] = []
+        var sources: [Int] = []
+        for line in text.components(separatedBy: .newlines) {
+            if line.uppercased().contains("SOURCES:") || line.uppercased().contains("KÄLLOR:") {
+                sources = line.split { !$0.isNumber }.compactMap { Int($0) }
+            } else if !line.trimmingCharacters(in: .whitespaces).isEmpty {
+                answer.append(line)
+            }
+        }
+        return Reply(answer: Plain.unmark(answer.joined(separator: " ")), lines: Array(sources.prefix(keep)))
+    }
+
+    /// Without line numbers written into the answer as "(13)" or "(3, 7)".
+    nonisolated static func unnumbered(_ text: String) -> String {
+        text.replacingOccurrences(of: #"\s*\((\d{1,3})(,\s*\d{1,3})*\)"#, with: "", options: .regularExpression)
     }
 
     /// What went wrong, in words for the person asking.
@@ -746,6 +911,7 @@ final class MeetingNotes: ObservableObject {
     }
 
     private struct LocalAnswer: Error {}
+    private struct EmptyAnswer: Error {}
 
     nonisolated private static func plainPrompt(_ language: String) -> String {
         """
@@ -949,12 +1115,18 @@ struct Lines: Sendable {
     }
 
     /// For a question: the whole meeting if it fits, otherwise the lines that share
-    /// the most words with the question (and their neighbours), in order.
-    func relevant(to question: String, budget: Int = Lines.appleBudget) -> String {
+    /// the most words with the question (and their neighbours), in order. `anchors`:
+    /// moments that matter (where the notes' items were said) — their lines first.
+    /// Nothing to go by: lines spread over the whole meeting, not only its beginning.
+    func relevant(to question: String, budget: Int = Lines.appleBudget, anchors: [Double] = []) -> String {
         let total = lines.reduce(0) { $0 + $1.text.split(separator: " ").count }
         guard total > budget else { return numbered(0..<lines.count) }
         let q = Self.keys(question)
-        let ranked = lines.indices.sorted { Self.overlap(q, Self.keys(lines[$0].text)) > Self.overlap(q, Self.keys(lines[$1].text)) }
+        var score = lines.map { Self.overlap(q, Self.keys($0.text)) }
+        for at in anchors { if let i = index(at: at) { score[i] += 1 } }
+        // Ties (often: nothing matches) spread evenly over the meeting.
+        let spread = { (i: Int) in (Double(i) * 0.618_034).truncatingRemainder(dividingBy: 1) }
+        let ranked = lines.indices.sorted { score[$0] != score[$1] ? score[$0] > score[$1] : spread($0) < spread($1) }
         var chosen = Set<Int>(), words = 0
         for i in ranked {
             for j in [i - 1, i, i + 1] where lines.indices.contains(j) && !chosen.contains(j) {
