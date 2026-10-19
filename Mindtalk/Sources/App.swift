@@ -971,13 +971,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
-        // `Mindtalk --render-moten-top out.png [--dark] [--armed]` and `--render-vocabulary out.png [--dark]`.
+        // `Mindtalk --render-moten-top out.png [--dark] [--armed] [--import-demo]` and `--render-vocabulary out.png [--dark]`.
+        // `--import-demo`: made-up files just imported (in memory only), and the line under
+        // the drop zone as after one of them.
         for flag in ["--render-moten-top", "--render-vocabulary"] {
             guard let i = args.firstIndex(of: flag), i + 1 < args.count else { continue }
             Task { @MainActor in
                 let dark = args.contains("--dark")
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                 MeetingStore.shared.loadNow()
+                if args.contains("--import-demo") { Self.importDemo() }
                 MeetingSession.shared.armed = args.contains("--armed")      // the start card, waiting for a press
                 MeetingSession.previewPreparing = args.contains("--preparing")
                 let page: AnyView = flag == "--render-moten-top" ? AnyView(MeetingsTopPreview()) : AnyView(VocabularyPage(vocabulary: .shared, plain: true))
@@ -1034,12 +1037,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
-        // `Mindtalk --render-home out.png [--dark]`: the Hem page with your meetings.
+        // `Mindtalk --render-home out.png [--dark] [--import-demo]`: the Hem page with your
+        // meetings (`--import-demo`: with made-up files just imported, in memory only).
         if let i = args.firstIndex(of: "--render-home"), i + 1 < args.count {
             Task { @MainActor in
                 let dark = args.contains("--dark")
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                 MeetingStore.shared.loadNow()
+                if args.contains("--import-demo") { Self.importDemo() }
                 if Thoughts.shared.all.isEmpty {
                     let a = Thought(text: "Ring tillbaka om offerten och kolla budgeten för Q2.")
                     Thoughts.shared.preview([a])
@@ -1783,6 +1788,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     }
 
     #if DEBUG
+    /// `--import-demo`: the made-up meetings of the archive screenshot, two of them
+    /// files dropped today, put before your own in memory (nothing is written), and
+    /// the line under the drop zone as after the first of them.
+    @MainActor private static func importDemo() {
+        var sample = ArchivePreview.sample()
+        // Imported just now, by the real clock, so the list says "i dag".
+        for i in sample.indices {
+            guard var source = sample[i].source else { continue }
+            source.importedAt = Date().addingTimeInterval(source.dateKnown ? -7200 : -18_000)
+            if !source.dateKnown { sample[i].date = source.importedAt }
+            sample[i].source = source
+        }
+        MeetingStore.shared.replaceAll(sample + MeetingStore.shared.meetings)
+        MeetingImport.shared.previewDone(sample[0])
+    }
+
     /// Drives the key logic with scripted presses (no event tap, no paste) and
     /// prints every state change — for checking hold / tap / double-tap / space.
     private func simulateKeys() {

@@ -565,9 +565,12 @@ struct StartCard: View {
             }
             Rectangle().fill(DS.Colors.divider).frame(height: 1).padding(.top, 22).padding(.bottom, 16)
             ImportZone(folder: folders.selected, compact: true)
+            // A file just done: where it went, for a moment.
+            ImportDoneLine()
         }
         .padding(28)
         .tile()
+        .animation(.easeOut(duration: 0.25), value: importer.lastDone)
         .onGeometryChange(for: Bool.self) { $0.size.width >= 600 } action: { wide = $0 }
     }
 

@@ -396,6 +396,7 @@ final class MeetingImport: ObservableObject {
                 $0.stage = .done; $0.progress = 1; $0.title = record.title; $0.doneAt = Date()
             }
             Self.log.info("import: done, \(Int(duration)) s, \(words.count) words, \(Set(words.compactMap(\.speaker)).count) voices")
+            noteDone(record)
 
             // 4. The notes — written in the background, like a meeting's.
             MeetingNotes.shared.summarize(record.id)
@@ -427,16 +428,37 @@ final class MeetingImport: ObservableObject {
         }
     }
 
-    /// Done while you were elsewhere (another page, another app): a notification —
-    /// clicked, the meeting opens.
+    /// Where it went, said under the drop zone for ten seconds (the latest, when
+    /// several finish close together).
+    private func noteDone(_ record: MeetingRecord) {
+        let done = Done(meeting: record.id, title: record.title, date: record.date,
+                        dateKnown: record.source?.dateKnown ?? true, at: Date())
+        lastDone = done
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(10))
+            if self?.lastDone == done { self?.lastDone = nil }
+        }
+    }
+
+    #if DEBUG
+    /// Screenshots: the line as after an import.
+    func previewDone(_ record: MeetingRecord) { noteDone(record) }
+    #endif
+
+    /// Done while you were elsewhere (another page, another app): a notification
+    /// that says where it went — clicked, the meeting opens (AppDelegate hands the
+    /// meeting's id to MeetingPanel.openFromNotification, as for a meeting that ended).
     private static func notifyIfAway(_ record: MeetingRecord) {
         guard !(NSApp.isActive && AppDelegate.mainWindowIsKey && MainView.currentPage == .meetings) else { return }
+        let body = record.source?.dateKnown == false
+            ? String(localized: "”\(record.title)”, datum okänt.")
+            : String(localized: "”\(record.title)”, inspelad \(MeetingRecord.day(record.date, long: true)).")
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert]) { granted, _ in
             guard granted else { return }
             let content = UNMutableNotificationContent()
-            content.title = String(localized: "Klar att läsa")
-            content.body = record.title
+            content.title = String(localized: "Importen är klar")
+            content.body = body
             content.userInfo = ["meeting": record.id.uuidString]
             center.add(UNNotificationRequest(identifier: "import-\(record.id.uuidString)", content: content, trigger: nil))
         }
