@@ -586,7 +586,7 @@ private struct ListenerRow: View {
                     Button("Visa i Finder") { DiskSize.reveal(VocabularyBoost.directory) }
                     Divider()
                     Button("Ta bort…", role: .destructive) { confirmRemove = true }
-                } label: { ModelParts.more(ticked: false) }
+                } label: { ModelParts.more }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 .help("Mer")
                 .accessibilityLabel(Text("Mer om lyssnaren"))

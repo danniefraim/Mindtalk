@@ -129,7 +129,7 @@ struct SpeechLanguagesCard: View {
                         // the model is let go when they're done.
                         Button("Ta bort…", role: .destructive) { confirmRemove = m }.disabled(meeting.isBusy || importing.busy)
                     }
-                } label: { ModelParts.more(ticked: false) }
+                } label: { ModelParts.more }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 .help(active ? "Den som används kan inte tas bort. Byt språk först." : "Mer")
                 .accessibilityLabel(Text("Mer om \(m.title)"))
@@ -173,7 +173,7 @@ struct VoiceModelSettingsCard: View {
                     Button("Försök igen") { voices.download() }.buttonStyle(.ink)
                     Menu {
                         Button("Ta bort det nedladdade…", role: .destructive) { confirmRemove = true }
-                    } label: { ModelParts.more(ticked: false) }
+                    } label: { ModelParts.more }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                     .help("Mer")
                 }
@@ -308,13 +308,17 @@ struct SummaryWritersCard: View {
                     Button("Avbryt") { notes.cancel() }.buttonStyle(.soft)
                 }
             case .ready:
-                Menu {
-                    Button("Visa i Finder") { DiskSize.reveal(m.directory) }
-                    Divider()
-                    Button("Ta bort…", role: .destructive) { confirmRemove = m }
-                } label: { ModelParts.more }
-                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                .help("Mer")
+                // The tick beside the menu, not in its label: a menu shows one image.
+                HStack(spacing: 10) {
+                    ModelParts.downloaded
+                    Menu {
+                        Button("Visa i Finder") { DiskSize.reveal(m.directory) }
+                        Divider()
+                        Button("Ta bort…", role: .destructive) { confirmRemove = m }
+                    } label: { ModelParts.more }
+                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                    .help("Mer")
+                }
             case .missing, .failed:
                 let partly = m.remainingBytes < m.bytes - 50_000_000
                 HStack(spacing: 10) {
@@ -327,7 +331,7 @@ struct SummaryWritersCard: View {
                     if m.remainingBytes < m.bytes {
                         Menu {
                             Button("Ta bort det nedladdade…", role: .destructive) { confirmRemove = m }
-                        } label: { ModelParts.more(ticked: false) }
+                        } label: { ModelParts.more }
                         .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                         .help("Mer")
                     }
@@ -379,23 +383,20 @@ enum ModelParts {
         }
     }
 
-    /// On a model that's here: a green tick that says so, and ⋯ for Finder and removing.
-    static var more: some View { more(ticked: true) }
+    /// A green tick: the model is here.
+    static var downloaded: some View {
+        Label("Nedladdad", systemImage: "checkmark.circle.fill")
+            .labelStyle(.iconOnly)
+            .font(.system(size: 15))
+            .foregroundStyle(DS.Colors.good)
+    }
 
-    /// ⋯ in a small chip disc — with the green tick in front when the model is here.
-    static func more(ticked: Bool) -> some View {
-        HStack(spacing: 10) {
-            if ticked {
-                Label("Nedladdad", systemImage: "checkmark.circle.fill")
-                    .labelStyle(.iconOnly)
-                    .font(.system(size: 15))
-                    .foregroundStyle(DS.Colors.good)
-            }
-            Image(systemName: "ellipsis").font(.system(size: 13, weight: .semibold)).foregroundStyle(.primary)
-                .frame(width: 26, height: 26)
-                .background(Circle().fill(DS.Colors.chip))
-        }
-        .contentShape(Rectangle())
+    /// ⋯ in a small chip disc, for Finder and removing.
+    static var more: some View {
+        Image(systemName: "ellipsis").font(.system(size: 13, weight: .semibold)).foregroundStyle(.primary)
+            .frame(width: 26, height: 26)
+            .background(Circle().fill(DS.Colors.chip))
+            .contentShape(Rectangle())
     }
 }
 
