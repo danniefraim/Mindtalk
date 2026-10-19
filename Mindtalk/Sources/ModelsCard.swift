@@ -198,6 +198,9 @@ struct SummaryWritersCard: View {
     @State private var onDisk: [URL: Int64] = [:]
     @State private var confirmDownload: NotesModel?
     @State private var confirmRemove: NotesModel?
+    /// Where Apple Intelligence stands, asked again when the app comes to the front:
+    /// switched on in System Settings, or done downloading, meanwhile.
+    @State private var appleStatus = Polisher.status
 
     /// Where Apple Intelligence stands on this Mac.
     static func appleDetail(_ status: Polisher.Status) -> String {
@@ -235,9 +238,10 @@ struct SummaryWritersCard: View {
         }
         .task { await servers.refresh() }     // Ollama and LM Studio: here, running, and their models
         // A Gemma moved to the Trash in Finder (or put back) shows as it is.
-        .onAppear { notes.refresh() }
+        .onAppear { notes.refresh(); appleStatus = Polisher.status }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             notes.refresh()
+            appleStatus = Polisher.status
         }
         .confirmationDialog(confirmDownload.map { String(localized: "Ladda ned \($0.name) (\($0.sizeText))?") } ?? "",
                             isPresented: Binding(get: { confirmDownload != nil }, set: { if !$0 { confirmDownload = nil } }),
@@ -272,8 +276,9 @@ struct SummaryWritersCard: View {
     }
 
     private var appleRow: some View {
-        let status = Polisher.status
-        return ModelRow(name: "Apple Intelligence", chooser: (!notes.isActive, status == .available, { notes.choice = .apple })) {
+        let status = appleStatus
+        // Not here or not on: never shown as the one chosen, greyed out.
+        return ModelRow(name: "Apple Intelligence", chooser: (!notes.isActive && status == .available, status == .available, { notes.choice = .apple })) {
             ModelParts.detail(Self.appleDetail(status))
         } trailing: {
             EmptyView()
