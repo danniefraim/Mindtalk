@@ -352,7 +352,9 @@ struct SettingsPage: View {
     /// The thought key, so the meeting shortcut never takes the same keys.
     @State private var thoughtShortcut = Settings.thoughtShortcut
     @State private var pickingMeetingKey = false
-    /// Allmänt's Mer: closed until opened.
+    @State private var pickingThoughtKey = false
+    /// Why the thought key just picked wasn't taken (the dictation key has it).
+    @State private var thoughtKeyRefusal: String?
 
     // MARK: Sections
 
@@ -428,17 +430,20 @@ struct SettingsPage: View {
     // MARK: Allmänt
 
     @ViewBuilder private var generalSection: some View {
-        // The Mac: what Mindtalk hears with and where it lives.
-        VStack(spacing: 0) {
-            if !AppMover.isInApplications {
-                // Outside Applications Mindtalk can't update itself or open at login reliably.
-                CardRow(title: "Flytta till Program",
-                        detail: "Mindtalk behöver ligga i Program för att kunna uppdatera sig själv och starta vid inloggning.") {
-                    Button("Flytta") { AppMover.moveNow() }.buttonStyle(.ink)
-                        .disabled(dictation.phase != .idle || meeting.isBusy || importer.busy)
-                }
-                CardDivider()
+        if !AppMover.isInApplications {
+            // Outside Applications Mindtalk can't update itself or open at login reliably.
+            CardRow(title: "Flytta till Program",
+                    detail: "Mindtalk behöver ligga i Program för att kunna uppdatera sig själv och starta vid inloggning.") {
+                Button("Flytta") { AppMover.moveNow() }.buttonStyle(.ink)
+                    .disabled(dictation.phase != .idle || meeting.isBusy || importer.busy)
             }
+            .card()
+        }
+
+        shortcutsCard
+
+        // The Mac: what Mindtalk hears with, where it lives and how it looks.
+        VStack(spacing: 0) {
             microphoneRow
             CardDivider()
             loginRow
@@ -446,19 +451,9 @@ struct SettingsPage: View {
             CardRow(title: "Visa i Dock", detail: "Annars finns Mindtalk bara i menyraden när fönstret är stängt.") {
                 InkToggle(label: "Visa i Dock", isOn: $prefs.showInDock)
             }
-        }
-        .card()
-
-        // How Mindtalk looks and sounds.
-        VStack(spacing: 0) {
+            CardDivider()
             CardRow(title: "Utseende") {
                 PillPicker(options: Appearance.allCases.map { ($0, $0.title) }, selection: $prefs.appearance)
-            }
-            CardDivider()
-            languageRow
-            CardDivider()
-            CardRow(title: "Ljud vid diktering", detail: "Ett diskret ljud när Mindtalk börjar lyssna och när texten skrivs in.") {
-                InkToggle(label: "Ljud vid diktering", isOn: $prefs.sounds)
             }
         }
         .card()
@@ -477,6 +472,64 @@ struct SettingsPage: View {
             ModelsFootprintRow()
         }
         .card()
+    }
+
+    // MARK: Genvägar
+
+    /// All three keys heard in every app, in one place: the same fields as on Diktering,
+    /// Tankar and Möten, so two can never share keys. Without Hjälpmedel none of them
+    /// work, and the card says so where you read it.
+    private var shortcutsCard: some View {
+        VStack(spacing: 0) {
+            CardRow(title: "Genvägar",
+                    detail: dictation.accessibilityGranted ? "Genvägarna fungerar överallt när Mindtalk har Hjälpmedel."
+                        : "Genvägarna behöver Hjälpmedel. Tillåt det på Hem.") { EmptyView() }
+            CardDivider()
+            CardRow(title: "Diktering", detail: dictationKeyDetail) {
+                DictationKeyField(dictation: dictation)
+                    .disabled(!dictation.accessibilityGranted)
+            }
+            CardDivider()
+            CardRow(title: "Tanke", detail: thoughtKeyDetail) {
+                ThoughtShortcutField(shortcut: $thoughtShortcut, picking: $pickingThoughtKey, refusal: $thoughtKeyRefusal,
+                                     meeting: meetingShortcut)
+                    .disabled(!dictation.accessibilityGranted)
+            }
+            CardDivider()
+            meetingKeyRow(title: "Möte")
+        }
+        .card()
+        .onDisappear { dictation.stopPickingKey(reason: "Allmänt left") }
+    }
+
+    private var dictationKeyDetail: String {
+        if dictation.pickingKey {
+            return String(localized: "Håll in en eller flera tangenter, som ⌥ och ⌘, och släpp. Du kan också trycka på en vanlig tangent. Esc avbryter.")
+        }
+        if let why = dictation.keyRefusal { return why }
+        return dictation.mode == .toggle ? String(localized: "Tryck och prata.") : String(localized: "Håll in och prata.")
+    }
+
+    private var thoughtKeyDetail: String {
+        if pickingThoughtKey {
+            return String(localized: "Håll in en tangent, som vänster ⌥, och släpp. Du kan också trycka på en kombination, som ⌃⌥T. Esc avbryter.")
+        }
+        if let why = thoughtKeyRefusal { return why }
+        return thoughtShortcut == nil ? String(localized: "Av. På Tankar kan du ändå säga en tanke.")
+                                      : String(localized: "Håll in och tänk högt.")
+    }
+
+    /// The meeting's shortcut: in Genvägar, and first under Möten. One setting, one field.
+    private func meetingKeyRow(title: String) -> some View {
+        CardRow(title: title, detail: pickingMeetingKey
+                ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
+                : meetingShortcut == nil
+                    ? String(localized: "Ingen genväg. I Mindtalk fungerar ⇧⌘R.")
+                    : meetingShortcut?.warning ?? String(localized: "Startar och avslutar ett möte, var du än är.")) {
+            MeetingShortcutField(chord: $meetingShortcut, picking: $pickingMeetingKey, taken: [thoughtShortcut?.chord])
+                .disabled(!dictation.accessibilityGranted)
+                .help(dictation.accessibilityGranted ? Text(verbatim: "") : Text("Slå på Hjälpmedel för Mindtalk först."))
+        }
     }
 
     /// What both dictation and meetings hear with.
@@ -548,15 +601,11 @@ struct SettingsPage: View {
         }
     }
 
-    // MARK: Språk — what both dictation and meetings hear in
+    // MARK: Språk — the app's, and what both dictation and meetings hear in
 
     @ViewBuilder private var languageSection: some View {
+        languageRow.card()
         SpeechLanguagesCard(dictation: dictation)
-        Text("Språket du pratar, när du dikterar och i möten. Byt snabbt i menyraden, eller med ⌘1 och ⌘2 när menyn är öppen.")
-            .font(.system(size: 12))
-            .foregroundStyle(DS.Colors.muted)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 4)
     }
 
     // MARK: Diktering
@@ -573,6 +622,11 @@ struct SettingsPage: View {
             CardRow(title: "Musik medan du dikterar", detail: prefs.mediaMode.explanation) {
                 MenuPicker(options: MediaMode.allCases.map { ($0, $0.title) }, selection: $prefs.mediaMode)
             }
+            CardDivider()
+            // The same cues start a meeting and its introduction round: switched off here, all of them.
+            CardRow(title: "Ljud vid diktering", detail: "Ett diskret ljud när Mindtalk börjar och slutar lyssna, också i möten.") {
+                InkToggle(label: "Ljud vid diktering", isOn: $prefs.sounds)
+            }
         }
         .card()
         TextCleanupCard(prefs: prefs)
@@ -587,16 +641,7 @@ struct SettingsPage: View {
         SummaryLanguageCard()
         VoiceMemoryCard(memory: .shared)
         MeetingStorageCard()
-        CardRow(title: "Genväg", detail: pickingMeetingKey
-                ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
-                : meetingShortcut == nil
-                    ? String(localized: "Av. Inne i Mindtalk fungerar ⇧⌘R.")
-                    : meetingShortcut?.warning ?? String(localized: "Startar och avslutar ett möte, var du än är.")) {
-            MeetingShortcutField(chord: $meetingShortcut, picking: $pickingMeetingKey, taken: [thoughtShortcut?.chord])
-                .disabled(!dictation.accessibilityGranted)
-                .help(dictation.accessibilityGranted ? Text(verbatim: "") : Text("Slå på Hjälpmedel för Mindtalk först."))
-        }
-        .card()
+        meetingKeyRow(title: "Starta ett möte").card()
     }
 }
 
@@ -620,6 +665,32 @@ private struct PickerFieldLabel<Content: View>: View {
         .overlay(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
             .strokeBorder(picking ? DS.Colors.ink : DS.Colors.fieldStroke, lineWidth: 1))
         .contentShape(Rectangle())
+    }
+}
+
+/// The dictation key in a white field, as the other two: click, then hold the keys and
+/// let go. The same picking as Ändra on Diktering; never off, so no ✕.
+private struct DictationKeyField: View {
+    @ObservedObject var dictation: Dictation
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button { dictation.togglePickingKey() } label: {
+                PickerFieldLabel(picking: dictation.pickingKey, wide: false) {
+                    if dictation.pickingKey {
+                        Text("Tryck på en tangent…").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                    } else {
+                        KeyChip(text: dictation.hotkey.chip)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            // Where the others have ✕: the fields start in one line.
+            Color.clear.frame(width: 28, height: 38).accessibilityHidden(true)
+        }
+        .help(LocalizedStringKey(dictation.accessibilityGranted ? "Klicka och håll in tangenterna du vill använda. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter."
+                                                                : "Slå på Hjälpmedel för Mindtalk först."))
+        .accessibilityLabel(dictation.pickingKey ? Text("Avbryt") : Text("Ändra genvägen"))
     }
 }
 
@@ -731,7 +802,8 @@ struct MeetingShortcutField: View {
 /// The thought shortcut: a key held on its own (left ⌥), like the dictation key — or a
 /// chord like ⌃⌥T. Click, then hold the key alone and let go, or press the combination.
 /// Never the dictation key: that's refused, and said why. In Inställningar a white
-/// field (`.field`); on Tankar a flat tile button, Ändra (`.button`), in the key card.
+/// field (`.field`, with ✕ to turn it off); on Tankar flat tile buttons, Ändra and
+/// Stäng av (`.button`), in the key card.
 struct ThoughtShortcutField: View {
     enum Style { case field, button }
 
@@ -783,13 +855,25 @@ struct ThoughtShortcutField: View {
                     }
                 }
             case .button:
-                Button { tapped() } label: { picking ? Text("Avbryt") : shortcut == nil ? Text("Välj") : Text("Ändra") }
-                    .buttonStyle(TileButtonStyle())
-                    .disabled(!granted)
-                    .help(!granted ? Text("Slå på Hjälpmedel för Mindtalk först.")
-                          : picking ? Text("Esc avbryter.")
-                          : Text("Klicka och håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination. Esc avbryter."))
-                    .accessibilityLabel(picking ? Text("Avbryt") : shortcut == nil ? Text("Välj en genväg") : Text("Ändra genvägen"))
+                HStack(spacing: 8) {
+                    Button { tapped() } label: { picking ? Text("Avbryt") : shortcut == nil ? Text("Välj") : Text("Ändra") }
+                        .buttonStyle(TileButtonStyle())
+                        .disabled(!granted)
+                        .help(!granted ? Text("Slå på Hjälpmedel för Mindtalk först.")
+                              : picking ? Text("Esc avbryter.")
+                              : Text("Klicka och håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination. Esc avbryter."))
+                        .accessibilityLabel(picking ? Text("Avbryt") : shortcut == nil ? Text("Välj en genväg") : Text("Ändra genvägen"))
+                    // The key off, as ✕ does beside the field in Inställningar.
+                    if shortcut != nil, !picking {
+                        Button("Stäng av") {
+                            ShortcutLog.log.notice("thought key: turned off")
+                            set(nil)
+                        }
+                        .buttonStyle(TileButtonStyle())
+                        .help("Stäng av genvägen")
+                        .accessibilityLabel(Text("Stäng av genvägen"))
+                    }
+                }
             }
         }
         .onDisappear { if picking { stop(because: "field gone") } }

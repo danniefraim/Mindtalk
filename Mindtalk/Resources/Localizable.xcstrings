@@ -3677,6 +3677,22 @@
         }
       }
     },
+    "Av. På Tankar kan du ändå säga en tanke.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off. You can still say a thought on Thoughts."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Av. På Tankar kan du ändå säga en tanke."
+          }
+        }
+      }
+    },
     "Av. Tankar kan fortfarande sägas från sidan Tankar.": {
       "extractionState": "stale",
       "localizations": {
@@ -4628,6 +4644,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bäst på svenska, hänger med i engelska också."
+          }
+        }
+      }
+    },
+    "Bäst på svenska. Klarar engelska också.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Best at Swedish. Handles English too."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bäst på svenska. Klarar engelska också."
           }
         }
       }
@@ -7459,6 +7491,22 @@
         }
       }
     },
+    "Ett diskret ljud när Mindtalk börjar och slutar lyssna, också i möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A subtle sound when Mindtalk starts and stops listening, in meetings too."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ett diskret ljud när Mindtalk börjar och slutar lyssna, också i möten."
+          }
+        }
+      }
+    },
     "Ett företag, en produkt eller ett ord från jobbet.": {
       "localizations": {
         "en": {
@@ -9511,6 +9559,38 @@
         }
       }
     },
+    "Genvägarna behöver Hjälpmedel. Tillåt det på Hem.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shortcuts need Accessibility. Allow it on Home."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genvägarna behöver Hjälpmedel. Tillåt det på Hem."
+          }
+        }
+      }
+    },
+    "Genvägarna fungerar överallt när Mindtalk har Hjälpmedel.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shortcuts work everywhere once Mindtalk has Accessibility."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genvägarna fungerar överallt när Mindtalk har Hjälpmedel."
+          }
+        }
+      }
+    },
     "Glöm": {
       "localizations": {
         "en": {
@@ -9735,6 +9815,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Grundmodellen som båda talmodellerna bygger på. Av NVIDIA. CC BY 4.0."
+          }
+        }
+      }
+    },
+    "Gäller både diktering och möten. Byt snabbt i menyraden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applies to dictation and meetings. Switch quickly from the menu bar."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gäller både diktering och möten. Byt snabbt i menyraden."
           }
         }
       }
@@ -10416,6 +10512,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in %@ för att diktera"
+          }
+        }
+      }
+    },
+    "Håll in %@ för korta meddelanden. Dubbeltryck för att låsa och prata fritt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold %@ for short messages. Double-tap to lock and talk freely."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in %@ för korta meddelanden. Dubbeltryck för att låsa och prata fritt."
           }
         }
       }
@@ -12191,6 +12303,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ingen genväg för tankar"
+          }
+        }
+      }
+    },
+    "Ingen genväg. I Mindtalk fungerar ⇧⌘R.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No shortcut. ⇧⌘R works inside Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ingen genväg. I Mindtalk fungerar ⇧⌘R."
           }
         }
       }
@@ -19117,6 +19245,22 @@
         }
       }
     },
+    "Mindtalk lyssnar så länge du håller in %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk listens for as long as you hold %@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk lyssnar så länge du håller in %@."
+          }
+        }
+      }
+    },
     "Mindtalk lyssnar så länge du håller in.": {
       "localizations": {
         "en": {
@@ -22981,6 +23125,22 @@
         }
       }
     },
+    "Samma som Macen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Same as the Mac"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Samma som Macen"
+          }
+        }
+      }
+    },
     "Samma som…": {
       "extractionState": "stale",
       "localizations": {
@@ -25177,6 +25337,22 @@
         }
       }
     },
+    "Språket du pratar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The language you speak"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Språket du pratar"
+          }
+        }
+      }
+    },
     "Språket du pratar, när du dikterar och i möten. Byt snabbt i menyraden, eller med ⌘1 och ⌘2 när menyn är öppen.": {
       "localizations": {
         "en": {
@@ -25321,6 +25497,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Starta direkt"
+          }
+        }
+      }
+    },
+    "Starta ett möte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start a meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starta ett möte"
           }
         }
       }
@@ -25815,6 +26007,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stäng"
+          }
+        }
+      }
+    },
+    "Stäng av": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn Off"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stäng av"
           }
         }
       }
@@ -28120,6 +28328,22 @@
         }
       }
     },
+    "Tanke": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thought"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tanke"
+          }
+        }
+      }
+    },
     "Tanken kunde inte skrivas ned.": {
       "localizations": {
         "en": {
@@ -29203,6 +29427,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tryck på %@ för att börja och en gång till för att skriva in. Esc avbryter."
+          }
+        }
+      }
+    },
+    "Tryck på %@ för att börja och tryck igen när du är klar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press %@ to start and press again when you’re done."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck på %@ för att börja och tryck igen när du är klar."
           }
         }
       }

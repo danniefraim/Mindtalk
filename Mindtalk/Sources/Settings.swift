@@ -107,12 +107,13 @@ enum DictationMode: String, CaseIterable, Identifiable {
 
     func explanation(key: String) -> String {
         switch self {
+        // The key named, so the choice reads with the key you use (now also in Genvägar).
         case .holdOrDoubleTap:
-            return String(localized: "Håll in för korta meddelanden. Dubbeltryck för att låsa och prata fritt.")
+            return String(localized: "Håll in \(key) för korta meddelanden. Dubbeltryck för att låsa och prata fritt.")
         case .hold:
-            return String(localized: "Mindtalk lyssnar så länge du håller in.")
+            return String(localized: "Mindtalk lyssnar så länge du håller in \(key).")
         case .toggle:
-            return String(localized: "Tryck för att börja och tryck igen när du är klar.")
+            return String(localized: "Tryck på \(key) för att börja och tryck igen när du är klar.")
         }
     }
 }
@@ -270,7 +271,7 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     /// Each language in its own words, so you can always find yours.
     var title: String {
         switch self {
-        case .system: return String(localized: "Som Macen")
+        case .system: return String(localized: "Samma som Macen")
         case .swedish: return "Svenska"
         case .english: return "English"
         }

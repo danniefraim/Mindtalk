@@ -33,7 +33,7 @@ enum DiskSize {
 // MARK: - Språk
 
 /// The two speech models, one row per language: use it, download it, how big it is,
-/// and ⋯ for Finder and removal.
+/// and ⋯ for Finder and removal. On top, that the choice counts for meetings too.
 struct SpeechLanguagesCard: View {
     @ObservedObject var dictation: Dictation
     @ObservedObject private var meeting = MeetingSession.shared
@@ -44,8 +44,9 @@ struct SpeechLanguagesCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
-                if i > 0 { CardDivider() }
+            CardRow(title: "Språket du pratar", detail: "Gäller både diktering och möten. Byt snabbt i menyraden.") { EmptyView() }
+            ForEach(SpeechModel.allCases) { m in
+                CardDivider()
                 row(m)
             }
         }
