@@ -781,7 +781,7 @@ struct StartCard: View {
             return String(localized: "Utan Apple Intelligence eller Gemma 4 blir det text men ingen sammanfattning.")
         }
         if BetterNotes.shared.isActive {
-            return String(localized: "\(dictation.engine.modelName) och \(BetterNotes.shared.writerName)")
+            return String(localized: "\(dictation.engine.modelName) och \(BetterNotes.shared.writerSentenceName)")
         }
         return String(localized: "\(dictation.engine.modelName) och Apple Intelligence")
     }
@@ -840,13 +840,14 @@ private struct WeekRecap: View {
 
     var body: some View {
         let since = Date().addingTimeInterval(-7 * 86_400)
-        let week = meetings.filter { $0.date > since }
+        // The meetings with text: what a question can read.
+        let week = meetings.filter { $0.date > since && !$0.words.isEmpty }
         if week.count >= 2 {
             let time = week.reduce(0) { $0 + $1.duration }
             let people = ArchiveSection(id: "week", title: "", kind: .recent, meetings: week).people(among: all)
             HStack(alignment: .center, spacing: 18) {
                 VStack(alignment: .leading, spacing: 4) {
-                    CapsLabel(String(localized: "Den här veckan"))
+                    CapsLabel(String(localized: "Senaste veckan"))
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text(verbatim: String(localized: "\(week.count) möten"))
                             .font(.system(size: 30, weight: .regular, design: .serif)).monospacedDigit()
@@ -2172,7 +2173,8 @@ private struct SummaryView: View {
         if let summary = record.summary {
             VStack(alignment: .leading, spacing: 32) {
             if writing || justRewritten {
-                RewriteBanner(writing: writing).transition(.move(edge: .top).combined(with: .opacity))
+                RewriteBanner(writing: writing, cancel: BetterNotes.shared.server == nil ? nil : { notes.cancelSummary(record.id) })
+                    .transition(.move(edge: .top).combined(with: .opacity))
             } else if notesChanged {
                 NotesChangedRow { notes.summarize(record.id) }
                     .transition(.move(edge: .top).combined(with: .opacity))
@@ -2236,7 +2238,7 @@ private struct SummaryView: View {
             }
             .animation(.spring(duration: 0.4, bounce: 0.12), value: writing || justRewritten)
         } else if writing {
-            WritingPlaceholder()
+            WritingPlaceholder(cancel: BetterNotes.shared.server == nil ? nil : { notes.cancelSummary(record.id) })
         } else if !MeetingNotes.isAvailable {
             unavailable
         } else {
@@ -2519,6 +2521,8 @@ private struct Receipt: View {
 
 /// While the notes are being written: the shape of what's coming.
 private struct WritingPlaceholder: View {
+    /// Your own model in Ollama or LM Studio can be stopped.
+    var cancel: (() -> Void)? = nil
     @State private var sweep = false
     /// Your own model says where it is: starting, reading, writing.
     @ObservedObject private var servers = LocalServers.shared
@@ -2528,9 +2532,12 @@ private struct WritingPlaceholder: View {
         VStack(alignment: .leading, spacing: 30) {
             HStack(spacing: 8) {
                 SettlingLine(color: DS.Colors.ink).scaleEffect(0.8)
-                Text(servers.phase.map { "\(BetterNotes.shared.writerName) · \($0.title)" }
-                     ?? (BetterNotes.shared.isActive ? String(localized: "\(BetterNotes.shared.writerName) skriver sammanfattningen…")
+                Text(servers.progress
+                     ?? (BetterNotes.shared.isActive ? String(localized: "\(BetterNotes.shared.writerSentenceName) skriver sammanfattningen…")
                                                      : String(localized: "Skriver sammanfattningen…")))
+                if let cancel {
+                    Button("Avbryt", action: cancel).buttonStyle(.soft).controlSize(.small).padding(.leading, 6)
+                }
             }
             .font(.system(size: 13, weight: .medium))
             .foregroundStyle(DS.Colors.muted)
@@ -2863,9 +2870,11 @@ private struct PlayerBar: View {
 /// long — then, for a moment, that it's done.
 private struct RewriteBanner: View {
     let writing: Bool
+    /// Your own model in Ollama or LM Studio can be stopped.
+    var cancel: (() -> Void)? = nil
     @State private var started = Date()
 
-    private var writer: String { BetterNotes.shared.writerName }
+    private var writer: String { BetterNotes.shared.writerSentenceName }
     @ObservedObject private var servers = LocalServers.shared
 
     var body: some View {
@@ -2880,7 +2889,7 @@ private struct RewriteBanner: View {
                 Text(writing ? String(localized: "\(writer) skriver en ny sammanfattning…") : String(localized: "Den nya sammanfattningen är klar"))
                     .font(.system(size: 14, weight: .semibold))
                 if writing {
-                    Text(servers.phase.map { $0.title + " " + String(localized: "Den gamla syns tills den nya är klar.") }
+                    Text(servers.progress.map { $0 + " " + String(localized: "Den gamla syns tills den nya är klar.") }
                          ?? String(localized: "Det tar några sekunder. Den gamla syns tills den nya är klar."))
                         .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                 }
@@ -2891,6 +2900,7 @@ private struct RewriteBanner: View {
                     Text(MeetingView.duration(context.date.timeIntervalSince(started)))
                         .font(.system(size: 13, weight: .medium)).monospacedDigit().foregroundStyle(DS.Colors.muted)
                 }
+                if let cancel { Button("Avbryt", action: cancel).buttonStyle(.soft) }
             }
         }
         .padding(.horizontal, 18)

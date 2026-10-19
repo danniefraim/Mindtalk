@@ -514,9 +514,14 @@ struct ServerWriterRow: View {
     @ObservedObject private var notes = BetterNotes.shared
     @ObservedObject private var servers = LocalServers.shared
     @State private var advanced = false
+    /// The ports as typed: taken on Return, not at every keystroke.
+    @State private var portText: [ServerBackend: String] = [:]
 
     /// The writer chosen is one of these.
     private var isOn: Bool { notes.server != nil }
+
+    /// Either of them is on this Mac.
+    private var anyInstalled: Bool { ServerBackend.allCases.contains { servers.state($0) != .notInstalled } }
 
     /// The model this backend's picker shows: the chosen one, or the one picked last time.
     private func picked(_ backend: ServerBackend) -> String? {
@@ -544,6 +549,13 @@ struct ServerWriterRow: View {
         }
     }
 
+    /// What the row says under its name: the model chosen, or what this is for.
+    private var detail: String {
+        if let server = notes.server { return "\(server.backend.name) · \(server.model)" }
+        return anyInstalled ? String(localized: "Din egen modell, på din Mac")
+                            : String(localized: "Valfritt. För dig som redan kör Ollama eller LM Studio.")
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             Button(action: choose) {
@@ -554,42 +566,51 @@ struct ServerWriterRow: View {
             .buttonStyle(.plain)
             .disabled(!canChoose && !isOn)
             .opacity(canChoose || isOn ? 1 : 0.35)
-            .help(canChoose || isOn ? "Använd för sammanfattningarna" : "Starta Ollama eller LM Studio först")
+            .help(canChoose || isOn ? "Använd för sammanfattningarna" : "Kräver Ollama eller LM Studio med minst en modell.")
             .accessibilityLabel(Text("Använd Ollama eller LM Studio"))
             .accessibilityAddTraits(isOn ? .isSelected : [])
             .padding(.top, 1)
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Ollama eller LM Studio").font(.system(size: 14, weight: .semibold))
-                    Text(verbatim: notes.server.map { "\($0.backend.name) · \($0.model)" } ?? String(localized: "Din egen modell, på din Mac"))
-                        .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                    Text(verbatim: detail).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(ServerBackend.allCases) { backend in
                         backendLine(backend)
                     }
                 }
-                Text("Allt körs på din Mac. Mindtalk pratar bara med den här datorn.")
-                    .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                if anyInstalled {
+                    Text("Mindtalk pratar bara med den här datorn. Ollamas molnmodeller visas inte.")
+                        .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if let test = servers.test { testView(test) }
                 DisclosureGroup(isExpanded: $advanced) {
-                    HStack(spacing: 14) {
-                        ForEach(ServerBackend.allCases) { backend in
-                            HStack(spacing: 6) {
-                                Text(verbatim: backend.name).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                                TextField("", value: Binding(get: { servers.ports[backend] ?? backend.defaultPort },
-                                                             set: { servers.ports[backend] = $0 }),
-                                          format: .number.grouping(.never))
-                                    .textFieldStyle(.roundedBorder).frame(width: 66)
-                                    .font(.system(size: 12.5)).monospacedDigit()
-                                    .accessibilityLabel(Text("Port för \(backend.name)"))
-                                    .onSubmit { Task { await servers.probe(backend) } }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Portarna Mindtalk pratar med. Ändra bara om du ändrat dem i Ollama eller LM Studio. Tryck på retur för att prova.")
+                            .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 14) {
+                            ForEach(ServerBackend.allCases) { backend in
+                                HStack(spacing: 6) {
+                                    Text(verbatim: backend.name).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                                    TextField("", text: Binding(get: { portText[backend] ?? String(servers.ports[backend] ?? backend.defaultPort) },
+                                                                set: { portText[backend] = $0 }))
+                                        .textFieldStyle(.roundedBorder).frame(width: 66)
+                                        .font(.system(size: 12.5)).monospacedDigit()
+                                        .accessibilityLabel(Text("Port för \(backend.name)"))
+                                        .onSubmit { take(backend) }
+                                }
                             }
+                            Button("Återställ portarna") { servers.resetPorts(); portText = [:]; Task { await servers.refresh() } }
+                                .buttonStyle(.soft)
+                                .disabled(ServerBackend.allCases.allSatisfy { servers.ports[$0] == $0.defaultPort })
+                            Spacer()
                         }
-                        Button("Återställ") { servers.resetPorts(); Task { await servers.refresh() } }
-                            .buttonStyle(.soft)
-                            .disabled(ServerBackend.allCases.allSatisfy { servers.ports[$0] == $0.defaultPort })
-                        Spacer()
+                        if let note = servers.portNote {
+                            Text(verbatim: note).font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                        }
                     }
                     .padding(.top, 8)
                 } label: {
@@ -601,6 +622,18 @@ struct ServerWriterRow: View {
         }
         .padding(.horizontal, 22)
         .padding(.vertical, 16)
+        // Another model or backend: the test answer was about the one before.
+        .onChange(of: notes.choice) { servers.clearTest() }
+    }
+
+    /// Return in a port field: the number taken (kept within range, never the other's),
+    /// shown as taken, and the backend looked for there.
+    private func take(_ backend: ServerBackend) {
+        if let typed = portText[backend].flatMap({ Int($0.trimmingCharacters(in: .whitespaces)) }) {
+            servers.ports[backend] = typed
+        }
+        portText[backend] = nil
+        Task { await servers.probe(backend) }
     }
 
     /// "Ollama  ● Igång  [ qwen3.5:9b ⌄ ]  [ Testa ]"
@@ -615,14 +648,17 @@ struct ServerWriterRow: View {
                     .overlay(Circle().strokeBorder(state == .running ? Color.clear : DS.Colors.muted, lineWidth: 1.2))
                     .frame(width: 8, height: 8)
                     .accessibilityHidden(true)
+                // The status gives way first when the line is tight.
                 Text(verbatim: state.title).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                    .frame(width: 80, alignment: .leading)
+                    .lineLimit(1).layoutPriority(-1)
+                    .frame(minWidth: 30, idealWidth: 120, maxWidth: 120, alignment: .leading)
                 if state == .running, !models.isEmpty {
                     ServerModelPicker(models: models, selection: Binding(
                         get: { model },
                         set: { if let id = $0 { notes.choice = .server(backend, id) } }))
                     if let model, let m = models.first(where: { $0.id == model }), m.goodAtSwedish {
                         Text("Bra på svenska").font(.system(size: 11, weight: .semibold))
+                            .lineLimit(1).fixedSize()
                             .padding(.horizontal, 7).padding(.vertical, 2)
                             .background(Capsule().fill(DS.Colors.chip))
                     }
@@ -631,7 +667,10 @@ struct ServerWriterRow: View {
                 switch state {
                 case .running:
                     if servers.testing == backend {
-                        ProgressView().controlSize(.small)
+                        HStack(spacing: 10) {
+                            ProgressView().controlSize(.small)
+                            Button("Avbryt") { servers.cancelTest() }.buttonStyle(.soft)
+                        }
                     } else if let model {
                         Button("Testa") { servers.runTest(backend, model) }.buttonStyle(.soft)
                     }
@@ -647,19 +686,30 @@ struct ServerWriterRow: View {
             }
             if let note = servers.notes[backend] {
                 Text(verbatim: note).font(.system(size: 12)).foregroundStyle(DS.Colors.muted).padding(.leading, 84)
+            } else if state == .running, !models.isEmpty, model == nil {
+                Text("Välj en modell, så kan du testa den.").font(.system(size: 12)).foregroundStyle(DS.Colors.muted).padding(.leading, 84)
+            }
+            // LM Studio's list can't tell a model on another computer (LM Link) from one here.
+            if backend == .lmStudio, state != .notInstalled {
+                Text("Har du kopplat LM Studio till en annan dator (LM Link) kan den skicka mötet dit. Koppla bort den för möten som ska stanna här.")
+                    .font(.system(size: 12)).foregroundStyle(DS.Colors.muted).padding(.leading, 84)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
-    /// What Testa gave: the answer with how long it took and how much the model reads, or the error.
+    /// What Testa gave: the question, the answer, how long it took and how much the model
+    /// reads; or which model failed, and how.
     private func testView(_ test: LocalServers.TestResult) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             if let answer = test.answer {
+                Text("Provfråga om ett påhittat möte: \(LocalServers.testQuestion)")
+                    .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                 Text(verbatim: "“\(answer)”").font(.system(size: 12.5)).fixedSize(horizontal: false, vertical: true)
-                Text(verbatim: "\(test.model) · \(test.seconds.formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.locale))) s · "
-                     + String(localized: "läser \(test.context.formatted(.number.locale(AppLanguage.locale))) ord-delar åt gången"))
+                Text("Svarade på \(test.seconds.formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.locale))) s. Orkar ungefär \(ServerModel.words(test.context)) ord åt gången.")
                     .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
             } else {
+                Text(verbatim: "\(test.backend.name) · \(test.model)").font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                 Text(verbatim: test.error ?? "").font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }

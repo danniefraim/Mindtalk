@@ -279,7 +279,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 print("\(backend.name): \(servers.state(backend)) · \((servers.models[backend] ?? []).map(\.title).joined(separator: ", "))")
                 servers.runTest(backend, parts[1])
                 while servers.testing != nil { try? await Task.sleep(for: .milliseconds(200)) }
-                if let t = servers.test { print("Svar: \(t.answer ?? "–") · fel: \(t.error ?? "–") · \(String(format: "%.1f", t.seconds)) s · \(t.context) ord-delar") }
+                if let t = servers.test { print("Svar: \(t.answer ?? "–") · fel: \(t.error ?? "–") · \(String(format: "%.1f", t.seconds)) s · \(t.context) tokens") }
                 exit(0)
             }
             RunLoop.main.run()
