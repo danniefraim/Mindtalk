@@ -40,15 +40,19 @@ final class ClaudeSharing: ObservableObject {
 
     /// Switched on by the owner. Off: the helper is told so, and nothing is answered.
     @Published var enabled: Bool {
-        didSet { defaults.set(enabled, forKey: "claude.enabled"); Self.log.notice("sharing \(self.enabled ? "on" : "off", privacy: .public)") }
+        didSet {
+            guard !previewing else { return }
+            defaults.set(enabled, forKey: "claude.enabled")
+            Self.log.notice("sharing \(self.enabled ? "on" : "off", privacy: .public)")
+        }
     }
     /// Everything by default: the owner chose that the connection, once on, reads it all.
     @Published var level: Level {
-        didSet { defaults.set(level.rawValue, forKey: "claude.level") }
+        didSet { if !previewing { defaults.set(level.rawValue, forKey: "claude.level") } }
     }
     /// Folders kept away from Claude. Meetings in no folder are shared.
     @Published var excludedFolders: Set<UUID> {
-        didSet { defaults.set(excludedFolders.map(\.uuidString), forKey: "claude.excludedFolders") }
+        didSet { if !previewing { defaults.set(excludedFolders.map(\.uuidString), forKey: "claude.excludedFolders") } }
     }
 
     /// One call Claude made: what it read, how much, when. The newest first.
@@ -103,4 +107,18 @@ final class ClaudeSharing: ObservableObject {
         entries = []
         try? FileManager.default.removeItem(at: Self.logURL)
     }
+
+    #if DEBUG
+    /// Screenshots (`--render-claude`): on or off with a made-up log, in memory only.
+    /// Nothing is written: the settings and the log on disk are left as they are.
+    func preview(enabled on: Bool, level: Level = .everything, entries demo: [Entry]) {
+        previewing = true
+        enabled = on
+        self.level = level
+        excludedFolders = []
+        entries = demo
+    }
+    #endif
+    /// A preview is on: nothing is saved.
+    private var previewing = false
 }
