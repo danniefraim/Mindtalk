@@ -1512,6 +1512,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         MediaControl.shared.restoreAfterCrash()
         SpeechModel.removeLeftoverDownloads()
         Updates.shared.start()
+        // Mindtalk i Claude: the socket the helper asks over, and the fixed path to the helper.
+        Bridge.launch()
         // The voice models, ready before the first meeting (after an update macOS can
         // take a minute to prepare them — better now, quietly, than when you press start).
         DispatchQueue.main.asyncAfter(deadline: .now() + 8) { VoiceModels.warmUp() }
