@@ -12,7 +12,6 @@ import SwiftUI
 //   --setup        Hem as before anything is allowed (microphone, Hjälpmedel)
 //   --asked        … and Tillåt for Hjälpmedel already pressed
 //   --ready        everything allowed and the speech model ready
-//   --more         Allmänt with Mer open
 
 @MainActor
 enum WindowRender {
@@ -32,7 +31,6 @@ enum WindowRender {
         MainView.startPage = value("--page").flatMap { pages[$0] } ?? .dictation
         MainView.rendering = true
         SettingsSection.preview = value("--section").flatMap(SettingsSection.init(rawValue:)) ?? .general
-        SettingsPage.previewMore = args.contains("--more")
         if args.contains("--setup") || args.contains("--asked") {
             Dictation.shared.preview(mic: false, accessibility: false, asked: args.contains("--asked"))
         } else if args.contains("--ready") {

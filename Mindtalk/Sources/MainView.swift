@@ -338,8 +338,6 @@ struct SettingsPage: View {
     var plain = false
     /// Screenshots: this section, whatever was shown last.
     var fixedSection: SettingsSection? = nil
-    /// Renders: Allmänt with Mer open.
-    static var previewMore = false
     @ObservedObject private var mics = Microphones.shared
     @ObservedObject private var updates = Updates.shared
     @ObservedObject private var voices = VoiceModels.shared
@@ -355,7 +353,6 @@ struct SettingsPage: View {
     @State private var thoughtShortcut = Settings.thoughtShortcut
     @State private var pickingMeetingKey = false
     /// Allmänt's Mer: closed until opened.
-    @State private var more = SettingsPage.previewMore
 
     // MARK: Sections
 
@@ -431,6 +428,7 @@ struct SettingsPage: View {
     // MARK: Allmänt
 
     @ViewBuilder private var generalSection: some View {
+        // The Mac: what Mindtalk hears with and where it lives.
         VStack(spacing: 0) {
             if !AppMover.isInApplications {
                 // Outside Applications Mindtalk can't update itself or open at login reliably.
@@ -445,55 +443,40 @@ struct SettingsPage: View {
             CardDivider()
             loginRow
             CardDivider()
-            CardRow(title: "Uppdateringar", detail: updatesDetail) {
-                Button("Sök nu") { Updates.shared.checkNow() }.buttonStyle(.soft)
-                    .disabled(!Updates.isAvailable || !AppMover.isInApplications)
+            CardRow(title: "Visa i Dock", detail: "Annars finns Mindtalk bara i menyraden när fönstret är stängt.") {
+                InkToggle(label: "Visa i Dock", isOn: $prefs.showInDock)
             }
         }
         .card()
 
-        // The rest, behind Mer: set once, if ever.
-        Button { withAnimation(.easeOut(duration: 0.2)) { more.toggle() } } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
-                    .rotationEffect(.degrees(more ? 90 : 0))
-                Text("Mer").font(.system(size: 13, weight: .semibold))
+        // How Mindtalk looks and sounds.
+        VStack(spacing: 0) {
+            CardRow(title: "Utseende") {
+                PillPicker(options: Appearance.allCases.map { ($0, $0.title) }, selection: $prefs.appearance)
             }
-            .foregroundStyle(DS.Colors.muted)
-            .padding(.horizontal, 4).padding(.vertical, 4)
-            .contentShape(Rectangle())
+            CardDivider()
+            languageRow
+            CardDivider()
+            CardRow(title: "Ljud vid diktering", detail: "Ett diskret ljud när Mindtalk börjar lyssna och när texten skrivs in.") {
+                InkToggle(label: "Ljud vid diktering", isOn: $prefs.sounds)
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text("Mer"))
-        .accessibilityValue(more ? Text("Öppen") : Text("Stängd"))
-        .padding(.top, 6)
+        .card()
 
-        if more {
-            VStack(spacing: 0) {
-                CardRow(title: "Visa i Dock", detail: "Annars finns Mindtalk bara i menyraden när fönstret är stängt.") {
-                    InkToggle(label: "Visa i Dock", isOn: $prefs.showInDock)
-                }
-                CardDivider()
-                CardRow(title: "Utseende") {
-                    PillPicker(options: Appearance.allCases.map { ($0, $0.title) }, selection: $prefs.appearance)
-                }
-                CardDivider()
-                languageRow
-                CardDivider()
-                CardRow(title: "Ljud vid diktering", detail: "Ett diskret ljud när Mindtalk börjar lyssna och när texten skrivs in.") {
-                    InkToggle(label: "Ljud vid diktering", isOn: $prefs.sounds)
-                }
-                CardDivider()
-                CardRow(title: "Sök efter uppdateringar automatiskt", detail: "En gång om dagen.") {
+        // Updates in one row: the text says whether Mindtalk looks on its own.
+        VStack(spacing: 0) {
+            CardRow(title: "Uppdateringar", detail: updatesDetail) {
+                HStack(spacing: 12) {
+                    Button("Sök nu") { Updates.shared.checkNow() }.buttonStyle(.soft)
                     InkToggle(label: "Sök efter uppdateringar automatiskt", isOn: $updates.automatic)
-                        .disabled(!Updates.isAvailable || !AppMover.isInApplications)
+                        .help("Sök efter uppdateringar automatiskt")
                 }
-                CardDivider()
-                ModelsFootprintRow()
+                .disabled(!Updates.isAvailable || !AppMover.isInApplications)
             }
-            .card()
-            .transition(.opacity.combined(with: .move(edge: .top)))
+            CardDivider()
+            ModelsFootprintRow()
         }
+        .card()
     }
 
     /// What both dictation and meetings hear with.
