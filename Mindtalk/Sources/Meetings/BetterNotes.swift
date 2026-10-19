@@ -301,8 +301,14 @@ final class BetterNotes: ObservableObject {
             try? FileManager.default.removeItem(at: model.directory)
             try? FileManager.default.removeItem(at: model.staging)
             states[model] = model.supported ? .missing : .unsupported
-            if chosen == model { chosen = NotesModel.allCases.last { $0 != model && state($0) == .ready } }
+            if chosen == model { chosen = successor(of: model) }
         }
+    }
+
+    /// The Gemma that writes once `model` is removed: the other one, if it is here.
+    /// Nil: Apple Intelligence.
+    func successor(of model: NotesModel) -> NotesModel? {
+        NotesModel.allCases.last { $0 != model && state($0) == .ready && $0.isInstalled }
     }
 
     /// Downloads every file to a staging folder, checks it, and moves the folder into

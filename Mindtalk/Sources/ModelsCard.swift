@@ -255,7 +255,16 @@ struct SummaryWritersCard: View {
             Button("Avbryt", role: .cancel) {}
         } message: { m in
             if m.isInstalled {
-                Text("Den kan laddas ned igen senare. Apple Intelligence skriver sammanfattningarna så länge.")
+                // Who writes next, as removing will leave it: said only when this one writes now.
+                if notes.chosen != m {
+                    Text("Den kan laddas ned igen senare.")
+                } else if let next = notes.successor(of: m) {
+                    Text("Den kan laddas ned igen senare. \(next.name) skriver sammanfattningarna så länge.")
+                } else if Polisher.status == .available {
+                    Text("Den kan laddas ned igen senare. Apple Intelligence skriver sammanfattningarna så länge.")
+                } else {
+                    Text("Den kan laddas ned igen senare.")
+                }
             } else {
                 Text("Det som laddats ned hittills tas bort. Du kan börja om senare.")
             }

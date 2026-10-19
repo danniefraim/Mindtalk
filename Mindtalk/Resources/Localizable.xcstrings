@@ -5279,6 +5279,22 @@
         }
       }
     },
+    "Den kan laddas ned igen senare. %@ skriver sammanfattningarna så länge.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It can be downloaded again later. %@ writes the summaries meanwhile."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den kan laddas ned igen senare. %@ skriver sammanfattningarna så länge."
+          }
+        }
+      }
+    },
     "Den kan laddas ned igen senare. Apple Intelligence skriver sammanfattningarna så länge.": {
       "localizations": {
         "en": {
