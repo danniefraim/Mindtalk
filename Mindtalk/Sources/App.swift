@@ -909,29 +909,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
-        // `Mindtalk --render-mcp out.png [--dark] [--on] [--client <name>] [--help-page] [--hidden]
-        // [--parts N]`: Settings → Integrationer → MCP, off or on, with made-up folders and a
-        // made-up log (nothing saved). `--hidden`: a folder and a meeting hidden from AI apps
-        // (in memory only). `--parts N`: the boxes ticked, as ClaudeSharing.Parts' raw value. `--client "ChatGPT (Codex)"`: as right after pressing that program's button.
+        // `Mindtalk --render-mcp out.png [--dark] [--on] [--client <name>] [--help-page]`: Settings →
+        // Integrationer → MCP, off or on, with made-up folders and a made-up log (nothing
+        // saved). `--client "ChatGPT (Codex)"`: as right after pressing that program's button.
         // `--help-page`: the help page from "Läs mer" instead. `--render-claude` is the old
         // name of the same flag.
         if let i = args.firstIndex(of: "--render-mcp") ?? args.firstIndex(of: "--render-claude"), i + 1 < args.count {
             Task { @MainActor in
                 let dark = args.contains("--dark")
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-                let hidden = args.contains("--hidden")
-                MeetingFolders.shared.preview(["Klang", "Kunder", "Styrelsen"], hidden: hidden ? ["Styrelsen"] : [])
-                if hidden {
-                    var alone = MeetingRecord(title: "Lönesamtal", date: Date().addingTimeInterval(-86_400), language: .swedish)
-                    alone.hiddenFromAI = true
-                    MeetingStore.shared.replaceAll([alone])
-                }
-                let parts = args.firstIndex(of: "--parts").flatMap { j in j + 1 < args.count ? Int(args[j + 1]) : nil }
-                    .map(ClaudeSharing.Parts.init(rawValue:)) ?? .all
+                MeetingFolders.shared.preview(["Klang", "Kunder", "Styrelsen"])
                 let now = Date()
-                ClaudeSharing.shared.preview(enabled: args.contains("--on"), parts: parts, entries: [
+                ClaudeSharing.shared.preview(enabled: args.contains("--on"), entries: [
                     .init(date: now.addingTimeInterval(-120), tool: "mindtalk_search", scope: "Klang", items: 4, characters: 3000, client: "Claude"),
-                    .init(date: now.addingTimeInterval(-150), tool: "mindtalk_get_transcript", scope: String(localized: "nekad: hela texten"),
+                    .init(date: now.addingTimeInterval(-150), tool: "mindtalk_get_transcript", scope: String(localized: "nekad: okänt möte"),
                           items: 0, characters: 0, client: "Claude", refused: true),
                     .init(date: now.addingTimeInterval(-180), tool: "mindtalk_get_meeting", scope: "Styrelsemöte 14 okt", items: 1, characters: 1850, client: "Claude"),
                     .init(date: now.addingTimeInterval(-86_400), tool: "mindtalk_list_meetings", scope: "Kunder", items: 12, characters: 2400),
@@ -1132,7 +1123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             Task { @MainActor in
                 NSApplication.shared.appearance = NSAppearance(named: args.contains("--dark") ? .darkAqua : .aqua)
                 let folders = MeetingFolders.shared
-                folders.preview(["Kund Nordljus", "Styrelsen", "Veckomöten"], hidden: ["Styrelsen"])
+                folders.preview(["Kund Nordljus", "Styrelsen", "Veckomöten"])
                 folders.selected = folders.sorted.first?.id
                 var record = MeetingRecord(title: "Nordljus, uppstart", date: Date(), language: .swedish)
                 record.folder = nil

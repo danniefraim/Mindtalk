@@ -5,8 +5,8 @@ import MCP
 //
 // The same helper, the same socket, the same rules as MCP: `mindtalk meetings`,
 // `mindtalk search offerten`, `mindtalk tasks --done` ask the running app exactly as
-// an MCP client would, and the app answers only what the settings allow and writes
-// every call to its log. Nothing is read from disk here.
+// an MCP client would, and the app answers while MCP is on and writes every call to
+// its log. Nothing is read from disk here.
 //
 // Plain text by default (one meeting per line, the summary as paragraphs, tasks as
 // "[ ] text (owner) · meeting · time"); `--json` prints the tool's answer as it is,
@@ -59,14 +59,14 @@ enum Commands {
 
     static let intro = """
         Your meetings and thoughts from Mindtalk, on the command line. Same rules as MCP: \
-        Mindtalk must be running with MCP switched on (Settings → Integrations → MCP), only what \
-        those settings allow is answered, and every call shows in Mindtalk's log.
+        Mindtalk must be running with MCP switched on (Settings → Integrations → MCP), and every \
+        call shows in Mindtalk's log.
         """
 
     private static let help: [String: String] = [
         "folders": """
             mindtalk folders [--json]
-              The folders that may be read, with how many meetings each holds, and how many
+              The folders, with how many meetings each holds, and how many
               meetings have no folder. Use a folder's name or id with --folder elsewhere.
             """,
         "meetings": """
@@ -82,12 +82,12 @@ enum Commands {
               --summary   Only the summary and the decisions.
               --tasks     Only the tasks.
               --notes     Only your notes and the moments you marked.
-              --text      What was said, as "[mm:ss] Speaker: text" (needs "Meetings’ full text" ticked).
+              --text      What was said, as "[mm:ss] Speaker: text".
             """,
         "search": """
             mindtalk search <words> [--folder <name|id>] [--meeting <id>] [--from DATE] [--to DATE] [--limit N] [--json]
               Where the words occur: thoughts, summaries, decisions, tasks, notes, marks and what
-              was said, as far as each is shared. Every word must occur in the same meeting or thought.
+              was said. Every word must occur in the same meeting or thought.
               --limit     At most this many hits (1 to 50; default 20).
             """,
         "thoughts": """
@@ -110,7 +110,7 @@ enum Commands {
         mindtalk \(HelperInfo.version)
         \(intro)
 
-          mindtalk folders                   the folders that may be read
+          mindtalk folders                   the folders
           mindtalk meetings [options]        meetings, newest first
           mindtalk meeting <id> [part]       one meeting: summary, tasks, notes or text
           mindtalk search <words> [options]  where words occur, with the moment
@@ -146,7 +146,7 @@ enum Commands {
             let n = int(folder["meeting_count"])
             lines.append("\(str(folder["name"]))  (\(n) \(n == 1 ? "meeting" : "meetings"))  \(str(folder["id"]))")
         }
-        if lines.isEmpty { lines.append("No folders are shared.") }
+        if lines.isEmpty { lines.append("No folders.") }
         lines.append("Meetings without folder: \(int(object["meetings_without_folder"]))")
         return lines.joined(separator: "\n")
     }
@@ -339,8 +339,7 @@ enum Commands {
         }
     }
 
-    /// A folder by name (case does not matter) or id, through the app's list: only
-    /// shared folders are there, so a private one is "no such folder" here too.
+    /// A folder by name (case does not matter) or id, through the app's list.
     private static func folderID(_ nameOrID: String) async throws -> String {
         let (_, object) = try await call("mindtalk_list_folders", [:])
         let folders = rows(object, "folders")
@@ -349,7 +348,7 @@ enum Commands {
             return str(byName["id"])
         }
         let names = folders.map { str($0["name"]) }
-        throw BridgeClient.Failure(message: "No shared folder named \"\(nameOrID)\"." + (names.isEmpty ? "" : " Folders: " + names.joined(separator: ", ") + "."))
+        throw BridgeClient.Failure(message: "No folder named \"\(nameOrID)\"." + (names.isEmpty ? "" : " Folders: " + names.joined(separator: ", ") + "."))
     }
 
     // MARK: Arguments

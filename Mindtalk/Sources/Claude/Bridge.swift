@@ -11,7 +11,7 @@ import os
 //   {"id": 1, "tool": "mindtalk_search", "args": {"query": "offerten"}}
 //   {"id": 1, "result": {...}}      or      {"id": 1, "error": {"message": "..."}}
 //
-// The app alone checks the switch, the level and the folders (ClaudeSharing) and
+// The app alone checks the switch and which meetings are over (ClaudeSharing) and
 // writes the log; every tool is answered on the main thread by ClaudeTools. The
 // socket listens from launch: switched off, every request is answered with that. A
 // request that comes in before the meetings are read from disk (the helper opens the

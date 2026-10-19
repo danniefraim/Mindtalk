@@ -300,7 +300,6 @@ private struct MeetingList: View {
             MoveToFolderMenu(ids: ids, current: ids.count == 1 ? record.folder : nil,
                              title: ids.count == 1 ? "Flytta till" : "Flytta \(ids.count) möten till")
             if ids.count == 1 {
-                HideFromAIItem(record: record)
                 Divider()
                 Button("Ta bort…", role: .destructive) { confirmDelete = record }
             }
@@ -956,7 +955,6 @@ struct MeetingRow: View {
                 Text("Inte klart").font(.system(size: 11, weight: .semibold)).foregroundStyle(DS.Colors.warning)
             }
             Spacer(minLength: 12)
-            if record.hiddenFromAIHere { HiddenFromAIMark() }
             if let folder {
                 Label(folder, systemImage: "folder").font(.system(size: 11.5)).foregroundStyle(DS.Colors.faint).lineLimit(1)
             }
@@ -999,11 +997,8 @@ struct MeetingRow: View {
                     if let lede {
                         Text(lede).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted).lineLimit(1)
                     }
-                    HStack(spacing: 6) {
-                        (Text(meta) + (folder.map { Text("  \(Image(systemName: "folder")) \($0)") } ?? Text("")))
-                            .font(.system(size: 12)).foregroundStyle(DS.Colors.muted).monospacedDigit().lineLimit(1)
-                        if record.hiddenFromAIHere { HiddenFromAIMark() }
-                    }
+                    (Text(meta) + (folder.map { Text("  \(Image(systemName: "folder")) \($0)") } ?? Text("")))
+                        .font(.system(size: 12)).foregroundStyle(DS.Colors.muted).monospacedDigit().lineLimit(1)
                 }
                 Spacer(minLength: 12)
                 if record.words.isEmpty {
@@ -1440,7 +1435,6 @@ struct MeetingView: View {
                 FlowLayout(spacing: 8) {
                     Text(meta).font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
                         .padding(.trailing, 4)
-                    if record.hiddenFromAIHere { HiddenFromAIMark(size: 11).padding(.trailing, 4).frame(height: 22) }
                     // Imported: the file it came from — a click shows it in Finder — and
                     // the date to change, since a file's date can be wrong or missing.
                     // (A meeting recorded here keeps its real time.)
@@ -1606,7 +1600,6 @@ struct MeetingView: View {
                     }
                     .disabled(!MeetingNotes.isAvailable || notes.writing.contains(record.id))
                     if record.source != nil { Button("Ändra datum…") { changingDate = true } }
-                    HideFromAIItem(record: record)
                     if record.hasAudio {
                         Button("Spela in mer") { AppDelegate.continueMeeting(record.id) }
                             .disabled(!record.finished || MeetingSession.shared.phase != .idle)
@@ -3081,10 +3074,9 @@ struct ArchivePreview: View {
         memo.source = MeetingRecord.Source(file: "Nytt memo 3.m4a", video: false, importedAt: memo.date, dateKnown: false)
         return [
             board, memo,
-            m("2026-10-15", "Veckomöte", ["Jag", "Anna"], 34),
-            { var r = m("2026-10-14", "Kund Nordljus, uppstart", ["Jag", "Eva"], 52); r.hiddenFromAI = true; return r }(),
+            m("2026-10-15", "Veckomöte", ["Jag", "Anna"], 34), m("2026-10-14", "Kund Nordljus, uppstart", ["Jag", "Eva"], 52),
             m("2026-10-02", "Planering Q4", ["Jag", "Anna", "Erik"], 41),
-            m("2026-09-24", "Styrelsemöte", ["Jag", "Kim"], 88), { var r = m("2026-09-10", "Intervju", ["Jag", "Olle"], 25); r.hiddenFromAI = true; return r }(),
+            m("2026-09-24", "Styrelsemöte", ["Jag", "Kim"], 88), m("2026-09-10", "Intervju", ["Jag", "Olle"], 25),
             m("2026-08-28", "Budget", ["Jag", "Anna", "Erik"], 47), m("2026-08-12", "Avstämning", ["Jag", "Anna"], 18),
             m("2026-08-05", "Kund Nordljus, status", ["Jag", "Eva"], 30),
             m("2026-06-19", "Sommarplanering", ["Jag", "Erik"], 22),

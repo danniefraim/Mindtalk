@@ -42,7 +42,7 @@ enum ToolCatalog {
         Definition(
             name: "mindtalk_list_folders",
             title: "List folders",
-            description: "The folders the user shares with their assistant, with how many meetings each holds. Folders the user hides from AI apps are not listed. Use a folder’s id as folder_id in the other tools.",
+            description: "The user’s meeting folders, with how many meetings each holds. Use a folder’s id as folder_id in the other tools.",
             input: """
                 {"type": "object", "properties": {}, "additionalProperties": false}
                 """,
@@ -55,11 +55,11 @@ enum ToolCatalog {
         Definition(
             name: "mindtalk_list_meetings",
             title: "List meetings",
-            description: "Meetings the user shares, newest first: title, start, length, folder, who spoke, and one line about what it was about (when summaries are shared). Meetings hidden from AI apps are never listed. Narrow by folder, dates or a query (every word must occur somewhere in what is shared of the meeting). Paged: follow nextCursor.",
+            description: "The user’s meetings, newest first: title, start, length, folder, who spoke, and one line about what it was about. A meeting still being recorded, or that ended in the last two minutes, is not listed yet. Narrow by folder, dates or a query (every word must occur somewhere in the meeting). Paged: follow nextCursor.",
             input: """
                 {"type": "object", "properties": {
                   \(folderID), \(from), \(to),
-                  "query": {"type": "string", "description": "Words that must all occur in the meeting: in the title, and in the summary, the notes and the transcript as far as each is shared."},
+                  "query": {"type": "string", "description": "Words that must all occur in the meeting: in the title, the summary, the notes or the transcript."},
                   "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20},
                   \(cursor)}, "additionalProperties": false}
                 """,
@@ -77,12 +77,12 @@ enum ToolCatalog {
         Definition(
             name: "mindtalk_get_meeting",
             title: "Get a meeting’s summary",
-            description: "One meeting’s summary: overview, decisions, tasks (with owner and done), the user’s own notes and the moments they marked, each with its time and link where known. The summary, decisions and tasks only when the user shares meeting summaries; notes and marks only when they share their notes and marks. Never the transcript: use mindtalk_get_transcript for that. response_format detailed adds the summary’s points and a link per item.",
+            description: "One meeting’s summary: overview, decisions, tasks (with owner and done), the user’s own notes and the moments they marked, each with its time and link where known. Never the transcript: use mindtalk_get_transcript for that. response_format detailed adds the summary’s points and a link per item.",
             input: """
                 {"type": "object", "properties": {
                   "meeting_id": {"type": "string"},
                   "include": {"type": "array", "items": {"type": "string", "enum": ["summary", "decisions", "tasks", "notes", "marks"]},
-                    "description": "Which parts to return. Default: all that the user shares."},
+                    "description": "Which parts to return. Default: all of them."},
                   "response_format": {"type": "string", "enum": ["concise", "detailed"], "default": "concise"}},
                   "required": ["meeting_id"], "additionalProperties": false}
                 """,
@@ -111,7 +111,7 @@ enum ToolCatalog {
         Definition(
             name: "mindtalk_get_transcript",
             title: "Get a transcript",
-            description: "What was said in one meeting, as lines \"[mm:ss] Speaker: text\", about 25 000 characters per page; follow nextCursor for the rest. Narrow with start_sec/end_sec or a speaker’s name. Only when the user shares the meetings’ full text. Prefer mindtalk_search to find the passage you need.",
+            description: "What was said in one meeting, as lines \"[mm:ss] Speaker: text\", about 25 000 characters per page; follow nextCursor for the rest. Narrow with start_sec/end_sec or a speaker’s name. Prefer mindtalk_search to find the passage you need.",
             input: """
                 {"type": "object", "properties": {
                   "meeting_id": {"type": "string"},
@@ -131,14 +131,14 @@ enum ToolCatalog {
         Definition(
             name: "mindtalk_search",
             title: "Search",
-            description: "Finds where words occur: in thoughts, in meetings’ summaries, decisions and tasks, in the user’s notes and marks, and in what was said, as far as each is shared. Every word must occur in the same meeting or thought; each hit is a short excerpt with the meeting, the moment (t_seconds), the speaker and a link. Scope: one meeting (meeting_id), a folder (folder_id), or everything shared.",
+            description: "Finds where words occur: in thoughts, in meetings’ summaries, decisions and tasks, in the user’s notes and marks, and in what was said. Every word must occur in the same meeting or thought; each hit is a short excerpt with the meeting, the moment (t_seconds), the speaker and a link. Scope: one meeting (meeting_id), a folder (folder_id), or everything.",
             input: """
                 {"type": "object", "properties": {
                   "query": {"type": "string", "description": "One or more words. Case does not matter; å, ä and ö do."},
                   "meeting_id": {"type": "string", "description": "Only this meeting."},
                   \(folderID),
                   "kinds": {"type": "array", "items": {"type": "string", "enum": ["thoughts", "summaries", "notes", "transcripts"]},
-                    "description": "Where to look. Default: everything the user shares."},
+                    "description": "Where to look. Default: everywhere."},
                   \(from), \(to),
                   "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20}},
                   "required": ["query"], "additionalProperties": false}
@@ -156,7 +156,7 @@ enum ToolCatalog {
         Definition(
             name: "mindtalk_list_tasks",
             title: "List tasks",
-            description: "Tasks from the meetings’ summaries, and moments the user marked as tasks: what, who, whether it is done, in which meeting and at what moment. Needs meeting summaries shared; marked tasks only when notes and marks are shared too. Open ones by default; narrow by folder, dates or owner. Paged: follow nextCursor.",
+            description: "Tasks from the meetings’ summaries, and moments the user marked as tasks: what, who, whether it is done, in which meeting and at what moment. Open ones by default; narrow by folder, dates or owner. Paged: follow nextCursor.",
             input: """
                 {"type": "object", "properties": {
                   "status": {"type": "string", "enum": ["open", "done", "all"], "default": "open"},
@@ -175,7 +175,7 @@ enum ToolCatalog {
         Definition(
             name: "mindtalk_list_thoughts",
             title: "List thoughts",
-            description: "The user’s thoughts (short spoken notes, \"Tankar\"), newest first, with date, done and pinned. Only when the user shares thoughts. Narrow by dates or words. Paged: follow nextCursor.",
+            description: "The user’s thoughts (short spoken notes, \"Tankar\"), newest first, with date, done and pinned. Narrow by dates or words. Paged: follow nextCursor.",
             input: """
                 {"type": "object", "properties": {
                   \(from), \(to),

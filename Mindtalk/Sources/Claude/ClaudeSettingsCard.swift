@@ -7,28 +7,22 @@ import SwiftUI
 // the card fits one screen: a row of buttons for the four programs people ask for
 // (Claude, ChatGPT, Cursor, Gemini CLI), three steps for all other programs with the
 // standard setting to copy, and a "Läs mer" that opens the help page (MCPHelpView,
-// every program step by step). Then what may be read, a box each for thoughts, the
-// summaries, your notes and marks, and the whole text (all four by default: the owner
-// chose that the connection, once on, reads it all), what is hidden from AI apps (set on
-// a folder or a meeting under Möten), the Terminal command, and what has been read so far. Switched off: the switch, the two lines on
-// top and a line saying so; nothing to set for something that isn't on.
+// every program step by step, and the Terminal command). Then what has been read so far.
+// On means everything Mindtalk has may be read; off means nothing: switching on is the
+// choice, so there is nothing more to set. Switched off: the switch, the two lines on
+// top and a line saying so.
 //
 // The first time the switch goes on, a dialog says where the text goes and what is
 // never shared; after that the switch is a switch.
 
 struct ClaudeSettingsCard: View {
     @ObservedObject var sharing: ClaudeSharing
-    @ObservedObject private var folders = MeetingFolders.shared
-    @ObservedObject private var store = MeetingStore.shared
     /// The button that reads "Kopierat" for a moment after a copy.
     @State private var copied: ClaudeInstall.Client?
     @State private var copiedTask: Task<Void, Never>?
     /// The line under the buttons: what to do with the copy, or what went wrong.
     @State private var notice: Notice?
     @State private var noticeTask: Task<Void, Never>?
-    /// /usr/local/bin/mindtalk is there and is ours.
-    @State private var commandInstalled: Bool
-    @State private var commandTrouble: String?
     /// "Slå på MCP?", the first time.
     @State private var askEnable = false
     @State private var showAll = false
@@ -37,8 +31,6 @@ struct ClaudeSettingsCard: View {
     @State private var showHelp = false
 
     private static let shown = 10
-    /// The column the small-caps labels sit in, left of the boxes and what is hidden.
-    private static let labelColumn: CGFloat = 108
 
     private enum Notice: Equatable {
         /// Muted, and gone after a few seconds.
@@ -50,7 +42,6 @@ struct ClaudeSettingsCard: View {
     /// `preview`: the renders, as right after pressing that program's button.
     init(sharing: ClaudeSharing, preview: ClaudeInstall.Client? = nil) {
         self.sharing = sharing
-        _commandInstalled = State(initialValue: ClaudeInstall.commandInstalled)
         switch preview {
         case .codex, .gemini:
             _copied = State(initialValue: preview)
@@ -71,10 +62,6 @@ struct ClaudeSettingsCard: View {
             if sharing.enabled {
                 connect
                 CardDivider()
-                permissions
-                CardDivider()
-                terminal
-                CardDivider()
                 log
             } else {
                 Text("Av. Inga program kan läsa något.")
@@ -85,7 +72,6 @@ struct ClaudeSettingsCard: View {
         }
         .card()
         .animation(.spring(duration: 0.3, bounce: 0.1), value: sharing.enabled)
-        .onAppear { commandInstalled = ClaudeInstall.commandInstalled }
         .alert("Slå på MCP?", isPresented: $askEnable) {
             Button("Slå på") {
                 sharing.enableExplained = true
@@ -93,7 +79,7 @@ struct ClaudeSettingsCard: View {
             }
             Button("Avbryt", role: .cancel) {}
         } message: {
-            Text("När du frågar ett AI-program skickas texten till det programmets leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud och röstavtryck delas aldrig. Alla program som körs som du på den här Macen kan fråga, och loggen visar varje läsning.")
+            Text("Programmen du kopplar kan då läsa dina tankar, mötenas sammanfattningar, dina anteckningar och mötenas hela text. När du frågar ett AI-program skickas texten till det programmets leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud och röstavtryck delas aldrig. Alla program som körs som du på den här Macen kan fråga, och loggen visar varje läsning.")
         }
         .confirmationDialog("Rensa loggen?", isPresented: $confirmClear) {
             Button("Rensa", role: .destructive) { withAnimation(.snappy) { sharing.clearLog() } }
@@ -126,7 +112,7 @@ struct ClaudeSettingsCard: View {
                 .font(.system(size: 22, weight: .regular, design: .serif))
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12)
-            Text("Allt stannar på Macen tills du frågar. Varje läsning syns i loggen.")
+            Text("Slår du på kan programmen du kopplar läsa dina tankar och möten, även hela texten. Varje läsning syns i loggen.")
                 .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 6)
@@ -269,107 +255,6 @@ struct ClaudeSettingsCard: View {
         case .notInstalled:
             say(.trouble(client.notFound, getClaude: false))
         }
-    }
-
-    // MARK: Får läsas, Dolt
-
-    private var permissions: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                CapsLabel(String(localized: "Får läsas"))
-                    .frame(width: Self.labelColumn, alignment: .leading)
-                    .help("Titel, datum och vilka som pratade delas när någon av mötesrutorna är ibockad.")
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(ClaudeSharing.Parts.each, id: \.rawValue) { part in
-                        Toggle(isOn: Binding(
-                            get: { sharing.parts.contains(part) },
-                            set: { on in
-                                withAnimation(.snappy) {
-                                    if on { sharing.parts.insert(part) } else { sharing.parts.remove(part) }
-                                }
-                            })) {
-                            if part == .summaries {
-                                (Text(verbatim: part.title)
-                                 + Text(verbatim: "   ")
-                                 + Text("titel, översikt, beslut och uppgifter").foregroundStyle(DS.Colors.muted))
-                                    .font(.system(size: 13))
-                                    .fixedSize(horizontal: false, vertical: true)
-                            } else {
-                                Text(verbatim: part.title).font(.system(size: 13))
-                            }
-                        }
-                        .toggleStyle(InkCheckboxStyle())
-                    }
-                    if sharing.parts.isEmpty {
-                        Text("Inget får läsas. Det är samma sak som att stänga av MCP.")
-                            .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.top, 2)
-                    }
-                }
-            }
-            if let hidden = hiddenLine {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    CapsLabel(String(localized: "Dolt"))
-                        .frame(width: Self.labelColumn, alignment: .leading)
-                    Text(verbatim: hidden)
-                        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .help("Högerklicka på en mapp eller ett möte under Möten för att dölja det eller visa det igen.")
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 22).padding(.vertical, 16)
-    }
-
-    /// "Styrelsen · 1 möte": the folders hidden from AI apps by name, then how many
-    /// meetings are hidden by themselves (outside those folders). Nil: nothing hidden.
-    private var hiddenLine: String? {
-        let names = folders.sorted.filter(\.hiddenFromAI).map(\.name)
-        let alone = store.meetings.filter { $0.hiddenFromAI && folders.hidingFolder(of: $0) == nil }.count
-        var parts = names
-        if alone == 1 { parts.append(String(localized: "1 möte")) }
-        if alone > 1 { parts.append(String(localized: "\(alone) möten")) }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
-
-    // MARK: Terminalen
-
-    private var terminal: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            CapsLabel(String(localized: "Terminalen"))
-            HStack(alignment: .center, spacing: 16) {
-                Text(verbatim: commandInstalled ? "mindtalk finns i /usr/local/bin · mindtalk --help" : "mindtalk meetings · search · thoughts …")
-                    .font(.system(size: 12.5, design: .monospaced))
-                    .foregroundStyle(commandInstalled ? .primary : DS.Colors.muted)
-                    .lineLimit(1).truncationMode(.middle)
-                Spacer(minLength: 12)
-                Button(commandInstalled ? "Ta bort kommandot" : "Installera kommandot") { toggleCommand() }
-                    .buttonStyle(.soft)
-            }
-            if let commandTrouble {
-                Text(verbatim: commandTrouble).font(.system(size: 12.5)).foregroundStyle(.primary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 22).padding(.vertical, 16)
-    }
-
-    /// The system asks for the password: /usr/local/bin belongs to root.
-    private func toggleCommand() {
-        let outcome = commandInstalled ? ClaudeInstall.removeCommand() : ClaudeInstall.installCommand()
-        switch outcome {
-        case .success:
-            commandTrouble = nil
-        case .failure(.cancelled):
-            commandTrouble = nil
-        case .failure(let why):
-            commandTrouble = commandInstalled
-                ? String(localized: "Kommandot kunde inte tas bort: \(why.localizedDescription)")
-                : String(localized: "Kommandot kunde inte installeras: \(why.localizedDescription)")
-        }
-        withAnimation(.snappy) { commandInstalled = ClaudeInstall.commandInstalled }
     }
 
     // MARK: Senast läst

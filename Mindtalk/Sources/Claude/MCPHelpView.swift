@@ -5,7 +5,8 @@ import SwiftUI
 //
 // The help page, a sheet from the card's "Läs mer": one section per program with one to
 // three numbered steps, a copy field with the exact command or setting where there is
-// one, and the program's own button where it has a link. Felsökning last.
+// one, and the program's own button where it has a link. Then the Terminal command, for
+// those who write commands or scripts of their own, and Felsökning last.
 //
 // Every command, setting and link comes from ClaudeInstall; nothing is written twice.
 
@@ -16,6 +17,9 @@ struct MCPHelpView: View {
     var plain = false
     /// A program wasn't found, or the bundle couldn't be written, said under its name.
     @State private var trouble: [ClaudeInstall.Client: String] = [:]
+    /// /usr/local/bin/mindtalk is there and is ours.
+    @State private var commandInstalled = ClaudeInstall.commandInstalled
+    @State private var commandTrouble: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -48,13 +52,76 @@ struct MCPHelpView: View {
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12)
-            ForEach(Self.sections) { section in
+            ForEach(Self.programs) { section in
                 Rectangle().fill(DS.Colors.divider).frame(height: 1).padding(.vertical, 22)
                 sectionView(section)
             }
+            Rectangle().fill(DS.Colors.divider).frame(height: 1).padding(.vertical, 22)
+            terminal
+            Rectangle().fill(DS.Colors.divider).frame(height: 1).padding(.vertical, 22)
+            sectionView(Self.troubleshooting)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 36).padding(.top, 34).padding(.bottom, 30)
+        .onAppear { commandInstalled = ClaudeInstall.commandInstalled }
+    }
+
+    // MARK: Terminalen
+
+    /// The command in /usr/local/bin, for those who type commands or write scripts. The
+    /// programs above start the helper themselves and don't need it.
+    private var terminal: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Använd Mindtalk i Terminalen").font(.system(size: 14, weight: .semibold))
+            Text("För dig som vill skriva kommandon eller bygga egna skript. AI-programmen ovan behöver inte detta.")
+                .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .center, spacing: 12) {
+                Button(commandInstalled ? "Ta bort kommandot" : "Installera kommandot") { toggleCommand() }
+                    .buttonStyle(.soft)
+                Text(commandInstalled ? "Installerat i /usr/local/bin." : "Macen frågar efter ditt lösenord en gång.")
+                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, 2)
+            if let commandTrouble {
+                Text(verbatim: commandTrouble).font(.system(size: 12.5)).foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 18, verticalSpacing: 5) {
+                command("mindtalk meetings", "dina möten")
+                command("mindtalk search offerten", "sök i möten och tankar")
+                command("mindtalk thoughts", "dina tankar")
+                command("mindtalk tasks", "uppgifter från möten")
+            }
+            .padding(.top, 6)
+            Text("Lägg till --json för skript.")
+                .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func command(_ line: String, _ what: LocalizedStringKey) -> some View {
+        GridRow {
+            Text(verbatim: line).font(.system(size: 12.5, design: .monospaced)).textSelection(.enabled)
+            Text(what).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+        }
+    }
+
+    /// The system asks for the password: /usr/local/bin belongs to root.
+    private func toggleCommand() {
+        let outcome = commandInstalled ? ClaudeInstall.removeCommand() : ClaudeInstall.installCommand()
+        switch outcome {
+        case .success:
+            commandTrouble = nil
+        case .failure(.cancelled):
+            commandTrouble = nil
+        case .failure(let why):
+            commandTrouble = commandInstalled
+                ? String(localized: "Kommandot kunde inte tas bort: \(why.localizedDescription)")
+                : String(localized: "Kommandot kunde inte installeras: \(why.localizedDescription)")
+        }
+        withAnimation(.snappy) { commandInstalled = ClaudeInstall.commandInstalled }
     }
 
     // MARK: One program
@@ -173,17 +240,17 @@ struct MCPHelpView: View {
         }
     }
 
-    private static var sections: [Section] {
-        ClaudeInstall.Client.allCases.map(section(for:)) + [
-            Section(title: String(localized: "Felsökning"), lines: [
-                .ask(String(localized: "Syns inget i loggen?"),
-                     String(localized: "Kontrollera att MCP är på här, och starta om programmet.")),
-                .ask(String(localized: "Programmet säger att Mindtalk inte kör?"),
-                     String(localized: "Öppna Mindtalk.")),
-                .ask(String(localized: "Vill du stänga av?"),
-                     String(localized: "Slå av MCP här. Inget kan läsas från den stunden.")),
-            ]),
-        ]
+    private static var programs: [Section] { ClaudeInstall.Client.allCases.map(section(for:)) }
+
+    private static var troubleshooting: Section {
+        Section(title: String(localized: "Felsökning"), lines: [
+            .ask(String(localized: "Syns inget i loggen?"),
+                 String(localized: "Kontrollera att MCP är på här, och starta om programmet.")),
+            .ask(String(localized: "Programmet säger att Mindtalk inte kör?"),
+                 String(localized: "Öppna Mindtalk.")),
+            .ask(String(localized: "Vill du stänga av?"),
+                 String(localized: "Slå av MCP här. Inget kan läsas från den stunden.")),
+        ])
     }
 
     /// What is copied comes from the program's action, so the card, the page and

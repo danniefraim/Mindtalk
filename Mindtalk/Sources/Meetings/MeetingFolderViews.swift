@@ -7,8 +7,7 @@ import SwiftUI
 // many meetings each holds, and "Ny mapp". Selected, a folder is drawn like the
 // page's other pickers — a raised pill. A meeting (or several) dragged onto a
 // folder goes into it; onto "Alla", out of its folder. Right-click a folder to
-// rename it, hide it from AI apps (a small crossed eye after its name says so), or
-// take it away.
+// rename it or take it away.
 
 struct FolderBar: View {
     @ObservedObject var folders: MeetingFolders
@@ -35,11 +34,7 @@ struct FolderBar: View {
             }
             Button("Avbryt", role: .cancel) {}
         } message: {
-            if removing?.hiddenFromAI == true {
-                Text("Mötena tas inte bort. De finns kvar under Alla och är fortfarande dolda för AI-program.")
-            } else {
-                Text("Mötena tas inte bort. De finns kvar under Alla.")
-            }
+            Text("Mötena tas inte bort. De finns kvar under Alla.")
         }
     }
 
@@ -55,17 +50,11 @@ struct FolderBar: View {
             ForEach(folders.sorted) { folder in
                 FolderChip(title: folder.name, count: counts[folder.id] ?? 0,
                            selected: folders.selected == folder.id, symbol: "folder",
-                           help: "\(folder.name): släpp möten här för att lägga dem i mappen",
-                           hiddenFromAI: folder.hiddenFromAI) {
+                           help: "\(folder.name): släpp möten här för att lägga dem i mappen") {
                     select(folder.id)
                 } drop: { ids in folders.move(ids, to: folder.id) }
                 .contextMenu {
                     Button("Byt namn…") { FolderNaming.shared.request = .rename(folder) }
-                    // Always there, also with MCP off: the owner may hide before switching it on.
-                    Button(folder.hiddenFromAI ? "Visa för AI-program" : "Dölj för AI-program") {
-                        withAnimation(.snappy) { folders.setHiddenFromAI(!folder.hiddenFromAI, folder: folder.id) }
-                    }
-                    Divider()
                     Button("Ta bort mappen…", role: .destructive) { removing = folder }
                 }
             }
@@ -94,7 +83,6 @@ private struct FolderChip: View {
     let selected: Bool
     let symbol: String?
     let help: LocalizedStringKey
-    var hiddenFromAI = false
     let action: () -> Void
     let drop: ([UUID]) -> Void
     @State private var targeted = false
@@ -113,7 +101,6 @@ private struct FolderChip: View {
                     .truncationMode(.middle)
                     .frame(maxWidth: 170, alignment: .leading)
                     .fixedSize(horizontal: true, vertical: false)
-                if hiddenFromAI { HiddenFromAIMark() }
                 if count > 0 {
                     Text("\(count)").font(.system(size: 11.5, weight: .medium)).monospacedDigit()
                         .foregroundStyle(DS.Colors.muted)
@@ -148,44 +135,6 @@ private struct FolderChip: View {
         } isTargeted: { targeted = $0 }
         .accessibilityLabel(count == 1 ? String(localized: "\(title), 1 möte") : String(localized: "\(title), \(count) möten"))
         .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-}
-
-// MARK: - Hidden from AI apps
-
-/// A meeting or a folder hidden from AI apps: a small crossed eye, muted, after its name.
-/// Shown whether MCP is on or not: it is a choice the owner made.
-struct HiddenFromAIMark: View {
-    var size: CGFloat = 10
-
-    var body: some View {
-        Image(systemName: "eye.slash")
-            .font(.system(size: size, weight: .medium))
-            .foregroundStyle(DS.Colors.muted)
-            .help("Dold för AI-program")
-            .accessibilityLabel("Dold för AI-program")
-    }
-}
-
-extension MeetingRecord {
-    /// Hidden from AI apps: by itself, or by the folder it is in.
-    @MainActor var hiddenFromAIHere: Bool { hiddenFromAI || MeetingFolders.shared.hidingFolder(of: self) != nil }
-}
-
-/// "Dölj för AI-program" / "Visa för AI-program" for one meeting, in its menus. In a
-/// hidden folder it can't be shown on its own: the item says so, and is dimmed.
-struct HideFromAIItem: View {
-    let record: MeetingRecord
-    @ObservedObject private var folders = MeetingFolders.shared
-
-    var body: some View {
-        if let folder = folders.hidingFolder(of: record) {
-            Button("Dold genom mappen \(folder.name)") {}.disabled(true)
-        } else {
-            Button(record.hiddenFromAI ? "Visa för AI-program" : "Dölj för AI-program") {
-                withAnimation(.snappy) { MeetingStore.shared.setHiddenFromAI(!record.hiddenFromAI, of: [record.id]) }
-            }
-        }
     }
 }
 

@@ -41,9 +41,8 @@ let instructions = """
     with mindtalk_get_transcript only when the summary and search are not enough, and expect it in pages. \
     Every item has a link (mindtalk://meeting/<id>?t=<seconds>, mindtalk://thought/<id>) that opens that \
     moment in Mindtalk: include it when you cite something. Dates are ISO 8601 in the user’s time zone. \
-    The user chooses in Mindtalk under Settings → Integrations → MCP what their assistant may read (thoughts \
-    only, summaries, or whole transcripts) and which folders stay private; an error tells you when something \
-    is outside that.
+    The user switches this on in Mindtalk under Settings → Integrations → MCP; while it is on, everything \
+    Mindtalk has can be read, except a meeting still being recorded or that ended in the last two minutes.
     """
 
 switch CommandLine.arguments.dropFirst().first {

@@ -2917,6 +2917,7 @@
       }
     },
     "Allt stannar på Macen tills du frågar. Varje läsning syns i loggen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3142,6 +3143,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Använd %@ för sammanfattningarna"
+          }
+        }
+      }
+    },
+    "Använd Mindtalk i Terminalen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Mindtalk in Terminal"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Använd Mindtalk i Terminalen"
           }
         }
       }
@@ -6255,6 +6272,7 @@
       }
     },
     "Dina anteckningar och markeringar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6449,6 +6467,7 @@
       }
     },
     "Dold för AI-program": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6465,6 +6484,7 @@
       }
     },
     "Dold genom mappen %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6481,6 +6501,7 @@
       }
     },
     "Dolt": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6937,6 +6958,7 @@
       }
     },
     "Dölj för AI-program": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8706,6 +8728,7 @@
       }
     },
     "Får läsas": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8834,6 +8857,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "För att hålla isär vem som pratar behövs en modell till."
+          }
+        }
+      }
+    },
+    "För dig som vill skriva kommandon eller bygga egna skript. AI-programmen ovan behöver inte detta.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For you who want to type commands or build your own scripts. The AI apps above don’t need this."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "För dig som vill skriva kommandon eller bygga egna skript. AI-programmen ovan behöver inte detta."
           }
         }
       }
@@ -11083,6 +11122,7 @@
       }
     },
     "Högerklicka på en mapp eller ett möte under Möten för att dölja det eller visa det igen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12059,6 +12099,7 @@
       }
     },
     "Inget får läsas. Det är samma sak som att stänga av MCP.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12562,6 +12603,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Installera ny version %@…"
+          }
+        }
+      }
+    },
+    "Installerat i /usr/local/bin.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installed in /usr/local/bin."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installerat i /usr/local/bin."
           }
         }
       }
@@ -16344,6 +16401,22 @@
         }
       }
     },
+    "Lägg till --json för skript.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add --json for scripts."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg till --json för skript."
+          }
+        }
+      }
+    },
     "Lägg till anteckningar": {
       "localizations": {
         "en": {
@@ -17130,6 +17203,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "MLX Swift och mlx-swift-lm"
+          }
+        }
+      }
+    },
+    "Macen frågar efter ditt lösenord en gång.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your Mac asks for your password once."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Macen frågar efter ditt lösenord en gång."
           }
         }
       }
@@ -19193,6 +19282,7 @@
       }
     },
     "Mötena tas inte bort. De finns kvar under Alla och är fortfarande dolda för AI-program.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -19225,6 +19315,7 @@
       }
     },
     "Mötenas hela text": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -19241,6 +19332,7 @@
       }
     },
     "Mötenas sammanfattningar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -20230,6 +20322,7 @@
       }
     },
     "När du frågar ett AI-program skickas texten till det programmets leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud och röstavtryck delas aldrig. Alla program som körs som du på den här Macen kan fråga, och loggen visar varje läsning.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -21125,6 +21218,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Program"
+          }
+        }
+      }
+    },
+    "Programmen du kopplar kan då läsa dina tankar, mötenas sammanfattningar, dina anteckningar och mötenas hela text. När du frågar ett AI-program skickas texten till det programmets leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud och röstavtryck delas aldrig. Alla program som körs som du på den här Macen kan fråga, och loggen visar varje läsning.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The apps you connect can then read your thoughts, your meetings’ summaries, your notes and your meetings’ full text. When you ask an AI app, the text is sent to that app’s provider under the terms of your account there. Mindtalk sends nothing on its own. Audio and voiceprints are never shared. Any app running as you on this Mac can ask, and the log shows every reading."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Programmen du kopplar kan då läsa dina tankar, mötenas sammanfattningar, dina anteckningar och mötenas hela text. När du frågar ett AI-program skickas texten till det programmets leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud och röstavtryck delas aldrig. Alla program som körs som du på den här Macen kan fråga, och loggen visar varje läsning."
           }
         }
       }
@@ -23843,6 +23952,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Slå på Mindtalk under Integritet och säkerhet → Hjälpmedel. Kortet bockas av när det är klart."
+          }
+        }
+      }
+    },
+    "Slår du på kan programmen du kopplar läsa dina tankar och möten, även hela texten. Varje läsning syns i loggen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once on, the apps you connect can read your thoughts and meetings, including the full text. Every reading shows in the log."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slår du på kan programmen du kopplar läsa dina tankar och möten, även hela texten. Varje läsning syns i loggen."
           }
         }
       }
@@ -28053,6 +28178,7 @@
       }
     },
     "Titel, datum och vilka som pratade delas när någon av mötesrutorna är ibockad.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -29646,6 +29772,7 @@
       }
     },
     "Visa för AI-program": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -30798,6 +30925,22 @@
         }
       }
     },
+    "dina möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "your meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dina möten"
+          }
+        }
+      }
+    },
     "dina ord stavas rätt redan när du pratar": {
       "extractionState": "stale",
       "localizations": {
@@ -30811,6 +30954,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "dina ord stavas rätt redan när du pratar"
+          }
+        }
+      }
+    },
+    "dina tankar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "your thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dina tankar"
           }
         }
       }
@@ -31500,6 +31659,7 @@
       }
     },
     "nekad: anteckningar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -31532,6 +31692,7 @@
       }
     },
     "nekad: hela texten": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -31548,6 +31709,7 @@
       }
     },
     "nekad: möten": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -31613,6 +31775,7 @@
       }
     },
     "nekad: sammanfattningar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -31629,6 +31792,7 @@
       }
     },
     "nekad: tankar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -32183,6 +32347,22 @@
         }
       }
     },
+    "sök i möten och tankar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "search meetings and thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sök i möten och tankar"
+          }
+        }
+      }
+    },
     "t.ex. Mindact": {
       "localizations": {
         "en": {
@@ -32427,6 +32607,7 @@
       }
     },
     "titel, översikt, beslut och uppgifter": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -32454,6 +32635,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "upp till %@ ord"
+          }
+        }
+      }
+    },
+    "uppgifter från möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tasks from meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "uppgifter från möten"
           }
         }
       }

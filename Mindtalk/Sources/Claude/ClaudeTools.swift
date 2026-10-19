@@ -9,10 +9,10 @@ import Foundation
 // Thoughts) and with the same search engine (MeetingSearch). Nothing is written.
 // Audio and voiceprints are never given out.
 //
-// Every request is checked against ClaudeSharing first: off, the boxes ticked (Parts),
-// and, for every meeting, ClaudeSharing.allows: the one place that decides whether a
-// meeting may be read. A meeting or folder hidden from AI apps is never listed and never
-// named: an id from one is "No such meeting". Every answer is noted in the log the
+// Every request is checked against ClaudeSharing first: off answers nothing, on reads
+// everything Mindtalk has. For every meeting ClaudeSharing.allows decides whether it is
+// over and may be read: one being recorded or just ended is never listed and never
+// named, an id from one is "No such meeting". Every answer is noted in the log the
 // settings card shows.
 //
 // Text the assistant reads (descriptions, errors, notes) is English and plain. Only
@@ -22,7 +22,7 @@ import Foundation
 enum ClaudeTools {
     struct Failure: Error {
         let message: String
-        /// Set when the owner's settings said no (off, a box not ticked, a meeting hidden):
+        /// Set when the owner's settings said no (off, an id that isn't there):
         /// noted in the log as "nekad: …", so the card shows what was asked for and refused.
         var refusal: String? = nil
     }
@@ -32,7 +32,6 @@ enum ClaudeTools {
     static let moreNote = "More hits than shown: narrow with meeting_id, folder_id, from/to or more specific words, or follow nextCursor where there is one."
     /// A meeting's notes that didn't fit.
     static let moreNotesNote = "Not all notes fit; use mindtalk_search with meeting_id to find a specific one."
-    static let changeHere = "The user can change this in Mindtalk under Settings → Integrations → MCP."
 
     /// About 6 000 tokens for a list, 25 000 characters for a page of text.
     static let listBudget = 24_000
@@ -57,26 +56,18 @@ enum ClaudeTools {
             let items: Int
             switch tool {
             case "mindtalk_list_folders":
-                try requireMeetings()
                 (result, scope, items) = listFolders()
             case "mindtalk_list_meetings":
-                try requireMeetings()
                 (result, scope, items) = try listMeetings(args)
             case "mindtalk_get_meeting":
-                try requireMeetings()
                 (result, scope, items) = try getMeeting(args)
             case "mindtalk_get_transcript":
-                try requireMeetings()
-                try require(.transcripts)
                 (result, scope, items) = try getTranscript(args)
             case "mindtalk_search":
                 (result, scope, items) = try search(args)
             case "mindtalk_list_tasks":
-                try requireMeetings()
-                try require(.summaries)
                 (result, scope, items) = try listTasks(args)
             case "mindtalk_list_thoughts":
-                try require(.thoughts)
                 (result, scope, items) = try listThoughts(args)
             default:
                 throw Failure(message: "Unknown tool \"\(tool)\".")
@@ -84,8 +75,8 @@ enum ClaudeTools {
             sharing.record(tool: tool, scope: scope, items: items, characters: size(of: result), client: client)
             return result
         } catch let failure as Failure {
-            // What the settings refused is noted too, never with an id: the owner sees
-            // that a program asked for more than it may read.
+            // What was refused is noted too, never with an id: the owner sees that a
+            // program asked while MCP was off, or for something that isn't there.
             if let refusal = failure.refusal {
                 sharing.record(tool: tool, scope: refusal, items: 0, characters: 0, client: client, refused: true)
             }
@@ -96,35 +87,6 @@ enum ClaudeTools {
     private static func refusedOff() -> Failure {
         Failure(message: offMessage, refusal: String(localized: "nekad: avstängt"))
     }
-    /// No meeting box ticked: no meeting can be listed, by any tool.
-    private static func requireMeetings() throws {
-        guard ClaudeSharing.shared.meetingsShared else {
-            let thoughts = ClaudeSharing.shared.parts.contains(.thoughts)
-                ? " Thoughts can be read with mindtalk_list_thoughts and mindtalk_search." : ""
-            throw Failure(message: "Meetings are not shared: none of \"Meeting summaries\", \"Your notes and marks\" and \"Meetings’ full text\" is ticked in Mindtalk.\(thoughts) \(changeHere)",
-                          refusal: String(localized: "nekad: möten"))
-        }
-    }
-    /// One box not ticked: said by its name on the English card, and what is shared instead.
-    private static func require(_ part: ClaudeSharing.Parts) throws {
-        guard !ClaudeSharing.shared.parts.contains(part) else { return }
-        throw refused(part)
-    }
-    private static func refused(_ part: ClaudeSharing.Parts) -> Failure {
-        let what: String
-        switch part {
-        case .thoughts: what = "Thoughts are not shared"
-        case .summaries: what = "Meeting summaries (overview, decisions, tasks) are not shared"
-        case .notes: what = "The user’s own notes and marks are not shared"
-        default: what = "Transcripts are not shared"
-        }
-        var message = "\(what): \"\(part.english)\" is not ticked in Mindtalk."
-        if part != .thoughts, ClaudeSharing.shared.meetingsShared {
-            message += " Use mindtalk_get_meeting or mindtalk_search for what is shared."
-        }
-        return Failure(message: message + " " + changeHere, refusal: part.refusal)
-    }
-
     /// A whole number from a value read from disk, never a crash: NaN and infinity
     /// become 0, and anything beyond what a meeting could hold is held there.
     nonisolated static func clampedInt(_ d: Double, _ rule: FloatingPointRoundingRule = .toNearestOrAwayFromZero) -> Int {
@@ -239,10 +201,7 @@ enum ClaudeTools {
         let now = Date()
         return MeetingStore.shared.meetings.filter { sharing.allows($0, now: now) }
     }
-    private static func visibleFolders() -> [MeetingFolder] {
-        let sharing = ClaudeSharing.shared
-        return MeetingFolders.shared.folders.filter { sharing.allows(folder: $0) }
-    }
+    private static func visibleFolders() -> [MeetingFolder] { MeetingFolders.shared.folders }
     /// Thoughts as the page shows them: written down, not removed. Newest first.
     private static func liveThoughts() -> [Thought] {
         Thoughts.shared.all.filter { $0.deleted == nil && $0.writing == nil && !$0.text.isEmpty }
@@ -258,7 +217,7 @@ enum ClaudeTools {
     }
 
     /// `meeting_id`: one meeting. `folder_id`: a folder. Neither: everything shared.
-    /// `from`/`to` narrow by the meeting's start. Ids kept away are unknown ids.
+    /// `from`/`to` narrow by the meeting's start. Ids of meetings not yet over are unknown ids.
     private static func scope(_ args: Args, meeting allowMeeting: Bool = true, folder allowFolder: Bool = true) throws -> Scope {
         var out: Scope
         if allowMeeting, try args.string("meeting_id") != nil {
@@ -316,8 +275,8 @@ enum ClaudeTools {
             "link": link(meeting: m.id),
         ]
         if let f = MeetingFolders.shared.folder(of: m) { d["folder"] = ["id": f.id.uuidString, "name": f.name] }
-        // The gist is the summary's first sentence: only when summaries are shared.
-        if ClaudeSharing.shared.parts.contains(.summaries), let g = gist(m) { d["gist"] = g }
+        // The gist is the summary's first sentence.
+        if let g = gist(m) { d["gist"] = g }
         return d
     }
 
@@ -376,9 +335,12 @@ enum ClaudeTools {
     private static func has(_ text: String, _ word: String) -> Bool { text.range(of: word, options: .caseInsensitive) != nil }
     private static func hasAll(_ text: String, _ words: [String]) -> Bool { words.allSatisfy { has(text, $0) } }
 
+    /// The meeting parts a search can look in, as `kinds` names them.
+    private enum Part: String, CaseIterable { case summaries, notes, transcripts }
+
     /// All of a meeting the assistant may match, as one string: the title always, and
-    /// of the summary, the notes and marks, and what was said only the `parts` given.
-    private static func everything(of m: MeetingRecord, parts: ClaudeSharing.Parts) -> String {
+    /// of the summary, the notes and marks, and what was said the `parts` given.
+    private static func everything(of m: MeetingRecord, parts: Set<Part> = Set(Part.allCases)) -> String {
         var text = [title(of: m)]
         if parts.contains(.summaries) { text += MeetingSearch.summaryLines(of: m).map(\.text) }
         if parts.contains(.notes) { text += m.notes.map(\.text) + m.marks.compactMap(\.text) }
@@ -407,12 +369,9 @@ enum ClaudeTools {
         let scope = try scope(args, meeting: false)
         var meetings = scope.meetings
         if let query = try args.string("query") {
-            // As the app's own search, every word somewhere in the meeting: but only in
-            // what the boxes let the assistant read. Matching the spoken text without
-            // that box would give the text away a word at a time.
+            // As the app's own search: every word somewhere in the meeting.
             let words = words(query)
-            let parts = ClaudeSharing.shared.parts
-            meetings = meetings.filter { hasAll(everything(of: $0, parts: parts), words) }
+            meetings = meetings.filter { hasAll(everything(of: $0), words) }
         }
         let limit = try args.limit(default: 20, max: 50)
         let offset = try args.offset()
@@ -432,18 +391,12 @@ enum ClaudeTools {
 
     private static func getMeeting(_ args: Args) throws -> ([String: Any], String, Int) {
         let m = try meeting(args)
-        let parts = ClaudeSharing.shared.parts
-        let fromSummary = ["summary", "decisions", "tasks"], yours = ["notes", "marks"]
-        let shared = (parts.contains(.summaries) ? fromSummary : []) + (parts.contains(.notes) ? yours : [])
+        let every = ["summary", "decisions", "tasks", "notes", "marks"]
         let asked = try args.strings("include")
-        for part in asked ?? [] where !(fromSummary + yours).contains(part) {
+        for part in asked ?? [] where !every.contains(part) {
             throw Failure(message: "Unknown include \"\(part)\": use summary, decisions, tasks, notes or marks.")
         }
-        // Asked for by name and not shared: said, never left out in silence.
-        for part in asked ?? [] where !shared.contains(part) {
-            throw refused(fromSummary.contains(part) ? .summaries : .notes)
-        }
-        let include = Set(asked ?? shared)
+        let include = Set(asked ?? every)
         let format = try args.string("response_format")?.lowercased() ?? "concise"
         guard ["concise", "detailed"].contains(format) else { throw Failure(message: "response_format must be concise or detailed.") }
         let detailed = format == "detailed"
@@ -553,23 +506,13 @@ enum ClaudeTools {
     private static func search(_ args: Args) throws -> ([String: Any], String, Int) {
         let words = words(try args.string("query"))
         guard !words.isEmpty else { throw Failure(message: "query is required: one or more words to look for.") }
-        let parts = ClaudeSharing.shared.parts
-        let kindParts: [(String, ClaudeSharing.Parts)] = [("thoughts", .thoughts), ("summaries", .summaries),
-                                                          ("notes", .notes), ("transcripts", .transcripts)]
-        let allowed = kindParts.filter { parts.contains($0.1) }.map(\.0)
-        guard let kinds = try args.strings("kinds") ?? (allowed.isEmpty ? nil : allowed) else {
-            throw Failure(message: "Nothing is shared: no box under \"May be read\" is ticked in Mindtalk. \(changeHere)",
-                          refusal: String(localized: "nekad: möten"))
+        // Everything by default; `kinds` narrows it, as the assistant chooses.
+        let kinds = try args.strings("kinds") ?? ["thoughts"] + Part.allCases.map(\.rawValue)
+        for kind in kinds where kind != "thoughts" && Part(rawValue: kind) == nil {
+            throw Failure(message: "Unknown kind \"\(kind)\": use thoughts, summaries, notes or transcripts.")
         }
-        for kind in kinds {
-            guard let part = kindParts.first(where: { $0.0 == kind })?.1 else {
-                throw Failure(message: "Unknown kind \"\(kind)\": use thoughts, summaries, notes or transcripts.")
-            }
-            if part != .thoughts { try requireMeetings() }
-            try require(part)
-        }
-        // The meeting parts searched, as boxes.
-        let searched = ClaudeSharing.Parts(kindParts.filter { kinds.contains($0.0) && $0.1 != .thoughts }.map(\.1))
+        // The meeting parts searched.
+        let searched = Set(kinds.compactMap(Part.init(rawValue:)))
         let limit = try args.limit(default: 20, max: 50)
         let inMeetings = try args.string("meeting_id") != nil || args.string("folder_id") != nil
         var hits: [[String: Any]] = []
@@ -658,8 +601,7 @@ enum ClaudeTools {
             var tasks: [(text: String, owner: String?, done: Bool, at: Double?)] = []
             if let s = m.summary { tasks = s.tasks.map { ($0.text, $0.owner, $0.done == true, $0.at) } }
             let written = Set(tasks.map { $0.text.lowercased() })
-            // A marked task is the owner's own mark: only with notes and marks shared.
-            for mark in m.marks where mark.kind == .task && ClaudeSharing.shared.parts.contains(.notes) {
+            for mark in m.marks where mark.kind == .task {
                 guard let words = mark.text?.trimmingCharacters(in: .whitespaces), !words.isEmpty,
                       !written.contains(words.lowercased()) else { continue }
                 tasks.append((words, nil, false, mark.at))
