@@ -18,9 +18,17 @@ import Foundation
 
 @MainActor
 enum ClaudeTools {
-    struct Failure: Error { let message: String }
+    struct Failure: Error {
+        let message: String
+        /// Set when the owner's settings said no (off, the level, a meeting kept away):
+        /// noted in the log as "nekad: …", so the card shows what was asked for and refused.
+        var refusal: String? = nil
+    }
 
-    static let offMessage = "Sharing is switched off in Mindtalk. Turn it on in Mindtalk under Settings → Integrations → MCP."
+    static let offMessage = "MCP is switched off in Mindtalk, so nothing can be read. Ask the user to switch it on in Mindtalk under Settings → Integrations → MCP."
+    /// A meeting must be over before it can be read: finished this long ago, so the owner
+    /// has a moment to put it in a folder that is kept away.
+    static let grace: TimeInterval = 120
     static let moreNote = "More available: narrow with from/to, folder_id or query, or follow nextCursor."
     private static let meetingsLevelMessage =
         "Meetings are not shared: the level in Mindtalk under Settings → Integrations → MCP is \"Only thoughts\". Thoughts can be read with mindtalk_list_thoughts and mindtalk_search."
@@ -32,48 +40,77 @@ enum ClaudeTools {
     static let transcriptPage = 25_000
     static let meetingBudget = 30_000
 
-    static func handle(tool: String, args raw: [String: Any]) async throws -> [String: Any] {
+    /// `client`: the program asking, as the bridge saw it ("Claude"), for the log.
+    static func handle(tool: String, args raw: [String: Any], client: String? = nil) async throws -> [String: Any] {
         let sharing = ClaudeSharing.shared
-        guard sharing.enabled else { throw Failure(message: offMessage) }
-        // Just started (the helper opens the app when it isn't running): the meetings
-        // are still being read from disk. Answered from an empty list, "no meetings"
-        // would be a lie, so every tool waits for them. Folders and thoughts are read
-        // the moment they are first asked for, on this thread.
-        await MeetingStore.shared.ready()
-        let args = Args(raw)
-        let result: [String: Any]
-        let scope: String
-        let items: Int
-        switch tool {
-        case "mindtalk_list_folders":
-            try requireMeetings()
-            (result, scope, items) = listFolders()
-        case "mindtalk_list_meetings":
-            try requireMeetings()
-            (result, scope, items) = try listMeetings(args)
-        case "mindtalk_get_meeting":
-            try requireMeetings()
-            (result, scope, items) = try getMeeting(args)
-        case "mindtalk_get_transcript":
-            try requireMeetings()
-            guard sharing.level.includesTranscripts else { throw Failure(message: transcriptsLevelMessage) }
-            (result, scope, items) = try getTranscript(args)
-        case "mindtalk_search":
-            (result, scope, items) = try search(args)
-        case "mindtalk_list_tasks":
-            try requireMeetings()
-            (result, scope, items) = try listTasks(args)
-        case "mindtalk_list_thoughts":
-            (result, scope, items) = try listThoughts(args)
-        default:
-            throw Failure(message: "Unknown tool \"\(tool)\".")
+        do {
+            guard sharing.enabled else { throw refusedOff() }
+            // Just started (the helper opens the app when it isn't running): the meetings
+            // are still being read from disk. Answered from an empty list, "no meetings"
+            // would be a lie, so every tool waits for them. Folders and thoughts are read
+            // the moment they are first asked for, on this thread.
+            await MeetingStore.shared.ready()
+            // Switched off while waiting: nothing is answered.
+            guard sharing.enabled else { throw refusedOff() }
+            let args = Args(raw)
+            let result: [String: Any]
+            let scope: String
+            let items: Int
+            switch tool {
+            case "mindtalk_list_folders":
+                try requireMeetings()
+                (result, scope, items) = listFolders()
+            case "mindtalk_list_meetings":
+                try requireMeetings()
+                (result, scope, items) = try listMeetings(args)
+            case "mindtalk_get_meeting":
+                try requireMeetings()
+                (result, scope, items) = try getMeeting(args)
+            case "mindtalk_get_transcript":
+                try requireMeetings()
+                try requireTranscripts()
+                (result, scope, items) = try getTranscript(args)
+            case "mindtalk_search":
+                (result, scope, items) = try search(args)
+            case "mindtalk_list_tasks":
+                try requireMeetings()
+                (result, scope, items) = try listTasks(args)
+            case "mindtalk_list_thoughts":
+                (result, scope, items) = try listThoughts(args)
+            default:
+                throw Failure(message: "Unknown tool \"\(tool)\".")
+            }
+            sharing.record(tool: tool, scope: scope, items: items, characters: size(of: result), client: client)
+            return result
+        } catch let failure as Failure {
+            // What the settings refused is noted too, never with an id: the owner sees
+            // that a program asked for more than it may read.
+            if let refusal = failure.refusal {
+                sharing.record(tool: tool, scope: refusal, items: 0, characters: 0, client: client, refused: true)
+            }
+            throw failure
         }
-        sharing.record(tool: tool, scope: scope, items: items, characters: size(of: result))
-        return result
     }
 
+    private static func refusedOff() -> Failure {
+        Failure(message: offMessage, refusal: String(localized: "nekad: avstängt"))
+    }
     private static func requireMeetings() throws {
-        guard ClaudeSharing.shared.level.includesMeetings else { throw Failure(message: meetingsLevelMessage) }
+        guard ClaudeSharing.shared.level.includesMeetings else {
+            throw Failure(message: meetingsLevelMessage, refusal: String(localized: "nekad: nivån"))
+        }
+    }
+    private static func requireTranscripts() throws {
+        guard ClaudeSharing.shared.level.includesTranscripts else {
+            throw Failure(message: transcriptsLevelMessage, refusal: String(localized: "nekad: hela texten"))
+        }
+    }
+
+    /// A whole number from a value read from disk, never a crash: NaN and infinity
+    /// become 0, and anything beyond what a meeting could hold is held there.
+    nonisolated static func clampedInt(_ d: Double, _ rule: FloatingPointRoundingRule = .toNearestOrAwayFromZero) -> Int {
+        guard d.isFinite else { return 0 }
+        return Int(min(max(d.rounded(rule), -1e15), 1e15))
     }
 
     // MARK: Arguments
@@ -82,37 +119,54 @@ enum ClaudeTools {
         let raw: [String: Any]
         init(_ raw: [String: Any]) { self.raw = raw }
 
-        func string(_ key: String) -> String? {
-            guard let s = raw[key] as? String else { return nil }
+        /// Given at all: null counts as left out.
+        private func given(_ key: String) -> Any? {
+            guard let v = raw[key], !(v is NSNull) else { return nil }
+            return v
+        }
+        /// A wrong kind of value is an error that says what was expected, never a guess.
+        func string(_ key: String) throws -> String? {
+            guard let v = given(key) else { return nil }
+            guard let s = v as? String else { throw Failure(message: "\(key) must be a string.") }
             let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
             return t.isEmpty ? nil : t
         }
-        func int(_ key: String) -> Int? {
-            if let n = raw[key] as? Int { return n }
-            if let d = raw[key] as? Double { return Int(d) }
-            if let s = raw[key] as? String { return Int(s) }
-            return nil
+        /// A whole number. Anything that isn't one (text, NaN, a number too large for
+        /// a count) is an error, never a crash: Int(1e300) would trap.
+        func int(_ key: String) throws -> Int? {
+            guard let v = given(key) else { return nil }
+            if let n = v as? Int { return n }
+            let d: Double?
+            if let x = v as? Double { d = x } else if let s = v as? String { d = Double(s) } else { d = nil }
+            guard let d, d.isFinite, abs(d) < 1e15, d == d.rounded() else {
+                throw Failure(message: "\(key) must be a whole number.")
+            }
+            return Int(d)
         }
-        func double(_ key: String) -> Double? {
-            if let d = raw[key] as? Double { return d }
-            if let n = raw[key] as? Int { return Double(n) }
-            if let s = raw[key] as? String { return Double(s) }
-            return nil
+        func double(_ key: String) throws -> Double? {
+            guard let v = given(key) else { return nil }
+            let d: Double?
+            if let x = v as? Double { d = x } else if let n = v as? Int { d = Double(n) } else if let s = v as? String { d = Double(s) } else { d = nil }
+            guard let d, d.isFinite else { throw Failure(message: "\(key) must be a number.") }
+            return d
         }
-        func strings(_ key: String) -> [String]? {
-            if let list = raw[key] as? [String] { return list.map { $0.lowercased() } }
-            if let one = raw[key] as? String { return [one.lowercased()] }
-            return nil
+        /// A list of words, lowercased; one word on its own is allowed.
+        func strings(_ key: String) throws -> [String]? {
+            guard let v = given(key) else { return nil }
+            if let list = v as? [String] { return list.map { $0.lowercased() } }
+            if let one = v as? String { return [one.lowercased()] }
+            throw Failure(message: "\(key) must be a list of strings.")
         }
-        /// 1...max, or the default.
-        func limit(_ key: String = "limit", default fallback: Int, max top: Int) -> Int {
-            guard let n = int(key) else { return fallback }
-            return min(max(n, 1), top)
+        /// 1...max, or the default. Out of range is said, not silently moved.
+        func limit(_ key: String = "limit", default fallback: Int, max top: Int) throws -> Int {
+            guard let n = try int(key) else { return fallback }
+            guard (1...top).contains(n) else { throw Failure(message: "\(key) must be between 1 and \(top).") }
+            return n
         }
-        func uuid(_ key: String) -> UUID? { string(key).flatMap(UUID.init) }
+        func uuid(_ key: String) throws -> UUID? { try string(key).flatMap(UUID.init) }
         /// An offset from an opaque cursor.
         func offset() throws -> Int {
-            guard let c = string("cursor") else { return 0 }
+            guard let c = try string("cursor") else { return 0 }
             guard let data = Data(base64Encoded: c), let text = String(data: data, encoding: .utf8),
                   text.hasPrefix("o="), let n = Int(text.dropFirst(2)), n >= 0
             else { throw Failure(message: "Invalid cursor. Use the nextCursor from the previous answer.") }
@@ -120,7 +174,8 @@ enum ClaudeTools {
         }
         /// "2026-10-19" or "2026-10-19T14:00:00+02:00". `to` as a bare date reaches its end.
         func date(_ key: String, end: Bool = false) throws -> Date? {
-            guard let s = string(key) else { return nil }
+            guard let v = given(key) else { return nil }
+            guard let s = v as? String else { throw Failure(message: "\(key) must be a string: ISO 8601, for example 2026-10-19.") }
             if let d = ClaudeTools.fullDate.date(from: s) ?? ClaudeTools.fractionalDate.date(from: s) { return d }
             if let d = ClaudeTools.dayOnly.date(from: s) {
                 let day = Calendar.current.startOfDay(for: d)
@@ -150,10 +205,22 @@ enum ClaudeTools {
 
     // MARK: What may be seen
 
-    /// The meetings the assistant may read: not in a folder kept away. Newest first.
-    private static func visibleMeetings() -> [MeetingRecord] {
+    /// The meetings the assistant may read: not in a folder kept away, and over. The one
+    /// being recorded or finished, one whose notes are being written, one cut off by a
+    /// crash, and one that ended only moments ago (the owner may still be putting it in a
+    /// folder kept away) are not there yet. Newest first.
+    private static func visibleMeetings(now: Date = Date()) -> [MeetingRecord] {
         let sharing = ClaudeSharing.shared
-        return MeetingStore.shared.meetings.filter { sharing.allows(folder: $0.folder) }
+        let live = MeetingSession.shared.record?.id
+        let writing = MeetingNotes.shared.writing
+        return MeetingStore.shared.meetings.filter { m in
+            sharing.allows(folder: m.folder) && m.id != live && m.finished && !writing.contains(m.id)
+                && now.timeIntervalSince(finishedAt(m)) >= grace
+        }
+    }
+    /// When the meeting was over: its start plus its length, or the moment it was imported.
+    static func finishedAt(_ m: MeetingRecord) -> Date {
+        max(m.date.addingTimeInterval(seconds(m)), m.source?.importedAt ?? .distantPast)
     }
     private static func visibleFolders() -> [MeetingFolder] {
         let sharing = ClaudeSharing.shared
@@ -177,12 +244,12 @@ enum ClaudeTools {
     /// `from`/`to` narrow by the meeting's start. Ids kept away are unknown ids.
     private static func scope(_ args: Args, meeting allowMeeting: Bool = true, folder allowFolder: Bool = true) throws -> Scope {
         var out: Scope
-        if allowMeeting, args.string("meeting_id") != nil {
+        if allowMeeting, try args.string("meeting_id") != nil {
             let m = try meeting(args)
             out = Scope(meetings: [m], label: title(of: m), meeting: m)
-        } else if allowFolder, args.string("folder_id") != nil {
-            guard let id = args.uuid("folder_id"), let folder = visibleFolders().first(where: { $0.id == id }) else {
-                throw Failure(message: "No such folder.")
+        } else if allowFolder, try args.string("folder_id") != nil {
+            guard let id = try args.uuid("folder_id"), let folder = visibleFolders().first(where: { $0.id == id }) else {
+                throw Failure(message: "No such folder.", refusal: String(localized: "nekad: okänd mapp"))
             }
             out = Scope(meetings: visibleMeetings().filter { $0.folder == id }, label: folder.name, folder: folder)
         } else {
@@ -194,8 +261,8 @@ enum ClaudeTools {
     }
 
     private static func meeting(_ args: Args) throws -> MeetingRecord {
-        guard let id = args.uuid("meeting_id"), let m = visibleMeetings().first(where: { $0.id == id }) else {
-            throw Failure(message: "No such meeting.")
+        guard let id = try args.uuid("meeting_id"), let m = visibleMeetings().first(where: { $0.id == id }) else {
+            throw Failure(message: "No such meeting.", refusal: String(localized: "nekad: okänt möte"))
         }
         return m
     }
@@ -203,7 +270,7 @@ enum ClaudeTools {
     // MARK: Pieces of an answer
 
     static func link(meeting id: UUID, at seconds: Double? = nil) -> String {
-        "mindtalk://meeting/\(id.uuidString)" + (seconds.map { "?t=\(Int($0.rounded(.down)))" } ?? "")
+        "mindtalk://meeting/\(id.uuidString)" + (seconds.map { "?t=\(clampedInt($0, .down))" } ?? "")
     }
     static func link(thought id: UUID) -> String { "mindtalk://thought/\(id.uuidString)" }
 
@@ -225,7 +292,7 @@ enum ClaudeTools {
             "id": m.id.uuidString,
             "title": title(of: m),
             "start": iso.string(from: m.date),
-            "duration_seconds": Int(seconds(m).rounded()),
+            "duration_seconds": clampedInt(seconds(m)),
             "speakers": m.speakers.map { m.name(of: $0) },
             "has_summary": m.summary != nil,
             "has_transcript": !m.words.isEmpty,
@@ -291,6 +358,15 @@ enum ClaudeTools {
     private static func has(_ text: String, _ word: String) -> Bool { text.range(of: word, options: .caseInsensitive) != nil }
     private static func hasAll(_ text: String, _ words: [String]) -> Bool { words.allSatisfy { has(text, $0) } }
 
+    /// All of a meeting the assistant may match at this level, as one string: the title,
+    /// the summary's lines, the notes, the marks with words, and what was said only when
+    /// `transcripts` are shared.
+    private static func everything(of m: MeetingRecord, transcripts: Bool) -> String {
+        var parts = [title(of: m)] + MeetingSearch.summaryLines(of: m).map(\.text) + m.notes.map(\.text) + m.marks.compactMap(\.text)
+        if transcripts { parts += MeetingSearch.sentences(of: m).map(\.text) }
+        return parts.joined(separator: " ")
+    }
+
     // MARK: mindtalk_list_folders
 
     private static func listFolders() -> ([String: Any], String, Int) {
@@ -311,11 +387,15 @@ enum ClaudeTools {
     private static func listMeetings(_ args: Args) throws -> ([String: Any], String, Int) {
         let scope = try scope(args, meeting: false)
         var meetings = scope.meetings
-        if let query = args.string("query") {
-            // The app's own search: every word somewhere in the meeting.
-            meetings = MeetingSearch.find(query, in: meetings, limit: 1).map(\.record)
+        if let query = try args.string("query") {
+            // As the app's own search, every word somewhere in the meeting: but only in
+            // what this level lets the assistant read. Matching the spoken text at a
+            // level without it would give that text away a word at a time.
+            let words = words(query)
+            let transcripts = ClaudeSharing.shared.level.includesTranscripts
+            meetings = meetings.filter { hasAll(everything(of: $0, transcripts: transcripts), words) }
         }
-        let limit = args.limit(default: 20, max: 50)
+        let limit = try args.limit(default: 20, max: 50)
         let offset = try args.offset()
         let page = Array(meetings.dropFirst(offset).prefix(limit))
         var rows = page.map(item)
@@ -333,13 +413,18 @@ enum ClaudeTools {
 
     private static func getMeeting(_ args: Args) throws -> ([String: Any], String, Int) {
         let m = try meeting(args)
-        let include = Set(args.strings("include") ?? ["summary", "decisions", "tasks", "notes", "marks"])
-        let detailed = args.string("response_format")?.lowercased() == "detailed"
+        let include = Set(try args.strings("include") ?? ["summary", "decisions", "tasks", "notes", "marks"])
+        for part in include where !["summary", "decisions", "tasks", "notes", "marks"].contains(part) {
+            throw Failure(message: "Unknown include \"\(part)\": use summary, decisions, tasks, notes or marks.")
+        }
+        let format = try args.string("response_format")?.lowercased() ?? "concise"
+        guard ["concise", "detailed"].contains(format) else { throw Failure(message: "response_format must be concise or detailed.") }
+        let detailed = format == "detailed"
         var result = item(m)
         result["date"] = iso.string(from: m.date)
         func moment(_ at: Double?) -> [String: Any] {
             guard let at else { return [:] }
-            var d: [String: Any] = ["t_seconds": Int(at.rounded()), "time": stamp(at)]
+            var d: [String: Any] = ["t_seconds": clampedInt(at), "time": stamp(at)]
             if detailed { d["link"] = link(meeting: m.id, at: at) }
             return d
         }
@@ -400,9 +485,9 @@ enum ClaudeTools {
     private static func getTranscript(_ args: Args) throws -> ([String: Any], String, Int) {
         let m = try meeting(args)
         var all = lines(of: m)
-        if let from = args.double("start_sec") { all.removeAll { $0.at < from } }
-        if let to = args.double("end_sec") { all.removeAll { $0.at > to } }
-        if let who = args.string("speaker") {
+        if let from = try args.double("start_sec") { all.removeAll { $0.at < from } }
+        if let to = try args.double("end_sec") { all.removeAll { $0.at > to } }
+        if let who = try args.string("speaker") {
             all.removeAll { !($0.speaker?.localizedCaseInsensitiveContains(who) ?? false) }
         }
         let rendered = all.map(render)
@@ -418,13 +503,13 @@ enum ClaudeTools {
         var result: [String: Any] = [
             "meeting": brief(m),
             "segments": page,
-            "total_seconds": Int(seconds(m).rounded()),
+            "total_seconds": clampedInt(seconds(m)),
             "total_chars": rendered.reduce(0) { $0 + $1.count + 1 },
             "total_segments": rendered.count,
             "link": link(meeting: m.id, at: all.dropFirst(offset).first?.at),
         ]
-        if let first = all.dropFirst(offset).first { result["from_seconds"] = Int(first.at.rounded()) }
-        if i > offset { result["to_seconds"] = Int(all[i - 1].at.rounded()) }
+        if let first = all.dropFirst(offset).first { result["from_seconds"] = clampedInt(first.at, .down) }
+        if i > offset { result["to_seconds"] = clampedInt(all[i - 1].at, .down) }
         if i < rendered.count {
             result["nextCursor"] = cursor(offset: i)
             result["note"] = moreNote
@@ -435,21 +520,22 @@ enum ClaudeTools {
     // MARK: mindtalk_search
 
     private static func search(_ args: Args) throws -> ([String: Any], String, Int) {
-        let words = words(args.string("query"))
+        let words = words(try args.string("query"))
         guard !words.isEmpty else { throw Failure(message: "query is required: one or more words to look for.") }
         let level = ClaudeSharing.shared.level
         let allowed = ["thoughts"] + (level.includesMeetings ? ["summaries"] : []) + (level.includesTranscripts ? ["transcripts"] : [])
-        let kinds = args.strings("kinds") ?? allowed
+        let kinds = try args.strings("kinds") ?? allowed
         for kind in kinds {
             guard ["thoughts", "summaries", "transcripts"].contains(kind) else {
                 throw Failure(message: "Unknown kind \"\(kind)\": use thoughts, summaries or transcripts.")
             }
-            guard allowed.contains(kind) else {
-                throw Failure(message: kind == "transcripts" ? transcriptsLevelMessage : meetingsLevelMessage)
+            if !allowed.contains(kind) {
+                if kind == "transcripts" { try requireTranscripts() }
+                try requireMeetings()
             }
         }
-        let limit = args.limit(default: 20, max: 50)
-        let inMeetings = args.string("meeting_id") != nil || args.string("folder_id") != nil
+        let limit = try args.limit(default: 20, max: 50)
+        let inMeetings = try args.string("meeting_id") != nil || args.string("folder_id") != nil
         var hits: [[String: Any]] = []
         var label = String(localized: "Alla möten")
 
@@ -484,7 +570,7 @@ enum ClaudeTools {
                         guard r > 0 else { continue }
                         var hit: [String: Any] = ["kind": "summary", "part": p.part, "text": excerpt(p.text, around: words),
                                                   "meeting": brief(m), "link": link(meeting: m.id, at: p.at)]
-                        if let at = p.at { hit["t_seconds"] = Int(at.rounded()) }
+                        if let at = p.at { hit["t_seconds"] = clampedInt(at) }
                         found.append(Candidate(rank: r, at: p.at, hit: hit))
                     }
                 }
@@ -495,7 +581,7 @@ enum ClaudeTools {
                         let r = rank(s.text)
                         guard r > 0 else { continue }
                         var hit: [String: Any] = ["kind": "transcript", "text": excerpt(s.text, around: words), "meeting": brief(m),
-                                                  "t_seconds": Int(s.start.rounded()), "link": link(meeting: m.id, at: s.start)]
+                                                  "t_seconds": clampedInt(s.start), "link": link(meeting: m.id, at: s.start)]
                         if !s.speaker.isEmpty { hit["speaker"] = s.speaker }
                         found.append(Candidate(rank: r, at: s.start, hit: hit))
                     }
@@ -520,9 +606,9 @@ enum ClaudeTools {
 
     private static func listTasks(_ args: Args) throws -> ([String: Any], String, Int) {
         let scope = try scope(args, meeting: false)
-        let status = args.string("status")?.lowercased() ?? "open"
+        let status = try args.string("status")?.lowercased() ?? "open"
         guard ["open", "done", "all"].contains(status) else { throw Failure(message: "status must be open, done or all.") }
-        let owner = args.string("owner")
+        let owner = try args.string("owner")
         var rows: [[String: Any]] = []
         for m in scope.meetings {
             var tasks: [(text: String, owner: String?, done: Bool, at: Double?)] = []
@@ -538,7 +624,7 @@ enum ClaudeTools {
                 if let owner, !(t.owner?.localizedCaseInsensitiveContains(owner) ?? false) { continue }
                 var d: [String: Any] = ["task": t.text, "done": t.done, "meeting": brief(m), "link": link(meeting: m.id, at: t.at)]
                 if let o = t.owner, !o.isEmpty { d["owner"] = o }
-                if let at = t.at { d["t_seconds"] = Int(at.rounded()) }
+                if let at = t.at { d["t_seconds"] = clampedInt(at) }
                 rows.append(d)
             }
         }
@@ -556,9 +642,9 @@ enum ClaudeTools {
         var thoughts = liveThoughts()
         if let from = try args.date("from") { thoughts.removeAll { $0.date < from } }
         if let to = try args.date("to", end: true) { thoughts.removeAll { $0.date > to } }
-        let words = words(args.string("query"))
+        let words = words(try args.string("query"))
         if !words.isEmpty { thoughts.removeAll { !hasAll($0.text, words) } }
-        let limit = args.limit(default: 50, max: 200)
+        let limit = try args.limit(default: 50, max: 200)
         let offset = try args.offset()
         var rows: [[String: Any]] = thoughts.dropFirst(offset).prefix(limit).map { t in
             ["id": t.id.uuidString, "text": t.text, "date": iso.string(from: t.date), "done": t.done, "pinned": t.pinned,

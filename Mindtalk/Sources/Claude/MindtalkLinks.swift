@@ -31,8 +31,9 @@ enum MindtalkLink: Equatable {
         switch kind {
         case "meeting":
             guard let id = rest.first.flatMap(UUID.init(uuidString:)) else { return nil }
+            // "?t=" must be a real number of seconds: NaN, infinity and a negative are 0.
             let t = query.first { $0.name == "t" }?.value.flatMap(Double.init)
-            return .meeting(id, at: t.map { max(0, $0) })
+            return .meeting(id, at: t.map { $0.isFinite ? max(0, $0) : 0 })
         case "thought":
             guard let id = rest.first.flatMap(UUID.init(uuidString:)) else { return nil }
             return .thought(id)
@@ -52,7 +53,8 @@ enum MindtalkLink: Equatable {
         c.scheme = scheme
         c.host = "meeting"
         c.path = "/" + id.uuidString
-        if let seconds { c.queryItems = [URLQueryItem(name: "t", value: String(Int(seconds.rounded())))] }
+        // Rounded down, as the helper's links are (ClaudeTools.link), and never a trap.
+        if let seconds { c.queryItems = [URLQueryItem(name: "t", value: String(ClaudeTools.clampedInt(seconds, .down)))] }
         return c.url!
     }
 

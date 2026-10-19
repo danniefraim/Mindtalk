@@ -113,6 +113,8 @@ enum ClaudeInstall {
         try ditto.run()
         ditto.waitUntilExit()
         guard ditto.terminationStatus == 0 else { throw BundleError.zipFailed(ditto.terminationStatus) }
+        // Yours alone, like the socket and the log.
+        try? fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: destination.path)
         log.notice("wrote \(destination.lastPathComponent, privacy: .public) for \(helperLinkURL.path, privacy: .public)")
         return destination
     }

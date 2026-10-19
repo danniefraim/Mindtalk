@@ -11,13 +11,26 @@ enum BridgeClient {
     struct Failure: Error { let message: String }
 
     static let notRunning = "Mindtalk is not running. Open Mindtalk and try again."
+    /// Word for word what the app answers when MCP is off (ClaudeTools.offMessage).
+    static let off = "MCP is switched off in Mindtalk, so nothing can be read. Ask the user to switch it on in Mindtalk under Settings → Integrations → MCP."
     static let bundleID = "ai.mindact.mindtalk"
 
+    static var supportFolder: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Mindtalk", isDirectory: true)
+    }
     /// The same path the app listens at. `MINDTALK_SOCKET` points a test elsewhere.
     static var socketPath: String {
         if let env = ProcessInfo.processInfo.environment["MINDTALK_SOCKET"], !env.isEmpty { return env }
-        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Mindtalk/mcp.sock").path
+        return supportFolder.appendingPathComponent("mcp.sock").path
+    }
+    /// The app leaves `mcp.on` here while MCP is switched on (ClaudeSharing). Without
+    /// it there is nothing to ask for, so the app is never started on a program's behalf.
+    static var markerPath: String { supportFolder.appendingPathComponent("mcp.on").path }
+    /// A test (`MINDTALK_SOCKET`) or `MINDTALK_NO_OPEN`: the app is never opened.
+    static var mayOpenApp: Bool {
+        let env = ProcessInfo.processInfo.environment
+        return (env["MINDTALK_SOCKET"] ?? "").isEmpty && (env["MINDTALK_NO_OPEN"] ?? "").isEmpty
     }
 
     private static let queue = DispatchQueue(label: "ai.mindact.mindtalk.helper.bridge", qos: .userInitiated)
@@ -48,7 +61,11 @@ enum BridgeClient {
         guard var data = try? JSONEncoder().encode(request) else { return .failure(Failure(message: "The request could not be encoded.")) }
         data.append(0x0A)
 
-        guard let fd = connect() else { return .failure(Failure(message: notRunning)) }
+        let fd: Int32
+        switch connect() {
+        case .success(let open): fd = open
+        case .failure(let why): return .failure(why)
+        }
         defer { close(fd) }
         var sent = 0
         while sent < data.count {
@@ -73,9 +90,12 @@ enum BridgeClient {
         return .success(response.result ?? .object([:]))
     }
 
-    /// A connection to the app, opening it once if it isn't running.
-    private static func connect() -> Int32? {
-        if let fd = tryConnect() { return fd }
+    /// A connection to the app, opening it once if it isn't running: only when MCP is
+    /// switched on (the marker), never for a test. Off, the answer is the app's own.
+    private static func connect() -> Result<Int32, Failure> {
+        if let fd = tryConnect() { return .success(fd) }
+        guard mayOpenApp else { return .failure(Failure(message: notRunning)) }
+        guard FileManager.default.fileExists(atPath: markerPath) else { return .failure(Failure(message: off)) }
         let open = Process()
         open.executableURL = URL(fileURLWithPath: "/usr/bin/open")
         open.arguments = ["-gjb", bundleID]
@@ -84,9 +104,9 @@ enum BridgeClient {
         let deadline = Date().addingTimeInterval(8)
         while Date() < deadline {
             Thread.sleep(forTimeInterval: 0.25)
-            if let fd = tryConnect() { return fd }
+            if let fd = tryConnect() { return .success(fd) }
         }
-        return nil
+        return .failure(Failure(message: notRunning))
     }
 
     private static func tryConnect() -> Int32? {

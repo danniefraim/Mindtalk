@@ -45,6 +45,11 @@ final class Bridge: @unchecked Sendable {
     private var listener: Int32 = -1
     private var path = ""
     private let queue = DispatchQueue(label: "ai.mindact.mindtalk.bridge", qos: .userInitiated, attributes: .concurrent)
+    /// Connections being served right now: more than `room` at once are turned away.
+    private let open = OSAllocatedUnfairLock(initialState: 0)
+    static let room = 16
+    /// A connection that neither sends nor takes an answer for this long is dropped.
+    static let timeout: Int = 30
 
     /// At launch: the socket, and the fixed path to the helper.
     @MainActor static func launch() {
@@ -124,13 +129,31 @@ final class Bridge: @unchecked Sendable {
             }
             var one: Int32 = 1
             setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
-            queue.async { self.serve(client) }
+            var wait = timeval(tv_sec: Self.timeout, tv_usec: 0)
+            setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &wait, socklen_t(MemoryLayout<timeval>.size))
+            setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, &wait, socklen_t(MemoryLayout<timeval>.size))
+            let serving = open.withLock { n -> Int in n += 1; return n }
+            guard serving <= Self.room else {
+                open.withLock { $0 -= 1 }
+                var line = Self.encode(["error": ["message": "Mindtalk is busy with too many connections at once. Try again in a moment."]])
+                line.append(0x0A)
+                _ = Self.write(line, to: client)
+                close(client)
+                continue
+            }
+            // Who is asking, before the first line: the program at the other end, or the
+            // one that started our helper.
+            let asking = Self.peerName(of: client)
+            queue.async { self.serve(client, client: asking) }
         }
     }
 
     /// One connection: a request per line, an answer per line, until the helper hangs up.
-    private func serve(_ client: Int32) {
-        defer { close(client) }
+    private func serve(_ client: Int32, client name: String?) {
+        defer {
+            close(client)
+            open.withLock { $0 -= 1 }
+        }
         var buffer = Data()
         var chunk = [UInt8](repeating: 0, count: 65_536)
         while true {
@@ -142,7 +165,7 @@ final class Bridge: @unchecked Sendable {
                 let line = buffer.subdata(in: buffer.startIndex..<newline)
                 buffer.removeSubrange(buffer.startIndex...newline)
                 guard !line.isEmpty else { continue }
-                var answer = Self.answer(line)
+                var answer = Self.answer(line, client: name)
                 answer.append(0x0A)
                 guard Self.write(answer, to: client) else { return }
             }
@@ -163,18 +186,23 @@ final class Bridge: @unchecked Sendable {
     }
 
     /// One request, answered on the main thread by ClaudeTools.
-    private static func answer(_ line: Data) -> Data {
+    private static func answer(_ line: Data, client: String?) -> Data {
         let request = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any]
         let id: Any = request?["id"] ?? NSNull()
         guard let request, let tool = request["tool"] as? String else {
             return encode(["id": id, "error": ["message": "Malformed request: expected {\"id\", \"tool\", \"args\"} as one JSON object per line."]])
         }
-        let args = request["args"] as? [String: Any] ?? [:]
+        let args: [String: Any]
+        switch request["args"] {
+        case nil, is NSNull: args = [:]
+        case let object as [String: Any]: args = object
+        default: return encode(["id": id, "error": ["message": "Malformed request: args must be a JSON object with the tool's arguments."]])
+        }
         let box = Box()
         let done = DispatchSemaphore(value: 0)
         Task { @MainActor in
             do {
-                box.response = ["id": id, "result": try await ClaudeTools.handle(tool: tool, args: args)]
+                box.response = ["id": id, "result": try await ClaudeTools.handle(tool: tool, args: args, client: client)]
             } catch let failure as ClaudeTools.Failure {
                 box.response = ["id": id, "error": ["message": failure.message]]
             } catch {
@@ -187,6 +215,45 @@ final class Bridge: @unchecked Sendable {
     }
 
     private final class Box: @unchecked Sendable { var response: [String: Any] = [:] }
+
+    // MARK: Who is asking
+
+    /// The program at the other end of the socket, by name: the app it runs inside
+    /// ("Claude" for Claude.app) or its executable. Our own helper `mindtalk` is never
+    /// the answer: then it is the program that started it (the MCP client). nil when
+    /// the system won't say.
+    static func peerName(of fd: Int32) -> String? {
+        var pid: pid_t = 0
+        var size = socklen_t(MemoryLayout<pid_t>.size)
+        guard getsockopt(fd, SOL_LOCAL, LOCAL_PEERPID, &pid, &size) == 0, pid > 0, let path = path(of: pid) else { return nil }
+        if URL(fileURLWithPath: path).lastPathComponent == "mindtalk" {
+            guard let parent = parent(of: pid), parent > 1, let above = Self.path(of: parent) else { return nil }
+            return clientName(fromPath: above)
+        }
+        return clientName(fromPath: path)
+    }
+
+    private static func path(of pid: pid_t) -> String? {
+        var buffer = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))     // PROC_PIDPATHINFO_MAXSIZE
+        guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return nil }
+        return String(cString: buffer)
+    }
+
+    private static func parent(of pid: pid_t) -> pid_t? {
+        var info = proc_bsdinfo()
+        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+        guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size else { return nil }
+        return pid_t(info.pbi_ppid)
+    }
+
+    /// "Claude" for /Applications/Claude.app/Contents/MacOS/Claude; "claude" for a bare
+    /// executable. The outermost .app, so a helper inside an app counts as the app.
+    static func clientName(fromPath path: String) -> String? {
+        let parts = path.split(separator: "/").map(String.init)
+        if let app = parts.first(where: { $0.hasSuffix(".app") && $0.count > 4 }) { return String(app.dropLast(4)) }
+        guard let last = parts.last, !last.isEmpty else { return nil }
+        return last
+    }
 
     private static func encode(_ object: [String: Any]) -> Data {
         (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys, .withoutEscapingSlashes]))

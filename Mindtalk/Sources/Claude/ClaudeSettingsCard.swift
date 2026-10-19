@@ -202,9 +202,10 @@ struct ClaudeSettingsCard: View {
             } else {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(showAll ? sharing.entries : Array(sharing.entries.prefix(Self.shown))) { entry in
+                        // A refusal reads quieter: nothing went out.
                         Text(verbatim: ClaudeLogLine.text(for: entry))
                             .font(.system(size: 12.5)).monospacedDigit()
-                            .foregroundStyle(DS.Colors.muted)
+                            .foregroundStyle(DS.Colors.muted.opacity(entry.wasRefused ? 0.6 : 1))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -223,16 +224,29 @@ struct ClaudeSettingsCard: View {
     }
 }
 
-/// One log entry in words: "I dag 15:02 · Sökte i Klang · 4 möten · 3 000 tecken".
+/// One log entry in words: "I dag 15:02 · Claude sökte i Klang · 4 möten · 3 000 tecken".
+/// Refused: "I dag 15:02 · Claude · nekad: hela texten".
 enum ClaudeLogLine {
     static func text(for entry: ClaudeSharing.Entry) -> String {
-        var parts = [MeetingRecord.when(entry.date), action(entry)]
+        var parts = [MeetingRecord.when(entry.date)]
+        if entry.wasRefused {
+            if let client = entry.client { parts.append(client) }
+            parts.append(entry.scope)
+            return parts.joined(separator: " · ")
+        }
+        parts.append(byClient(action(entry), entry.client))
         if let count = count(entry) { parts.append(count) }
         if entry.characters > 0 {
             let n = entry.characters.formatted(.number.locale(AppLanguage.locale))
             parts.append(String(localized: "\(n) tecken"))
         }
         return parts.joined(separator: " · ")
+    }
+
+    /// "Sökte i Klang" by Claude: "Claude sökte i Klang". Unknown: as it was.
+    private static func byClient(_ action: String, _ client: String?) -> String {
+        guard let client, !client.isEmpty, let first = action.first else { return action }
+        return client + " " + first.lowercased() + action.dropFirst()
     }
 
     /// What the program did, with where ("Sökte i Klang", "Läste Styrelsemöte 14 okt · sammanfattning").

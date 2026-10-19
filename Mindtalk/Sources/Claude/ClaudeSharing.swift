@@ -44,6 +44,22 @@ final class ClaudeSharing: ObservableObject {
             guard !previewing else { return }
             defaults.set(enabled, forKey: "claude.enabled")
             Self.log.notice("sharing \(self.enabled ? "on" : "off", privacy: .public)")
+            Self.setMarker(enabled)
+        }
+    }
+
+    /// `~/Library/Application Support/Mindtalk/mcp.on`: there while MCP is on. The helper
+    /// looks for it before it opens the app: switched off, a program that asks is told
+    /// so without Mindtalk being started for it.
+    nonisolated static var markerURL: URL { Bridge.supportFolder.appendingPathComponent("mcp.on") }
+    nonisolated private static func setMarker(_ on: Bool) {
+        let fm = FileManager.default
+        if on {
+            try? fm.createDirectory(at: markerURL.deletingLastPathComponent(), withIntermediateDirectories: true,
+                                    attributes: [.posixPermissions: 0o700])
+            fm.createFile(atPath: markerURL.path, contents: Data(), attributes: [.posixPermissions: 0o600])
+        } else {
+            try? fm.removeItem(at: markerURL)
         }
     }
     /// Everything by default: the owner chose that the connection, once on, reads it all.
@@ -62,11 +78,17 @@ final class ClaudeSharing: ObservableObject {
         /// The tool, as the program names it ("mindtalk_search").
         var tool: String
         /// Where it looked, in words: a meeting title, a folder name, "Alla möten", "Tankar".
+        /// Refused: what was refused ("nekad: hela texten"), never an id.
         var scope: String
         /// How many meetings, thoughts or hits came back.
         var items: Int
         /// How much text went out, in characters.
         var characters: Int
+        /// The program that asked ("Claude"), when the bridge could tell.
+        var client: String? = nil
+        /// The settings said no: nothing went out.
+        var refused: Bool? = nil
+        var wasRefused: Bool { refused == true }
     }
     @Published private(set) var entries: [Entry] = []
 
@@ -74,6 +96,10 @@ final class ClaudeSharing: ObservableObject {
     nonisolated private static var logURL: URL {
         MeetingStore.root.deletingLastPathComponent().appendingPathComponent("ClaudeLog.json")
     }
+
+    /// The log is read and written on one queue, in order: a clearing never races a
+    /// write that was on its way.
+    private static let io = DispatchQueue(label: "ai.mindact.mindtalk.claude-log", qos: .utility)
 
     private init() {
         enabled = defaults.bool(forKey: "claude.enabled")
@@ -83,6 +109,9 @@ final class ClaudeSharing: ObservableObject {
            let saved = try? JSONDecoder().decode([Entry].self, from: data) {
             entries = saved
         }
+        // The marker as the setting is, also after an update that introduced it.
+        let on = enabled
+        Self.io.async { Self.setMarker(on) }
     }
 
     /// Whether this folder's meetings may be read. nil is "no folder": shared.
@@ -91,21 +120,26 @@ final class ClaudeSharing: ObservableObject {
         return !excludedFolders.contains(folder)
     }
 
-    /// Noted after every answer. Kept to the last 200.
-    func record(tool: String, scope: String, items: Int, characters: Int) {
-        entries.insert(Entry(tool: tool, scope: scope, items: items, characters: characters), at: 0)
+    /// Noted after every answer, and after every refusal. Kept to the last 200.
+    func record(tool: String, scope: String, items: Int, characters: Int, client: String? = nil, refused: Bool = false) {
+        entries.insert(Entry(tool: tool, scope: scope, items: items, characters: characters, client: client,
+                             refused: refused ? true : nil), at: 0)
         if entries.count > 200 { entries.removeLast(entries.count - 200) }
-        let snapshot = entries
-        Task.detached(priority: .utility) {
-            if let data = try? JSONEncoder().encode(snapshot) {
-                try? data.write(to: Self.logURL, options: .atomic)
-            }
-        }
+        Self.save(entries)
     }
 
     func clearLog() {
         entries = []
-        try? FileManager.default.removeItem(at: Self.logURL)
+        Self.save([])
+    }
+
+    /// The log on disk, readable by you alone.
+    nonisolated private static func save(_ snapshot: [Entry]) {
+        io.async {
+            guard let data = try? JSONEncoder().encode(snapshot) else { return }
+            try? data.write(to: logURL, options: .atomic)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: logURL.path)
+        }
     }
 
     #if DEBUG

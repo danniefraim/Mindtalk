@@ -53,20 +53,18 @@ APP_PATH="$BUILD/Build/Products/Release/$APP.app"
 # every executable. Inside out, as Sparkle's documentation describes, then the app.
 SPARKLE="$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B"
 [ -d "$SPARKLE" ] || { echo "✗ Hittar inte Sparkle i appen – har ramverkets struktur ändrats?"; exit 1; }
-if [ -d "$SPARKLE" ]; then
-  sign() { codesign -f -s "$IDENTITY" -o runtime --timestamp "$@"; }
-  sign "$SPARKLE/XPCServices/Installer.xpc"
-  sign --preserve-metadata=entitlements "$SPARKLE/XPCServices/Downloader.xpc"
-  sign "$SPARKLE/Autoupdate"
-  sign "$SPARKLE/Updater.app"
-  sign "$APP_PATH/Contents/Frameworks/Sparkle.framework"
-  # The helper Claude runs (Mindtalk i Claude): its own signature, hardened runtime
-  # and timestamp, before the app's seal covers it.
-  HELPER="$APP_PATH/Contents/Helpers/mindtalk"
-  [ -x "$HELPER" ] || { echo "✗ Hittar inte hjälpappen i $HELPER. Byggdes MindtalkHelper?"; exit 1; }
-  sign "$HELPER"
-  sign --entitlements "$ROOT/Mindtalk/Mindtalk.entitlements" "$APP_PATH"
-fi
+sign() { codesign -f -s "$IDENTITY" -o runtime --timestamp "$@"; }
+sign "$SPARKLE/XPCServices/Installer.xpc"
+sign --preserve-metadata=entitlements "$SPARKLE/XPCServices/Downloader.xpc"
+sign "$SPARKLE/Autoupdate"
+sign "$SPARKLE/Updater.app"
+sign "$APP_PATH/Contents/Frameworks/Sparkle.framework"
+# The helper the MCP client runs (Contents/Helpers/mindtalk): its own identifier,
+# signature, hardened runtime and timestamp, before the app's seal covers it.
+HELPER="$APP_PATH/Contents/Helpers/mindtalk"
+[ -x "$HELPER" ] || { echo "✗ Hittar inte hjälpappen i $HELPER. Byggdes MindtalkHelper?"; exit 1; }
+sign -i ai.mindact.mindtalk.helper "$HELPER"
+sign --entitlements "$ROOT/Mindtalk/Mindtalk.entitlements" "$APP_PATH"
 codesign --verify --deep --strict "$APP_PATH"
 # Notarization refuses debug entitlements; catch them here rather than after the upload.
 while IFS= read -r -d '' part; do
