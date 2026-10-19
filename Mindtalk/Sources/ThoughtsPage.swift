@@ -47,20 +47,22 @@ struct ThoughtsPage: View {
         VStack(alignment: .leading, spacing: 20) {
             header.staggered(0)
             keyCard.staggered(1)
+            // Write one, or search: side by side, so the two read as a row of tools
+            // under the card and not as a form. Outside the branches below, so the
+            // field keeps the keyboard when the first thought turns the page.
+            if !showingRemoved {
+                HStack(spacing: 12) {
+                    writeField
+                    if live > 0 { searchField.frame(width: 260) }
+                }
+                .staggered(1)
+            }
             if showingRemoved {
                 removedList.staggered(2)
             } else if live == 0 {
-                writeField.staggered(1)
                 empty.staggered(2)
                 if !thoughts.removed.isEmpty { removedLink }
             } else {
-                // Write one, or search: side by side, so the two read as a row of
-                // tools under the card and not as a form.
-                HStack(spacing: 12) {
-                    writeField
-                    searchField.frame(width: 260)
-                }
-                .staggered(1)
                 list.staggered(2)
                 if !thoughts.removed.isEmpty { removedLink }
             }

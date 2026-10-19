@@ -2064,6 +2064,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     func windowWillClose(_ notification: Notification) {
         dictation.stopPickingKey(reason: "window closed")
+        ShortcutPicking.stopAll(reason: "window closed")
         let closing = notification.object as? NSWindow
         // The meeting carries on in its panel when its window goes.
         if closing === window {

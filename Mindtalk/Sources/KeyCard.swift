@@ -31,8 +31,9 @@ struct KeyCard<Change: View, Trailing: View, Below: View>: View {
                     Text(verbatim: detail)
                         .font(.system(size: 13))
                         .foregroundStyle(refused ? DS.Colors.warning : DS.Colors.muted)
-                        .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
+                        // Both pages wrap at the same length.
+                        .frame(maxWidth: 480, alignment: .leading)
                     change
                         .padding(.top, 7)
                 }
@@ -58,7 +59,8 @@ struct KeyCard<Change: View, Trailing: View, Below: View>: View {
         }
         .lineLimit(1)
         .padding(.horizontal, 16)
-        .frame(minWidth: 64, minHeight: 56)
+        // Wide enough for "⌥ Opt ←", so the words beside it stay put for a short chord.
+        .frame(minWidth: 112, minHeight: 56)
         .background(shape.fill(DS.Colors.control).shadow(color: .black.opacity(0.08), radius: 0, y: 2))
         .overlay(shape.strokeBorder(picking ? DS.Colors.ink : DS.Colors.fieldStroke, lineWidth: 1))
         .fixedSize()
