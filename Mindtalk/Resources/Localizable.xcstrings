@@ -440,6 +440,22 @@
         }
       }
     },
+    "%@ och %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ and %2$@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ och %@"
+          }
+        }
+      }
+    },
     "%@ och Apple Intelligence": {
       "localizations": {
         "en": {
@@ -457,6 +473,7 @@
       }
     },
     "%@ och Gemma 4": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2618,6 +2635,22 @@
         }
       }
     },
+    "Allt körs på din Mac. Mindtalk pratar bara med den här datorn.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everything runs on your Mac. Mindtalk only talks to this computer."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allt körs på din Mac. Mindtalk pratar bara med den här datorn."
+          }
+        }
+      }
+    },
     "Allt ljud tonas ned medan du pratar och upp igen efteråt.": {
       "localizations": {
         "en": {
@@ -2812,6 +2845,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Använd %@"
+          }
+        }
+      }
+    },
+    "Använd Ollama eller LM Studio": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Ollama or LM Studio"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Använd Ollama eller LM Studio"
           }
         }
       }
@@ -3257,6 +3306,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Av. Tankar kan fortfarande sägas från sidan Tankar."
+          }
+        }
+      }
+    },
+    "Avancerat": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Advanced"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avancerat"
+          }
+        }
+      }
+    },
+    "Avbrutet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelled."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avbrutet."
           }
         }
       }
@@ -3971,6 +4052,22 @@
         }
       }
     },
+    "Bra på svenska": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good at Swedish"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bra på svenska"
+          }
+        }
+      }
+    },
     "Bra. Då säger vi fjärde november.": {
       "localizations": {
         "en": {
@@ -4469,6 +4566,22 @@
         }
       }
     },
+    "Den gamla syns tills den nya är klar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The old one stays until the new one is ready."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den gamla syns tills den nya är klar."
+          }
+        }
+      }
+    },
     "Den går inte att få tillbaka.": {
       "localizations": {
         "en": {
@@ -4923,6 +5036,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Det du säger dyker upp här."
+          }
+        }
+      }
+    },
+    "Det finns inga modeller i LM Studio än.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There are no models in LM Studio yet."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det finns inga modeller i LM Studio än."
+          }
+        }
+      }
+    },
+    "Det finns inga modeller i Ollama än.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There are no models in Ollama yet."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det finns inga modeller i Ollama än."
           }
         }
       }
@@ -5410,6 +5555,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Din anteckning"
+          }
+        }
+      }
+    },
+    "Din egen modell, på din Mac": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your own model, on your Mac"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Din egen modell, på din Mac"
           }
         }
       }
@@ -6796,6 +6957,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Filen är kopieringsskyddad och kan inte läsas."
+          }
+        }
+      }
+    },
+    "Finns inte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not installed"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finns inte"
           }
         }
       }
@@ -10357,6 +10534,22 @@
         }
       }
     },
+    "Igång": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Igång"
+          }
+        }
+      }
+    },
     "Importera": {
       "localizations": {
         "en": {
@@ -11365,6 +11558,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inte gjort än"
+          }
+        }
+      }
+    },
+    "Inte igång": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not running"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inte igång"
           }
         }
       }
@@ -12823,6 +13032,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Körs på din Mac. Ljudet lämnar den aldrig"
+          }
+        }
+      }
+    },
+    "LM Studio finns inte på den här Macen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LM Studio isn’t on this Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LM Studio finns inte på den här Macen."
+          }
+        }
+      }
+    },
+    "LM Studio är installerat men inte igång.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LM Studio is installed but not running."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LM Studio är installerat men inte igång."
           }
         }
       }
@@ -14628,6 +14869,22 @@
         }
       }
     },
+    "Läs mer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Learn more"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läs mer"
+          }
+        }
+      }
+    },
     "Läser dina möten…": {
       "localizations": {
         "en": {
@@ -14673,6 +14930,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Läser modellernas ordförråd. Av Hugging Face. Apache 2.0."
+          }
+        }
+      }
+    },
+    "Läser mötet…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading the meeting…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läser mötet…"
           }
         }
       }
@@ -16488,6 +16761,54 @@
         }
       }
     },
+    "Modellen fick inte plats i minnet. Välj en mindre modell.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model didn’t fit in memory. Choose a smaller model."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modellen fick inte plats i minnet. Välj en mindre modell."
+          }
+        }
+      }
+    },
+    "Modellen finns inte längre. Välj en annan.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model is no longer there. Choose another."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modellen finns inte längre. Välj en annan."
+          }
+        }
+      }
+    },
+    "Modellen hann inte läsa hela mötet. Välj en modell som orkar mer text.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model couldn’t read the whole meeting. Choose a model that handles more text."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modellen hann inte läsa hela mötet. Välj en modell som orkar mer text."
+          }
+        }
+      }
+    },
     "Modellen kunde inte hämtas just nu (fel %lld). Försök igen senare.": {
       "localizations": {
         "en": {
@@ -16500,6 +16821,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Modellen kunde inte hämtas just nu (fel %lld). Försök igen senare."
+          }
+        }
+      }
+    },
+    "Modellen kunde inte svara just nu. Försök igen om en stund.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model couldn’t answer right now. Try again in a while."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modellen kunde inte svara just nu. Försök igen om en stund."
+          }
+        }
+      }
+    },
+    "Modellen svarade inte i tid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model didn’t answer in time."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modellen svarade inte i tid."
           }
         }
       }
@@ -18037,6 +18390,54 @@
         }
       }
     },
+    "Ollama eller LM Studio": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ollama or LM Studio"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ollama eller LM Studio"
+          }
+        }
+      }
+    },
+    "Ollama finns inte på den här Macen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ollama isn’t on this Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ollama finns inte på den här Macen."
+          }
+        }
+      }
+    },
+    "Ollama är installerat men inte igång.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ollama is installed but not running."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ollama är installerat men inte igång."
+          }
+        }
+      }
+    },
     "Om Mindtalk": {
       "extractionState": "stale",
       "localizations": {
@@ -18275,6 +18676,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Person 1"
+          }
+        }
+      }
+    },
+    "Port för %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port for %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port för %@"
           }
         }
       }
@@ -21711,6 +22128,38 @@
         }
       }
     },
+    "Starta Ollama": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Ollama"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starta Ollama"
+          }
+        }
+      }
+    },
+    "Starta Ollama eller LM Studio först": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Ollama or LM Studio first"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starta Ollama eller LM Studio först"
+          }
+        }
+      }
+    },
     "Starta direkt": {
       "localizations": {
         "en": {
@@ -21955,6 +22404,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Startar %@…"
+          }
+        }
+      }
+    },
+    "Startar modellen…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starting the model…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startar modellen…"
           }
         }
       }
@@ -22296,6 +22761,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stängd"
+          }
+        }
+      }
+    },
+    "Svaret saknade källor, så det visas inte.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The answer named no sources, so it isn’t shown."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Svaret saknade källor, så det visas inte."
           }
         }
       }
@@ -24235,6 +24716,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Teams"
+          }
+        }
+      }
+    },
+    "Testa": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Testa"
           }
         }
       }
@@ -26864,6 +27361,22 @@
         }
       }
     },
+    "Välj modell": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a model"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj modell"
+          }
+        }
+      }
+    },
     "Välj vad Mindtalk lyssnar med. Prata för att testa.": {
       "localizations": {
         "en": {
@@ -27739,6 +28252,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "klistrar in den senaste igen."
+          }
+        }
+      }
+    },
+    "läser %@ ord-delar åt gången": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "reads %@ tokens at a time"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "läser %@ ord-delar åt gången"
           }
         }
       }
@@ -29031,6 +29560,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna"
+          }
+        }
+      }
+    },
+    "Öppna LM Studio": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open LM Studio"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna LM Studio"
           }
         }
       }
