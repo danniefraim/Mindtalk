@@ -5308,6 +5308,22 @@
         }
       }
     },
+    "Den flerspråkiga talmodellen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The multilingual speech model"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den flerspråkiga talmodellen"
+          }
+        }
+      }
+    },
     "Den gamla syns tills den nya är klar.": {
       "localizations": {
         "en": {
@@ -28169,6 +28185,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Talmodell: %@"
+          }
+        }
+      }
+    },
+    "Talmodellen för svenska": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Swedish speech model"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellen för svenska"
           }
         }
       }

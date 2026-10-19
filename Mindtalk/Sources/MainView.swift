@@ -276,7 +276,9 @@ private struct DictationPage: View {
                     else { Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.ink) }
                 }
                 CardDivider()
-                CardRow(title: String(localized: "Talmodell: \(dictation.engine.inlineTitle)"), detail: modelDetail(dictation.model, dictation.engine)) {
+                CardRow(title: dictation.engine == .swedish ? String(localized: "Talmodellen för svenska")
+                                                            : String(localized: "Den flerspråkiga talmodellen"),
+                        detail: modelDetail(dictation.model, dictation.engine)) {
                     ModelControl(dictation: dictation)
                 }
             }
