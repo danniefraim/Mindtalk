@@ -212,6 +212,22 @@
         }
       }
     },
+    "%@ av %@, %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ by %2$@, %3$@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ av %@, %@."
+          }
+        }
+      }
+    },
     "%@ betyder %@ i de flesta appar. Mindtalk tar över den överallt medan appen är igång, så ⌃⌥ och en bokstav är ett säkrare val.": {
       "localizations": {
         "en": {
@@ -735,6 +751,22 @@
         }
       }
     },
+    "%@ som tar %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, taking up %2$@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ som tar %@."
+          }
+        }
+      }
+    },
     "%@ sparar en tanke, var du än är.": {
       "localizations": {
         "en": {
@@ -1054,6 +1086,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@, laddas ned en gång"
+          }
+        }
+      }
+    },
+    "%@. Kräver minst %lld GB minne.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@. Needs at least %2$lld GB of memory."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@. Kräver minst %lld GB minne."
           }
         }
       }
@@ -2815,6 +2863,22 @@
         }
       }
     },
+    "Allt Mindtalk har laddat ned för tal, röster och sammanfattningar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everything Mindtalk has downloaded for speech, voices and summaries."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allt Mindtalk har laddat ned för tal, röster och sammanfattningar."
+          }
+        }
+      }
+    },
     "Allt du säger blir text, direkt på din Mac.": {
       "localizations": {
         "en": {
@@ -3693,6 +3757,22 @@
         }
       }
     },
+    "Av. Röster som redan sparats finns kvar men används inte förrän du slår på igen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off. Voices already saved are kept but not used until you turn it back on."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Av. Röster som redan sparats finns kvar men används inte förrän du slår på igen."
+          }
+        }
+      }
+    },
     "Av. Tankar kan fortfarande sägas från sidan Tankar.": {
       "extractionState": "stale",
       "localizations": {
@@ -4199,6 +4279,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bara håll in"
+          }
+        }
+      }
+    },
+    "Bara molnmodeller hittades. Mindtalk använder dem inte.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only cloud models found. Mindtalk doesn’t use them."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bara molnmodeller hittades. Mindtalk använder dem inte."
           }
         }
       }
@@ -5815,6 +5911,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Det fungerar i Codex-delen av ChatGPT, inte i den vanliga chatten."
+          }
+        }
+      }
+    },
+    "Det får inte plats. Frigör %@ till.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not enough space. Free up %@ more."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det får inte plats. Frigör %@ till."
           }
         }
       }
@@ -10366,6 +10478,22 @@
         }
       }
     },
+    "Hämta modeller i Ollama eller LM Studio. Mindtalk skickar bara till program på den här Macen. Molnmodeller visas inte.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get models in Ollama or LM Studio. Mindtalk only sends to apps on this Mac. Cloud models aren’t shown."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hämta modeller i Ollama eller LM Studio. Mindtalk skickar bara till program på den här Macen. Molnmodeller visas inte."
+          }
+        }
+      }
+    },
     "Hämtar NVIDIA:s modell Nemotron 3, som håller isär rösterna…": {
       "extractionState": "stale",
       "localizations": {
@@ -12096,6 +12224,22 @@
         }
       }
     },
+    "Inbyggd i macOS. Inget att ladda ned.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Built into macOS. Nothing to download."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inbyggd i macOS. Inget att ladda ned."
+          }
+        }
+      }
+    },
     "Inbyggd mikrofon": {
       "localizations": {
         "en": {
@@ -12140,6 +12284,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inga möten med text i %@ än."
+          }
+        }
+      }
+    },
+    "Inga möten än.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No meetings yet."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inga möten än."
           }
         }
       }
@@ -14856,6 +15016,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kör Gemma på din Mac. Av Apple. MIT-licens."
+          }
+        }
+      }
+    },
+    "Kör du redan Ollama eller LM Studio? De kan skriva sammanfattningarna.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Already using Ollama or LM Studio? They can write the summaries."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kör du redan Ollama eller LM Studio? De kan skriva sammanfattningarna."
           }
         }
       }
@@ -20488,6 +20664,22 @@
         }
       }
     },
+    "Namnge en röst en gång, så känner Mindtalk igen den. Inget ljud sparas. Fråga de andra först.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name a voice once and Mindtalk will know it. No audio is kept. Ask the others first."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namnge en röst en gång, så känner Mindtalk igen den. Inget ljud sparas. Fråga de andra först."
+          }
+        }
+      }
+    },
     "Namnge en talare en gång, så känner Mindtalk igen rösten i kommande möten. Bara ett röstavtryck sparas på din Mac, aldrig ljud. Fråga de andra i rummet först.": {
       "extractionState": "stale",
       "localizations": {
@@ -20565,6 +20757,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nedladdad"
+          }
+        }
+      }
+    },
+    "Nedladdad. Tar %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloaded. Takes %@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nedladdad. Tar %@."
           }
         }
       }
@@ -20647,6 +20855,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nemotron 3 från NVIDIA"
+          }
+        }
+      }
+    },
+    "Nemotron 3 från NVIDIA, %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nemotron 3 from NVIDIA, %@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nemotron 3 från NVIDIA, %@."
           }
         }
       }
@@ -21691,6 +21915,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Port för %@"
+          }
+        }
+      }
+    },
+    "Portar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ports"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Portar"
           }
         }
       }
@@ -22835,7 +23075,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Voices Mindtalk recognises"
+            "value": "Voices Mindtalk recognizes"
           }
         },
         "sv": {
@@ -31475,6 +31715,22 @@
         }
       }
     },
+    "Välj vem som skriver dem.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose who writes them."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj vem som skriver dem."
+          }
+        }
+      }
+    },
     "Välj vem som skriver sammanfattningarna i Inställningar → Modeller": {
       "extractionState": "stale",
       "localizations": {
@@ -33826,6 +34082,22 @@
         }
       }
     },
+    "Ändra bara om du har bytt port i Ollama eller LM Studio. Tryck på retur för att prova.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only change these if you changed the port in Ollama or LM Studio. Press Return to try."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ändra bara om du har bytt port i Ollama eller LM Studio. Tryck på retur för att prova."
+          }
+        }
+      }
+    },
     "Ändra datum": {
       "localizations": {
         "en": {
@@ -33952,6 +34224,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ändrade till ”%@”"
+          }
+        }
+      }
+    },
+    "Är LM Studio kopplad till en annan dator kan mötet skickas dit. Koppla bort den för möten som ska stanna här.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If LM Studio is linked to another computer, the meeting can be sent there. Unlink it for meetings that should stay here."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Är LM Studio kopplad till en annan dator kan mötet skickas dit. Koppla bort den för möten som ska stanna här."
           }
         }
       }

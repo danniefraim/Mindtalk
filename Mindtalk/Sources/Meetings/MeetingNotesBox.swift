@@ -595,21 +595,6 @@ struct SavedNotes: View {
     }
 }
 
-/// Settings → Möten: the summary's language, how long recordings stay, and where they are.
-/// The language the summaries are written in (Inställningar → Möten).
-struct SummaryLanguageCard: View {
-    @State private var summaryLanguage = SummaryLanguage.chosen
-
-    var body: some View {
-        CardRow(title: "Sammanfattningens språk",
-                detail: String(localized: "Sammanfattningen skrivs på mötets språk om du inte väljer ett annat.")) {
-            MenuPicker(options: SummaryLanguage.allCases.map { ($0, $0.title) }, selection: $summaryLanguage)
-                .onChange(of: summaryLanguage) { _, new in SummaryLanguage.chosen = new }
-        }
-        .card()
-    }
-}
-
 /// How long a meeting's sound is kept, and where the meetings are (Inställningar → Möten).
 struct MeetingStorageCard: View {
     @ObservedObject private var store = MeetingStore.shared
@@ -620,9 +605,10 @@ struct MeetingStorageCard: View {
 
     private var storage: String {
         let n = store.meetings.count
+        if n == 0 { return String(localized: "Inga möten än.") }
         let count = n == 1 ? String(localized: "1 möte") : String(localized: "\(n) möten")
         guard let bytes else { return count }
-        return count + " · " + DiskSize.text(bytes)
+        return String(localized: "\(count) som tar \(DiskSize.text(bytes)).")
     }
 
     var body: some View {

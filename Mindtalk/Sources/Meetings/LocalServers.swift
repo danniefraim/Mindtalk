@@ -484,10 +484,13 @@ final class LocalServers: ObservableObject {
         defer { probing.remove(backend) }
         let installed = backend.isInstalled
         do {
-            let found = try await Self.list(backend)
+            let (found, cloud) = try await Self.listing(backend)
             states[backend] = .running
             models[backend] = found
-            notes[backend] = found.isEmpty ? ServerError.noModels(backend).plainWords : nil
+            // Only Ollama's cloud models: said as such, not as an empty Ollama.
+            notes[backend] = !found.isEmpty ? nil
+                : cloud > 0 ? String(localized: "Bara molnmodeller hittades. Mindtalk använder dem inte.")
+                : ServerError.noModels(backend).plainWords
             UserDefaults.standard.set(found.map(\.stored), forKey: "serverModels.\(backend.rawValue)")
             Self.log.info("\(backend.name, privacy: .public): \(found.count) models")
         } catch let error as ServerError {
@@ -526,23 +529,29 @@ final class LocalServers: ObservableObject {
 
     /// Both backends' models: the model list, as the writer and the picker need it.
     nonisolated static func list(_ backend: ServerBackend) async throws -> [ServerModel] {
+        try await listing(backend).models
+    }
+
+    /// The models, and how many cloud ones were left out (only Ollama has them listed).
+    nonisolated static func listing(_ backend: ServerBackend) async throws -> (models: [ServerModel], cloud: Int) {
         switch backend {
         case .ollama: return try await ollamaModels()
-        case .lmStudio: return try await lmStudioModels()
+        case .lmStudio: return (try await lmStudioModels(), 0)
         }
     }
 
     /// Ollama's models, without the cloud ones: a model with a `remote_host`, or a
-    /// `:cloud` / `-cloud` tag, is run by ollama.com and never listed.
-    nonisolated private static func ollamaModels() async throws -> [ServerModel] {
+    /// `:cloud` / `-cloud` tag, is run by ollama.com and never listed (only counted).
+    nonisolated private static func ollamaModels() async throws -> (models: [ServerModel], cloud: Int) {
         let (status, body) = try await LocalServerClient.shared.call(.ollama, "/api/tags", timeout: 3)
         guard status == 200, let list = body["models"] as? [[String: Any]] else {
             throw LocalServerClient.serverError(status: status, body: body)
         }
         var models: [ServerModel] = []
+        var cloud = 0
         for m in list {
             guard let name = (m["name"] as? String) ?? (m["model"] as? String) else { continue }
-            if m["remote_host"] != nil || m["remote_model"] != nil || isCloudName(name) { continue }
+            if m["remote_host"] != nil || m["remote_model"] != nil || isCloudName(name) { cloud += 1; continue }
             let details = m["details"] as? [String: Any] ?? [:]
             var context = (details["context_length"] as? Int).flatMap { $0 > 0 ? $0 : nil }
             var capabilities = m["capabilities"] as? [String]
@@ -557,7 +566,7 @@ final class LocalServers: ObservableObject {
             models.append(ServerModel(backend: .ollama, id: name, bytes: (m["size"] as? NSNumber)?.int64Value,
                                       contextLength: context, thinking: can.contains("thinking")))
         }
-        return models.sorted { $0.id.localizedStandardCompare($1.id) == .orderedAscending }
+        return (models.sorted { $0.id.localizedStandardCompare($1.id) == .orderedAscending }, cloud)
     }
 
     /// One model's context and capabilities, from `/api/show`.

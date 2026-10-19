@@ -637,11 +637,10 @@ struct SettingsPage: View {
     @ViewBuilder private var meetingsSection: some View {
         // Meetings can't be recorded without it: first, until it's here.
         if voices.state != .ready { VoiceModelSettingsCard() }
-        SummaryWritersCard()
-        SummaryLanguageCard()
-        VoiceMemoryCard(memory: .shared)
-        MeetingStorageCard()
         meetingKeyRow(title: "Starta ett möte").card()
+        MeetingStorageCard()
+        VoiceMemoryCard(memory: .shared)
+        SummaryWritersCard()
     }
 }
 

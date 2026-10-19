@@ -5,11 +5,12 @@ import SwiftUI
 //
 // No page of models of their own: each sits with what it does. Under Inställningar →
 // Språk, the two speech models, one language each (use, download, size, Finder,
-// removal). Under Möten, who writes the summaries: in Mindtalk, Apple Intelligence
-// (built in) or a Gemma 4 it downloads (the one that suits this Mac's memory is
-// marked); or, in another app on this Mac, a model of your own in Ollama or LM
-// Studio; and Nemotron 3, which tells the voices apart, while it isn't here. The word
-// list's listener is on Ordlista. Under Allmänt → Mer, what they take together.
+// removal). Under Möten, one Sammanfattningar card: who writes them, as round buttons
+// (Apple Intelligence, built in, or a Gemma 4 it downloads, the one that suits this
+// Mac's memory marked), the summary's language, and folded under them a model of your
+// own in Ollama or LM Studio; and Nemotron 3, which tells the voices apart, while it
+// isn't here. The word list's listener is on Ordlista. Under Allmänt, what they take
+// together.
 
 /// "450 MB", "1,2 GB": one way to say a size everywhere.
 enum DiskSize {
@@ -80,7 +81,7 @@ struct SpeechLanguagesCard: View {
                 Text(m.title).font(.system(size: 14, weight: .semibold))
                 Text(detail(m)).font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(verbatim: String(localized: "\(m.modelName) av \(m.credit)") + " · " + size(m))
+                Text(verbatim: String(localized: "\(m.modelName) av \(m.credit), \(size(m))."))
                     .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -148,7 +149,7 @@ struct VoiceModelSettingsCard: View {
     @State private var confirmRemove = false
 
     var body: some View {
-        ModelRow(name: String(localized: "Röstmodellen (Nemotron 3)"), badge: nil) {
+        ModelRow(name: String(localized: "Röstmodellen"), badge: nil) {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Håller isär vem som pratar i ett möte. Möten kan inte spelas in utan den.")
                     .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
@@ -157,7 +158,7 @@ struct VoiceModelSettingsCard: View {
                     Text(verbatim: why).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Text(verbatim: String(localized: "Från NVIDIA") + " · " + VoiceModels.sizeText)
+                Text(verbatim: String(localized: "Nemotron 3 från NVIDIA, \(VoiceModels.sizeText)."))
                     .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
             }
         } trailing: {
@@ -191,8 +192,9 @@ struct VoiceModelSettingsCard: View {
 }
 
 /// Who writes a meeting's summary and answers your questions: the round button in
-/// front of a row picks it. In Mindtalk: Apple Intelligence and the Gemmas (downloaded
-/// here); in other programs on this Mac: Ollama and LM Studio.
+/// front of a row picks it, and is the only mark of the one chosen. Apple Intelligence
+/// and the Gemmas (downloaded here); then the summary's language; then, folded, Ollama
+/// and LM Studio in other programs on this Mac.
 struct SummaryWritersCard: View {
     @ObservedObject private var notes = BetterNotes.shared
     @ObservedObject private var servers = LocalServers.shared
@@ -206,31 +208,31 @@ struct SummaryWritersCard: View {
     /// Where Apple Intelligence stands on this Mac.
     static func appleDetail(_ status: Polisher.Status) -> String {
         switch status {
-        case .available: return String(localized: "Inbyggd i macOS · alla Macar med Apple Intelligence")
+        case .available: return String(localized: "Inbyggd i macOS. Inget att ladda ned.")
         case .notEnabled: return String(localized: "Slå på Apple Intelligence i Systeminställningar för att använda den.")
         case .notReady: return String(localized: "macOS laddar fortfarande ned den.")
         case .unsupported: return String(localized: "Finns inte på den här Macen.")
         }
     }
 
-    /// "Skrivs på din Mac.", or the program that writes them.
-    private var headline: String {
-        if let server = notes.server { return String(localized: "Skrivs av \(server.backend.name).") }
-        return String(localized: "Skrivs på din Mac.")
-    }
+    @State private var summaryLanguage = SummaryLanguage.chosen
 
     var body: some View {
         VStack(spacing: 0) {
-            CardRow(title: "Sammanfattningar", detail: headline) { EmptyView() }
-                .padding(.bottom, -6)
-            SubLabel(String(localized: "I Mindtalk"))
+            CardRow(title: "Sammanfattningar", detail: "Välj vem som skriver dem.") { EmptyView() }
+            CardDivider()
             appleRow
             ForEach(NotesModel.allCases) { m in
                 CardDivider()
                 notesRow(m)
             }
             CardDivider()
-            SubLabel(String(localized: "I andra program på din Mac"))
+            // The language they're written in, whoever writes them.
+            CardRow(title: "Språk", detail: "Sammanfattningen skrivs på mötets språk om du inte väljer ett annat.") {
+                MenuPicker(options: SummaryLanguage.allCases.map { ($0, $0.title) }, selection: $summaryLanguage)
+                    .onChange(of: summaryLanguage) { _, new in SummaryLanguage.chosen = new }
+            }
+            CardDivider()
             ServerWriterRows()
         }
         .card()
@@ -299,16 +301,16 @@ struct SummaryWritersCard: View {
             case .unsupported:
                 return String(localized: "Kräver minst \(m.minimumMemoryGB) GB minne. Den här Macen har \(BetterNotes.memoryGB) GB.")
             case .ready:
-                return String(localized: "Laddas ned av Mindtalk · tar \(size(m)) på disken")
+                return String(localized: "Nedladdad. Tar \(size(m)).")
             case .failed(let message):
                 return message
             case .missing, .downloading:
-                var text = String(localized: "Laddas ned av Mindtalk · \(m.sizeText) · för Macar med minst \(m.minimumMemoryGB) GB minne")
+                var text = String(localized: "\(m.sizeText). Kräver minst \(m.minimumMemoryGB) GB minne.")
                 // Not room for it: say how much more, so you can tell whether emptying
                 // the Trash will do.
                 if !m.hasRoom {
                     let short = max(100_000_000, m.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes)
-                    text += "\n" + String(localized: "Får inte plats just nu. Frigör \(BetterNotes.gigabytes(short)) till för att ladda ned den.")
+                    text += "\n" + String(localized: "Det får inte plats. Frigör \(BetterNotes.gigabytes(short)) till.")
                 }
                 return text
             }
@@ -328,17 +330,14 @@ struct SummaryWritersCard: View {
                     Button("Avbryt") { notes.cancel() }.buttonStyle(.soft)
                 }
             case .ready:
-                // The tick beside the menu, not in its label: a menu shows one image.
-                HStack(spacing: 10) {
-                    ModelParts.downloaded
-                    Menu {
-                        Button("Visa i Finder") { DiskSize.reveal(m.directory) }
-                        Divider()
-                        Button("Ta bort…", role: .destructive) { confirmRemove = m }
-                    } label: { ModelParts.more }
-                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                    .help("Mer")
-                }
+                // Downloaded says the detail line; the round button says whether it writes.
+                Menu {
+                    Button("Visa i Finder") { DiskSize.reveal(m.directory) }
+                    Divider()
+                    Button("Ta bort…", role: .destructive) { confirmRemove = m }
+                } label: { ModelParts.more }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                .help("Mer")
             case .missing, .failed:
                 let partly = m.remainingBytes < m.bytes - 50_000_000
                 HStack(spacing: 10) {
@@ -361,7 +360,7 @@ struct SummaryWritersCard: View {
     }
 }
 
-// MARK: - Allmänt → Mer
+// MARK: - Allmänt
 
 /// "Modellerna tar 3,4 GB": everything Mindtalk has downloaded, and where it is.
 struct ModelsFootprintRow: View {
@@ -369,7 +368,7 @@ struct ModelsFootprintRow: View {
 
     var body: some View {
         CardRow(title: total.map { String(localized: "Modellerna tar \(DiskSize.text($0))") } ?? String(localized: "Modellerna"),
-                detail: total == nil ? String(localized: "Räknar ihop…") : String(localized: "Talmodellerna och de andra modellerna Mindtalk har laddat ned.")) {
+                detail: total == nil ? String(localized: "Räknar ihop…") : String(localized: "Allt Mindtalk har laddat ned för tal, röster och sammanfattningar.")) {
             Button("Visa i Finder") { DiskSize.reveal(SpeechModel.rootDirectory) }.buttonStyle(.soft)
         }
         .task {
@@ -401,14 +400,6 @@ enum ModelParts {
             ProgressView().controlSize(.small)
             Text("Förbereder…").font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
         }
-    }
-
-    /// A green tick: the model is here.
-    static var downloaded: some View {
-        Label("Nedladdad", systemImage: "checkmark.circle.fill")
-            .labelStyle(.iconOnly)
-            .font(.system(size: 15))
-            .foregroundStyle(DS.Colors.good)
     }
 
     /// ⋯ in a small chip disc, for Finder and removing.
@@ -494,38 +485,22 @@ private struct RowInset<Content: View>: View {
     }
 }
 
-/// A heading between a card's rows, smaller than the CapsLabel over the card: "I MINDTALK".
-private struct SubLabel: View {
-    let text: String
-    init(_ text: String) { self.text = text }
-
-    var body: some View {
-        RowInset {
-            Text(verbatim: text.uppercased())
-                .font(.system(size: 11, weight: .semibold)).tracking(1.4)
-                .foregroundStyle(DS.Colors.muted)
-                .accessibilityLabel(text)
-                .accessibilityAddTraits(.isHeader)
-        }
-        .padding(.top, 18)
-        .padding(.bottom, -4)
-    }
-}
-
 // MARK: - Ollama and LM Studio
 
-/// The writers in other apps on this Mac, one row each: running or not, its models to
-/// pick from and a Testa button; beneath both, where the models come from, what Testa
-/// gave, and the ports under Avancerat.
+/// The writers in other apps on this Mac, folded under "Använd Ollama eller LM Studio":
+/// open by itself only when one of them writes now. Inside, one row each (running or
+/// not, its models to pick from, Testa), where the models come from, and the ports.
 struct ServerWriterRows: View {
     @ObservedObject private var notes = BetterNotes.shared
     @ObservedObject private var servers = LocalServers.shared
-    @State private var advanced = false
+    @State private var open: Bool
+    @State private var ports = false
     /// The ports as typed: taken on Return, not at every keystroke.
     @State private var portText: [ServerBackend: String] = [:]
 
-    /// Either of them is on this Mac.
-    private var anyInstalled: Bool { ServerBackend.allCases.contains { servers.state($0) != .notInstalled } }
+    init() {
+        _open = State(initialValue: BetterNotes.shared.server != nil)
+    }
 
     /// The model this backend's picker shows: the chosen one, or the one picked last time.
     private func picked(_ backend: ServerBackend) -> String? {
@@ -540,63 +515,86 @@ struct ServerWriterRows: View {
     }
 
     var body: some View {
-        ForEach(Array(ServerBackend.allCases.enumerated()), id: \.element) { i, backend in
-            if i > 0 { CardDivider() }
-            row(backend)
-        }
-        RowInset {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(anyInstalled
-                     ? "Modellerna laddar du ned i Ollama eller LM Studio. Mindtalk pratar bara med den här datorn, och Ollamas molnmodeller visas inte."
-                     : "Valfritt. För dig som redan kör Ollama eller LM Studio.")
-                    .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                // A plain disclosure group only opens on its chevron: here the word opens it too.
-                Button { withAnimation(.easeOut(duration: 0.2)) { advanced.toggle() } } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold))
-                            .rotationEffect(.degrees(advanced ? 90 : 0))
-                        Text("Avancerat").font(.system(size: 12, weight: .medium))
-                    }
-                    .foregroundStyle(DS.Colors.muted)
-                    .contentShape(Rectangle())
+        // The whole row opens it, not only the chevron.
+        Button { withAnimation(.easeOut(duration: 0.2)) { open.toggle() } } label: {
+            HStack(alignment: .center, spacing: 20) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Använd Ollama eller LM Studio").font(.system(size: 14, weight: .semibold))
+                    Text("Kör du redan Ollama eller LM Studio? De kan skriva sammanfattningarna.")
+                        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text("Avancerat"))
-                .accessibilityAddTraits(advanced ? [.isButton, .isSelected] : .isButton)
-                if advanced {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Portarna Mindtalk pratar med. Ändra bara om du ändrat dem i Ollama eller LM Studio. Tryck på retur för att prova.")
-                            .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
-                            .fixedSize(horizontal: false, vertical: true)
-                        HStack(spacing: 14) {
-                            ForEach(ServerBackend.allCases) { backend in
-                                HStack(spacing: 6) {
-                                    Text(verbatim: backend.name).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                                    TextField("", text: Binding(get: { portText[backend] ?? String(servers.ports[backend] ?? backend.defaultPort) },
-                                                                set: { portText[backend] = $0 }))
-                                        .textFieldStyle(.roundedBorder).frame(width: 66)
-                                        .font(.system(size: 12.5)).monospacedDigit()
-                                        .accessibilityLabel(Text("Port för \(backend.name)"))
-                                        .onSubmit { take(backend) }
-                                }
-                            }
-                            Button("Återställ portarna") { servers.resetPorts(); portText = [:]; Task { await servers.refresh() } }
-                                .buttonStyle(.soft)
-                                .disabled(ServerBackend.allCases.allSatisfy { servers.ports[$0] == $0.defaultPort })
-                            Spacer()
+                Spacer(minLength: 12)
+                Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(DS.Colors.muted)
+                    .rotationEffect(.degrees(open ? 90 : 0))
+            }
+            .padding(.horizontal, 22)
+            .padding(.vertical, 18)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("Använd Ollama eller LM Studio"))
+        .accessibilityAddTraits(open ? [.isButton, .isSelected] : .isButton)
+        // Chosen elsewhere meanwhile (the menu bar, a test): shown.
+        .onChange(of: notes.server?.backend) { _, now in if now != nil { open = true } }
+        if open {
+            ForEach(ServerBackend.allCases) { backend in
+                CardDivider()
+                row(backend)
+            }
+            RowInset {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Hämta modeller i Ollama eller LM Studio. Mindtalk skickar bara till program på den här Macen. Molnmodeller visas inte.")
+                        .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    // A plain disclosure group only opens on its chevron: here the word opens it too.
+                    Button { withAnimation(.easeOut(duration: 0.2)) { ports.toggle() } } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold))
+                                .rotationEffect(.degrees(ports ? 90 : 0))
+                            Text("Portar").font(.system(size: 12, weight: .medium))
                         }
-                        if let note = servers.portNote {
-                            Text(verbatim: note).font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
-                        }
+                        .foregroundStyle(DS.Colors.muted)
+                        .contentShape(Rectangle())
                     }
-                    .padding(.top, 8)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("Portar"))
+                    .accessibilityAddTraits(ports ? [.isButton, .isSelected] : .isButton)
+                    if ports {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Ändra bara om du har bytt port i Ollama eller LM Studio. Tryck på retur för att prova.")
+                                .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                            HStack(spacing: 14) {
+                                ForEach(ServerBackend.allCases) { backend in
+                                    HStack(spacing: 6) {
+                                        Text(verbatim: backend.name).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                                        TextField("", text: Binding(get: { portText[backend] ?? String(servers.ports[backend] ?? backend.defaultPort) },
+                                                                    set: { portText[backend] = $0 }))
+                                            .textFieldStyle(.roundedBorder).frame(width: 66)
+                                            .font(.system(size: 12.5)).monospacedDigit()
+                                            .accessibilityLabel(Text("Port för \(backend.name)"))
+                                            .onSubmit { take(backend) }
+                                    }
+                                }
+                                Button("Återställ portarna") { servers.resetPorts(); portText = [:]; Task { await servers.refresh() } }
+                                    .buttonStyle(.soft)
+                                    .disabled(ServerBackend.allCases.allSatisfy { servers.ports[$0] == $0.defaultPort })
+                                Spacer()
+                            }
+                            if let note = servers.portNote {
+                                Text(verbatim: note).font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                            }
+                        }
+                        .padding(.top, 8)
+                    }
                 }
             }
+            .padding(.bottom, 16)
+            // Another model or backend: the test answer was about the one before.
+            .onChange(of: notes.choice) { servers.clearTest() }
         }
-        .padding(.bottom, 16)
-        // Another model or backend: the test answer was about the one before.
-        .onChange(of: notes.choice) { servers.clearTest() }
     }
 
     /// Return in a port field: the number taken (kept within range, never the other's),
@@ -616,7 +614,7 @@ struct ServerWriterRows: View {
         let model = picked(backend)
         let on = notes.server?.backend == backend
         let ready = state == .running && model != nil
-        return ModelRow(name: backend.name, badge: on ? String(localized: "Används") : nil,
+        return ModelRow(name: backend.name,
                         chooser: (on, ready || on, { if let model { notes.choice = .server(backend, model) } }),
                         whenDisabled: String(localized: "Kräver att \(backend.name) är igång med en modell.")) {
             VStack(alignment: .leading, spacing: 4) {
@@ -647,9 +645,10 @@ struct ServerWriterRows: View {
                 } else if state == .running, !models.isEmpty, model == nil {
                     Text("Välj en modell, så kan du testa den.").font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                 }
-                // LM Studio's list can't tell a model on another computer (LM Link) from one here.
-                if backend == .lmStudio, state != .notInstalled {
-                    Text("Har du kopplat LM Studio till en annan dator (LM Link) kan den skicka mötet dit. Koppla bort den för möten som ska stanna här.")
+                // LM Studio's list can't tell a model on another computer (LM Link) from one
+                // here: said while it writes.
+                if backend == .lmStudio, on {
+                    Text("Är LM Studio kopplad till en annan dator kan mötet skickas dit. Koppla bort den för möten som ska stanna här.")
                         .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
