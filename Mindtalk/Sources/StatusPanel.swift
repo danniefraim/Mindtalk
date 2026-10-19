@@ -245,6 +245,8 @@ struct StatusPanelView: View {
     }
 
     private func pick(_ m: SpeechModel) {
+        // Mid-meeting the model in use stays, as under Inställningar → Språk.
+        guard !meeting.isBusy else { return }
         if m.isInstalled { confirming = nil; dictation.setEngine(m); return }
         guard dictation.downloads[m] == nil else { return }
         confirming = confirming == m ? nil : m
@@ -426,6 +428,7 @@ struct StatusPanelView: View {
                 Spacer(minLength: 8)
                 PillPicker(options: SpeechModel.allCases.map { (value: $0, title: $0.title) },
                            selection: Binding(get: { dictation.engine }, set: { pick($0) }))
+                    .disabled(meeting.isBusy)
                     .help("⌘1 och ⌘2 byter språk")
             }
             .padding(.horizontal, PanelMetrics.inset)
