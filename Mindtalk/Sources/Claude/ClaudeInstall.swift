@@ -340,9 +340,10 @@ enum ClaudeInstall {
         return URL(string: "lmstudio://add_mcp?name=mindtalk&config=\(config)")!
     }
 
-    /// Raycast: the whole `mcpServers` object, percent-encoded.
+    /// Raycast: one server with its name and type, percent-encoded. Raycast takes a
+    /// single server here, not an `mcpServers` object.
     static func raycastURL(helperPath: String = helperLinkURL.path) -> URL {
-        let json = "{\"mcpServers\":{\"mindtalk\":\(serverJSON(helperPath: helperPath))}}"
+        let json = "{\"name\":\"Mindtalk\",\"type\":\"stdio\",\"command\":\(jsonPath(helperPath)),\"args\":[\"mcp\"]}"
         return URL(string: "raycast://mcp/install?\(percent(json))")!
     }
 
