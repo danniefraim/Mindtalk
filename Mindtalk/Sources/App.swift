@@ -6,6 +6,7 @@ import ServiceManagement
 import SwiftUI
 import FluidAudio
 import CoreML
+import os
 
 @main
 @MainActor
@@ -840,6 +841,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 if args.contains("--empty") { Thoughts.shared.preview([]) }    // the page before the first thought
                 ThoughtsPage.still = true
                 let view = ThoughtsPage(dictation: .shared, scrolls: false).frame(width: 760).background(DS.Colors.paper)
+                    .environment(\.colorScheme, dark ? .dark : .light)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                    print("Ritad: \(args[i + 1])")
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
+        // `Mindtalk --render-claude out.png [--dark] [--on]`: Settings → Mindtalk i Claude, off
+        // or on, with made-up folders and a made-up log (nothing saved).
+        if let i = args.firstIndex(of: "--render-claude"), i + 1 < args.count {
+            Task { @MainActor in
+                let dark = args.contains("--dark")
+                NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                MeetingFolders.shared.preview(["Klang", "Kunder", "Styrelsen"])
+                let now = Date()
+                ClaudeSharing.shared.preview(enabled: args.contains("--on"), entries: [
+                    .init(date: now.addingTimeInterval(-120), tool: "mindtalk_search", scope: "Klang", items: 4, characters: 3000),
+                    .init(date: now.addingTimeInterval(-180), tool: "mindtalk_get_meeting", scope: "Styrelsemöte 14 okt", items: 1, characters: 1850),
+                    .init(date: now.addingTimeInterval(-86_400), tool: "mindtalk_list_meetings", scope: "Kunder", items: 12, characters: 2400),
+                    .init(date: now.addingTimeInterval(-90_000), tool: "mindtalk_list_thoughts", scope: "Tankar", items: 7, characters: 900),
+                ])
+                let view = ClaudeSettingsCard(sharing: .shared)
+                    .padding(28).frame(width: 760).background(DS.Colors.paper)
                     .environment(\.colorScheme, dark ? .dark : .light)
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2
@@ -1816,17 +1845,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     }
 
     /// "Öppna med › Mindtalk", or a file dropped on the app: transcribed as a meeting.
+    /// A `mindtalk://` link (from Claude's answers): the meeting, thought or card it names.
     func application(_ application: NSApplication, open urls: [URL]) {
+        // Opened before Mindtalk had started: once it has.
+        guard launched else { pendingOpen += urls; return }
+        for url in urls where url.scheme?.lowercased() == MindtalkLink.scheme {
+            if let link = MindtalkLink.parse(url) { Self.follow(link) }
+            else { Self.log.notice("ignored link \(url.absoluteString, privacy: .public)") }
+        }
         let files = urls.filter { MeetingImport.canImport($0) }
         guard !files.isEmpty else { return }
-        // Opened before Mindtalk had started: once it has.
-        guard launched else { pendingOpen += files; return }
         MeetingsPage.lastOpen = nil
         Self.showWindow(page: .meetings)
         MeetingImport.shared.add(files, folder: MeetingFolders.shared.selected)
     }
     private var launched = false
     private var pendingOpen: [URL] = []
+    private static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "App")
+
+    /// Where a `mindtalk://` link leads: the window on that page, and the page told
+    /// what to show (the pages listen; a page not yet built reads the statics on appear).
+    static func follow(_ link: MindtalkLink) {
+        switch link {
+        case .meeting(let id, let at):
+            guard MeetingStore.shared.meetings.contains(where: { $0.id == id }) else {
+                log.notice("link to a meeting that isn't here: \(id.uuidString, privacy: .public)")
+                return
+            }
+            MeetingsPage.lastOpen = id
+            MeetingsPage.focusAt = at
+            showWindow(page: .meetings)
+            NotificationCenter.default.post(name: .openMeeting, object: id, userInfo: at.map { ["at": $0] })
+            // The recording from that second, as a search hit does.
+            if let at, MeetingStore.shared.meetings.first(where: { $0.id == id })?.hasAudio == true {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { MeetingPlayer.shared.play(id, from: at) }
+            }
+        case .thought(let id):
+            guard Thoughts.shared.all.contains(where: { $0.id == id }) else {
+                log.notice("link to a thought that isn't here: \(id.uuidString, privacy: .public)")
+                return
+            }
+            showWindow(page: .thoughts)
+            ThoughtsPage.pendingShow = id
+            NotificationCenter.default.post(name: .showThought, object: id)
+        case .claudeSettings:
+            showWindow(page: .settings)
+            SettingsPage.openClaude()
+        }
+    }
     @objc func menuSettings() { Self.showWindow(page: .settings) }
     @objc func menuDictation() { Self.showWindow(page: .dictation) }
     @objc func menuMeetings() { Self.showWindow(page: .meetings) }

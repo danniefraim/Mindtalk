@@ -1,0 +1,68 @@
+import Foundation
+
+// MARK: - mindtalk:// links
+//
+// Every answer Claude gives carries a link back into the app, so "Styrelsemöte 14 okt,
+// 12:04" opens that meeting at that second:
+//
+//   mindtalk://meeting/<uuid>?t=<seconds>     Möten, the meeting, its text at t (and played from there)
+//   mindtalk://thought/<uuid>                 Tankar, scrolled to the thought
+//   mindtalk://settings/claude                Inställningar, scrolled to "Mindtalk i Claude"
+//
+// The scheme is registered in Info.plist (CFBundleURLTypes); AppDelegate hands the
+// URLs here. Anything else is ignored, with a line in the log.
+
+enum MindtalkLink: Equatable {
+    case meeting(UUID, at: Double?)
+    case thought(UUID)
+    case claudeSettings
+
+    static let scheme = "mindtalk"
+
+    /// nil for a URL that isn't one of ours.
+    static func parse(_ url: URL) -> MindtalkLink? {
+        guard url.scheme?.lowercased() == scheme else { return nil }
+        // "mindtalk://meeting/<id>": the host is the kind, the path the id.
+        let kind = url.host?.lowercased() ?? ""
+        let rest = url.pathComponents.filter { $0 != "/" }
+        let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        switch kind {
+        case "meeting":
+            guard let id = rest.first.flatMap(UUID.init(uuidString:)) else { return nil }
+            let t = query.first { $0.name == "t" }?.value.flatMap(Double.init)
+            return .meeting(id, at: t.map { max(0, $0) })
+        case "thought":
+            guard let id = rest.first.flatMap(UUID.init(uuidString:)) else { return nil }
+            return .thought(id)
+        case "settings":
+            return rest.first?.lowercased() == "claude" ? .claudeSettings : nil
+        default:
+            return nil
+        }
+    }
+
+    /// The link for a meeting (the helper puts these in its answers).
+    static func url(meeting id: UUID, at seconds: Double? = nil) -> URL {
+        var c = URLComponents()
+        c.scheme = scheme
+        c.host = "meeting"
+        c.path = "/" + id.uuidString
+        if let seconds { c.queryItems = [URLQueryItem(name: "t", value: String(Int(seconds.rounded())))] }
+        return c.url!
+    }
+
+    static func url(thought id: UUID) -> URL {
+        URL(string: "\(scheme)://thought/\(id.uuidString)")!
+    }
+
+    static let claudeSettingsURL = URL(string: "\(scheme)://settings/claude")!
+}
+
+extension Notification.Name {
+    /// Open a saved meeting on the Möten page (object: UUID; userInfo["at"]: seconds).
+    static let openMeeting = Notification.Name("MindtalkOpenMeeting")
+    /// Show a thought on the Tankar page (object: UUID).
+    static let showThought = Notification.Name("MindtalkShowThought")
+    /// Scroll Settings to "Mindtalk i Claude".
+    static let showClaude = Notification.Name("MindtalkShowClaude")
+}

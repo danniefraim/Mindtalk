@@ -39,11 +39,15 @@ struct ThoughtsPage: View {
     /// Why the key just picked wasn't taken (the dictation key has it).
     @State private var keyRefusal: String?
 
+    /// A thought a mindtalk:// link asked for before the page was built: shown on appear.
+    static var pendingShow: UUID?
+
     private var live: Int { thoughts.pinned.count + thoughts.days.reduce(0) { $0 + $1.items.count } }
     /// Keys go to the list, not to a field being typed in.
     private var listKeys: Bool { editing == nil && !typing && !searching }
 
     var body: some View {
+        ScrollViewReader { proxy in
         VStack(alignment: .leading, spacing: 20) {
             header.staggered(0)
             keyCard.staggered(1)
@@ -78,6 +82,17 @@ struct ThoughtsPage: View {
         .overlay(alignment: .bottom) { bottomBar }
         .animation(.spring(duration: 0.3, bounce: 0.12), value: thoughts.all)
         .animation(.spring(duration: 0.3, bounce: 0.12), value: thoughts.toast)
+        // A mindtalk:// link to a thought: its day opened, the thought chosen and scrolled to.
+        .onReceive(NotificationCenter.default.publisher(for: .showThought)) { note in
+            if let id = note.object as? UUID { show(id, proxy) }
+        }
+        .onAppear {
+            if let id = Self.pendingShow {
+                Self.pendingShow = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { show(id, proxy) }
+            }
+        }
+        }
         .animation(.spring(duration: 0.3, bounce: 0.12), value: selection)
         .confirmationDialog(confirmPurge?.count == 1 ? "Ta bort tanken för gott?" : "Ta bort \(confirmPurge?.count ?? 0) tankar för gott?",
                             isPresented: Binding(get: { confirmPurge != nil }, set: { if !$0 { confirmPurge = nil } })) {
@@ -371,6 +386,25 @@ struct ThoughtsPage: View {
         typing = false
         searching = false
         listFocused = true
+    }
+
+    /// The thought a link named: brought into view and chosen.
+    private func show(_ id: UUID, _ proxy: ScrollViewProxy) {
+        guard let thought = thoughts.all.first(where: { $0.id == id }) else { return }
+        Self.pendingShow = nil
+        query = ""
+        if thought.deleted != nil { showingRemoved = true }
+        else {
+            showingRemoved = false
+            let day = Calendar.current.startOfDay(for: thought.date)
+            if !thought.pinned { opened[day] = true }
+            if thought.done { showingDone.insert(day) }
+        }
+        selection = [id]
+        anchor = id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.spring(duration: 0.5)) { proxy.scrollTo(id, anchor: .center) }
+        }
     }
 
     private func startEditing(_ id: UUID) {

@@ -81,6 +81,12 @@ struct MeetingsPage: View {
         }
         .onAppear { if session.armed, open != nil { open = nil } }
         .onChange(of: open) { _, id in Self.lastOpen = id }
+        // A mindtalk:// link while the page is already on screen: that meeting, at its second.
+        .onReceive(NotificationCenter.default.publisher(for: .openMeeting)) { note in
+            guard let id = note.object as? UUID, session.record == nil, open != id else { return }
+            MeetingsPage.focusAt = note.userInfo?["at"] as? Double
+            withAnimation(.spring(duration: 0.45, bounce: 0.12)) { open = id }
+        }
         #if DEBUG
         .onAppear {   // screenshots: `--open-latest [--summarize]`
             guard CommandLine.arguments.contains("--open-latest"), let id = store.meetings.first?.id else { return }
