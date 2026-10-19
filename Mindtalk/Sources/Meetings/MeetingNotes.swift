@@ -115,6 +115,10 @@ final class MeetingNotes: ObservableObject {
     /// Meetings with a question being answered.
     @Published private(set) var answering: Set<UUID> = []
     @Published private(set) var failed: [UUID: String] = [:]
+    /// The notes weren't written because Ollama or LM Studio, chosen to write them,
+    /// isn't running or isn't on this Mac: which, so the page can offer to open it and
+    /// try again. Never written by another model instead.
+    @Published private(set) var failedServer: [UUID: ServerBackend] = [:]
 
     /// Apple Intelligence — or Gemma 4, or your own model in Ollama or LM Studio, when chosen.
     static var isAvailable: Bool { Polisher.status == .available || BetterNotes.shared.isActive }
@@ -128,6 +132,7 @@ final class MeetingNotes: ObservableObject {
         guard let record = MeetingStore.shared.meetings.first(where: { $0.id == id }), !record.words.isEmpty else { return }
         writing.insert(id)
         failed[id] = nil
+        failedServer[id] = nil
         var lines = Lines(record)
         if let name = choice.name { lines.write(in: name) }
         let writer = BetterNotes.shared.writer
@@ -178,6 +183,7 @@ final class MeetingNotes: ObservableObject {
             } catch {
                 Self.log.error("notes: \(error.localizedDescription, privacy: .public)")
                 failed[id] = Self.explain(error)
+                failedServer[id] = Self.server(of: error)
             }
         }
     }
@@ -214,10 +220,12 @@ final class MeetingNotes: ObservableObject {
         // During a meeting only Apple's model answers: without it, say so plainly.
         guard writer != nil || Polisher.status == .available else {
             failed[id] = Self.onlyAppleDuringMeeting
+            failedServer[id] = nil
             return
         }
         answering.insert(id)
         failed[id] = nil
+        failedServer[id] = nil
         let lines = Lines(record)
         let summary = record.summary
         // The last questions, so "och vem?" knows what it follows.
@@ -298,6 +306,14 @@ final class MeetingNotes: ObservableObject {
 
     static var onlyAppleDuringMeeting: String {
         String(localized: "Under mötet går frågor bara med Apple Intelligence. Fråga igen när mötet är klart.")
+    }
+
+    /// The program a failure was about, when it wasn't running or isn't on this Mac.
+    private static func server(of error: Error) -> ServerBackend? {
+        switch error as? ServerError {
+        case .notRunning(let backend)?, .notInstalled(let backend)?: return backend
+        default: return nil
+        }
     }
 
     private static func explain(_ error: Error) -> String {

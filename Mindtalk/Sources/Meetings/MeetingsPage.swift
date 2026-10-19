@@ -2137,8 +2137,19 @@ private struct SummaryView: View {
                         .help("Skriv det som var viktigt för dig, så bygger sammanfattningen på det")
                     }
                     if let error = notes.failed[record.id] {
-                        Label(error, systemImage: "exclamationmark.triangle")
-                            .font(.system(size: 13)).foregroundStyle(DS.Colors.warning)
+                        HStack(spacing: 10) {
+                            Label(error, systemImage: "exclamationmark.triangle")
+                                .font(.system(size: 13)).foregroundStyle(DS.Colors.warning)
+                            // Ollama or LM Studio wasn't running: open it, then try again with it.
+                            if let backend = notes.failedServer[record.id] {
+                                Spacer(minLength: 8)
+                                if backend.isInstalled {
+                                    Button(backend.openTitle) { LocalServers.shared.open(backend) }.buttonStyle(.soft)
+                                }
+                                Button("Försök igen") { notes.summarize(record.id) }.buttonStyle(.soft)
+                                    .disabled(writing)
+                            }
+                        }
                     }
                     if !record.answers.isEmpty || notes.answering.contains(record.id) { answers }
                     Color.clear.frame(height: 1).id("end")
