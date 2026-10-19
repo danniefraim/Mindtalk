@@ -751,6 +751,7 @@
       }
     },
     "%@ tecken": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -762,6 +763,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ tecken"
+          }
+        }
+      }
+    },
+    "%@ tecken skickade": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ characters sent"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ tecken skickade"
           }
         }
       }
@@ -1437,6 +1454,7 @@
       }
     },
     "%lld mappar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2024,6 +2042,7 @@
       }
     },
     "1 mapp": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2600,6 +2619,22 @@
         }
       }
     },
+    "Alla program som körs som du på den här Macen kan fråga. Loggen visar varje läsning.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Any app running as you on this Mac can ask. The log shows every reading."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alla program som körs som du på den här Macen kan fråga. Loggen visar varje läsning."
+          }
+        }
+      }
+    },
     "Alla säger hej och sitt namn. En halv minut.": {
       "localizations": {
         "en": {
@@ -2849,6 +2884,7 @@
       }
     },
     "Allt, även hela texten från mötena": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3425,23 +3461,6 @@
         }
       }
     },
-    "Av. Claude kan inte läsa något.": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Off. Claude cannot read anything."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Av. Claude kan inte läsa något."
-          }
-        }
-      }
-    },
     "Av. Du kan fortfarande säga en tanke på sidan Tankar.": {
       "localizations": {
         "en": {
@@ -3459,6 +3478,7 @@
       }
     },
     "Av. Inga program kan läsa något.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3470,6 +3490,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Av. Inga program kan läsa något."
+          }
+        }
+      }
+    },
+    "Av. Inga program kan läsa något. Slår du på väljer du vad som får läsas och kopplar sedan ditt program.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off. No app can read anything. Switch it on to choose what may be read, then connect your app."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Av. Inga program kan läsa något. Slår du på väljer du vad som får läsas och kopplar sedan ditt program."
           }
         }
       }
@@ -4596,24 +4632,24 @@
         }
       }
     },
-    "Claude får läsa": {
-      "extractionState": "stale",
+    "Claude-appen hittades inte.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Claude may read"
+            "value": "The Claude app was not found."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Claude får läsa"
+            "value": "Claude-appen hittades inte."
           }
         }
       }
     },
     "Claude-appen hittades inte. Hämta den på claude.ai/download.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4629,24 +4665,8 @@
         }
       }
     },
-    "Claude-appen på Macen och Claude Code. Inte claude.ai på webben eller i mobilen.": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The Claude app on Mac and Claude Code. Not claude.ai on the web or on mobile."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Claude-appen på Macen och Claude Code. Inte claude.ai på webben eller i mobilen."
-          }
-        }
-      }
-    },
     "Claude-appen på Macen, Claude Code, ChatGPT på Mac och andra program som stöder MCP. Inte webben eller mobilen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5692,7 +5712,24 @@
         }
       }
     },
+    "Diktera i alla appar, spara tankar och spela in möten. Allt stannar på din Mac, om du inte själv slår på MCP under Integrationer.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dictate in every app, save thoughts and record meetings. Everything stays on your Mac, unless you switch on MCP under Integrations yourself."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diktera i alla appar, spara tankar och spela in möten. Allt stannar på din Mac, om du inte själv slår på MCP under Integrationer."
+          }
+        }
+      }
+    },
     "Diktera i alla appar, spara tankar och spela in möten. Allt stannar på din Mac.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6394,6 +6431,22 @@
         }
       }
     },
+    "Du har inga mappar än. Alla möten får läsas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have no folders yet. All meetings may be read."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du har inga mappar än. Alla möten får läsas."
+          }
+        }
+      }
+    },
     "Du har skrivit till anteckningar. Sammanfatta igen?": {
       "localizations": {
         "en": {
@@ -7002,6 +7055,7 @@
       }
     },
     "Ett öppet sätt för AI-program att läsa dina möten och tankar. Du väljer vilket program: Claude, ChatGPT på Mac eller andra som stöder MCP.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7714,6 +7768,22 @@
         }
       }
     },
+    "Fråga nu ditt program om ett möte, så syns det här.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Now ask your app about a meeting, and it shows up here."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fråga nu ditt program om ett möte, så syns det här."
+          }
+        }
+      }
+    },
     "Fråga något om dina möten…": {
       "extractionState": "stale",
       "localizations": {
@@ -8080,19 +8150,18 @@
         }
       }
     },
-    "Fungerar också med andra program som stöder MCP, som ChatGPT på Mac.": {
-      "extractionState": "stale",
+    "Fungerar med program på den här Macen, inte med Claude eller ChatGPT på webben eller i mobilen.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Also works with other apps that support MCP, such as ChatGPT on Mac."
+            "value": "Works with apps on this Mac, not with Claude or ChatGPT on the web or on mobile."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fungerar också med andra program som stöder MCP, som ChatGPT på Mac."
+            "value": "Fungerar med program på den här Macen, inte med Claude eller ChatGPT på webben eller i mobilen."
           }
         }
       }
@@ -9464,6 +9533,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hämta %@ först, under Inställningar → Språk."
+          }
+        }
+      }
+    },
+    "Hämta Claude": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get Claude"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hämta Claude"
           }
         }
       }
@@ -13077,7 +13162,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Copied. Paste it into the app's MCP settings."
+            "value": "Copied. Paste it into the app’s MCP settings."
           }
         },
         "sv": {
@@ -14328,7 +14413,40 @@
         }
       }
     },
+    "Listade %lld mappar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listed %lld folders"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listade %lld mappar"
+          }
+        }
+      }
+    },
+    "Listade 1 mapp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listed 1 folder"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listade 1 mapp"
+          }
+        }
+      }
+    },
     "Listade mapparna": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -14372,23 +14490,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Listade möten i %@"
-          }
-        }
-      }
-    },
-    "Listan över vad Claude har läst tas bort från din Mac.": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The list of what Claude has read is removed from your Mac."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Listan över vad Claude har läst tas bort från din Mac."
           }
         }
       }
@@ -15672,6 +15773,22 @@
         }
       }
     },
+    "Läste %lld tankar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read %lld thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läste %lld tankar"
+          }
+        }
+      }
+    },
     "Läste 1 möte": {
       "localizations": {
         "en": {
@@ -15705,6 +15822,22 @@
         }
       }
     },
+    "Läste 1 tanke": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read 1 thought"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läste 1 tanke"
+          }
+        }
+      }
+    },
     "Läste de %lld senaste mötena": {
       "localizations": {
         "en": {
@@ -15722,6 +15855,7 @@
       }
     },
     "Läste tankar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15868,6 +16002,38 @@
         }
       }
     },
+    "MCP är ett öppet sätt för AI-program att läsa dina möten och tankar. Du väljer vilket program: Claude och ChatGPT på Macen, eller andra som stöder MCP.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP is an open way for AI apps to read your meetings and thoughts. You choose which app: Claude and ChatGPT on Mac, or others that support MCP."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP är ett öppet sätt för AI-program att läsa dina möten och tankar. Du väljer vilket program: Claude och ChatGPT på Macen, eller andra som stöder MCP."
+          }
+        }
+      }
+    },
+    "MCP, låt AI-program läsa möten och tankar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP, let AI apps read meetings and thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP, låt AI-program läsa möten och tankar"
+          }
+        }
+      }
+    },
     "MINDTALK": {
       "extractionState": "stale",
       "localizations": {
@@ -15936,6 +16102,7 @@
       }
     },
     "Mappar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15947,6 +16114,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mappar"
+          }
+        }
+      }
+    },
+    "Mappar som får läsas": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folders that may be read"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mappar som får läsas"
           }
         }
       }
@@ -16339,23 +16522,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Med Alternativ-tangenten börjar mötet med en presentationsrunda"
-          }
-        }
-      }
-    },
-    "Med Bara tankar läser Claude inga möten, oavsett mapp.": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "With Thoughts only, Claude reads no meetings, whatever the folder."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Med Bara tankar läser Claude inga möten, oavsett mapp."
           }
         }
       }
@@ -17171,23 +17337,6 @@
         }
       }
     },
-    "Mindtalk i Claude": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mindtalk in Claude"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mindtalk i Claude"
-          }
-        }
-      }
-    },
     "Mindtalk kunde inte flyttas": {
       "localizations": {
         "en": {
@@ -17942,6 +18091,7 @@
       }
     },
     "Möten utan mapp delas.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -17953,6 +18103,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Möten utan mapp delas."
+          }
+        }
+      }
+    },
+    "Möten utan mapp får alltid läsas. Ett nytt möte kan läsas när det är klart, om du inte lägger det i en mapp som inte får läsas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meetings in no folder may always be read. A new meeting can be read once it is finished, unless you put it in a folder that may not be read."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Möten utan mapp får alltid läsas. Ett nytt möte kan läsas när det är klart, om du inte lägger det i en mapp som inte får läsas."
           }
         }
       }
@@ -18930,29 +19096,12 @@
         }
       }
     },
-    "När du frågar Claude om dina möten skickas texten till Anthropic, enligt villkoren för ditt Claude-konto. Mindtalk skickar inget själv, Claude läser bara när du frågar. Ljud och röstavtryck delas aldrig.": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "When you ask Claude about your meetings, the text is sent to Anthropic under the terms of your Claude account. Mindtalk sends nothing on its own; Claude reads only when you ask. Audio and voiceprints are never shared."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "När du frågar Claude om dina möten skickas texten till Anthropic, enligt villkoren för ditt Claude-konto. Mindtalk skickar inget själv, Claude läser bara när du frågar. Ljud och röstavtryck delas aldrig."
-          }
-        }
-      }
-    },
     "När du frågar skickas texten till det programmets leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud och röstavtryck delas aldrig.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "When you ask, the text is sent to that app's provider under the terms of your account there. Mindtalk sends nothing on its own. Audio and voiceprints are never shared."
+            "value": "When you ask, the text is sent to that app’s provider under the terms of your account there. Mindtalk sends nothing on its own. Audio and voiceprints are never shared."
           }
         },
         "sv": {
@@ -21360,30 +21509,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Last read"
+            "value": "Recently read"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
             "value": "Senast läst"
-          }
-        }
-      }
-    },
-    "Senast läst av Claude": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Last read by Claude"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Senast läst av Claude"
           }
         }
       }
@@ -25737,6 +25869,7 @@
       }
     },
     "Tankar och mötenas sammanfattningar, beslut och uppgifter": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -25748,6 +25881,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tankar och mötenas sammanfattningar, beslut och uppgifter"
+          }
+        }
+      }
+    },
+    "Tankar, mötenas sammanfattningar och dina anteckningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thoughts, the meetings’ summaries and your notes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tankar, mötenas sammanfattningar och dina anteckningar"
+          }
+        }
+      }
+    },
+    "Tankar, sammanfattningar, anteckningar och hela texten från mötena": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thoughts, summaries, notes and the full text of the meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tankar, sammanfattningar, anteckningar och hela texten från mötena"
           }
         }
       }
@@ -26574,6 +26739,7 @@
       }
     },
     "Tryck Lägg till i Claude, eller kopiera inställningen till ditt program.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -26589,19 +26755,18 @@
         }
       }
     },
-    "Tryck Lägg till i Claude, så öppnas tillägget i Claude-appen.": {
-      "extractionState": "stale",
+    "Tryck Lägg till i Claude, så öppnas Claude-appen och frågar om du vill lägga till Mindtalk. Eller kopiera inställningen till ditt program.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Press Add to Claude and the extension opens in the Claude app."
+            "value": "Press Add to Claude, and the Claude app opens and asks whether you want to add Mindtalk. Or copy the setting into your app."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tryck Lägg till i Claude, så öppnas tillägget i Claude-appen."
+            "value": "Tryck Lägg till i Claude, så öppnas Claude-appen och frågar om du vill lägga till Mindtalk. Eller kopiera inställningen till ditt program."
           }
         }
       }
@@ -29543,6 +29708,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Beslut"
+          }
+        }
+      }
+    },
+    "mcp|%lld träffar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld hits"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld träffar"
+          }
+        }
+      }
+    },
+    "mcp|1 träff": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 hit"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 träff"
           }
         }
       }

@@ -37,7 +37,7 @@ struct ClaudeSettingsCard: View {
                 CardDivider()
                 log
             } else {
-                Text("Av. Inga program kan läsa något.")
+                Text("Av. Inga program kan läsa något. Slår du på väljer du vad som får läsas och kopplar sedan ditt program.")
                     .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 22).padding(.vertical, 16)
@@ -72,9 +72,9 @@ struct ClaudeSettingsCard: View {
             HStack(alignment: .center, spacing: 20) {
                 Text("MCP").font(.system(size: 14, weight: .semibold))
                 Spacer(minLength: 12)
-                InkToggle(label: "MCP", isOn: $sharing.enabled)
+                InkToggle(label: String(localized: "MCP, låt AI-program läsa möten och tankar"), isOn: $sharing.enabled)
             }
-            Text("Ett öppet sätt för AI-program att läsa dina möten och tankar. Du väljer vilket program: Claude, ChatGPT på Mac eller andra som stöder MCP.")
+            Text("MCP är ett öppet sätt för AI-program att läsa dina möten och tankar. Du väljer vilket program: Claude och ChatGPT på Macen, eller andra som stöder MCP.")
                 .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
             Text("När du frågar skickas texten till det programmets leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud och röstavtryck delas aldrig.")
@@ -106,9 +106,12 @@ struct ClaudeSettingsCard: View {
 
     private var folderRows: some View {
         VStack(alignment: .leading, spacing: 10) {
-            CapsLabel(String(localized: "Mappar"))
+            CapsLabel(String(localized: "Mappar som får läsas"))
             if sharing.level.includesMeetings {
-                if !folders.sorted.isEmpty {
+                if folders.sorted.isEmpty {
+                    Text("Du har inga mappar än. Alla möten får läsas.")
+                        .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                } else {
                     FlowLayout(spacing: 16) {
                         ForEach(folders.sorted) { folder in
                             Toggle(isOn: Binding(
@@ -121,9 +124,10 @@ struct ClaudeSettingsCard: View {
                             .toggleStyle(InkCheckboxStyle())
                         }
                     }
+                    Text("Möten utan mapp får alltid läsas. Ett nytt möte kan läsas när det är klart, om du inte lägger det i en mapp som inte får läsas.")
+                        .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                Text("Möten utan mapp delas.")
-                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
             } else {
                 Text("Med Bara tankar läses inga möten, oavsett mapp.")
                     .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
@@ -137,15 +141,18 @@ struct ClaudeSettingsCard: View {
 
     private var install: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
+            // Three buttons: the third wraps to a row of its own when the card is narrow.
+            FlowLayout(spacing: 10) {
                 Button("Lägg till i Claude") { addToClaude() }.buttonStyle(.ink)
                 Button("Kopiera för Claude Code") {
                     ClaudeInstall.copyClaudeCodeCommand()
+                    sharing.connectedOnce = true
                     show(String(localized: "Kopierat. Klistra in i Terminalen."))
                 }
                 .buttonStyle(.soft)
                 Button("Kopiera för andra program") {
                     ClaudeInstall.copyServerConfig()
+                    sharing.connectedOnce = true
                     show(String(localized: "Kopierat. Klistra in i programmets MCP-inställningar."))
                 }
                 .buttonStyle(.soft)
@@ -155,16 +162,23 @@ struct ClaudeSettingsCard: View {
                 HStack(spacing: 8) {
                     Text(verbatim: trouble).font(.system(size: 12.5)).foregroundStyle(.primary)
                     Button { NSWorkspace.shared.open(ClaudeInstall.downloadURL) } label: {
-                        Text("Läs mer").font(.system(size: 12.5, weight: .medium)).underline()
+                        Text("Hämta Claude").font(.system(size: 12.5, weight: .medium)).underline()
                     }
                     .buttonStyle(.plain)
                 }
-            } else if sharing.entries.isEmpty {
+            } else if sharing.connectedOnce {
                 // Until something has been read there is no way to know a program is connected.
-                Text("Tryck Lägg till i Claude, eller kopiera inställningen till ditt program.")
+                Text("Fråga nu ditt program om ett möte, så syns det här.")
                     .font(.system(size: 12.5)).foregroundStyle(.primary)
+            } else {
+                Text("Tryck Lägg till i Claude, så öppnas Claude-appen och frågar om du vill lägga till Mindtalk. Eller kopiera inställningen till ditt program.")
+                    .font(.system(size: 12.5)).foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Text("Claude-appen på Macen, Claude Code, ChatGPT på Mac och andra program som stöder MCP. Inte webben eller mobilen.")
+            Text("Fungerar med program på den här Macen, inte med Claude eller ChatGPT på webben eller i mobilen.")
+                .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Alla program som körs som du på den här Macen kan fråga. Loggen visar varje läsning.")
                 .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -176,8 +190,9 @@ struct ClaudeSettingsCard: View {
         switch ClaudeInstall.addToClaude() {
         case .opened:
             trouble = nil
+            sharing.connectedOnce = true
         case .noClaudeApp:
-            trouble = String(localized: "Claude-appen hittades inte. Hämta den på claude.ai/download.")
+            trouble = String(localized: "Claude-appen hittades inte.")
         case .failed(let why):
             trouble = String(localized: "Tillägget kunde inte skapas: \(why)")
         }
@@ -224,7 +239,7 @@ struct ClaudeSettingsCard: View {
     }
 }
 
-/// One log entry in words: "I dag 15:02 · Claude sökte i Klang · 4 möten · 3 000 tecken".
+/// One log entry in words: "I dag 15:02 · Claude sökte i Klang · 4 träffar · 3 000 tecken skickade".
 /// Refused: "I dag 15:02 · Claude · nekad: hela texten".
 enum ClaudeLogLine {
     static func text(for entry: ClaudeSharing.Entry) -> String {
@@ -238,7 +253,7 @@ enum ClaudeLogLine {
         if let count = count(entry) { parts.append(count) }
         if entry.characters > 0 {
             let n = entry.characters.formatted(.number.locale(AppLanguage.locale))
-            parts.append(String(localized: "\(n) tecken"))
+            parts.append(String(localized: "\(n) tecken skickade"))
         }
         return parts.joined(separator: " · ")
     }
@@ -262,28 +277,27 @@ enum ClaudeLogLine {
         case "mindtalk_list_meetings":
             return scope.isEmpty ? String(localized: "Listade möten") : String(localized: "Listade möten i \(scope)")
         case "mindtalk_list_folders":
-            return String(localized: "Listade mapparna")
+            return entry.items == 1 ? String(localized: "Listade 1 mapp") : String(localized: "Listade \(entry.items) mappar")
         case "mindtalk_list_tasks":
             return scope.isEmpty ? String(localized: "Läste uppgifter") : String(localized: "Läste uppgifter i \(scope)")
         case "mindtalk_list_thoughts":
-            return String(localized: "Läste tankar")
+            return entry.items == 1 ? String(localized: "Läste 1 tanke") : String(localized: "Läste \(entry.items) tankar")
         default:
             return scope.isEmpty ? entry.tool : "\(entry.tool) · \(scope)"
         }
     }
 
-    /// How many came back, in the unit the tool deals in.
+    /// How many came back, in the unit the tool deals in (folders and thoughts say it
+    /// in the action itself).
     private static func count(_ entry: ClaudeSharing.Entry) -> String? {
         let n = entry.items
         switch entry.tool {
-        case "mindtalk_search", "mindtalk_list_meetings":
+        case "mindtalk_search":
+            return n == 1 ? String(localized: "mcp|1 träff") : String(localized: "mcp|\(n) träffar")
+        case "mindtalk_list_meetings":
             return n == 1 ? String(localized: "1 möte") : String(localized: "\(n) möten")
         case "mindtalk_list_tasks":
             return n == 1 ? String(localized: "1 uppgift") : String(localized: "\(n) uppgifter")
-        case "mindtalk_list_thoughts":
-            return n == 1 ? String(localized: "1 tanke") : String(localized: "\(n) tankar")
-        case "mindtalk_list_folders":
-            return n == 1 ? String(localized: "1 mapp") : String(localized: "\(n) mappar")
         default:
             return nil
         }

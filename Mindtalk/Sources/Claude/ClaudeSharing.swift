@@ -30,8 +30,8 @@ final class ClaudeSharing: ObservableObject {
         var title: String {
             switch self {
             case .thoughts: return String(localized: "Bara tankar")
-            case .summaries: return String(localized: "Tankar och mötenas sammanfattningar, beslut och uppgifter")
-            case .everything: return String(localized: "Allt, även hela texten från mötena")
+            case .summaries: return String(localized: "Tankar, mötenas sammanfattningar och dina anteckningar")
+            case .everything: return String(localized: "Tankar, sammanfattningar, anteckningar och hela texten från mötena")
             }
         }
         var includesMeetings: Bool { self != .thoughts }
@@ -70,6 +70,11 @@ final class ClaudeSharing: ObservableObject {
     @Published var excludedFolders: Set<UUID> {
         didSet { if !previewing { defaults.set(excludedFolders.map(\.uuidString), forKey: "claude.excludedFolders") } }
     }
+    /// "Lägg till i Claude" was pressed, or a setting copied, once: the card then
+    /// says to ask the program, instead of how to connect it.
+    @Published var connectedOnce: Bool {
+        didSet { if !previewing { defaults.set(connectedOnce, forKey: "claude.connectedOnce") } }
+    }
 
     /// One call a program made: what it read, how much, when. The newest first.
     struct Entry: Codable, Identifiable, Equatable {
@@ -105,6 +110,7 @@ final class ClaudeSharing: ObservableObject {
         enabled = defaults.bool(forKey: "claude.enabled")
         level = Level(rawValue: defaults.string(forKey: "claude.level") ?? "") ?? .everything
         excludedFolders = Set((defaults.stringArray(forKey: "claude.excludedFolders") ?? []).compactMap(UUID.init))
+        connectedOnce = defaults.bool(forKey: "claude.connectedOnce")
         if let data = try? Data(contentsOf: Self.logURL),
            let saved = try? JSONDecoder().decode([Entry].self, from: data) {
             entries = saved
@@ -150,6 +156,7 @@ final class ClaudeSharing: ObservableObject {
         enabled = on
         self.level = level
         excludedFolders = []
+        connectedOnce = !demo.isEmpty
         entries = demo
     }
     #endif

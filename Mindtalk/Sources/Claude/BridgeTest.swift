@@ -99,9 +99,9 @@ enum BridgeTest {
         check("list_meetings: tre möten, inte B:s, inte det oavslutade, inte det nyss avslutade",
               ids(meetings) == [m1, m2, m4] && r.result?["total"] as? Int == 3, said(r, "meetings"))
         r = await call("mindtalk_get_meeting", ["meeting_id": m5])
-        check("get_meeting på ett oavslutat möte: No such meeting", r.error == "No such meeting.")
+        check("get_meeting på ett oavslutat möte: No such meeting", r.error?.hasPrefix("No such meeting.") == true)
         r = await call("mindtalk_get_meeting", ["meeting_id": m6])
-        check("get_meeting på ett möte som slutade nyss: No such meeting", r.error == "No such meeting.")
+        check("get_meeting på ett möte som slutade nyss: No such meeting", r.error?.hasPrefix("No such meeting.") == true)
         check("list_meetings: rad med gist, talare och länk", meetings.first.map {
             ($0["gist"] as? String)?.isEmpty == false && ($0["speakers"] as? [String])?.isEmpty == false
                 && ($0["link"] as? String)?.hasPrefix("mindtalk://meeting/") == true && ($0["start"] as? String)?.contains("+") == true
@@ -109,13 +109,13 @@ enum BridgeTest {
         r = await call("mindtalk_list_meetings", ["folder_id": a])
         check("list_meetings i mappen A: två", ids(rows(r.result, "meetings")) == [m1, m2])
         r = await call("mindtalk_list_meetings", ["folder_id": b])
-        check("list_meetings i mappen B: No such folder", r.error == "No such folder.")
+        check("list_meetings i mappen B: No such folder", r.error?.hasPrefix("No such folder.") == true)
         r = await call("mindtalk_get_meeting", ["meeting_id": m3])
-        check("get_meeting på B:s möte: No such meeting", r.error == "No such meeting.")
+        check("get_meeting på B:s möte: No such meeting", r.error?.hasPrefix("No such meeting.") == true)
         r = await call("mindtalk_get_transcript", ["meeting_id": m3])
-        check("get_transcript på B:s möte: No such meeting", r.error == "No such meeting.")
+        check("get_transcript på B:s möte: No such meeting", r.error?.hasPrefix("No such meeting.") == true)
         r = await call("mindtalk_search", ["query": "hemligt", "meeting_id": m3])
-        check("search i B:s möte: No such meeting", r.error == "No such meeting.")
+        check("search i B:s möte: No such meeting", r.error?.hasPrefix("No such meeting.") == true)
         r = await call("mindtalk_search", ["query": "hemligt"])
         check("search: B:s ord hittas inte", r.error == nil && rows(r.result, "hits").isEmpty,
               r.error.map { "fel: \($0)" } ?? rows(r.result, "hits").map { "\($0["kind"] ?? "") i \((($0["meeting"] as? [String: Any])?["title"]) ?? $0["text"] ?? "")" }.joined(separator: ", "))

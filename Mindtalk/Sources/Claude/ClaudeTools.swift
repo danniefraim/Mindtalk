@@ -33,10 +33,11 @@ enum ClaudeTools {
     static let moreNote = "More hits than shown: narrow with meeting_id, folder_id, from/to or more specific words, or follow nextCursor where there is one."
     /// A meeting's notes that didn't fit.
     static let moreNotesNote = "Not all notes fit; use mindtalk_search with meeting_id to find a specific one."
+    // The levels, named as the English card names them (ClaudeSharing.Level.title).
     private static let meetingsLevelMessage =
-        "Meetings are not shared: the level in Mindtalk under Settings → Integrations → MCP is \"Only thoughts\". Thoughts can be read with mindtalk_list_thoughts and mindtalk_search."
+        "Meetings are not shared: the level in Mindtalk is \"Thoughts only\". Thoughts can be read with mindtalk_list_thoughts and mindtalk_search. The user can change this in Mindtalk under Settings → Integrations → MCP."
     private static let transcriptsLevelMessage =
-        "Transcripts are not shared: the level in Mindtalk under Settings → Integrations → MCP is \"Thoughts and summaries\". Use mindtalk_get_meeting for the summary, decisions and tasks, or mindtalk_search."
+        "Transcripts are not shared: the level in Mindtalk is \"Thoughts, the meetings’ summaries and your notes\". Use mindtalk_get_meeting for the summary, decisions, tasks and notes, or mindtalk_search. The user can change this in Mindtalk under Settings → Integrations → MCP."
 
     /// About 6 000 tokens for a list, 25 000 characters for a page of text.
     static let listBudget = 24_000
@@ -261,7 +262,7 @@ enum ClaudeTools {
             out = Scope(meetings: [m], label: title(of: m), meeting: m)
         } else if allowFolder, try args.string("folder_id") != nil {
             guard let id = try args.uuid("folder_id"), let folder = visibleFolders().first(where: { $0.id == id }) else {
-                throw Failure(message: "No such folder.", refusal: String(localized: "nekad: okänd mapp"))
+                throw Failure(message: "No such folder. Use an id from mindtalk_list_folders.", refusal: String(localized: "nekad: okänd mapp"))
             }
             out = Scope(meetings: visibleMeetings().filter { $0.folder == id }, label: folder.name, folder: folder)
         } else {
@@ -274,7 +275,7 @@ enum ClaudeTools {
 
     private static func meeting(_ args: Args) throws -> MeetingRecord {
         guard let id = try args.uuid("meeting_id"), let m = visibleMeetings().first(where: { $0.id == id }) else {
-            throw Failure(message: "No such meeting.", refusal: String(localized: "nekad: okänt möte"))
+            throw Failure(message: "No such meeting. Use an id from mindtalk_list_meetings or mindtalk_search.", refusal: String(localized: "nekad: okänt möte"))
         }
         return m
     }
