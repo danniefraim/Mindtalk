@@ -68,6 +68,9 @@ final class ClaudeSharing: ObservableObject {
         var client: String? = nil
         /// The settings said no: nothing went out.
         var refused: Bool? = nil
+        /// Refused this many times in a row, when more than once: the same refusal again
+        /// and again is one line.
+        var times: Int? = nil
         var wasRefused: Bool { refused == true }
     }
     @Published private(set) var entries: [Entry] = []
@@ -128,8 +131,22 @@ final class ClaudeSharing: ObservableObject {
         return max(m.date.addingTimeInterval(length), m.source?.importedAt ?? .distantPast)
     }
 
+    /// A refusal like the one before, from the same program within this long, adds to it.
+    static let repeatWindow: TimeInterval = 60
+
     /// Noted after every answer, and after every refusal. Kept to the last 200.
     func record(tool: String, scope: String, items: Int, characters: Int, client: String? = nil, refused: Bool = false) {
+        // A program that keeps asking while MCP is off (or for the same unknown meeting)
+        // counts up one line, and doesn't push what was read out of the log.
+        let now = Date()
+        if refused, let last = entries.first, last.wasRefused, last.scope == scope, last.client == client,
+           now.timeIntervalSince(last.date) < Self.repeatWindow {
+            entries[0].times = (last.times ?? 1) + 1
+            entries[0].date = now
+            entries[0].tool = tool
+            Self.save(entries)
+            return
+        }
         entries.insert(Entry(tool: tool, scope: scope, items: items, characters: characters, client: client,
                              refused: refused ? true : nil), at: 0)
         if entries.count > 200 { entries.removeLast(entries.count - 200) }

@@ -1422,6 +1422,22 @@
         }
       }
     },
+    "%lld gånger": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld times"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld gånger"
+          }
+        }
+      }
+    },
     "%lld i rummet": {
       "localizations": {
         "en": {

@@ -294,13 +294,15 @@ struct ClaudeSettingsCard: View {
 
 /// One log entry in words: "I dag 15:02 · Claude sökte i Klang, 4 träffar", and with
 /// `detailed` the size too: "… · 3 000 tecken skickade".
-/// Refused: "I dag 15:02 · Claude · nekad: hela texten".
+/// Refused: "I dag 15:02 · Claude · nekad: hela texten", and when it came again and
+/// again: "… · nekad: avstängt · 12 gånger".
 enum ClaudeLogLine {
     static func text(for entry: ClaudeSharing.Entry, detailed: Bool = true) -> String {
         var parts = [MeetingRecord.when(entry.date)]
         if entry.wasRefused {
             if let client = entry.client { parts.append(client) }
             parts.append(entry.scope)
+            if let times = entry.times, times > 1 { parts.append(String(localized: "\(times) gånger")) }
             return parts.joined(separator: " · ")
         }
         parts.append(byClient(action(entry), entry.client))

@@ -316,9 +316,12 @@ enum BridgeTest {
         check("loggen: den som frågar är namngiven (den här processen)", answered.allSatisfy { $0.client == "Mindtalk" },
               Set(answered.map { $0.client ?? "okänd" }).joined(separator: ", "))
         let refusals = [String(localized: "nekad: okänt möte"), String(localized: "nekad: okänd mapp")]
-        check("loggen: nekade anrop skrivs utan id, med 0 tecken", refused.count == refusedCalls && refused.allSatisfy {
+        // The same refusal in a row is one line that counts.
+        check("loggen: nekade anrop skrivs utan id, med 0 tecken", refused.reduce(0) { $0 + ($1.times ?? 1) } == refusedCalls && refused.allSatisfy {
             $0.items == 0 && $0.characters == 0 && refusals.contains($0.scope)
-        }, "\(refusedCalls) nekade: " + refused.map(\.scope).joined(separator: ", "))
+        }, "\(refusedCalls) nekade: " + refused.map { "\($0.scope) ×\($0.times ?? 1)" }.joined(separator: ", "))
+        check("loggen: tre nekanden i rad av samma slag är ett inlägg", refused.contains { $0.times == 3 },
+              refused.map { "\($0.scope) ×\($0.times ?? 1)" }.joined(separator: ", "))
         let before = logged.count
         _ = await call("mindtalk_get_meeting", ["meeting_id": m5])
         check("loggen: ett nekat möte skrivs som nekad: okänt möte",
@@ -344,7 +347,10 @@ enum BridgeTest {
             check("avstängt: \(tool)", r.error == ClaudeTools.offMessage)
         }
         check("avstängt: loggas som avstängt", sharing.entries.first?.scope == String(localized: "nekad: avstängt") && sharing.entries.first?.items == 0)
-        check("avstängt: sju nekanden i loggen", sharing.entries.prefix(7).allSatisfy { $0.wasRefused && $0.scope == String(localized: "nekad: avstängt") })
+        check("avstängt: sju nekanden i rad är ett inlägg, sju gånger", sharing.entries.first?.times == 7
+              && !(sharing.entries.dropFirst().first?.scope == String(localized: "nekad: avstängt")),
+              "\(sharing.entries.first?.times ?? 1) gånger")
+        check("avstängt: raden säger hur många gånger", ClaudeLogLine.text(for: sharing.entries[0]).hasSuffix(String(localized: "\(7) gånger")))
         sharing.enabled = true
         r = await call("mindtalk_nothing")
         check("okänt verktyg: fel", r.error?.hasPrefix("Unknown tool") == true)
