@@ -17,30 +17,39 @@ import Foundation
 // The test refuses a folder that isn't empty rather than guess.
 
 enum BridgeTest {
-    @MainActor static func run() async -> Int32 {
+    /// The made-up store, written and read, with the bridge listening at `socket`:
+    /// shared by the bridge test and the CLI test. nil, with the reason printed, when
+    /// the folder isn't a new, empty one.
+    struct Setup {
+        let fixture: Fixture
+        let socket: URL
+        let sharing: ClaudeSharing
+    }
+
+    @MainActor static func prepare() async -> Setup? {
         // Line by line as it happens, also into a pipe: `--serve` prints before it waits.
         setvbuf(stdout, nil, _IOLBF, 0)
         let args = CommandLine.arguments
         guard let i = args.firstIndex(of: "--models-dir"), i + 1 < args.count else {
             print("Kör med --models-dir <tom mapp>/models: butiken skrivs bredvid den, aldrig i din egen.")
-            return 2
+            return nil
         }
         let models = URL(fileURLWithPath: args[i + 1])
         let root = models.deletingLastPathComponent()
-        guard MeetingStore.root.path.hasPrefix(root.path) else { print("FEL  butiken pekar inte på \(root.path)"); return 2 }
+        guard MeetingStore.root.path.hasPrefix(root.path) else { print("FEL  butiken pekar inte på \(root.path)"); return nil }
         // Never your own folder, and nothing from before: a store left by an earlier
         // run (or one running right now in the same folder) would be read in too.
         let own = Bridge.supportFolder.standardizedFileURL.path
         let here = root.standardizedFileURL.path
         guard here != own, !here.hasPrefix(own + "/") else {
             print("FEL  --models-dir pekar in i din egen mapp (\(own)). Använd en ny, tom mapp: mktemp -d /tmp/mt.XXXX")
-            return 2
+            return nil
         }
         let leftovers = ((try? FileManager.default.contentsOfDirectory(atPath: root.path)) ?? [])
             .filter { $0 != models.lastPathComponent && !$0.hasPrefix(".") }
         guard leftovers.isEmpty else {
             print("FEL  mappen \(root.path) är inte tom (\(leftovers.joined(separator: ", "))). Varje körning behöver en ny, tom mapp: mktemp -d /tmp/mt.XXXX")
-            return 2
+            return nil
         }
         let fixture = Fixture.write(to: root)
 
@@ -49,13 +58,21 @@ enum BridgeTest {
         let store = MeetingStore.shared
         store.loadNow()
         await store.ready()
-        let folders = MeetingFolders.shared
-        let thoughts = Thoughts.shared
         let sharing = ClaudeSharing.shared
         sharing.preview(enabled: true, level: .everything, entries: [])
         sharing.excludedFolders = [fixture.folderB]
         let socket = root.appendingPathComponent("mcp.sock")
         Bridge.shared.start(at: socket)
+        return Setup(fixture: fixture, socket: socket, sharing: sharing)
+    }
+
+    @MainActor static func run() async -> Int32 {
+        guard let setup = await prepare() else { return 2 }
+        let args = CommandLine.arguments
+        let fixture = setup.fixture, socket = setup.socket, sharing = setup.sharing
+        let store = MeetingStore.shared
+        let folders = MeetingFolders.shared
+        let thoughts = Thoughts.shared
 
         var failed = 0
         func check(_ what: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
@@ -303,6 +320,163 @@ enum BridgeTest {
             print("Bryggan är kvar: MINDTALK_SOCKET=\(socket.path) mindtalk mcp")
             while true { try? await Task.sleep(for: .seconds(60)) }
         }
+        return failed == 0 ? 0 : 1
+    }
+
+    // MARK: `Mindtalk --cli-test --models-dir <empty folder>/models`
+
+    /// The helper's commands (`mindtalk meetings`, `search` and the rest), run as
+    /// processes against the test bridge (MINDTALK_SOCKET), as text and as --json:
+    /// the exit codes, and that something came back. The helper is the one in this
+    /// build's bundle.
+    @MainActor static func runCLI() async -> Int32 {
+        guard let setup = await prepare() else { return 2 }
+        let fixture = setup.fixture, sharing = setup.sharing
+        let helper = Bridge.bundledHelperURL
+        guard FileManager.default.isExecutableFile(atPath: helper.path) else {
+            print("FEL  ingen hjälpare i bygget: \(helper.path)")
+            return 2
+        }
+        var failed = 0
+        func check(_ what: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
+            let more = ok ? "" : detail()
+            print((ok ? "OK   " : "FEL  ") + what + (more.isEmpty ? "" : "  (\(more))"))
+            if !ok { failed += 1 }
+        }
+        struct Run { let status: Int32; let out: String; let err: String }
+        /// Off the main thread: the bridge answers on it.
+        func mindtalk(_ args: String..., socket: String = setup.socket.path) async -> Run {
+            await Task.detached {
+                let p = Process()
+                p.executableURL = helper
+                p.arguments = args
+                var env = ProcessInfo.processInfo.environment
+                env["MINDTALK_SOCKET"] = socket
+                p.environment = env
+                let out = Pipe(), err = Pipe()
+                p.standardOutput = out
+                p.standardError = err
+                do { try p.run() } catch { return Run(status: -1, out: "", err: error.localizedDescription) }
+                let o = out.fileHandleForReading.readDataToEndOfFile()
+                let e = err.fileHandleForReading.readDataToEndOfFile()
+                p.waitUntilExit()
+                return Run(status: p.terminationStatus, out: String(decoding: o, as: UTF8.self), err: String(decoding: e, as: UTF8.self))
+            }.value
+        }
+        func json(_ run: Run) -> [String: Any]? {
+            (try? JSONSerialization.jsonObject(with: Data(run.out.utf8))) as? [String: Any]
+        }
+        func line(_ run: Run) -> String { run.out.split(separator: "\n").first.map(String.init) ?? "" }
+        let m1 = fixture.meeting1.uuidString
+
+        var r = await mindtalk("--help")
+        check("--help: 0, lists the commands", r.status == 0 && r.out.contains("mindtalk search") && r.out.contains("--json"), "\(r.status) \(r.err)")
+        r = await mindtalk("meetings", "--help")
+        check("meetings --help: 0", r.status == 0 && r.out.contains("--folder"), "\(r.status)")
+        r = await mindtalk("nonsense")
+        check("okänt kommando: 2", r.status == 2, "\(r.status)")
+        r = await mindtalk("meetings", "--nonsense")
+        check("okänd flagga: 2", r.status == 2 && r.err.contains("Unknown option"), "\(r.status) \(r.err)")
+        r = await mindtalk("meeting")
+        check("meeting utan id: 2", r.status == 2, "\(r.status)")
+
+        r = await mindtalk("folders")
+        check("folders: Kunder, aldrig Privat", r.status == 0 && r.out.contains("Kunder") && !r.out.contains("Privat") && r.out.contains("Meetings without folder: 1"), "\(r.status) \(r.out) \(r.err)")
+        r = await mindtalk("folders", "--json")
+        check("folders --json: folders-listan", (json(r)?["folders"] as? [[String: Any]])?.count == 1, r.out)
+
+        r = await mindtalk("meetings")
+        check("meetings: tre rader, Budgetmöte med mapp och id", r.status == 0 && r.out.split(separator: "\n").count == 3
+              && r.out.contains("Budgetmöte  [Kunder]  \(m1)") && r.out.contains("1 h"), "\(r.status) \(r.out) \(r.err)")
+        r = await mindtalk("meetings", "--json")
+        check("meetings --json: tre möten", (json(r)?["meetings"] as? [[String: Any]])?.count == 3, r.out)
+        r = await mindtalk("meetings", "--folder", "kunder")
+        check("meetings --folder med namn: två", r.status == 0 && r.out.split(separator: "\n").count == 2, "\(r.status) \(r.out) \(r.err)")
+        r = await mindtalk("meetings", "--folder", fixture.folderA.uuidString, "--limit", "1")
+        check("meetings --folder med id, --limit 1: en rad och en rad om fler", r.status == 0 && r.out.contains("More than shown"), "\(r.status) \(r.out)")
+        r = await mindtalk("meetings", "--folder", "Privat")
+        check("meetings --folder Privat: 1, nämner mapparna", r.status == 1 && r.err.contains("No shared folder") && r.err.contains("Kunder"), "\(r.status) \(r.err)")
+        r = await mindtalk("meetings", "--query", "budget", "2027")
+        check("meetings --query med två ord: Budgetmöte", r.status == 0 && line(r).contains("Budgetmöte"), "\(r.status) \(r.out)")
+        r = await mindtalk("meetings", "--from", "2026-10-10", "--to", "2026-10-12")
+        check("meetings --from --to: Kort avstämning", r.status == 0 && r.out.split(separator: "\n").count == 1 && r.out.contains("Kort avstämning"), "\(r.status) \(r.out)")
+        r = await mindtalk("meetings", "--from", "igår")
+        check("meetings med fel datum: 1", r.status == 1 && r.err.contains("Invalid from"), "\(r.status) \(r.err)")
+        r = await mindtalk("meetings", "--limit", "x")
+        check("meetings --limit x: 2", r.status == 2, "\(r.status)")
+
+        r = await mindtalk("meeting", m1)
+        check("meeting: rubrik, sammanfattning, beslut, uppgifter, anteckningar", r.status == 0 && r.out.contains("Budgetmöte") && r.out.contains(fixture.overview)
+              && r.out.contains("Decisions") && r.out.contains("[ ] Kontakta leverantören (Anna) · 5:00") && r.out.contains("[x] Uppdatera budgeten (Erik)")
+              && r.out.contains("Notes") && r.out.contains("Marks"), "\(r.status) \(r.out) \(r.err)")
+        r = await mindtalk("meeting", m1, "--summary")
+        check("meeting --summary: ingen uppgiftslista", r.status == 0 && r.out.contains(fixture.overview) && !r.out.contains("Tasks"), r.out)
+        r = await mindtalk("meeting", m1, "--tasks", "--json")
+        check("meeting --tasks --json: bara tasks", (json(r)?["tasks"] as? [[String: Any]])?.count == 2 && json(r)?["decisions"] == nil, r.out)
+        r = await mindtalk("meeting", m1, "--notes")
+        check("meeting --notes: anteckningar och markeringar", r.status == 0 && r.out.contains("Fråga om rabatten") && r.out.contains("decision: Vi kör på Klang"), r.out)
+        r = await mindtalk("meeting", m1, "--text")
+        check("meeting --text: alla sidor, raderna [mm:ss] Talare", r.status == 0 && r.out.contains("[0:00] Anna: ") && r.out.contains(Fixture.injection)
+              && r.out.count > ClaudeTools.transcriptPage, "\(r.status) \(r.out.count) tecken \(r.err)")
+        r = await mindtalk("meeting", m1, "--text", "--json")
+        check("meeting --text --json: segmenten ihop, ingen cursor", ((json(r)?["segments"] as? [String])?.count ?? 0) > 100 && json(r)?["nextCursor"] == nil, String(r.out.prefix(200)))
+        r = await mindtalk("meeting", m1, "--summary", "--text")
+        check("meeting med två delar: 2", r.status == 2, "\(r.status)")
+        r = await mindtalk("meeting", UUID().uuidString)
+        check("meeting med okänt id: 1, No such meeting", r.status == 1 && r.err.contains("No such meeting"), "\(r.status) \(r.err)")
+        r = await mindtalk("meeting", fixture.meeting3.uuidString)
+        check("meeting i Privat: 1, No such meeting", r.status == 1 && r.err.contains("No such meeting"), "\(r.status) \(r.err)")
+
+        r = await mindtalk("search", "budget")
+        check("search: träffar i tanke, sammanfattning och text, med länk", r.status == 0 && r.out.contains("thought") && r.out.contains("summary/")
+              && r.out.contains("transcript  Budgetmöte · ") && r.out.contains("mindtalk://meeting/"), "\(r.status) \(r.out) \(r.err)")
+        r = await mindtalk("search", "budget", "--json")
+        check("search --json: hits", ((json(r)?["hits"] as? [[String: Any]])?.count ?? 0) > 2, String(r.out.prefix(200)))
+        r = await mindtalk("search", "budget", "--folder", "Kunder", "--meeting", m1, "--limit", "2")
+        check("search --folder --meeting --limit", r.status == 0 && r.out.contains("More hits than shown"), "\(r.status) \(r.out)")
+        r = await mindtalk("search", "hemligt")
+        check("search efter Privats ord: No hits", r.status == 0 && line(r) == "No hits.", "\(r.status) \(r.out)")
+        r = await mindtalk("search")
+        check("search utan ord: 2", r.status == 2, "\(r.status)")
+
+        r = await mindtalk("thoughts")
+        check("thoughts: tre, nyast först, pinned och [x]", r.status == 0 && r.out.split(separator: "\n").count == 3
+              && line(r).contains("[ ] 2026-10-15") && line(r).contains("Ring Klang om budgeten  · pinned") && r.out.contains("[x] 2026-10-01"), "\(r.status) \(r.out) \(r.err)")
+        r = await mindtalk("thoughts", "--json")
+        check("thoughts --json: tre", (json(r)?["thoughts"] as? [[String: Any]])?.count == 3, r.out)
+        r = await mindtalk("thoughts", "--query", "klang")
+        check("thoughts --query: en", r.status == 0 && r.out.split(separator: "\n").count == 1, r.out)
+        r = await mindtalk("thoughts", "--today")
+        check("thoughts --today: inga (alla är äldre)", r.status == 0 && line(r) == "No thoughts.", "\(r.status) \(r.out)")
+
+        r = await mindtalk("tasks")
+        check("tasks: tre öppna, med möte och tid", r.status == 0 && r.out.split(separator: "\n").count == 3
+              && r.out.contains("[ ] Kontakta leverantören (Anna) · Budgetmöte 2026-10-14 · 5:00") && r.out.contains("[ ] Boka möte med Klang · Kort avstämning"), "\(r.status) \(r.out) \(r.err)")
+        r = await mindtalk("tasks", "--done")
+        check("tasks --done: en, [x]", r.status == 0 && r.out.split(separator: "\n").count == 1 && line(r).hasPrefix("[x] Uppdatera budgeten (Erik)"), "\(r.status) \(r.out)")
+        r = await mindtalk("tasks", "--done", "--json")
+        check("tasks --done --json: en", (json(r)?["tasks"] as? [[String: Any]])?.count == 1, r.out)
+        r = await mindtalk("tasks", "--all", "--owner", "anna", "--folder", "Kunder")
+        check("tasks --all --owner --folder: två", r.status == 0 && r.out.split(separator: "\n").count == 2, "\(r.status) \(r.out)")
+        r = await mindtalk("tasks", "--open", "--done")
+        check("tasks med två lägen: 2", r.status == 2, "\(r.status)")
+
+        // The log saw every call, from this process (the helper is ours, so its parent is named).
+        let answered = sharing.entries.filter { !$0.wasRefused }
+        check("loggen: anropen är där, med den som frågade", answered.count > 20 && answered.allSatisfy { $0.client == "Mindtalk" },
+              "\(answered.count) besvarade, " + Set(answered.map { $0.client ?? "okänd" }).joined(separator: ", "))
+
+        // Off: 3, with the app's own words. Unreachable: 3 too.
+        sharing.enabled = false
+        r = await mindtalk("meetings")
+        check("avstängt: 3 med appens ord", r.status == 3 && r.err.contains("MCP is switched off"), "\(r.status) \(r.err)")
+        r = await mindtalk("thoughts", "--json")
+        check("avstängt, --json: 3, inget på stdout", r.status == 3 && r.out.isEmpty, "\(r.status) \(r.out)")
+        sharing.enabled = true
+        r = await mindtalk("meetings", socket: setup.socket.deletingLastPathComponent().appendingPathComponent("none.sock").path)
+        check("ingen app: 3", r.status == 3 && r.err.contains("could not be reached"), "\(r.status) \(r.err)")
+
+        print(failed == 0 ? "CLI self-test passed." : "\(failed) fel")
         return failed == 0 ? 0 : 1
     }
 

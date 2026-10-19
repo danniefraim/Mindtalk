@@ -7,10 +7,12 @@ import os
 // A small command-line tool inside the app (Contents/Helpers/mindtalk), reached
 // through the fixed path ~/Library/Application Support/Mindtalk/bin/mindtalk.
 // `mindtalk mcp` is an MCP server over stdio, built with the official Swift SDK, for
-// Claude, ChatGPT and any other app that speaks MCP. It holds no data and reads no
-// files: every tool call is sent to the running app over its local socket
-// (BridgeClient), and the app decides what may be answered. Not running, the app is
-// opened in the background first.
+// Claude, ChatGPT and any other app that speaks MCP. `mindtalk meetings`, `search`,
+// `thoughts`, `tasks` and the rest (Commands.swift) are the same tools for the
+// Terminal, for you and for scripts and agents. It holds no data and reads no files:
+// every call is sent to the running app over its local socket (BridgeClient), and
+// the app decides what may be answered. Not running, the app is opened in the
+// background first.
 //
 // No SwiftUI, no app code: the binary stays small and starts at once.
 
@@ -44,15 +46,9 @@ let instructions = """
     is outside that.
     """
 
-func usage() {
-    print("""
-    mindtalk \(HelperInfo.version)
-      mindtalk mcp         start the MCP server (stdio) for Claude, ChatGPT and other MCP apps
-      mindtalk --version   print the version
-    """)
-}
-
 switch CommandLine.arguments.dropFirst().first {
+case let name? where Commands.names.contains(name):
+    exit(await Commands.run(Array(CommandLine.arguments.dropFirst())))
 case "mcp":
     let server = Server(name: "Mindtalk", version: HelperInfo.version, instructions: instructions,
                         capabilities: .init(tools: .init(listChanged: false)))
@@ -89,8 +85,8 @@ case "mcp":
 case "--version", "-v", "version":
     print(HelperInfo.version)
 case nil, "--help", "-h", "help":
-    usage()
+    print(Commands.summary)
 default:
-    usage()
-    exit(64)
+    print(Commands.summary)
+    exit(2)
 }

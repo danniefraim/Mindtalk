@@ -26,6 +26,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             RunLoop.main.run()
             return
         }
+        // `Mindtalk --cli-test --models-dir <empty folder>`: the helper's commands
+        // (`mindtalk meetings` and the rest) as processes against that bridge.
+        if args.contains("--cli-test") {
+            Task { exit(await BridgeTest.runCLI()) }
+            RunLoop.main.run()
+            return
+        }
         // Synthetic keyboard events only; no event tap, permissions or app UI.
         if args.contains("--hotkey-test") {
             Task { exit(await HotkeySelfTest.run()) }
