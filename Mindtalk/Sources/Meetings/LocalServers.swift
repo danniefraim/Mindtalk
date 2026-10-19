@@ -683,8 +683,9 @@ final class LocalServers: ObservableObject {
     fileprivate var testJob: UUID?
     func noteTestJob(_ id: UUID) { testJob = id }
 
+    /// Both at once: one by one, ports given each other's numbers would collide on the way.
     func resetPorts() {
-        for b in ServerBackend.allCases { ports[b] = b.defaultPort }
+        ports = Dictionary(uniqueKeysWithValues: ServerBackend.allCases.map { ($0, $0.defaultPort) })
         portNote = nil
     }
 
