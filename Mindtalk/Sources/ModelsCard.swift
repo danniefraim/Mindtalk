@@ -616,7 +616,6 @@ struct ServerWriterRows: View {
                      : "Valfritt. För dig som redan kör Ollama eller LM Studio.")
                     .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                     .fixedSize(horizontal: false, vertical: true)
-                if let test = servers.test { testView(test) }
                 // A plain disclosure group only opens on its chevron: here the word opens it too.
                 Button { withAnimation(.easeOut(duration: 0.2)) { advanced.toggle() } } label: {
                     HStack(spacing: 5) {
@@ -719,6 +718,8 @@ struct ServerWriterRows: View {
                         .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // What Testa gave, under the row that was tested.
+                if let test = servers.test, test.backend == backend { testView(test).padding(.top, 4) }
             }
         } trailing: {
             switch state {
