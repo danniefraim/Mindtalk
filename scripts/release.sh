@@ -16,7 +16,7 @@ TEAM_ID=679J7H9973
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD="$ROOT/build/release"
 DIST="$ROOT/dist"
-VERSION=$(grep -m1 'MARKETING_VERSION:' "$ROOT/project.yml" | sed 's/.*: *//')
+VERSION=$(grep -m1 'MARKETING_VERSION:' "$ROOT/project.yml" | sed 's/.*: *//; s/"//g')
 BUILD_NUMBER=$(grep -m1 'CURRENT_PROJECT_VERSION:' "$ROOT/project.yml" | sed 's/.*: *//')
 DMG="$DIST/$APP-$VERSION.dmg"
 
