@@ -2554,6 +2554,22 @@
         }
       }
     },
+    "Alla andra program": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All other apps"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alla andra program"
+          }
+        }
+      }
+    },
     "Alla här?": {
       "localizations": {
         "en": {
@@ -2900,6 +2916,22 @@
         }
       }
     },
+    "Allt stannar på Macen tills du frågar. Varje läsning syns i loggen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everything stays on your Mac until you ask. Every reading shows in the log."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allt stannar på Macen tills du frågar. Varje läsning syns i loggen."
+          }
+        }
+      }
+    },
     "Allt, även hela texten från mötena": {
       "extractionState": "stale",
       "localizations": {
@@ -2945,6 +2977,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Alltid"
+          }
+        }
+      }
+    },
+    "Andra program": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other apps"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Andra program"
           }
         }
       }
@@ -4681,6 +4729,38 @@
         }
       }
     },
+    "Claude öppnas och frågar om du vill lägga till Mindtalk. Svara ja.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude opens and asks whether to add Mindtalk. Say yes."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude öppnas och frågar om du vill lägga till Mindtalk. Svara ja."
+          }
+        }
+      }
+    },
+    "Claude-appen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude app"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude-appen"
+          }
+        }
+      }
+    },
     "Claude-appen hittades inte.": {
       "localizations": {
         "en": {
@@ -4732,6 +4812,7 @@
       }
     },
     "Claude-appen öppnas och frågar om du vill lägga till Mindtalk.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5530,6 +5611,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Det finns redan en mapp som heter så. Den nya får en siffra efter namnet."
+          }
+        }
+      }
+    },
+    "Det fungerar i Codex-delen av ChatGPT, inte i den vanliga chatten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It works in the Codex part of ChatGPT, not in the regular chat."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det fungerar i Codex-delen av ChatGPT, inte i den vanliga chatten."
           }
         }
       }
@@ -6822,6 +6919,38 @@
         }
       }
     },
+    "Eller i ChatGPT-appen: Inställningar → MCP servers → Add server, välj STDIO, kommandot %@ och argumentet mcp.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Or in the ChatGPT app: Settings → MCP servers → Add server, choose STDIO, the command %@ and the argument mcp."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eller i ChatGPT-appen: Inställningar → MCP servers → Add server, välj STDIO, kommandot %@ och argumentet mcp."
+          }
+        }
+      }
+    },
+    "Eller lägg in inställningen i ~/.cursor/mcp.json.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Or add the setting to ~/.cursor/mcp.json."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eller lägg in inställningen i ~/.cursor/mcp.json."
+          }
+        }
+      }
+    },
     "Eller skriv en tanke och tryck på retur": {
       "localizations": {
         "en": {
@@ -7324,6 +7453,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fel talare? Flytta till…"
+          }
+        }
+      }
+    },
+    "Felsökning": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Troubleshooting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Felsökning"
           }
         }
       }
@@ -7925,6 +8070,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fråga"
+          }
+        }
+      }
+    },
+    "Fråga Claude om dina möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask Claude about your meetings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fråga Claude om dina möten."
           }
         }
       }
@@ -9695,6 +9856,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hur du dikterar"
+          }
+        }
+      }
+    },
+    "Hur du kopplar Mindtalk till varje program.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How to connect Mindtalk to each app."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hur du kopplar Mindtalk till varje program."
           }
         }
       }
@@ -12418,6 +12595,22 @@
         }
       }
     },
+    "Inte under Pluginer, där går bara servrar på internet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not under Plugins, which only take servers on the internet."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inte under Pluginer, där går bara servrar på internet."
+          }
+        }
+      }
+    },
     "Integrationer": {
       "extractionState": "stale",
       "localizations": {
@@ -13076,6 +13269,7 @@
       }
     },
     "Klistra in i Terminalen, så kan ChatGPT:s Codex använda Mindtalk. Eller i ChatGPT-appen: Inställningar → MCP servers → Add server, välj STDIO. Inte under Pluginer, där går bara servrar på internet.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13108,6 +13302,7 @@
       }
     },
     "Klistra in i Terminalen. Gäller ChatGPT:s Codex-läge. I ChatGPT-appen: Inställningar → MCP servers → Add server, typ STDIO.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13140,6 +13335,7 @@
       }
     },
     "Klistra in i programmets MCP-inställningar.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13347,6 +13543,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kommer du på något mitt i något annat? Säg det, så hamnar det i Tankar, inte i texten."
+          }
+        }
+      }
+    },
+    "Kontrollera att MCP är på här, och starta om programmet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check that MCP is on here, and restart the app."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kontrollera att MCP är på här, och starta om programmet."
           }
         }
       }
@@ -13596,6 +13808,38 @@
         }
       }
     },
+    "Kopierar kommandot som lägger till Mindtalk i ChatGPT:s Codex.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copies the command that adds Mindtalk to ChatGPT’s Codex."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopierar kommandot som lägger till Mindtalk i ChatGPT:s Codex."
+          }
+        }
+      }
+    },
+    "Kopierar kommandot som lägger till Mindtalk i Gemini CLI.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copies the command that adds Mindtalk to Gemini CLI."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopierar kommandot som lägger till Mindtalk i Gemini CLI."
+          }
+        }
+      }
+    },
     "Kopierat": {
       "extractionState": "manual",
       "localizations": {
@@ -13613,8 +13857,23 @@
         }
       }
     },
+    "Kopierat. Klistra in i Terminalen, så kan ChatGPT:s Codex använda Mindtalk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copied. Paste it into Terminal, and ChatGPT’s Codex can use Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopierat. Klistra in i Terminalen, så kan ChatGPT:s Codex använda Mindtalk."
+          }
+        }
+      }
+    },
     "Kopierat. Klistra in i Terminalen.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13647,7 +13906,24 @@
         }
       }
     },
+    "Koppla Mindtalk till din AI-assistent": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect Mindtalk to your AI assistant"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Koppla Mindtalk till din AI-assistent"
+          }
+        }
+      }
+    },
     "Koppla ett program": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15951,6 +16227,38 @@
         }
       }
     },
+    "Lägg till den i programmets MCP-inställningar, som en lokal server (STDIO).": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add it to the app’s MCP settings as a local server (STDIO)."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg till den i programmets MCP-inställningar, som en lokal server (STDIO)."
+          }
+        }
+      }
+    },
+    "Lägg till den som en lokal server (STDIO) i programmets MCP-inställningar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add it as a local server (STDIO) in the app’s MCP settings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg till den som en lokal server (STDIO) i programmets MCP-inställningar."
+          }
+        }
+      }
+    },
     "Lägg till ditt första ord": {
       "extractionState": "stale",
       "localizations": {
@@ -16512,6 +16820,7 @@
       }
     },
     "Låt din AI-assistent läsa dina möten och tankar på den här Macen. Inget delas förrän du slår på, och varje läsning syns i loggen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -16605,6 +16914,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "MCP är ett öppet sätt för AI-program att läsa dina möten och tankar. Du väljer vilket program: Claude och ChatGPT på Macen, eller andra som stöder MCP."
+          }
+        }
+      }
+    },
+    "MCP är ett öppet sätt för AI-program att läsa dina möten och tankar. Mindtalk kör en liten server på din Mac som programmet startar själv. Det fungerar i program på Macen, inte på webben eller i mobilen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP is an open way for AI apps to read your meetings and thoughts. Mindtalk runs a small server on your Mac that the app starts by itself. It works in apps on your Mac, not on the web or on your phone."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP är ett öppet sätt för AI-program att läsa dina möten och tankar. Mindtalk kör en liten server på din Mac som programmet startar själv. Det fungerar i program på Macen, inte på webben eller i mobilen."
           }
         }
       }
@@ -20604,6 +20929,7 @@
       }
     },
     "Program": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -20615,6 +20941,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Program"
+          }
+        }
+      }
+    },
+    "Programmet säger att Mindtalk inte kör?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app says Mindtalk isn’t running?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Programmet säger att Mindtalk inte kör?"
           }
         }
       }
@@ -22290,6 +22632,22 @@
         }
       }
     },
+    "Skapar ett tillägg och öppnar det i Claude-appen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creates an extension and opens it in the Claude app."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skapar ett tillägg och öppnar det i Claude-appen."
+          }
+        }
+      }
+    },
     "Skicka frågan": {
       "localizations": {
         "en": {
@@ -22318,6 +22676,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skicka frågan (↩)"
+          }
+        }
+      }
+    },
+    "Skriv /mcp i Claude Code för att se att Mindtalk är kopplat.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type /mcp in Claude Code to see that Mindtalk is connected."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriv /mcp i Claude Code för att se att Mindtalk är kopplat."
           }
         }
       }
@@ -23075,6 +23449,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Släpp så skrivs den ned"
+          }
+        }
+      }
+    },
+    "Slå av MCP här. Inget kan läsas från den stunden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn MCP off here. Nothing can be read from that moment on."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slå av MCP här. Inget kan läsas från den stunden."
           }
         }
       }
@@ -24245,6 +24635,7 @@
       }
     },
     "Starta om programmet efteråt.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -24256,6 +24647,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Starta om programmet efteråt."
+          }
+        }
+      }
+    },
+    "Starta om programmet och fråga om dina möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart the app and ask about your meetings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starta om programmet och fråga om dina möten."
           }
         }
       }
@@ -24728,6 +25135,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Svenska"
+          }
+        }
+      }
+    },
+    "Syns inget i loggen?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing in the log?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Syns inget i loggen?"
           }
         }
       }
@@ -25858,6 +26281,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ta bort…"
+          }
+        }
+      }
+    },
+    "Ta med dina möten till din AI-assistent": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bring your meetings to your AI assistant"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta med dina möten till din AI-assistent"
           }
         }
       }
@@ -27561,6 +28000,22 @@
         }
       }
     },
+    "Tryck Lägg till i Claude.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press Add to Claude."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck Lägg till i Claude."
+          }
+        }
+      }
+    },
     "Tryck en gång för att börja, en gång till för att klistra in.": {
       "extractionState": "stale",
       "localizations": {
@@ -28804,6 +29259,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vilket språk pratar du?"
+          }
+        }
+      }
+    },
+    "Vill du stänga av?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Want to turn it off?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vill du stänga av?"
           }
         }
       }
@@ -31315,6 +31786,38 @@
         }
       }
     },
+    "steg|Kopiera inställningen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy the setting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopiera inställningen"
+          }
+        }
+      }
+    },
+    "steg|Kopiera kommandot": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy the command"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopiera kommandot"
+          }
+        }
+      }
+    },
     "step|Säg en tanke": {
       "localizations": {
         "en": {
@@ -32099,6 +32602,22 @@
         }
       }
     },
+    "Öppna Mindtalk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna Mindtalk."
+          }
+        }
+      }
+    },
     "Öppna Mindtalk…": {
       "extractionState": "stale",
       "localizations": {
@@ -32275,6 +32794,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna mötet där det sades"
+          }
+        }
+      }
+    },
+    "Öppnar Cursor, som frågar om du vill lägga till Mindtalk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens Cursor, which asks whether to add Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppnar Cursor, som frågar om du vill lägga till Mindtalk."
           }
         }
       }
