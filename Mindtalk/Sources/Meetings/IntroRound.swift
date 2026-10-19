@@ -42,21 +42,14 @@ final class IntroRound: ObservableObject {
         var print: [Float]?
         let figure: VoiceFigure
         let colour: Int
-        /// How their voice rose and fell this turn (IntroRound.levels): the signature
-        /// is drawn from it until there is a print.
-        var levels: [Float] = []
     }
 
     @Published private(set) var turn = 1
     @Published private(set) var phase: Phase = .ready
     /// The ring: how much of the speech needed has been heard (0…1).
     @Published private(set) var progress: Double = 0
-    /// This turn's voice as it is heard: a level (0…1) per 20 ms of speech, one for each
-    /// step of `progress` — the signature forms from them beside the cloud until there
-    /// is a print to draw it from.
-    @Published private(set) var levels: [Float] = []
     /// A print of this turn so far, the moment a comparison has made one (from a second
-    /// and a half of speech): the forming signature is drawn from it from then on.
+    /// and a half of speech). From then on the cloud has a figure to fall into.
     @Published private(set) var formingPrint: [Float]?
     @Published private(set) var captures: [Capture] = [] {
         didSet { if captures.count > oldValue.count { thankedAt = Date(); quietTurns = 0 } }
@@ -65,7 +58,9 @@ final class IntroRound: ObservableObject {
     @Published private(set) var thankedAt: Date?
     /// Turns in a row where only people already here spoke: the meeting has begun.
     private var quietTurns = 0
-    /// The figure the cloud falls into, once there is a voice.
+    /// The figure the cloud falls into: from the first print of the turn (a second and
+    /// a half in) a provisional one, which the cloud forms into as the ring fills; a
+    /// known voice's own the moment it is recognised.
     @Published private(set) var figure: VoiceFigure?
     /// Nothing heard for a while in this turn.
     @Published private(set) var quiet = false
@@ -103,8 +98,6 @@ final class IntroRound: ObservableObject {
     private static let rate = 16_000.0
     private static let frame = 320                  // 20 ms
     private static let needed = 3.0                 // seconds of speech for a full ring
-    /// Levels in a full ring (`levels` at progress 1): the speech needed, in 20 ms frames.
-    static let levelsInRing = Int(needed / 0.02)
 
     init(session: MeetingSession) {
         self.session = session
@@ -149,7 +142,6 @@ final class IntroRound: ObservableObject {
         knownMatch = nil
         candidate = nil
         progress = 0
-        levels = []
         quiet = false
         figure = nil
         draft = ""
@@ -197,7 +189,7 @@ final class IntroRound: ObservableObject {
         let colour = captures.count
         let fig = figure ?? VoiceFigure.from(seed: "\(name)-\(colour)")
         captures.append(Capture(name: name, known: false, score: nil, from: seconds(speechStart ?? turnStart),
-                                to: seconds(cursor), print: turnPrint, figure: fig, colour: colour, levels: levels))
+                                to: seconds(cursor), print: turnPrint, figure: fig, colour: colour))
         VoiceMemory.shared.reserve(fig, for: name)
         Self.log.notice("round: turn \(self.turn) named after \(Int(Date().timeIntervalSince(self.phaseSince))) s")
         turn += 1
@@ -225,7 +217,7 @@ final class IntroRound: ObservableObject {
         let fig = VoiceFigure.remembered(knownMatch.name) ?? VoiceFigure.from(seed: knownMatch.name)
         captures.append(Capture(name: knownMatch.name, known: true, score: knownMatch.score,
                                 from: seconds(speechStart ?? turnStart), to: seconds(cursor),
-                                print: turnPrint, figure: fig, colour: colour, levels: levels))
+                                print: turnPrint, figure: fig, colour: colour))
         turn += 1
         beginTurn()
     }
@@ -251,7 +243,7 @@ final class IntroRound: ObservableObject {
         switch phase {
         case .ready:
             // A moment for the prompt (and the last person's tail) before listening.
-            if since >= 0.8 { speechStart = nil; voiced = 0; silence = 0; levels = []; set(.listening) }
+            if since >= 0.8 { speechStart = nil; voiced = 0; silence = 0; set(.listening) }
         case .listening:
             progress = min(1, voiced / Self.needed)
             quiet = speechStart == nil && Date().timeIntervalSince(lastSpeech) > 7
@@ -266,6 +258,7 @@ final class IntroRound: ObservableObject {
             if voiced >= 2, let v = voice(of: turnWords()),
                let here = captures.first(where: { $0.print == nil && voice(from: $0.from, to: $0.to) == v }) {
                 Self.log.notice("round: turn \(self.turn) is a voice already in the room (live voices)")
+                figure = here.figure
                 set(.same(here.name))
                 return
             }
@@ -275,6 +268,7 @@ final class IntroRound: ObservableObject {
             if let heard = nameInTurn(), settled(on: heard.name) {
                 if let again = captures.first(where: { Self.sameName($0.name, heard.name) }) {
                     Self.log.notice("round: turn \(self.turn) said a name already in the room")
+                    figure = again.figure
                     set(.same(again.name))
                 } else {
                     captureHeard(heard.name, from: heard.from, to: heard.to)
@@ -303,6 +297,7 @@ final class IntroRound: ObservableObject {
             // Someone says the name ("Anna", "det är Anna"): it fills in, and saves itself.
             if !typed, let name = heardName(), settled(on: name) {
                 if let again = captures.first(where: { Self.sameName($0.name, name) }) {
+                    figure = again.figure
                     set(.same(again.name))
                     return
                 }
@@ -333,7 +328,6 @@ final class IntroRound: ObservableObject {
     /// last five seconds): speech 10 dB above it, silence under 6 dB above it.
     private func analyse(_ samples: [Float]) {
         var i = 0
-        var heard: [Float] = []
         while i + Self.frame <= samples.count {
             var sum: Float = 0
             for k in i..<(i + Self.frame) { sum += samples[k] * samples[k] }
@@ -355,14 +349,11 @@ final class IntroRound: ObservableObject {
                 voiced += 0.02
                 silence = 0
                 lastSpeech = Date()
-                // How loud, over the speech threshold: 0 just over it, 1 thirty dB above.
-                heard.append(min(1, max(0, (db - quietest - 6) / 30)))
             } else if speechStart != nil {
                 silence += 0.02
             }
             i += Self.frame
         }
-        if !heard.isEmpty { levels += heard }
     }
 
     /// From a second and a half of speech, twice a second: is it someone you know?
@@ -378,12 +369,17 @@ final class IntroRound: ObservableObject {
         let asking = phase == .new
         guard phase == .listening || asking else { return }
         if !asking { turnPrint = print; formingPrint = print }
-        // The person of the last turn again (talking on, or out of turn).
         // Someone already here, talking on: them again, not a stranger.
         if let previous = alreadyHere(print) {
             Self.log.notice("round: turn \(self.turn) is a voice already in the room")
+            figure = previous.figure
             set(.same(previous.name))
             return
+        }
+        // A voice, and a print of it: the cloud starts to form its figure (the
+        // first one stands for the turn — a known voice's own replaces it below).
+        if !asking, figure == nil {
+            figure = VoiceMemory.shared.figureForNew(print, alsoAvoiding: Set(captures.map(\.figure.rhythm)))
         }
         guard recognitionOn else { return }
         let taken = Set(captures.map(\.name))
@@ -408,6 +404,7 @@ final class IntroRound: ObservableObject {
         guard case .listening = phase, turn == thisTurn, turnStart == thisStart else { return }
         formingPrint = turnPrint
         if let print = turnPrint, let previous = alreadyHere(print) {
+            figure = previous.figure
             set(.same(previous.name))
             return
         }
@@ -418,9 +415,7 @@ final class IntroRound: ObservableObject {
             return
         }
         progress = 1
-        let avoid = Set(captures.map(\.figure.rhythm))
-        figure = turnPrint.map { VoiceMemory.shared.figureForNew($0, alsoAvoiding: avoid) }
-            ?? VoiceFigure.from(seed: "turn-\(turn)-\(session.record?.id.uuidString ?? "")")
+        figure = finalFigure(from: turnPrint) ?? VoiceFigure.from(seed: "turn-\(turn)-\(session.record?.id.uuidString ?? "")")
         // "Jag heter Erik": the name from what was said in this turn.
         let from = seconds(start) - 0.3, to = seconds(cursor) + 0.3
         let said = ((session.record?.words ?? []) + session.pending)
@@ -456,6 +451,17 @@ final class IntroRound: ObservableObject {
         }
         guard recognitionOn, let known = VoiceMemory.shared.match(print, excluding: []) else { return nil }
         return captures.first { Self.sameName($0.name, known.name) }
+    }
+
+    /// The figure a new voice keeps, from the whole turn's print: the one the cloud
+    /// has formed already stays, unless the final print gives the same loop turned a
+    /// little (then that, and the cloud glides over) — the figure never falls apart
+    /// and re-forms the moment a name is settled.
+    private func finalFigure(from print: [Float]?) -> VoiceFigure? {
+        guard let print else { return figure }
+        let final = VoiceMemory.shared.figureForNew(print, alsoAvoiding: Set(captures.map(\.figure.rhythm)))
+        guard let shown = figure else { return final }
+        return shown.rhythm == final.rhythm ? final : shown
     }
 
     /// "Matilda" and "Matilda Berg" are the same person in a round.
@@ -532,11 +538,9 @@ final class IntroRound: ObservableObject {
     private func captureHeard(_ name: String, from: Double, to: Double) {
         let colour = captures.count
         let remembered = VoiceFigure.remembered(name)
-        let avoid = Set(captures.map(\.figure.rhythm))
-        let fig = remembered ?? turnPrint.map { VoiceMemory.shared.figureForNew($0, alsoAvoiding: avoid) }
-            ?? VoiceFigure.from(seed: "\(name)-\(colour)")
+        let fig = remembered ?? finalFigure(from: turnPrint) ?? VoiceFigure.from(seed: "\(name)-\(colour)")
         captures.append(Capture(name: name, known: false, score: nil, from: from, to: to, print: turnPrint,
-                                figure: fig, colour: colour, levels: levels))
+                                figure: fig, colour: colour))
         if remembered == nil { VoiceMemory.shared.reserve(fig, for: name) }
         // Its voice, from what it said this turn (when that was long enough): so someone
         // talking on in the next turn is heard as them, not as a new person.
@@ -652,42 +656,40 @@ final class IntroRound: ObservableObject {
 
     #if DEBUG
     /// Screenshots: the moment a name is settled, held still (`--demo-phase reveal`):
-    /// the name, whether the voice was known, and the print its signature is drawn from.
-    private(set) var demoReveal: (name: String, known: Bool, print: [Float])?
+    /// the name, and whether the voice was known.
+    private(set) var demoReveal: (name: String, known: Bool)?
 
     /// Screenshots: a round in a given state (`--demo-phase listening|forming|known|new|ready|reveal`):
-    /// listening is early in a turn, the signature forming from the voice's levels;
-    /// forming is further in, drawn from a print of the turn so far.
+    /// listening is early in a turn, the ring filling; forming is further in, with a
+    /// print of the turn so far and the cloud halfway into its figure.
     func demo(_ phase: String) {
         if phase == "first" { set(.ready); task?.cancel(); return }
-        captures = [Capture(name: "Anna", known: true, score: 0.8, from: 1, to: 6, print: VoiceSignature.demoPrint("anna"),
+        captures = [Capture(name: "Anna", known: true, score: 0.8, from: 1, to: 6, print: VoiceMemory.demoPrint("anna"),
                             figure: VoiceFigure.from(seed: "anna"), colour: 0)]
         turn = 2
         switch phase {
         case "listening":
-            levels = VoiceSignature.demoLevels("sara", count: Int(0.3 * Double(Self.levelsInRing)))
             progress = 0.3
             set(.listening)
         case "forming":
-            levels = VoiceSignature.demoLevels("sara", count: Int(0.6 * Double(Self.levelsInRing)))
-            formingPrint = VoiceSignature.demoPrint("sara")
+            formingPrint = VoiceMemory.demoPrint("sara")
+            figure = VoiceFigure.from(seed: "sara")
             progress = 0.6
             set(.listening)
         case "known": figure = VoiceFigure.from(seed: "erik"); progress = 1; knownMatch = ("Erik", 0.8); set(.known("Erik"))
         case "new":
             figure = VoiceFigure.from(seed: "sara"); progress = 1; draft = "Sara"
-            levels = VoiceSignature.demoLevels("sara", count: Self.levelsInRing)
-            formingPrint = VoiceSignature.demoPrint("sara")
+            formingPrint = VoiceMemory.demoPrint("sara")
             set(.new)
         case "reveal":
             // Two in the room, and Sara's voiceprint just made: the next turn has begun.
-            captures.append(Capture(name: "Erik", known: false, score: nil, from: 8, to: 13, print: VoiceSignature.demoPrint("erik"),
+            captures.append(Capture(name: "Erik", known: false, score: nil, from: 8, to: 13, print: VoiceMemory.demoPrint("erik"),
                                     figure: VoiceFigure.from(seed: "erik"), colour: 1))
-            captures.append(Capture(name: "Sara", known: false, score: nil, from: 15, to: 19, print: VoiceSignature.demoPrint("sara"),
+            captures.append(Capture(name: "Sara", known: false, score: nil, from: 15, to: 19, print: VoiceMemory.demoPrint("sara"),
                                     figure: VoiceFigure.from(seed: "sara"), colour: 2))
             turn = 4
             figure = VoiceFigure.from(seed: "sara")
-            demoReveal = ("Sara", false, VoiceSignature.demoPrint("sara"))
+            demoReveal = ("Sara", false)
             set(.ready)
         default: set(.ready)
         }

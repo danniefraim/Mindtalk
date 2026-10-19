@@ -672,8 +672,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         #if DEBUG
         // `Mindtalk --render-round out.png [--round-state reveal|known|new|listening|forming|ready]`:
         // the round's room in a given state (the moment a name is settled, by default;
-        // `forming` is a turn at 60 % with the signature half drawn), with demo people
-        // and prints — nothing heard, nothing saved.
+        // `forming` is a turn at 60 % with the cloud halfway into its figure), with demo
+        // people and prints — nothing heard, nothing saved.
         if let i = args.firstIndex(of: "--render-round"), i + 1 < args.count {
             Task { @MainActor in
                 let state = args.firstIndex(of: "--round-state").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } ?? "reveal"
@@ -681,7 +681,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 round.demo(state)
                 let renderer = ImageRenderer(content: VoiceScanner.still(round: round, size: CGSize(width: 1100, height: 680))
                     .padding(28).background(DS.Colors.night))
-                // `--render-scale 3`: closer, to check the signature's edges.
+                // `--render-scale 3`: closer, to check the figures' lines.
                 renderer.scale = args.firstIndex(of: "--render-scale").flatMap { $0 + 1 < args.count ? CGFloat(Double(args[$0 + 1]) ?? 2) : nil } ?? 2
                 if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
                    let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {

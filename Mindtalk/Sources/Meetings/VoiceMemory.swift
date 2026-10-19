@@ -115,19 +115,26 @@ final class VoiceMemory: ObservableObject {
         VoiceFigure.from(print: print, avoiding: takenRhythms.union(others))
     }
 
-    /// The print a person's signature is drawn from (VoiceSignature): their first,
-    /// so the same person has the same signature in every round and in Settings.
-    func signaturePrint(of name: String) -> [Float]? {
-        people.first { Self.key($0.name) == Self.key(name) }?.prints.first
-    }
-
     #if DEBUG
     /// Screenshots: three people with made-up prints, in memory only — nothing saved.
     func showDemoPeople() {
         people = ["Anna", "Erik", "Sara"].map { name in
-            Person(name: name, prints: [VoiceSignature.demoPrint(name.lowercased())], figure: VoiceFigure.from(seed: name.lowercased()),
+            Person(name: name, prints: [Self.demoPrint(name.lowercased())], figure: VoiceFigure.from(seed: name.lowercased()),
                    model: Self.modelID)
         }
+    }
+
+    /// A print for screenshots and self-tests: the same seed, the same numbers, and no
+    /// one's voice.
+    nonisolated static func demoPrint(_ seed: String, count: Int = 192) -> [Float] {
+        var state = seed.unicodeScalars.reduce(UInt64(1469598103934665603)) { ($0 ^ UInt64($1.value)) &* 1099511628211 }
+        var out: [Float] = []
+        for _ in 0..<count {
+            state = state &* 6364136223846793005 &+ 1442695040888963407
+            out.append(Float(Double(state >> 33) / Double(1 << 31)) * 2 - 1)
+        }
+        let norm = out.reduce(Float(0)) { $0 + $1 * $1 }.squareRoot()
+        return out.map { $0 / max(norm, 1e-6) }
     }
     #endif
 
@@ -652,14 +659,13 @@ struct VoiceMemoryCard: View {
                     FlowLayout(spacing: 8) {
                         ForEach(Array(memory.people.enumerated()), id: \.element.id) { i, person in
                             HStack(spacing: 6) {
-                                // The voice's own signature, drawn from its print; the
-                                // figure while there is no print yet (being made again).
-                                if let print = person.prints.first {
-                                    VoiceSignature(print: print, color: SpeakerMark.fill(i), size: .compact)
-                                        .frame(width: 18, height: 18)
+                                // The voice's own figure (the loop the cloud fell into
+                                // when the voice was first named); the plain line of one
+                                // from the name while a person has none yet.
+                                if let figure = person.figure {
+                                    VoiceFigureView(figure: figure, color: SpeakerMark.fill(i), size: .compact)
                                 } else {
-                                    VoiceFigureMark(figure: VoiceFigure.remembered(person.name) ?? VoiceFigure.from(seed: person.name),
-                                                    color: SpeakerMark.fill(i), lineWidth: 1.2)
+                                    VoiceFigureMark(figure: VoiceFigure.from(seed: person.name), color: SpeakerMark.fill(i), lineWidth: 1.2)
                                         .frame(width: 18, height: 18)
                                 }
                                 Button { renaming = person; newName = person.name } label: {
