@@ -16,12 +16,17 @@ import FoundationModels
 protocol SummaryWriter: Sendable {
     /// "Gemma 4 E4B", "Ollama · qwen3.5:9b".
     var name: String { get }
+    /// The name in a sentence: "qwen3.5:9b i Ollama" (the same as `name` for the rest).
+    var sentenceName: String { get }
     /// How much it reads at once, in tokens.
     var contextTokens: Int { get }
     /// Words of transcript per part, with room left for instructions and the answer.
     var wordBudget: Int { get }
     /// An answer that names no line it came from isn't shown.
     var requiresSources: Bool { get }
+    /// A job of several parts (a summary): what they are, before the first, so a writer
+    /// can make itself ready once for all of them.
+    func begin(system: String, prompts: [String]) async throws
     /// One answer: `system` says how to write, `user` is what to write about.
     func complete(system: String, user: String, maxTokens: Int) async throws -> String
     /// After a summary: let go of what can be let go.
@@ -29,7 +34,9 @@ protocol SummaryWriter: Sendable {
 }
 
 extension SummaryWriter {
+    var sentenceName: String { name }
     var requiresSources: Bool { false }
+    func begin(system: String, prompts: [String]) async throws {}
     func finished() async {}
 }
 
@@ -85,6 +92,6 @@ struct GemmaWriter: SummaryWriter {
     let wordBudget = Lines.localBudget
 
     func complete(system: String, user: String, maxTokens: Int) async throws -> String {
-        try await LocalWriter.shared.respond(system.isEmpty ? user : system + "\n\n" + user, maxTokens: maxTokens)
+        try await LocalWriter.shared.respond(system.isEmpty ? user : system + "\n\n" + user, model: model, maxTokens: maxTokens)
     }
 }

@@ -184,6 +184,8 @@ final class BetterNotes: ObservableObject {
     var isActive: Bool { active != nil || server != nil }
     /// "Gemma 4 E4B", "Ollama · qwen3.5:9b", or "Apple Intelligence".
     var writerName: String { writer?.name ?? "Apple Intelligence" }
+    /// The same in a sentence: "qwen3.5:9b i Ollama".
+    var writerSentenceName: String { writer?.sentenceName ?? "Apple Intelligence" }
 
     nonisolated static let credit = "Google DeepMind (Apache 2.0)"
     nonisolated static let completeMarker = ".complete"
@@ -332,14 +334,15 @@ actor LocalWriter {
     private var inFlight = 0
 
     /// One answer, at temperature 0 (the same text for the same meeting), thinking off.
-    func respond(_ prompt: String, maxTokens: Int = 800) async throws -> String {
+    /// `model`: which Gemma; nil for the one chosen.
+    func respond(_ prompt: String, model which: NotesModel? = nil, maxTokens: Int = 800) async throws -> String {
         inFlight += 1
         unloadTask?.cancel()
         defer {
             inFlight -= 1
             scheduleUnload()
         }
-        let model = try await load()
+        let model = try await load(which)
         let session = ChatSession(model,
                                   generateParameters: GenerateParameters(maxTokens: maxTokens, temperature: 0),
                                   additionalContext: ["enable_thinking": false])
@@ -362,8 +365,9 @@ actor LocalWriter {
         MLX.GPU.clearCache()
     }
 
-    private func load() async throws -> ModelContainer {
-        guard let directory = await MainActor.run(body: { BetterNotes.shared.active?.directory }) else { throw ModelError.notInstalled }
+    private func load(_ which: NotesModel? = nil) async throws -> ModelContainer {
+        let chosen = which?.isInstalled == true ? which : await MainActor.run(body: { BetterNotes.shared.active })
+        guard let directory = chosen?.directory else { throw ModelError.notInstalled }
         if let container, loadedFrom == directory { return container }
         // Already being loaded: wait for that one, rather than starting over.
         if let loading {

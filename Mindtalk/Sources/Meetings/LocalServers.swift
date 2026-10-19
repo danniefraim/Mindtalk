@@ -11,8 +11,10 @@ import os
 //   • Every address is built in one place (LocalServerClient.url) from the literal
 //     host 127.0.0.1 and the backend's port. No other host can be reached, whatever
 //     the settings say. No redirects are followed, no proxy is used.
-//   • Models that would leave the Mac are hidden: Ollama's cloud models (passed on
-//     to ollama.com) are never listed.
+//   • Ollama's cloud models (passed on to ollama.com) are never listed, and a
+//     transcript is only sent to a model that a fresh list just confirmed is local.
+//     LM Studio's list has no mark for a model served from another computer (LM
+//     Link), so that is said in the settings instead.
 //   • The model is told how much text to read (Ollama cuts long meetings silently
 //     otherwise), and what it read is checked afterwards.
 
@@ -88,13 +90,19 @@ enum ServerState: Equatable, Sendable {
         switch self {
         case .running: return String(localized: "Igång")
         case .installedNotRunning: return String(localized: "Inte igång")
-        case .notInstalled: return String(localized: "Finns inte")
+        case .notInstalled: return String(localized: "Inte installerat")
         }
     }
 }
 
 /// A model one of the backends has on this Mac.
 struct ServerModel: Identifiable, Hashable, Sendable {
+    /// LM Studio: a copy of the model loaded in memory, with the context it was given.
+    struct Instance: Hashable, Sendable {
+        let id: String
+        let context: Int?
+    }
+
     let backend: ServerBackend
     /// What the backend calls it in a request: "qwen3.5:9b", "google/gemma-4-26b-a4b".
     let id: String
@@ -102,20 +110,29 @@ struct ServerModel: Identifiable, Hashable, Sendable {
     /// The most it can read, in tokens, when known.
     let contextLength: Int?
     /// Ollama: the model can be told not to think (only those take `think`).
+    /// LM Studio: reasoning can be switched off (only those take `reasoning`).
     let thinking: Bool
-    /// LM Studio: loaded now, with this much context.
-    let loadedContext: Int?
+    /// LM Studio: loaded now, each with its context.
+    var instances: [Instance] = []
+
+    /// LM Studio: the largest context any loaded copy has.
+    var loadedContext: Int? { instances.compactMap(\.context).max() }
 
     var sizeText: String? { bytes.map { BetterNotes.gigabytes($0) } }
-    /// "256k": thousands of tokens, as model pages write it.
-    var contextText: String? { contextLength.map { Self.thousands($0) } }
+    /// "upp till 100 000 ord": what it reads at once, in words rather than tokens.
+    var wordsText: String? { contextLength.map { String(localized: "upp till \(Self.words($0)) ord") } }
 
-    static func thousands(_ tokens: Int) -> String {
-        tokens >= 1024 ? "\(tokens / 1024)k" : "\(tokens)"
+    /// Tokens as words (about two and a half tokens a word in Swedish), rounded to
+    /// thousands, and to ten thousands from a hundred thousand: "13 000", "100 000".
+    static func words(_ tokens: Int) -> String {
+        let words = Double(tokens) / 2.5
+        let unit = words >= 100_000 ? 10_000.0 : 1_000.0
+        let rounded = Int((words / unit).rounded() * unit)
+        return rounded.formatted(.number.locale(AppLanguage.locale))
     }
 
-    /// "qwen3.5:9b · 7,6 GB · 256k"
-    var title: String { [id, sizeText, contextText].compactMap { $0 }.joined(separator: " · ") }
+    /// "qwen3.5:9b · 7,6 GB · upp till 100 000 ord"
+    var title: String { [id, sizeText, wordsText].compactMap { $0 }.joined(separator: " · ") }
 
     /// On EuroEval's Swedish list (the plan's table): gemma4 from 26B, mistral-small3.2,
     /// qwen3.5 from 9B, gpt-oss 20B, ministral-3 8B and 14B.
@@ -147,7 +164,11 @@ enum ServerError: Error, Equatable {
     case timeout
     /// The model read less than it was sent: a long meeting was cut.
     case truncated
+    /// The model stopped at its output limit before the answer was whole.
+    case cutOff
     case noSources
+    /// The server has no such call (an older LM Studio): tried another way.
+    case noEndpoint
     case failed(String)
 
     var plainWords: String {
@@ -162,8 +183,9 @@ enum ServerError: Error, Equatable {
         case .noMemory: return String(localized: "Modellen fick inte plats i minnet. Välj en mindre modell.")
         case .timeout: return String(localized: "Modellen svarade inte i tid.")
         case .truncated: return String(localized: "Modellen hann inte läsa hela mötet. Välj en modell som orkar mer text.")
+        case .cutOff: return String(localized: "Svaret blev avklippt. Välj en modell som orkar mer text.")
         case .noSources: return String(localized: "Svaret saknade källor, så det visas inte.")
-        case .failed: return String(localized: "Modellen kunde inte svara just nu. Försök igen om en stund.")
+        case .noEndpoint, .failed: return String(localized: "Modellen kunde inte svara just nu. Försök igen om en stund.")
         }
     }
 }
@@ -258,10 +280,16 @@ final class LocalServerClient: NSObject, URLSessionTaskDelegate, @unchecked Send
         let watchdog = Watchdog(firstToken)
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
-                for try await line in bytes.lines {
-                    try Task.checkCancellation()
-                    watchdog.touch(between)
-                    try onLine(line)
+                do {
+                    for try await line in bytes.lines {
+                        try Task.checkCancellation()
+                        watchdog.touch(between)
+                        try onLine(line)
+                    }
+                } catch {
+                    // Avbryt pressed: said as cancelled, not as a broken connection.
+                    if (error as? URLError)?.code == .cancelled { throw CancellationError() }
+                    throw error
                 }
             }
             group.addTask {
@@ -276,13 +304,15 @@ final class LocalServerClient: NSObject, URLSessionTaskDelegate, @unchecked Send
         }
     }
 
-    /// Nothing answered on the port: not running (or not here at all).
+    /// Nothing answered on the port: not running (or not here at all). A slow answer
+    /// is a slow answer (a large model loading), not a server that isn't there.
     nonisolated static func connectionError(_ error: Error, _ backend: ServerBackend) -> Error {
         if error is CancellationError { return error }
         if let url = error as? URLError {
             switch url.code {
-            case .cannotConnectToHost, .networkConnectionLost, .cannotFindHost, .notConnectedToInternet, .timedOut, .badServerResponse:
+            case .cannotConnectToHost, .networkConnectionLost:
                 return backend.isInstalled ? ServerError.notRunning(backend) : ServerError.notInstalled(backend)
+            case .timedOut: return ServerError.timeout
             case .cancelled: return CancellationError()
             default: break
             }
@@ -294,11 +324,19 @@ final class LocalServerClient: NSObject, URLSessionTaskDelegate, @unchecked Send
     nonisolated static func serverError(status: Int, body: [String: Any]) -> ServerError {
         let message = (body["error"] as? String) ?? ((body["error"] as? [String: Any])?["message"] as? String) ?? ""
         let lower = message.lowercased()
-        if status == 404 || lower.contains("not found") || lower.contains("no such model") || lower.contains("does not exist") {
+        if lower.contains("context length") || lower.contains("longer than the context") || lower.contains("exceeds") {
+            return .truncated
+        }
+        if lower.contains("no such model") || lower.contains("model not found") || lower.contains("does not exist")
+            || (lower.contains("not found") && lower.contains("model")) {
             return .modelGone
         }
         if lower.contains("memory") || lower.contains("out of vram") || lower.contains("insufficient") {
             return .noMemory
+        }
+        if status == 404 {
+            // Without a word about a model: the call itself isn't there (an older server).
+            return message.isEmpty || lower.contains("endpoint") || lower.contains("route") || lower.contains("unexpected") ? .noEndpoint : .modelGone
         }
         log.error("server said \(status): \(message, privacy: .public)")
         return .failed(message.isEmpty ? "HTTP \(status)" : message)
@@ -327,23 +365,40 @@ final class LocalServers: ObservableObject {
     /// Something a backend said, shown under its line ("Det finns inga modeller i Ollama än.").
     @Published private(set) var notes: [ServerBackend: String] = [:]
     @Published private(set) var probing: Set<ServerBackend> = []
-    /// While a model writes: "Startar modellen", "Läser mötet", "Skriver".
-    @Published private(set) var phase: Phase?
+    /// Where each job stands while its model writes, by job: "qwen3.5:9b läser mötet…".
+    @Published private(set) var phases: [UUID: (model: String, phase: Phase)] = [:]
     /// "Testa": what the model answered, how long it took, and how much it reads.
     @Published private(set) var test: TestResult?
     @Published private(set) var testing: ServerBackend?
-    /// The ports, published so Avancerat follows along.
+    /// Why a port wasn't taken ("Ollama och LM Studio kan inte ha samma port.").
+    @Published private(set) var portNote: String?
+    /// The ports, published so Avancerat follows along. Kept within 1…65 535, and never
+    /// the same for both (then the old value stays, and `portNote` says why).
     @Published var ports: [ServerBackend: Int] = [:] {
-        didSet { for b in ServerBackend.allCases { if let p = ports[b], p != b.port { b.port = p } } }
+        didSet {
+            for b in ServerBackend.allCases {
+                guard let p = ports[b] else { continue }
+                let clamped = min(65_535, max(1, p))
+                let other = ServerBackend.allCases.first { $0 != b }.flatMap { ports[$0] }
+                if clamped == other {
+                    ports[b] = oldValue[b] ?? b.defaultPort
+                    portNote = String(localized: "Ollama och LM Studio kan inte ha samma port.")
+                } else if clamped != p {
+                    ports[b] = clamped
+                }
+                if let now = ports[b], now != b.port { b.port = now; portNote = nil }
+            }
+        }
     }
 
     enum Phase: Equatable {
         case starting, reading, writing
-        var title: String {
+        /// With the model as its subject: "qwen3.5:9b läser mötet…".
+        func title(_ model: String) -> String {
             switch self {
-            case .starting: return String(localized: "Startar modellen…")
-            case .reading: return String(localized: "Läser mötet…")
-            case .writing: return String(localized: "Skriver…")
+            case .starting: return String(localized: "\(model) startar…")
+            case .reading: return String(localized: "\(model) läser mötet…")
+            case .writing: return String(localized: "\(model) skriver…")
             }
         }
     }
@@ -404,6 +459,12 @@ final class LocalServers: ObservableObject {
         min(model(backend, id)?.contextLength ?? 8_192, Self.contextCap)
     }
 
+    /// A model run by ollama.com rather than this Mac, by its name: ":cloud", "-cloud".
+    nonisolated static func isCloudName(_ name: String) -> Bool {
+        let n = name.lowercased()
+        return n.hasSuffix(":cloud") || n.contains(":cloud") || n.contains("-cloud") || n.hasSuffix("cloud")
+    }
+
     /// Looks for both, and lists their models.
     func refresh() async {
         #if DEBUG
@@ -430,10 +491,16 @@ final class LocalServers: ObservableObject {
             UserDefaults.standard.set(found.map(\.stored), forKey: "serverModels.\(backend.rawValue)")
             Self.log.info("\(backend.name, privacy: .public): \(found.count) models")
         } catch let error as ServerError {
-            states[backend] = installed ? .installedNotRunning : .notInstalled
             switch error {
-            case .notRunning, .notInstalled: notes[backend] = nil
-            default: notes[backend] = error.plainWords
+            case .notRunning, .notInstalled:
+                states[backend] = installed ? .installedNotRunning : .notInstalled
+                notes[backend] = nil
+            case .timeout:
+                // Answering, but slowly (loading something): still running.
+                notes[backend] = error.plainWords
+            default:
+                states[backend] = installed ? .installedNotRunning : .notInstalled
+                notes[backend] = error.plainWords
             }
         } catch {
             states[backend] = installed ? .installedNotRunning : .notInstalled
@@ -475,45 +542,54 @@ final class LocalServers: ObservableObject {
         var models: [ServerModel] = []
         for m in list {
             guard let name = (m["name"] as? String) ?? (m["model"] as? String) else { continue }
-            if m["remote_host"] != nil || m["remote_model"] != nil { continue }
-            let lower = name.lowercased()
-            if lower.hasSuffix(":cloud") || lower.contains("-cloud") || lower.contains(":cloud") { continue }
-            let capabilities = (m["capabilities"] as? [String]) ?? ["completion"]
-            // Embedding models and the like can't write.
-            guard capabilities.contains("completion") else { continue }
+            if m["remote_host"] != nil || m["remote_model"] != nil || isCloudName(name) { continue }
             let details = m["details"] as? [String: Any] ?? [:]
             var context = (details["context_length"] as? Int).flatMap { $0 > 0 ? $0 : nil }
-            if context == nil { context = try? await ollamaContext(name) }
+            var capabilities = m["capabilities"] as? [String]
+            // Older Ollama versions say neither in the list: asked for the model.
+            if context == nil || capabilities == nil, let shown = try? await ollamaShow(name) {
+                if context == nil { context = shown.context }
+                if capabilities == nil { capabilities = shown.capabilities }
+            }
+            let can = capabilities ?? ["completion"]
+            // Embedding models and the like can't write.
+            guard can.contains("completion") else { continue }
             models.append(ServerModel(backend: .ollama, id: name, bytes: (m["size"] as? NSNumber)?.int64Value,
-                                      contextLength: context, thinking: capabilities.contains("thinking"), loadedContext: nil))
+                                      contextLength: context, thinking: can.contains("thinking")))
         }
         return models.sorted { $0.id.localizedStandardCompare($1.id) == .orderedAscending }
     }
 
-    /// Older Ollama versions don't say the context in the list: asked for one model.
-    nonisolated private static func ollamaContext(_ model: String) async throws -> Int? {
+    /// One model's context and capabilities, from `/api/show`.
+    nonisolated private static func ollamaShow(_ model: String) async throws -> (context: Int?, capabilities: [String]?) {
         let (status, body) = try await LocalServerClient.shared.call(.ollama, "/api/show", json: ["model": model], timeout: 5)
-        guard status == 200, let info = body["model_info"] as? [String: Any] else { return nil }
-        for (key, value) in info where key.hasSuffix(".context_length") {
-            if let n = (value as? NSNumber)?.intValue, n > 0 { return n }
+        guard status == 200 else { return (nil, nil) }
+        var context: Int?
+        if let info = body["model_info"] as? [String: Any] {
+            for (key, value) in info where key.hasSuffix(".context_length") {
+                if let n = (value as? NSNumber)?.intValue, n > 0 { context = n; break }
+            }
         }
-        return nil
+        return (context, body["capabilities"] as? [String])
     }
 
-    /// LM Studio's language models. (Its list has no mark for models served from another
-    /// computer, so all are shown; the request itself only ever goes to this Mac.)
+    /// LM Studio's language models. Its list has no mark for a model served from another
+    /// computer (LM Link), so all are shown and the settings say so; the request itself
+    /// only ever goes to this Mac.
     nonisolated private static func lmStudioModels() async throws -> [ServerModel] {
         let (status, body) = try await LocalServerClient.shared.call(.lmStudio, "/api/v1/models", timeout: 3)
         if status == 200, let list = (body["models"] as? [[String: Any]]) ?? (body["data"] as? [[String: Any]]) {
             return list.compactMap { m -> ServerModel? in
-                guard let key = (m["key"] as? String) ?? (m["id"] as? String) else { return nil }
+                guard let key = (m["key"] as? String) ?? (m["id"] as? String), !isCloudName(key) else { return nil }
                 if let type = m["type"] as? String, type != "llm" { return nil }
-                let loaded = (m["loaded_instances"] as? [[String: Any]])?.first
-                let loadedContext = ((loaded?["config"] as? [String: Any])?["context_length"] as? NSNumber)?.intValue
+                let instances = ((m["loaded_instances"] as? [[String: Any]]) ?? []).compactMap { i -> ServerModel.Instance? in
+                    guard let id = i["id"] as? String else { return nil }
+                    return ServerModel.Instance(id: id, context: ((i["config"] as? [String: Any])?["context_length"] as? NSNumber)?.intValue)
+                }
                 let reasoning = ((m["capabilities"] as? [String: Any])?["reasoning"] as? [String: Any])?["allowed_options"] as? [String]
                 return ServerModel(backend: .lmStudio, id: key, bytes: (m["size_bytes"] as? NSNumber)?.int64Value,
                                    contextLength: (m["max_context_length"] as? NSNumber)?.intValue,
-                                   thinking: reasoning?.contains("off") ?? false, loadedContext: loadedContext)
+                                   thinking: reasoning?.contains("off") ?? false, instances: instances)
             }
             .sorted { $0.id.localizedStandardCompare($1.id) == .orderedAscending }
         }
@@ -523,17 +599,30 @@ final class LocalServers: ObservableObject {
             throw LocalServerClient.serverError(status: status2, body: body2)
         }
         return list.compactMap { m in
-            (m["id"] as? String).map { ServerModel(backend: .lmStudio, id: $0, bytes: nil, contextLength: nil, thinking: false, loadedContext: nil) }
+            guard let id = m["id"] as? String, !isCloudName(id) else { return nil }
+            return ServerModel(backend: .lmStudio, id: id, bytes: nil, contextLength: nil, thinking: false)
         }
     }
 
     // MARK: Using one
 
-    /// A chosen model is loaded right away, so the first summary doesn't wait for it.
+    /// A chosen model is loaded right away, so the first summary doesn't wait for it:
+    /// with the context most meetings need (LocalServerWriter.contextFloor), the same
+    /// one a job then asks for, so Ollama doesn't load it twice.
     func prewarm(_ backend: ServerBackend, _ model: String) {
         Task.detached(priority: .utility) {
             let writer = await LocalServerWriter(backend: backend, model: model)
-            try? await writer.load()
+            try? await writer.load(context: min(writer.contextTokens, LocalServerWriter.contextFloor))
+        }
+    }
+
+    /// A recording is about to start: the chosen server model is let go now, so the
+    /// speech models have the memory.
+    func release() {
+        guard let server = BetterNotes.shared.server else { return }
+        Task.detached(priority: .utility) {
+            let writer = await LocalServerWriter(backend: server.backend, model: server.model)
+            await writer.unload()
         }
     }
 
@@ -542,9 +631,9 @@ final class LocalServers: ObservableObject {
         guard testing == nil else { return }
         testing = backend
         test = nil
-        Task {
-            defer { testing = nil }
-            let writer = LocalServerWriter(backend: backend, model: model)
+        testTask = Task {
+            defer { testing = nil; testTask = nil }
+            let writer = LocalServerWriter(backend: backend, model: model, test: true)
             let t0 = Date()
             do {
                 let text = try await writer.complete(system: """
@@ -555,12 +644,14 @@ final class LocalServers: ObservableObject {
                     [1] Anna: Vi behöver bestämma när vi lanserar.
                     [2] Johan: Jag föreslår den 14 november, då är allt klart.
 
-                    Question: När föreslås lanseringen?
+                    Question: \(Self.testQuestion)
                     """, maxTokens: 80)
                 let answer = MeetingNotes.tidy(text.trimmingCharacters(in: .whitespacesAndNewlines))
                 test = TestResult(backend: backend, model: model, answer: answer.isEmpty ? nil : answer,
                                   seconds: Date().timeIntervalSince(t0), context: writer.contextTokens,
                                   error: answer.isEmpty ? ServerError.failed("empty").plainWords : nil)
+            } catch is CancellationError {
+                test = nil
             } catch {
                 test = TestResult(backend: backend, model: model, answer: nil, seconds: Date().timeIntervalSince(t0),
                                   context: writer.contextTokens, error: LocalServerWriter.plainWords(error))
@@ -568,18 +659,41 @@ final class LocalServers: ObservableObject {
         }
     }
 
-    func setPhase(_ phase: Phase?) { self.phase = phase }
+    /// The question Testa asks about its made-up meeting.
+    static let testQuestion = "När föreslås lanseringen?"
+
+    private var testTask: Task<Void, Never>?
+
+    /// Avbryt next to Testa.
+    func cancelTest() { testTask?.cancel() }
+
+    /// Another model or backend chosen: the old answer would mislead.
+    func clearTest() { test = nil }
+
+    /// One job's phase: nil when it's done.
+    func setPhase(_ phase: Phase?, job: UUID, model: String) {
+        if let phase { phases[job] = (model, phase) } else { phases[job] = nil }
+    }
+
+    /// Where the notes stand, as a sentence ("qwen3.5:9b läser mötet…"): the first job
+    /// that isn't Testa, so a test doesn't show in a meeting's placeholder.
+    var progress: String? {
+        phases.first { $0.key != testJob }.map { $0.value.phase.title($0.value.model) }
+    }
+    fileprivate var testJob: UUID?
+    func noteTestJob(_ id: UUID) { testJob = id }
 
     func resetPorts() {
         for b in ServerBackend.allCases { ports[b] = b.defaultPort }
+        portNote = nil
     }
 
     #if DEBUG
     private func applyDemo(_ demo: String) {
         let ollama = [
-            ServerModel(backend: .ollama, id: "qwen3.5:9b", bytes: 7_639_229_431, contextLength: 262_144, thinking: true, loadedContext: nil),
-            ServerModel(backend: .ollama, id: "gemma4:26b", bytes: 17_300_000_000, contextLength: 131_072, thinking: true, loadedContext: nil),
-            ServerModel(backend: .ollama, id: "llama3.2:3b", bytes: 2_019_000_000, contextLength: 131_072, thinking: false, loadedContext: nil),
+            ServerModel(backend: .ollama, id: "qwen3.5:9b", bytes: 7_639_229_431, contextLength: 262_144, thinking: true),
+            ServerModel(backend: .ollama, id: "gemma4:26b", bytes: 17_300_000_000, contextLength: 131_072, thinking: true),
+            ServerModel(backend: .ollama, id: "llama3.2:3b", bytes: 2_019_000_000, contextLength: 131_072, thinking: false),
         ]
         switch demo {
         case "running":
@@ -606,8 +720,7 @@ extension ServerModel {
     init?(stored: [String: Any], backend: ServerBackend) {
         guard let id = stored["id"] as? String else { return nil }
         self.init(backend: backend, id: id, bytes: (stored["bytes"] as? NSNumber)?.int64Value,
-                  contextLength: (stored["context"] as? NSNumber)?.intValue, thinking: stored["thinking"] as? Bool ?? false,
-                  loadedContext: nil)
+                  contextLength: (stored["context"] as? NSNumber)?.intValue, thinking: stored["thinking"] as? Bool ?? false)
     }
 }
 
@@ -615,30 +728,73 @@ extension ServerModel {
 
 /// Your own model in Ollama or LM Studio as a writer: the whole meeting in one go
 /// when it fits, told exactly how much to read, with thinking off and its answer
-/// checked for what it read.
+/// checked for what it read. One writer is one job (a summary, an answer, a test):
+/// the model is confirmed local once, given one context for all its parts, and the
+/// progress shown is this job's.
 struct LocalServerWriter: SummaryWriter {
     let backend: ServerBackend
     let model: String
     let contextTokens: Int
     private let thinking: Bool
-    private let loadedContext: Int?
+    private let test: Bool
+    private let job = Job()
     private static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "LocalServers")
+
+    /// What one job keeps between its parts.
+    private final class Job: @unchecked Sendable {
+        let id = UUID()
+        private let lock = NSLock()
+        private var _context: Int?
+        private var _verified = false
+        private var _begun = false
+        private var _instance: String?
+        private var _bytes: Int64?
+        /// The context every call of the job uses, once fixed.
+        var context: Int? {
+            get { lock.lock(); defer { lock.unlock() }; return _context }
+            set { lock.lock(); _context = newValue; lock.unlock() }
+        }
+        /// A fresh list said the model is here and local.
+        var verified: Bool {
+            get { lock.lock(); defer { lock.unlock() }; return _verified }
+            set { lock.lock(); _verified = newValue; lock.unlock() }
+        }
+        /// `begin` fixed the context for several parts: the phase lasts until `finished`.
+        var begun: Bool {
+            get { lock.lock(); defer { lock.unlock() }; return _begun }
+            set { lock.lock(); _begun = newValue; lock.unlock() }
+        }
+        /// LM Studio: the loaded copy this job uses.
+        var instance: String? {
+            get { lock.lock(); defer { lock.unlock() }; return _instance }
+            set { lock.lock(); _instance = newValue; lock.unlock() }
+        }
+        /// The model's size on disk, from the fresh list: about what it takes in memory.
+        var bytes: Int64? {
+            get { lock.lock(); defer { lock.unlock() }; return _bytes }
+            set { lock.lock(); _bytes = newValue; lock.unlock() }
+        }
+    }
 
     #if DEBUG
     /// `--server-ctx 2048`: a context far too small, to see that a cut meeting is caught.
     nonisolated(unsafe) static var debugContext: Int?
     #endif
 
-    @MainActor init(backend: ServerBackend, model: String) {
+    @MainActor init(backend: ServerBackend, model: String, test: Bool = false) {
         self.backend = backend
         self.model = model
+        self.test = test
         let known = LocalServers.shared.model(backend, model)
         contextTokens = LocalServers.shared.context(for: backend, model: model)
         thinking = known?.thinking ?? false
-        loadedContext = known?.loadedContext
+        if test { LocalServers.shared.noteTestJob(job.id) }
     }
 
+    /// "Ollama · qwen3.5:9b", for a row.
     var name: String { "\(backend.name) · \(model)" }
+    /// "qwen3.5:9b i Ollama", in a sentence.
+    var sentenceName: String { String(localized: "\(model) i \(backend.name)") }
     let requiresSources = true
 
     /// Words per part: about two and a half tokens a word in Swedish, 2 500 tokens
@@ -648,46 +804,104 @@ struct LocalServerWriter: SummaryWriter {
     /// Tokens a prompt will take, generously (Swedish and names cost more than English).
     nonisolated static func estimateTokens(_ text: String) -> Int { text.utf8.count / 3 + 32 }
 
-    /// The context for one prompt: what it needs and room for the answer, within the model's and this Mac's.
-    func contextFor(_ system: String, _ user: String) -> Int {
+    /// The least a job asks for: what most meetings need, and what a chosen model is
+    /// warmed with, so the two agree and the model isn't loaded twice.
+    static let contextFloor = 16_384
+
+    /// One context for a whole job: the largest part's need with room for the answer,
+    /// rounded up to a multiple of 4 096, at least the floor, within the model's and
+    /// this Mac's.
+    func jobContext(system: String, prompts: [String]) -> Int {
         #if DEBUG
         if let forced = Self.debugContext { return forced }
         #endif
-        return min(contextTokens, max(4_096, Self.estimateTokens(system + user) + 2_048))
+        let need = prompts.map { Self.estimateTokens(system + $0) + 2_048 }.max() ?? 4_096
+        let rounded = (need + 4_095) / 4_096 * 4_096
+        return min(contextTokens, max(Self.contextFloor, rounded))
+    }
+
+    /// A job of several parts (a summary): the context is fixed for all of them, the
+    /// model confirmed and loaded once, and the phase shown until `finished`.
+    func begin(system: String, prompts: [String]) async throws {
+        job.begun = true
+        job.context = jobContext(system: system, prompts: prompts)
+        try await prepare()
+    }
+
+    /// The model confirmed local and loaded, with this job's context: "startar…".
+    private func prepare() async throws {
+        await setPhase(.starting)
+        try await verify()
+        try await load(context: job.context)
+    }
+
+    /// Nothing is sent to a model a fresh list doesn't have as a local one: a cloud
+    /// model, or one renamed to look local, is refused.
+    private func verify() async throws {
+        guard !job.verified else { return }
+        guard !LocalServers.isCloudName(model) else { throw ServerError.modelGone }
+        let fresh = try await LocalServers.list(backend)
+        guard let found = fresh.first(where: { $0.id == model }) else { throw ServerError.modelGone }
+        job.bytes = found.bytes
+        if let wanted = job.context, let loaded = found.instances.first(where: { ($0.context ?? 0) >= wanted }) {
+            job.instance = loaded.id
+        }
+        job.verified = true
     }
 
     func complete(system: String, user: String, maxTokens: Int) async throws -> String {
-        let context = contextFor(system, user)
-        await LocalServers.shared.setPhase(.starting)
-        defer { Task { @MainActor in LocalServers.shared.setPhase(nil) } }
-        try await load(context: context)
-        await LocalServers.shared.setPhase(.reading)
-        let t0 = Date()
-        let (text, read): (String, Int?)
-        switch backend {
-        case .ollama: (text, read) = try await ollama(system: system, user: user, context: context, maxTokens: maxTokens)
-        case .lmStudio: (text, read) = try await lmStudio(system: system, user: user, maxTokens: maxTokens)
+        // Not a begun job (an answer, a test): each call sizes and readies itself.
+        if !job.begun {
+            job.context = jobContext(system: system, prompts: [user])
+            try await prepare()
         }
-        Self.log.info("\(self.name, privacy: .public) wrote in \(Date().timeIntervalSince(t0), format: .fixed(precision: 1)) s, read \(read ?? -1) of about \(Self.estimateTokens(system + user)) tokens in \(context)")
+        let context = job.context!
+        defer { if !job.begun { Task { @MainActor in LocalServers.shared.setPhase(nil, job: job.id, model: model) } } }
+        await setPhase(.reading)
+        let t0 = Date()
+        let out: Collected
+        switch backend {
+        case .ollama: out = try await ollama(system: system, user: user, context: context, maxTokens: maxTokens)
+        case .lmStudio: out = try await lmStudio(system: system, user: user, context: context, maxTokens: maxTokens)
+        }
+        let read = out.read
+        Self.log.info("\(self.name, privacy: .public) wrote in \(Date().timeIntervalSince(t0), format: .fixed(precision: 1)) s, read \(read ?? -1) of about \(Self.estimateTokens(system + user)) tokens in \(context), stopped: \(out.finish ?? "?", privacy: .public)")
         // Read far less than it was sent: the prompt was cut to the context. Counted
         // leanly here (four letters a token, fewer than any language needs), so a model
-        // that read 70 % of that read all of it.
+        // that read 70 % of that read all of it. Only Ollama's count is trusted, and
+        // only with its cache counted in.
         let lean = (system + user).utf8.count / 4
         if let read, lean > 1_000, read < lean * 7 / 10 { throw ServerError.truncated }
-        return Self.unthought(text)
+        let text = Self.unthought(out.text)
+        // Stopped at the output limit with nothing, or without the sources line the
+        // answer needs: not an answer.
+        if out.finish == "length" {
+            let needsSources = system.contains("SOURCES:")
+            let hasSources = text.uppercased().contains("SOURCES:") || text.uppercased().contains("KÄLLOR:")
+            if text.isEmpty || (needsSources && !hasSources) { throw ServerError.cutOff }
+        }
+        return text
     }
 
-    /// Without the thinking a model may write out anyway.
+    /// Without the thinking a model may write out anyway: `<think>` blocks, and the
+    /// analysis channel of gpt-oss (only the final channel is the answer).
     nonisolated static func unthought(_ text: String) -> String {
         var out = text.replacingOccurrences(of: #"(?s)<think>.*?</think>"#, with: "", options: .regularExpression)
         // A think block never closed: everything from it.
         if let r = out.range(of: "<think>") { out = String(out[..<r.lowerBound]) }
-        return out.replacingOccurrences(of: #"(?s)<\|channel\|>.*?<\|message\|>"#, with: "", options: .regularExpression)
+        if out.contains("<|channel|>final<|message|>"), let r = out.range(of: "<|message|>", options: .backwards) {
+            out = String(out[r.upperBound...])
+        } else {
+            out = out.replacingOccurrences(of: #"(?s)<\|channel\|>analysis<\|message\|>.*?(<\|end\|>|$)"#, with: "", options: .regularExpression)
+        }
+        return out.replacingOccurrences(of: #"<\|(end|return|start|channel|message)\|>"#, with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Loads the model (Ollama: an empty chat; LM Studio: the load call with the context).
-    func load(context: Int? = nil) async throws {
+    /// Loads the model with the context given. Ollama: an empty chat with `num_ctx`.
+    /// LM Studio: only when no loaded copy has that much context; the chat itself says
+    /// its context, so an older LM Studio without the call loads it then.
+    func load(context: Int?) async throws {
         switch backend {
         case .ollama:
             var body: [String: Any] = ["model": model, "messages": [], "keep_alive": "5m"]
@@ -695,86 +909,177 @@ struct LocalServerWriter: SummaryWriter {
             let (status, reply) = try await LocalServerClient.shared.call(.ollama, "/api/chat", json: body, timeout: 180)
             guard status == 200 else { throw LocalServerClient.serverError(status: status, body: reply) }
         case .lmStudio:
-            let wanted = context ?? contextTokens
+            let wanted = context ?? Self.contextFloor
+            if job.instance != nil { return }
             // Loaded with enough context already: kept as it is.
-            if let loadedContext, loadedContext >= wanted { return }
+            if let listed = try? await LocalServers.list(.lmStudio).first(where: { $0.id == model }),
+               let loaded = listed.instances.first(where: { ($0.context ?? 0) >= wanted }) {
+                job.instance = loaded.id
+                return
+            }
             let (status, reply) = try await LocalServerClient.shared.call(
                 .lmStudio, "/api/v1/models/load", json: ["model": model, "context_length": wanted], timeout: 180)
-            // An older LM Studio without the call loads the model with the chat itself.
-            guard status == 200 || status == 404 else { throw LocalServerClient.serverError(status: status, body: reply) }
+            if status == 200 { job.instance = reply["instance_id"] as? String ?? model; return }
+            // An older LM Studio without the call loads the model with the chat itself
+            // (the model is here: the fresh list just said so).
+            guard status == 404 else { throw LocalServerClient.serverError(status: status, body: reply) }
         }
     }
 
-    /// After a summary, when memory is tight: the model is let go now, not in five minutes.
+    /// After a summary: the phase is done. The model is let go only when it would not
+    /// fit beside what's running: free memory below its own size, or a recording or
+    /// dictation under way. Otherwise it stays for the next summary (Ollama's own five
+    /// minutes; LM Studio keeps it until told).
     func finished() async {
-        guard LocalServers.freeMemoryBytes < 3_000_000_000 else { return }
-        Self.log.info("memory is tight: unloading \(self.model, privacy: .public)")
+        await MainActor.run { LocalServers.shared.setPhase(nil, job: job.id, model: model) }
+        // Its size unknown (an older LM Studio's list): not judged tight.
+        let tight = job.bytes.map { LocalServers.freeMemoryBytes < $0 } ?? false
+        let busy = await MainActor.run { MeetingSession.shared.isRecording || MeetingSession.shared.armed || Dictation.shared.phase == .recording }
+        guard tight || busy else { return }
+        Self.log.info("\(tight ? "memory is tight" : "recording", privacy: .public): unloading \(self.model, privacy: .public)")
+        await unload()
+    }
+
+    /// The model let go now, not in five minutes.
+    func unload() async {
         switch backend {
         case .ollama:
             _ = try? await LocalServerClient.shared.call(.ollama, "/api/chat", json: ["model": model, "messages": [], "keep_alive": 0], timeout: 10)
         case .lmStudio:
-            _ = try? await LocalServerClient.shared.call(.lmStudio, "/api/v1/models/unload", json: ["instance_id": model], timeout: 10)
+            // By the loaded copy's id, from this job or a fresh list.
+            var ids = job.instance.map { [$0] } ?? []
+            if ids.isEmpty, let listed = try? await LocalServers.list(.lmStudio).first(where: { $0.id == model }) {
+                ids = listed.instances.map(\.id)
+            }
+            for id in ids {
+                _ = try? await LocalServerClient.shared.call(.lmStudio, "/api/v1/models/unload", json: ["instance_id": id], timeout: 10)
+            }
         }
     }
 
-    private func ollama(system: String, user: String, context: Int, maxTokens: Int) async throws -> (String, Int?) {
+    private func setPhase(_ phase: LocalServers.Phase) async {
+        await MainActor.run { LocalServers.shared.setPhase(phase, job: job.id, model: model) }
+    }
+
+    private func ollama(system: String, user: String, context: Int, maxTokens: Int) async throws -> Collected {
         var body: [String: Any] = [
             "model": model,
             "messages": [["role": "system", "content": system], ["role": "user", "content": user]].filter { !($0["content"]!.isEmpty) },
             "stream": true,
             "keep_alive": "5m",
+            // Too long for the context: an error, never a silent cut.
+            "truncate": false,
             "options": ["num_ctx": context, "temperature": 0.2, "num_predict": maxTokens],
         ]
         if thinking { body["think"] = false }
         let out = Collected()
+        let job = job, model = model
         try await LocalServerClient.shared.stream(.ollama, "/api/chat", json: body) { line in
             guard let data = line.data(using: .utf8), let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
             if let error = json["error"] as? String { throw LocalServerClient.serverError(status: 500, body: ["error": error]) }
             if let content = (json["message"] as? [String: Any])?["content"] as? String, !content.isEmpty {
-                if out.append(content) { Task { @MainActor in LocalServers.shared.setPhase(.writing) } }
+                if out.append(content) { Task { @MainActor in LocalServers.shared.setPhase(.writing, job: job.id, model: model) } }
             }
-            if json["done"] as? Bool == true { out.read = (json["prompt_eval_count"] as? NSNumber)?.intValue }
+            if json["done"] as? Bool == true {
+                out.finish = json["done_reason"] as? String
+                // What it read: the prompt's tokens and those it had cached. Without the
+                // cached count the number can't be trusted, and isn't checked.
+                if let n = (json["prompt_eval_count"] as? NSNumber)?.intValue, let cached = (json["prompt_eval_cached_count"] as? NSNumber)?.intValue {
+                    out.read = n + cached
+                }
+            }
         }
-        return (out.text, out.read)
+        return out
     }
 
-    /// The OpenAI-style chat every LM Studio has, streamed; reasoning comes apart from the
-    /// text there and is left out.
-    private func lmStudio(system: String, user: String, maxTokens: Int) async throws -> (String, Int?) {
+    /// LM Studio's own chat, streamed: reasoning off for models that can, the context
+    /// said in the request. An older LM Studio without it: the OpenAI-style chat.
+    private func lmStudio(system: String, user: String, context: Int, maxTokens: Int) async throws -> Collected {
+        var body: [String: Any] = [
+            "model": model,
+            "input": user,
+            "stream": true,
+            "store": false,
+            "temperature": 0.2,
+            "context_length": context,
+            "max_output_tokens": maxTokens,
+        ]
+        if !system.isEmpty { body["system_prompt"] = system }
+        if thinking { body["reasoning"] = "off" }
+        let out = Collected()
+        let job = job, model = model
+        do {
+            try await LocalServerClient.shared.stream(.lmStudio, "/api/v1/chat", json: body) { line in
+                guard line.hasPrefix("data:") else { return }
+                let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+                guard let data = payload.data(using: .utf8),
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+                switch json["type"] as? String {
+                case "message.delta":
+                    if let content = json["content"] as? String, !content.isEmpty, out.append(content) {
+                        Task { @MainActor in LocalServers.shared.setPhase(.writing, job: job.id, model: model) }
+                    }
+                case "error":
+                    throw LocalServerClient.serverError(status: 500, body: ["error": json["error"] ?? "error"])
+                case "chat.end":
+                    // The token count here is for the log only.
+                    if let stats = ((json["result"] as? [String: Any])?["stats"] as? [String: Any]),
+                       let n = (stats["input_tokens"] as? NSNumber)?.intValue {
+                        Self.log.info("LM Studio read \(n) tokens")
+                    }
+                default: break
+                }
+            }
+            return out
+        } catch ServerError.noEndpoint {
+            return try await lmStudioCompletions(system: system, user: user, maxTokens: maxTokens)
+        }
+    }
+
+    /// The OpenAI-style chat every LM Studio has; reasoning comes apart from the text
+    /// there and is left out. Stopped at the limit with nothing: an error.
+    private func lmStudioCompletions(system: String, user: String, maxTokens: Int) async throws -> Collected {
         let body: [String: Any] = [
             "model": model,
             "messages": [["role": "system", "content": system], ["role": "user", "content": user]].filter { !($0["content"]!.isEmpty) },
             "stream": true,
-            "stream_options": ["include_usage": true],
             "temperature": 0.2,
             "max_tokens": maxTokens,
         ]
         let out = Collected()
+        let job = job, model = model
         try await LocalServerClient.shared.stream(.lmStudio, "/v1/chat/completions", json: body) { line in
             guard line.hasPrefix("data:") else { return }
             let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
             guard payload != "[DONE]", let data = payload.data(using: .utf8),
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
             if let error = json["error"] { throw LocalServerClient.serverError(status: 500, body: ["error": error]) }
-            if let delta = ((json["choices"] as? [[String: Any]])?.first?["delta"] as? [String: Any]),
-               let content = delta["content"] as? String, !content.isEmpty {
-                if out.append(content) { Task { @MainActor in LocalServers.shared.setPhase(.writing) } }
+            let choice = (json["choices"] as? [[String: Any]])?.first
+            if let content = (choice?["delta"] as? [String: Any])?["content"] as? String, !content.isEmpty {
+                if out.append(content) { Task { @MainActor in LocalServers.shared.setPhase(.writing, job: job.id, model: model) } }
             }
-            if let usage = json["usage"] as? [String: Any], let n = (usage["prompt_tokens"] as? NSNumber)?.intValue { out.read = n }
+            if let reason = choice?["finish_reason"] as? String { out.finish = reason }
         }
-        return (out.text, out.read)
+        if out.finish == "length", out.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { throw ServerError.cutOff }
+        return out
     }
 
     private final class Collected: @unchecked Sendable {
         private let lock = NSLock()
         private var parts: [String] = []
         private var _read: Int?
+        private var _finish: String?
         /// True for the first piece: the model has begun to write.
         @discardableResult func append(_ s: String) -> Bool { lock.lock(); defer { lock.unlock() }; parts.append(s); return parts.count == 1 }
         var text: String { lock.lock(); defer { lock.unlock() }; return parts.joined() }
         var read: Int? {
             get { lock.lock(); defer { lock.unlock() }; return _read }
             set { lock.lock(); _read = newValue; lock.unlock() }
+        }
+        /// Why it stopped: "stop", or "length" at the output limit.
+        var finish: String? {
+            get { lock.lock(); defer { lock.unlock() }; return _finish }
+            set { lock.lock(); _finish = newValue; lock.unlock() }
         }
     }
 

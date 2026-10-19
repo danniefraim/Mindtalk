@@ -486,6 +486,8 @@ final class MeetingSession: ObservableObject {
         armed = false
         // Nothing plays while the microphone listens — into AirPods, or back into the text.
         MeetingPlayer.shared.stop()
+        // A model in Ollama or LM Studio is let go: the speech models have the memory.
+        LocalServers.shared.release()
         NoteDraft.shared.text = ""
         steps = 0
         // A round from a meeting before is never this one's.
