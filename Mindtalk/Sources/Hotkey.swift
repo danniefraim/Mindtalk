@@ -255,6 +255,10 @@ struct KeyChord: Codable, Equatable {
     /// Mac; ⇧⌘R and ⌘, are Mindtalk's own (start a meeting, Settings) inside the app.
     var isReserved: Bool {
         let f = CGEventFlags(rawValue: modifiers)
+        // ⌥ (with or without ⇧) and a letter, digit or sign types a character on most
+        // layouts: ⌥2 is @ on a Swedish keyboard. Taken as a shortcut, it would stop typing.
+        if f.contains(.maskAlternate), !f.contains(.maskCommand), !f.contains(.maskControl),
+           Hotkey(keyCode: keyCode, modifierMask: 0).name.count == 1 { return true }
         guard f.contains(.maskCommand), !f.contains(.maskControl), !f.contains(.maskAlternate) else { return false }
         if [kVK_ANSI_Q, kVK_Tab, kVK_Space].contains(Int(keyCode)) { return true }
         if Int(keyCode) == kVK_ANSI_R, f.contains(.maskShift) { return true }

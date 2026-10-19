@@ -856,15 +856,16 @@ enum ShortcutFieldSelfTest {
                         "Left ⌥ held alone was not picked (applied \(model.applied), picking \(model.picking))")
             try require(!model.picking && model.shortcut == model.applied.last! && !KeyListener.shared.pickingChord,
                         "Picking did not end with the key shown")
-            // Left ⌥ with 2 (@) is a chord, not the key held alone: refused as a chord
-            // (⌥ and a digit is fine), never taken as left ⌥.
+            // Left ⌥ with 2 types @: never a shortcut, and never taken as left ⌥ held
+            // alone either. Refused, picking goes on, Esc ends it.
             try await click(thoughtField)
             try await flags(UInt16(kVK_Option), 0x80120)
             try await key(UInt16(kVK_ANSI_2), 0x80120)
-            try require(model.applied.last == .chord(KeyChord(keyCode: UInt16(kVK_ANSI_2), modifiers: CGEventFlags.maskAlternate.rawValue)),
-                        "⌥2 was not taken as a chord")
+            try require(model.applied.count == 1, "⌥2 was taken as a shortcut")
             try await flags(UInt16(kVK_Option), 0x100)
-            try require(model.applied.count == 2, "Letting go of ⌥ after ⌥2 picked again")
+            try require(model.applied.count == 1, "Letting go of ⌥ after ⌥2 picked left ⌥")
+            try await key(UInt16(kVK_Escape), 0x100)
+            try require(!model.picking, "Esc did not end picking")
             // With a key: click, then ⌃⌥T.
             try await click(thoughtField)
             try require(model.picking, "Clicking the thought field with a key did not start picking")
