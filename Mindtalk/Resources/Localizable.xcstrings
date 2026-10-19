@@ -2866,6 +2866,7 @@
       }
     },
     "Allt ljud tonas ned medan du pratar och upp igen efteråt.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4215,6 +4216,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bara texten"
+          }
+        }
+      }
+    },
+    "Behåll ljudet": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep audio"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Behåll ljudet"
           }
         }
       }
@@ -15844,6 +15862,22 @@
         }
       }
     },
+    "Ljud äldre än %lld dagar flyttas till papperskorgen. Texten sparas alltid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio older than %lld days is moved to the Trash. The text is always kept."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ljud äldre än %lld dagar flyttas till papperskorgen. Texten sparas alltid."
+          }
+        }
+      }
+    },
     "Ljudet (.m4a)…": {
       "localizations": {
         "en": {
@@ -15907,6 +15941,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ljudet raderas direkt efteråt. Ingen AI skriver om dina ord."
+          }
+        }
+      }
+    },
+    "Ljudet sparas så länge mötet finns. Texten sparas alltid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The audio is kept as long as the meeting is. The text is always kept."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ljudet sparas så länge mötet finns. Texten sparas alltid."
           }
         }
       }
@@ -19085,6 +19135,7 @@
       }
     },
     "Mindtalk rör inte ljudet.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -19412,7 +19463,40 @@
         }
       }
     },
+    "Musik och annat ljud spelar som vanligt medan du pratar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Music and other sound play as usual while you speak."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Musik och annat ljud spelar som vanligt medan du pratar."
+          }
+        }
+      }
+    },
+    "Musik och annat ljud tonas ned medan du pratar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Music and other sound fade down while you speak."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Musik och annat ljud tonas ned medan du pratar."
+          }
+        }
+      }
+    },
     "Musik och video pausas medan du pratar och fortsätter sedan. Annat ljud tonas ned.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -19458,6 +19542,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Musik och video pausas medan du pratar och fortsätter sen. Annat ljud tonas ner."
+          }
+        }
+      }
+    },
+    "Musik och video pausas medan du pratar. Annat ljud tonas ned.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Music and video pause while you speak. Other sound fades down."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Musik och video pausas medan du pratar. Annat ljud tonas ned."
           }
         }
       }
@@ -20196,7 +20296,24 @@
         }
       }
     },
+    "Namnge en röst en gång, så känner Mindtalk igen den. Bara ett röstavtryck sparas, aldrig ljud. Fråga de andra först.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name a voice once and Mindtalk recognizes it. Only a voiceprint is kept, never audio. Ask the others first."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namnge en röst en gång, så känner Mindtalk igen den. Bara ett röstavtryck sparas, aldrig ljud. Fråga de andra först."
+          }
+        }
+      }
+    },
     "Namnge en talare en gång, så känner Mindtalk igen rösten i kommande möten. Bara ett röstavtryck sparas på din Mac, aldrig ljud. Fråga de andra i rummet först.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -22391,7 +22508,24 @@
         }
       }
     },
+    "Rättar skiljetecken och självrättelser med Apple Intelligence.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixes punctuation and self-corrections with Apple Intelligence."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rättar skiljetecken och självrättelser med Apple Intelligence."
+          }
+        }
+      }
+    },
     "Rättar skiljetecken, upprepningar och självrättelser som ”nej, jag menar…”. Körs med Apple Intelligence.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -25442,6 +25576,7 @@
       }
     },
     "Startar och avslutar ett möte i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -25453,6 +25588,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Startar och avslutar ett möte i alla appar. Inne i Mindtalk fungerar även ⇧⌘R."
+          }
+        }
+      }
+    },
+    "Startar och avslutar ett möte, var du än är.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starts and ends a meeting, wherever you are."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startar och avslutar ett möte, var du än är."
           }
         }
       }
@@ -26138,6 +26289,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Säg något…"
+          }
+        }
+      }
+    },
+    "Säg ”ny rad” eller ”nytt stycke”.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Say “new line” or “new paragraph”."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Säg ”ny rad” eller ”nytt stycke”."
           }
         }
       }
@@ -27025,7 +27193,24 @@
         }
       }
     },
+    "Ta med dina möten och tankar till din AI-assistent": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bring your meetings and thoughts to your AI assistant"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta med dina möten och tankar till din AI-assistent"
+          }
+        }
+      }
+    },
     "Ta med dina möten till din AI-assistent": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -28231,6 +28416,23 @@
         }
       }
     },
+    "Texten skrivs in som vanligt och ligger sedan kvar i urklipp. Lösenord hamnar aldrig där.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text is typed as usual and then stays on the clipboard. Passwords never end up there."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten skrivs in som vanligt och ligger sedan kvar i urklipp. Lösenord hamnar aldrig där."
+          }
+        }
+      }
+    },
     "Texten skrivs in som vanligt och ligger sedan kvar i urklipp. Står markören inte i ett textfält hamnar den bara där.": {
       "extractionState": "stale",
       "localizations": {
@@ -28299,6 +28501,7 @@
       }
     },
     "Texten, dina anteckningar och sammanfattningen sparas alltid. Äldre inspelningar flyttas till papperskorgen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

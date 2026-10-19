@@ -108,7 +108,7 @@ struct ClaudeSettingsCard: View {
                 Spacer(minLength: 12)
                 InkToggle(label: String(localized: "MCP, låt AI-program läsa möten och tankar"), isOn: enabled)
             }
-            Text("Ta med dina möten till din AI-assistent")
+            Text("Ta med dina möten och tankar till din AI-assistent")
                 .font(.system(size: 22, weight: .regular, design: .serif))
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12)

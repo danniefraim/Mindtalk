@@ -627,8 +627,10 @@ struct MeetingStorageCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            CardRow(title: "Spara inspelningar",
-                    detail: String(localized: "Texten, dina anteckningar och sammanfattningen sparas alltid. Äldre inspelningar flyttas till papperskorgen.")) {
+            // What the choice means, said for the one chosen.
+            CardRow(title: "Behåll ljudet",
+                    detail: days == 0 ? String(localized: "Ljudet sparas så länge mötet finns. Texten sparas alltid.")
+                        : String(localized: "Ljud äldre än \(days) dagar flyttas till papperskorgen. Texten sparas alltid.")) {
                 MenuPicker(options: MeetingAudio.choices.map { ($0, MeetingAudio.title($0)) },
                            selection: Binding(get: { days }, set: choose))
             }

@@ -31,9 +31,9 @@ enum MediaMode: String, CaseIterable, Identifiable {
 
     var explanation: String {
         switch self {
-        case .pause: return String(localized: "Musik och video pausas medan du pratar och fortsätter sedan. Annat ljud tonas ned.")
-        case .duck: return String(localized: "Allt ljud tonas ned medan du pratar och upp igen efteråt.")
-        case .off: return String(localized: "Mindtalk rör inte ljudet.")
+        case .pause: return String(localized: "Musik och video pausas medan du pratar. Annat ljud tonas ned.")
+        case .duck: return String(localized: "Musik och annat ljud tonas ned medan du pratar.")
+        case .off: return String(localized: "Musik och annat ljud spelar som vanligt medan du pratar.")
         }
     }
 }

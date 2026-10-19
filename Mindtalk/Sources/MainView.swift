@@ -608,7 +608,7 @@ struct SettingsPage: View {
                 ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
                 : meetingShortcut == nil
                     ? String(localized: "Av. Inne i Mindtalk fungerar ⇧⌘R.")
-                    : meetingShortcut?.warning ?? String(localized: "Startar och avslutar ett möte i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.")) {
+                    : meetingShortcut?.warning ?? String(localized: "Startar och avslutar ett möte, var du än är.")) {
             MeetingShortcutField(chord: $meetingShortcut, picking: $pickingMeetingKey, taken: [thoughtShortcut?.chord])
                 .disabled(!dictation.accessibilityGranted)
                 .help(dictation.accessibilityGranted ? Text(verbatim: "") : Text("Slå på Hjälpmedel för Mindtalk först."))
@@ -1249,7 +1249,7 @@ private struct TextCleanupCard: View {
                 InkToggle(label: "Ta bort tvekljud", isOn: $prefs.removeFillers)
             }
             CardDivider()
-            CardRow(title: "Röstkommandon", detail: "Säg ”ny rad” eller ”nytt stycke”. På engelska ”new line” och ”new paragraph”.") {
+            CardRow(title: "Röstkommandon", detail: "Säg ”ny rad” eller ”nytt stycke”.") {
                 InkToggle(label: "Röstkommandon", isOn: $prefs.voiceCommands)
             }
             CardDivider()
@@ -1266,7 +1266,7 @@ private struct TextCleanupCard: View {
                 }
             }
             CardDivider()
-            CardRow(title: "Lämna texten i urklipp", detail: "Texten skrivs in som vanligt och ligger sedan kvar i urklipp. Aldrig lösenord.") {
+            CardRow(title: "Lämna texten i urklipp", detail: "Texten skrivs in som vanligt och ligger sedan kvar i urklipp. Lösenord hamnar aldrig där.") {
                 InkToggle(label: "Lämna texten i urklipp", isOn: $prefs.keepInClipboard)
             }
         }
@@ -1279,7 +1279,7 @@ private struct TextCleanupCard: View {
     private var polishDetail: String {
         switch status {
         case .available:
-            return String(localized: "Rättar skiljetecken, upprepningar och självrättelser som ”nej, jag menar…”. Körs med Apple Intelligence.")
+            return String(localized: "Rättar skiljetecken och självrättelser med Apple Intelligence.")
         case .notEnabled:
             return String(localized: "Kräver Apple Intelligence, som är avstängt på den här Macen.")
         case .notReady:
