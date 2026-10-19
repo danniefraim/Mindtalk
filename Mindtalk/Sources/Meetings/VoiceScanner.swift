@@ -44,8 +44,10 @@ struct VoiceScanner: View {
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
         /// The moment a name is settled, shown on the cloud: the voice's figure drawn
-        /// clearly, its signature beside the name — then flown down into "I rummet".
-        /// Purely a picture over the round, which goes on underneath as before.
+        /// clearly, its signature beside the name. It stands there at least three
+        /// seconds, and after that until the next person's voice is heard; then it
+        /// flies down into "I rummet". Purely a picture over the round, which goes on
+        /// underneath as before: the next turn listens from the first moment.
         struct Reveal: Equatable {
             let id = UUID()
             let name: String
@@ -54,33 +56,68 @@ struct VoiceScanner: View {
             let capture: UUID?
             let figure: VoiceFigure?
             let colour: Int
+            /// The turn it was settled in: the next turn's voice sends it down.
+            let turn: Int
+            /// The signature as it formed from the voice's levels, for as long as
+            /// there is no print to draw it from.
+            var bars: [Double] = []
             /// A print of its own for the picture (screenshots); otherwise looked up.
             var print: [Float]?
             var flying = false
         }
         @State private var reveal: Reveal?
-        /// The ring's single pulse, and how far the signature has drawn itself.
+        /// When the reveal came up: it stands at least this long.
+        @State private var shownAt: Date?
+        static let hold = 3.0
+        /// The ring's single pulse.
         @State private var pulse = false
-        @State private var drawn = 0.0
         @State private var revealTask: Task<Void, Never>?
+        /// The large signature is one view from the first bar to the name: this keeps
+        /// it so, and changes when it has flown down (the next one is new).
+        @State private var signatureKey = UUID()
+        /// The width of the name row, so the signature knows where its place in it is.
+        @State private var rowWidth: CGFloat?
+        /// A still picture (screenshots): nothing in motion, the signature in its row.
+        private let still: Bool
 
-        init(scanner: VoiceScanner, round: IntroRound, lit: Bool, shown: Bool) {
+        init(scanner: VoiceScanner, round: IntroRound, lit: Bool, shown: Bool, still: Bool = false) {
             self.scanner = scanner
             self.round = round
             self.lit = lit
             self.shown = shown
+            self.still = still
             #if DEBUG
             // A still picture of the moment (`--demo-phase reveal`).
             if let d = round.demoReveal {
                 _reveal = State(initialValue: Reveal(name: d.name, known: d.known, capture: round.captures.last?.id, figure: round.figure,
-                                                     colour: round.captures.count - 1, print: d.print))
-                _drawn = State(initialValue: 1)
+                                                     colour: round.captures.count - 1, turn: round.turn - 1, print: d.print))
             }
             #endif
         }
 
         /// The reveal while it stands on the cloud (not yet flying down).
         private var revealing: Reveal? { reveal.flatMap { $0.flying ? nil : $0 } }
+
+        /// The signature forming beside the cloud: while someone talks (the ring
+        /// filling) and while a new voice is asked its name.
+        private var forming: Bool {
+            guard revealing == nil else { return false }
+            switch round.phase {
+            case .listening: return round.progress > 0
+            case .new: return true
+            default: return false
+            }
+        }
+
+        /// The forming signature's bars: from a print of the turn so far once there is
+        /// one, before that from how the voice has risen and fallen.
+        private var formingBars: [Double] {
+            round.formingPrint.map { VoiceSignature.bars(of: $0, count: VoiceSignature.Size.large.bars) } ?? Self.bars(fromLevels: round.levels)
+        }
+
+        private static func bars(fromLevels levels: [Float]) -> [Double] {
+            VoiceSignature.bars(fromLevels: levels, span: IntroRound.levelsInRing, count: VoiceSignature.Size.large.bars)
+        }
 
         var body: some View {
             GeometryReader { geo in
@@ -94,6 +131,7 @@ struct VoiceScanner: View {
                     .overlay(alignment: .bottom) { prompt(width: geo.size.width).padding(.bottom, 40) }
                     // Over the words' gradient: the name stands where the big line was.
                     .overlay { revealView(in: geo.size) }
+                    .overlay { signature(in: geo.size) }
                     .overlay(alignment: .bottomLeading) { room.padding(.leading, 40).padding(.bottom, 38) }
                     .overlay(alignment: .bottomTrailing) { card.padding(24) }
                     .opacity(shown ? 1 : 0)
@@ -107,50 +145,76 @@ struct VoiceScanner: View {
                 case .known(let name):
                     scanner.chime("Glass")
                     AccessibilityNotification.Announcement(String(localized: "Känd röst: \(name)")).post()
-                    show(Reveal(name: name, known: true, capture: nil, figure: round.figure, colour: round.captures.count))
+                    show(Reveal(name: name, known: true, capture: nil, figure: round.figure, colour: round.captures.count,
+                                turn: round.turn, bars: Self.bars(fromLevels: round.levels)))
                 case .new:
                     scanner.chime("Pop")
                     nameFocused = true
                 default: break
                 }
+                moveOn()
             }
             .onChange(of: round.captures.count) { old, new in
                 guard new > old else { return }
                 scanner.chime("Pop")
                 // A new voice named: its print is made. (A known one was shown when greeted.)
+                // The round has already begun the next turn: the capture was the one before.
                 if let c = round.captures.last, !c.known {
                     AccessibilityNotification.Announcement(String(localized: "Röstavtryck sparat för \(c.name)")).post()
-                    show(Reveal(name: c.name, known: false, capture: c.id, figure: c.figure, colour: c.colour))
+                    show(Reveal(name: c.name, known: false, capture: c.id, figure: c.figure, colour: c.colour,
+                                turn: round.turn - 1, bars: Self.bars(fromLevels: c.levels)))
                 }
             }
+            // The next person's voice: the reveal has had its time, down it goes.
+            .onChange(of: round.progress) { _, _ in moveOn() }
             .onChange(of: round.wantsToEnd) { _, end in if end { scanner.leave() } }
         }
 
         // MARK: The moment
 
-        /// About a second and a half, all of it over the round going on: the ring
-        /// closes and pulses once, the signature draws itself in, and the name stands
-        /// under the cloud; then it all flies down into "I rummet". With Reduce Motion
-        /// it fades in and out instead.
+        /// All of it over the round going on: the ring closes and pulses once, the
+        /// signature glides in from beside the cloud and settles into the print, and
+        /// the name stands under the cloud. It stays at least three seconds, and then
+        /// until the next person is heard (`moveOn`). With Reduce Motion it fades in
+        /// and out instead.
         private func show(_ r: Reveal) {
             revealTask?.cancel()
             pulse = false
-            drawn = 0
+            shownAt = Date()
             if reduceMotion {
-                withAnimation(.easeInOut(duration: 0.3)) { reveal = r; drawn = 1 }
+                withAnimation(.easeInOut(duration: 0.3)) { reveal = r }
             } else {
                 withAnimation(.spring(duration: 0.45, bounce: 0.25)) { reveal = r }
                 withAnimation(.easeOut(duration: 0.7)) { pulse = true }
-                withAnimation(.easeOut(duration: 0.6).delay(0.1)) { drawn = 1 }
             }
             revealTask = Task { @MainActor in
-                try? await Task.sleep(for: .seconds(reduceMotion ? 1.5 : 0.95))
+                try? await Task.sleep(for: .seconds(Self.hold))
                 guard !Task.isCancelled, reveal?.id == r.id else { return }
-                if reduceMotion {
-                    withAnimation(.easeInOut(duration: 0.4)) { reveal = nil }
-                    return
-                }
-                withAnimation(.easeIn(duration: 0.5)) { reveal?.flying = true }
+                moveOn()
+            }
+        }
+
+        /// The reveal flies down into "I rummet" once it has stood its time and the
+        /// next person has begun to talk (a third of a second of speech in the next
+        /// turn), or the round is closing. Until then it stays: the room gets to see it.
+        private func moveOn() {
+            guard let r = reveal, !r.flying, let at = shownAt, Date().timeIntervalSince(at) >= Self.hold else { return }
+            let nextVoice = round.turn > r.turn && round.progress >= 0.1
+            let closing = { if case .closing = round.phase { return true }; return round.wantsToEnd }()
+            guard nextVoice || closing else { return }
+            fly(r)
+        }
+
+        private func fly(_ r: Reveal) {
+            revealTask?.cancel()
+            // The row takes the signature with it; the one that glided in is done.
+            signatureKey = UUID()
+            if reduceMotion {
+                withAnimation(.easeInOut(duration: 0.4)) { reveal = nil }
+                return
+            }
+            withAnimation(.easeIn(duration: 0.5)) { reveal?.flying = true }
+            revealTask = Task { @MainActor in
                 try? await Task.sleep(for: .seconds(0.55))
                 guard !Task.isCancelled, reveal?.id == r.id else { return }
                 reveal = nil
@@ -170,19 +234,70 @@ struct VoiceScanner: View {
             return round.captures.first { $0.id == r.capture }?.print
         }
 
+        /// The bars of a reveal's signature: from its print when there is one (it can
+        /// still be on its way), otherwise as it formed from the voice.
+        private func bars(of r: Reveal) -> [Double]? {
+            if let print = signaturePrint(of: r) { return VoiceSignature.bars(of: print, count: VoiceSignature.Size.large.bars) }
+            return r.bars.contains { $0 > 0 } ? r.bars : nil
+        }
+
+        /// Where things stand: the cloud's centre, and the row under it.
+        private func cloudCentre(in size: CGSize) -> CGPoint { CGPoint(x: size.width / 2, y: size.height * 0.42) }
+        private func rowY(in size: CGSize) -> CGFloat { size.height * 0.42 + min(size.width, size.height) * 0.28 * 1.16 + 58 }
+
+        /// The large signature, one view the whole way: forming beside the cloud while
+        /// the person talks (bar by bar, with the ring), then gliding down into its place
+        /// beside the name and settling into the print. With Reduce Motion, or in a
+        /// still picture, the row draws its own and this one fades.
+        @ViewBuilder private func signature(in size: CGSize) -> some View {
+            let standing = revealing != nil && !reduceMotion && !still
+            if standing || forming {
+                let colour = revealing?.colour ?? round.captures.count
+                let rgb = Constellation.rgb(SpeakerMark.fill(colour))
+                let tint = Color(red: rgb.x, green: rgb.y, blue: rgb.z)
+                let bars = revealing.map { bars(of: $0) ?? [] } ?? formingBars
+                let centre = cloudCentre(in: size)
+                let R = min(size.width, size.height) * 0.28 * 1.16
+                // Beside the cloud, to the right of the ring; in the row, the row's left end.
+                let at = revealing.map { r in
+                    let width = rowWidth ?? 74 + CGFloat(r.name.count) * 19
+                    return CGPoint(x: size.width / 2 - width / 2 + VoiceSignature.Size.large.points / 2, y: rowY(in: size))
+                } ?? CGPoint(x: centre.x + R + 84, y: centre.y)
+                // Half as large again while it forms, seen from across the room; its row's
+                // size once it is in the row.
+                VoiceSignature(bars: bars, color: tint, size: .large, progress: revealing != nil ? 1 : round.progress)
+                    .animation(.easeOut(duration: 0.25), value: round.progress)
+                    .animation(.easeOut(duration: 0.6), value: bars)
+                    .scaleEffect(revealing != nil ? 1 : 1.5)
+                    .position(at)
+                    .animation(.spring(duration: 0.55, bounce: 0.15), value: at)
+                    // Gone the moment it flies: the row's own takes over in its place.
+                    .transition(.asymmetric(insertion: .opacity, removal: reduceMotion ? .opacity : .identity))
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                    .id(signatureKey)
+            }
+        }
+
         /// The name and its signature under the cloud — and, flying, down in the corner.
         @ViewBuilder private func revealView(in size: CGSize) -> some View {
             if let reveal {
                 let rgb = Constellation.rgb(SpeakerMark.fill(reveal.colour))
                 let tint = Color(red: rgb.x, green: rgb.y, blue: rgb.z)
-                let R = min(size.width, size.height) * 0.28
                 let flying = reveal.flying
+                let points = VoiceSignature.Size.large.points
                 HStack(spacing: 18) {
-                    if let print = signaturePrint(of: reveal) {
-                        VoiceSignature(print: print, color: tint, size: .large, progress: drawn)
+                    if let bars = bars(of: reveal) {
+                        // Standing, the signature that glided in draws itself here (`signature`);
+                        // the row holds its place. Flying, the row takes it along.
+                        if flying || reduceMotion || still {
+                            VoiceSignature(bars: bars, color: tint, size: .large)
+                        } else {
+                            Color.clear.frame(width: points, height: points)
+                        }
                     } else {
                         VoiceFigureMark(figure: reveal.figure ?? VoiceFigure.from(seed: reveal.name), color: tint, lineWidth: 1.3)
-                            .frame(width: 56, height: 56)
+                            .frame(width: points, height: points)
                     }
                     VStack(alignment: .leading, spacing: 5) {
                         Text(reveal.known ? "Känd röst" : "Röstavtryck sparat").textCase(.uppercase).tracking(2.4)
@@ -194,10 +309,11 @@ struct VoiceScanner: View {
                     }
                 }
                 .fixedSize()
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { rowWidth = $0 }
                 .scaleEffect(flying ? 0.28 : 1)
                 .opacity(flying ? 0 : 1)
                 .position(x: flying ? 40 + 70 : size.width / 2,
-                          y: flying ? size.height - 38 - 11 : size.height * 0.42 + R * 1.16 + 58)
+                          y: flying ? size.height - 38 - 11 : rowY(in: size))
                 .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9)))
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
@@ -282,9 +398,12 @@ struct VoiceScanner: View {
                 }
                 switch round.phase {
                 // Asked until someone starts talking — not only for the moment the turn opens.
-                // Right after someone was added, thanked first: "Tack, Anna! Nästa person…"
+                // Right after someone was added, thanked first: "Tack, Anna! Nästa person…" —
+                // and for as long as their name stands on the cloud, so the room knows it
+                // can go on.
                 case .ready, .listening where round.progress == 0:
-                    if let last = round.captures.last, let at = round.thankedAt, Date().timeIntervalSince(at) < 2.5 {
+                    if let last = round.captures.last,
+                       revealing != nil || round.thankedAt.map({ Date().timeIntervalSince($0) < 2.5 }) == true {
                         return (String(localized: "Person \(round.turn)"), String(localized: "Tack, \(last.name)"),
                                 String(localized: "Nästa person, säg hej och vad du heter."))
                     }
@@ -420,7 +539,7 @@ struct VoiceScanner: View {
     #if DEBUG
     /// Screenshots: the room as it stands for a round (`--render-round`), lit and shown.
     static func still(round: IntroRound, size: CGSize) -> some View {
-        Room(scanner: VoiceScanner(session: .shared), round: round, lit: true, shown: true)
+        Room(scanner: VoiceScanner(session: .shared), round: round, lit: true, shown: true, still: true)
             .frame(width: size.width, height: size.height)
             .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
             .environment(\.colorScheme, .dark)

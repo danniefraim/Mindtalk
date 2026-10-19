@@ -670,9 +670,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             RunLoop.main.run()
         }
         #if DEBUG
-        // `Mindtalk --render-round out.png [--round-state reveal|known|new|listening|ready]`:
-        // the round's room in a given state (the moment a name is settled, by default),
-        // with demo people and prints — nothing heard, nothing saved.
+        // `Mindtalk --render-round out.png [--round-state reveal|known|new|listening|forming|ready]`:
+        // the round's room in a given state (the moment a name is settled, by default;
+        // `forming` is a turn at 60 % with the signature half drawn), with demo people
+        // and prints — nothing heard, nothing saved.
         if let i = args.firstIndex(of: "--render-round"), i + 1 < args.count {
             Task { @MainActor in
                 let state = args.firstIndex(of: "--round-state").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } ?? "reveal"

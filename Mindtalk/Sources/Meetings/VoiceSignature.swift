@@ -8,6 +8,12 @@ import SwiftUI
 // person is known by: large beside the name the moment the round has it, small in
 // "I rummet" and in Settings beside the names Mindtalk remembers. Nothing about the
 // voice can be heard back from it: it is a picture of a few averages.
+//
+// In the round it is also seen being made: while someone talks it grows bar by bar
+// beside the cloud, drawn from how their voice rises and falls until there is a print
+// of it (from a second and a half of speech), and from the print after that. The
+// bars morph from one to the other, so it settles into the signature rather than
+// switching.
 
 struct VoiceSignature: View {
     enum Size {
@@ -23,14 +29,28 @@ struct VoiceSignature: View {
         var hole: CGFloat { self == .compact ? 0.42 : 0.36 }
     }
 
-    let print: [Float]
+    /// The bars' lengths (0…1), one per bar of the size.
+    let values: [Double]
     let color: Color
     var size: Size = .compact
     /// How much of the ring is drawn so far (0…1): it sweeps round as it appears.
     var progress: Double = 1
 
+    /// The signature of a print.
+    init(print: [Float], color: Color, size: Size = .compact, progress: Double = 1) {
+        self.init(bars: Self.bars(of: print, count: size.bars), color: color, size: size, progress: progress)
+    }
+
+    /// Bars given directly (the signature forming from the voice's levels).
+    init(bars: [Double], color: Color, size: Size = .compact, progress: Double = 1) {
+        self.values = bars
+        self.color = color
+        self.size = size
+        self.progress = progress
+    }
+
     var body: some View {
-        Bars(values: Self.bars(of: print, count: size.bars), hole: size.hole, progress: progress)
+        Bars(values: AnimatableValues(values), hole: size.hole, progress: progress)
             .stroke(color, style: StrokeStyle(lineWidth: size.lineWidth, lineCap: .round))
             .frame(width: size.points, height: size.points)
             .accessibilityHidden(true)
@@ -52,31 +72,75 @@ struct VoiceSignature: View {
         return raw.map { ($0 - lo) / (hi - lo) }
     }
 
+    /// The bars while the signature is forming, from the voice's levels so far (0…1,
+    /// one per 20 ms of speech): a full ring is `span` levels, so the ring fills in
+    /// step with the round's progress; the bars not reached yet are 0 (not drawn).
+    /// The lengths are the levels as they are, not spread out: a bar that has grown
+    /// keeps its length as the next ones come.
+    static func bars(fromLevels levels: [Float], span: Int, count: Int) -> [Double] {
+        guard count > 0, span > 0 else { return [] }
+        let raw = (0..<count).map { b -> Double in
+            let lo = b * span / count, hi = max(lo + 1, (b + 1) * span / count)
+            guard lo < levels.count else { return 0 }
+            let slice = levels[lo..<min(hi, levels.count)]
+            return slice.reduce(0.0) { $0 + Double($1) } / Double(slice.count)
+        }
+        return raw.indices.map { i in
+            let before = i > 0 ? raw[i - 1] : raw[i], after = i + 1 < count && raw[i + 1] > 0 ? raw[i + 1] : raw[i]
+            return raw[i] > 0 ? (before + 2 * raw[i] + after) / 4 : 0
+        }
+    }
+
+    /// Bar lengths SwiftUI can animate between: the forming bars settle into the
+    /// print's rather than switching to them.
+    struct AnimatableValues: VectorArithmetic {
+        var values: [Double]
+        init(_ values: [Double]) { self.values = values }
+
+        static var zero: AnimatableValues { AnimatableValues([]) }
+
+        static func + (lhs: AnimatableValues, rhs: AnimatableValues) -> AnimatableValues {
+            AnimatableValues((0..<max(lhs.values.count, rhs.values.count)).map { i in
+                (i < lhs.values.count ? lhs.values[i] : 0) + (i < rhs.values.count ? rhs.values[i] : 0)
+            })
+        }
+
+        static func - (lhs: AnimatableValues, rhs: AnimatableValues) -> AnimatableValues {
+            AnimatableValues((0..<max(lhs.values.count, rhs.values.count)).map { i in
+                (i < lhs.values.count ? lhs.values[i] : 0) - (i < rhs.values.count ? rhs.values[i] : 0)
+            })
+        }
+
+        mutating func scale(by rhs: Double) { values = values.map { $0 * rhs } }
+
+        var magnitudeSquared: Double { values.reduce(0) { $0 + $1 * $1 } }
+    }
+
     /// The ring of bars, drawn from an inner circle outwards; `progress` sweeps round it.
     struct Bars: Shape {
-        let values: [Double]
+        var values: AnimatableValues
         let hole: CGFloat
         var progress: Double
-        var animatableData: Double {
-            get { progress }
-            set { progress = newValue }
+        var animatableData: AnimatablePair<AnimatableValues, Double> {
+            get { AnimatablePair(values, progress) }
+            set { values = newValue.first; progress = newValue.second }
         }
 
         func path(in rect: CGRect) -> Path {
             var path = Path()
-            let n = values.count
+            let n = values.values.count
             guard n > 0 else { return path }
             let c = CGPoint(x: rect.midX, y: rect.midY)
             let r = min(rect.width, rect.height) / 2
             let inner = r * hole
             // Each bar grows as the sweep passes it, over a sixth of the turn.
             let sweep = progress * (1 + 1 / 6.0)
-            for (i, v) in values.enumerated() {
+            for (i, v) in values.values.enumerated() {
                 let at = Double(i) / Double(n)
                 let grown = min(1, max(0, (sweep - at) * 6))
                 guard grown > 0 else { continue }
                 let angle = at * 2 * .pi - .pi / 2
-                let len = (inner + (r - inner) * (0.12 + 0.88 * v)) * grown + inner * (1 - grown)
+                let len = (inner + (r - inner) * (0.12 + 0.88 * min(1, max(0, v)))) * grown + inner * (1 - grown)
                 let dx = cos(angle), dy = sin(angle)
                 path.move(to: CGPoint(x: c.x + dx * inner, y: c.y + dy * inner))
                 path.addLine(to: CGPoint(x: c.x + dx * len, y: c.y + dy * len))
@@ -97,6 +161,16 @@ struct VoiceSignature: View {
         }
         let norm = out.reduce(Float(0)) { $0 + $1 * $1 }.squareRoot()
         return out.map { $0 / max(norm, 1e-6) }
+    }
+
+    /// Levels for screenshots: a voice rising and falling over `count` frames of 20 ms.
+    static func demoLevels(_ seed: String, count: Int) -> [Float] {
+        let noise = demoPrint(seed, count: count)
+        return (0..<count).map { i in
+            let t = Double(i) / 50
+            let wave = 0.45 + 0.25 * sin(t * 5.3) + 0.15 * sin(t * 13.1 + 1)
+            return Float(min(1, max(0.05, wave + Double(noise[i]) * 1.2)))
+        }
     }
     #endif
 }
