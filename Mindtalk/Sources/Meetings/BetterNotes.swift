@@ -269,8 +269,9 @@ final class BetterNotes: ObservableObject {
                 }
                 if generation == mine {
                     states[model] = .ready
-                    // Downloaded to be used.
-                    chosen = model
+                    // Downloaded to be used, in place of Apple Intelligence. Another
+                    // Gemma or a model in Ollama or LM Studio you picked stays picked.
+                    if !isActive { chosen = model }
                 }
                 Self.log.info("installed \(model.rawValue, privacy: .public)")
             } catch is CancellationError {
