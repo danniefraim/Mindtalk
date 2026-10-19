@@ -67,7 +67,7 @@ final class ClaudeSharing: ObservableObject {
     @Published private(set) var entries: [Entry] = []
 
     private let defaults = UserDefaults.standard
-    private static var logURL: URL {
+    nonisolated private static var logURL: URL {
         MeetingStore.root.deletingLastPathComponent().appendingPathComponent("ClaudeLog.json")
     }
 
