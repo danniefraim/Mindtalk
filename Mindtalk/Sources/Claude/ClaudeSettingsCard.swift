@@ -3,14 +3,15 @@ import SwiftUI
 
 // MARK: - Inställningar → Integrationer → MCP
 //
-// Off by default. The serif line on top says what it is for, off and on. Switched on,
-// the card fits one screen: a row of buttons for the four programs people ask for
-// (Claude, ChatGPT, Cursor, Gemini CLI), three steps for all other programs with the
-// standard setting to copy, and a "Läs mer" that opens the help page (MCPHelpView,
-// every program step by step, and the Terminal command). Then what has been read so far.
-// On means everything Mindtalk has may be read; off means nothing: switching on is the
-// choice, so there is nothing more to set. Switched off: the switch, the two lines on
-// top and a line saying so.
+// Off by default. One row on top, AI-program and the switch, with a line that says what
+// it does (MCP is named there, not in the title). Switched on, the card fits one
+// screen: a row of buttons for the four programs people ask for (Claude, Claude Code,
+// ChatGPT, Cursor), three steps for all other programs with the standard setting to
+// copy, and a "Läs mer" that opens the help page (MCPHelpView, every program step by
+// step, and the Terminal command). Then what has been read so far. On means everything
+// Mindtalk has may be read; off means nothing: switching on is the choice, so there is
+// nothing more to set. Switched off: the row and a line saying so. Run from outside
+// Applications, or without the helper's link, a line says the programs won't find it.
 //
 // The first time the switch goes on, a dialog says where the text goes and what is
 // never shared; after that the switch is a switch.
@@ -33,7 +34,7 @@ struct ClaudeSettingsCard: View {
     private static let shown = 10
 
     private enum Notice: Equatable {
-        /// Muted, and gone after a few seconds.
+        /// Muted, and gone after a while (longer for a longer line).
         case copied(String)
         /// In ink, until the next press; for the Claude app with "Hämta Claude" beside it.
         case trouble(String, getClaude: Bool)
@@ -43,7 +44,7 @@ struct ClaudeSettingsCard: View {
     init(sharing: ClaudeSharing, preview: ClaudeInstall.Client? = nil) {
         self.sharing = sharing
         switch preview {
-        case .codex, .gemini:
+        case .codex, .claudeCode:
             _copied = State(initialValue: preview)
             _notice = State(initialValue: .copied(Self.copiedLine(preview!)))
         case .cursor:
@@ -58,6 +59,13 @@ struct ClaudeSettingsCard: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            if !ClaudeInstall.helperReachable {
+                Text("Flytta Mindtalk till mappen Program och öppna den igen, annars hittar AI-programmen inte Mindtalk.")
+                    .font(.system(size: 13, weight: .medium))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 22).padding(.bottom, 16)
+            }
             CardDivider()
             if sharing.enabled {
                 connect
@@ -92,7 +100,7 @@ struct ClaudeSettingsCard: View {
         }
     }
 
-    // MARK: The switch and the two lines
+    // MARK: The switch and its line
 
     /// On, the first time, goes through the dialog; off is immediate.
     private var enabled: Binding<Bool> {
@@ -102,23 +110,11 @@ struct ClaudeSettingsCard: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center, spacing: 20) {
-                Text("MCP").font(.system(size: 14, weight: .semibold))
-                Spacer(minLength: 12)
-                InkToggle(label: String(localized: "MCP, låt AI-program läsa möten och tankar"), isOn: enabled)
-            }
-            Text("Ta med dina möten och tankar till din AI-assistent")
-                .font(.system(size: 22, weight: .regular, design: .serif))
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 12)
-            Text("Slår du på kan programmen du kopplar läsa dina tankar och möten, även hela texten. Varje läsning syns i loggen.")
-                .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 6)
+        CardRow(title: "AI-program",
+                detail: sharing.enabled ? "När det är på kan programmen du kopplar läsa dina tankar och möten. Allt de läser syns nedan."
+                    : "Låt Claude, ChatGPT och andra AI-program läsa dina tankar och möten via MCP.") {
+            InkToggle(label: String(localized: "MCP, låt AI-program läsa möten och tankar"), isOn: enabled)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 22).padding(.top, 18).padding(.bottom, 20)
     }
 
     // MARK: The four buttons, and all other programs
@@ -129,13 +125,13 @@ struct ClaudeSettingsCard: View {
                 Button("Lägg till i Claude") { addToClaude() }
                     .buttonStyle(.ink)
                     .help("Skapar ett tillägg och öppnar det i Claude-appen.")
+                copyButton(.claudeCode, title: "Claude Code")
+                    .help("Kopierar kommandot som lägger till Mindtalk i Claude Code.")
                 copyButton(.codex, title: "ChatGPT")
-                    .help("Kopierar kommandot som lägger till Mindtalk i ChatGPT:s Codex.")
+                    .help("Kopierar sökvägen som ChatGPT-appen startar Mindtalk med.")
                 Button { open(.cursor) } label: { Text(verbatim: "Cursor") }
                     .buttonStyle(.soft)
                     .help("Öppnar Cursor, som frågar om du vill lägga till Mindtalk.")
-                copyButton(.gemini, title: "Gemini CLI")
-                    .help("Kopierar kommandot som lägger till Mindtalk i Gemini CLI.")
             }
             if let notice { noticeLine(notice).padding(.top, 10) }
 
@@ -151,7 +147,7 @@ struct ClaudeSettingsCard: View {
                         sharing.connectedOnce = true
                     }
                 }
-                step(2, "Lägg till den i programmets MCP-inställningar, som en lokal server (STDIO).")
+                step(2, LocalizedStringKey(ClaudeInstall.pasteSettingStep))
                 step(3, "Starta om programmet och fråga om dina möten.")
             }
             HStack {
@@ -212,16 +208,18 @@ struct ClaudeSettingsCard: View {
 
     private static func copiedLine(_ client: ClaudeInstall.Client) -> String {
         client == .codex
-            ? String(localized: "Kopierat. Klistra in i Terminalen, så kan ChatGPT:s Codex använda Mindtalk.")
+            ? String(localized: "Kopierat. I ChatGPT-appen: Inställningar → MCP servers → Add server. Välj STDIO, klistra in som kommando och skriv mcp som argument. Spara och tryck Restart.")
             : String(localized: "Kopierat. Klistra in i Terminalen.")
     }
 
     private func say(_ new: Notice?) {
         noticeTask?.cancel()
         withAnimation(.snappy) { notice = new }
-        guard case .copied = new else { return }
+        guard case .copied(let text) = new else { return }
+        // Time to read it: the ChatGPT steps take longer than "Kopierat".
+        let seconds = text.count > 60 ? 12.0 : 4.0
         noticeTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(4))
+            try? await Task.sleep(for: .seconds(seconds))
             if !Task.isCancelled { withAnimation(.snappy) { notice = nil } }
         }
     }
@@ -229,13 +227,21 @@ struct ClaudeSettingsCard: View {
     private func addToClaude() {
         let outcome = ClaudeInstall.addToClaude()
         if outcome == .opened { sharing.connectedOnce = true }
-        say(outcome.trouble.map { .trouble($0, getClaude: outcome == .noClaudeApp) })
+        // Opened: what happens next in Claude, as on the help page.
+        say(outcome.trouble.map { .trouble($0, getClaude: outcome == .noClaudeApp) } ?? .copied(ClaudeInstall.claudeOpensStep))
     }
 
-    /// ChatGPT and Gemini CLI: the program's `… mcp add` line, from its action.
+    /// Claude Code: its `claude mcp add` line. ChatGPT: the helper's path, for the app's
+    /// own MCP settings (the `codex mcp add` line is on the help page).
     private func copy(_ client: ClaudeInstall.Client) {
-        guard case .copy(_, let text) = client.action else { return }
-        ClaudeInstall.copy(text, what: "the command for \(client.rawValue)")
+        let text: String
+        if client == .codex {
+            text = ClaudeInstall.helperLinkURL.path
+        } else {
+            guard case .copy(_, let line) = client.action else { return }
+            text = line
+        }
+        ClaudeInstall.copy(text, what: client == .codex ? "the helper path for ChatGPT" : "the command for \(client.rawValue)")
         sharing.connectedOnce = true
         copiedTask?.cancel()
         withAnimation(.snappy) { copied = client }

@@ -194,6 +194,9 @@ struct MCPHelpView: View {
                 .textSelection(.enabled)
         case .field(let text, let what):
             MCPCopyField(text: text, what: what) { sharing.connectedOnce = true }
+        case .heading(let text):
+            Text(verbatim: text).font(.system(size: 13, weight: .semibold))
+                .padding(.top, 8)
         case .ask(let question, let answer):
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: question).font(.system(size: 13, weight: .semibold))
@@ -217,6 +220,8 @@ struct MCPHelpView: View {
         case field(String, what: String)
         /// Felsökning: a question and its answer.
         case ask(String, String)
+        /// A program within a section ("Antigravity"): the steps under it count from 1.
+        case heading(String)
 
         var isStep: Bool {
             switch self {
@@ -233,10 +238,11 @@ struct MCPHelpView: View {
         let lines: [Line]
         var id: String { title }
 
-        /// 1, 2, 3 for the steps; nil for the rest.
+        /// 1, 2, 3 for the steps, from the last heading; nil for the rest.
         func number(of index: Int) -> Int? {
             guard lines[index].isStep else { return nil }
-            return lines[...index].filter(\.isStep).count
+            let start = lines[...index].lastIndex { if case .heading = $0 { return true }; return false } ?? -1
+            return lines[(start + 1)...index].filter(\.isStep).count
         }
     }
 
@@ -246,9 +252,9 @@ struct MCPHelpView: View {
         Section(title: String(localized: "Felsökning"), lines: [
             .ask(String(localized: "Syns inget i loggen?"),
                  String(localized: "Kontrollera att MCP är på här, och starta om programmet.")),
-            .ask(String(localized: "Programmet säger att Mindtalk inte kör?"),
+            .ask(String(localized: "Säger programmet att Mindtalk inte är igång?"),
                  String(localized: "Öppna Mindtalk.")),
-            .ask(String(localized: "Vill du stänga av?"),
+            .ask(String(localized: "Vill du slå av?"),
                  String(localized: "Slå av MCP här. Inget kan läsas från den stunden.")),
         ])
     }
@@ -268,7 +274,7 @@ struct MCPHelpView: View {
         case .claude:
             return Section(title: String(localized: "Claude-appen"), client: client, lines: [
                 .step(String(localized: "Tryck Lägg till i Claude.")),
-                .step(String(localized: "Claude öppnas och frågar om du vill lägga till Mindtalk. Svara ja.")),
+                .step(ClaudeInstall.claudeOpensStep),
                 .step(String(localized: "Fråga Claude om dina möten.")),
             ])
         case .claudeCode:
@@ -281,8 +287,10 @@ struct MCPHelpView: View {
             return Section(title: client.title, lines: [
                 .copy(copyCommand, text: copied(client), what: "the Codex command"),
                 .step(paste),
-                .note(String(localized: "Eller i ChatGPT-appen: Inställningar → MCP servers → Add server, välj STDIO, kommandot \(ClaudeInstall.helperLinkURL.path) och argumentet mcp.")),
-                .note(String(localized: "Inte under Pluginer, där går bara servrar på internet.")),
+                .note(String(localized: "Eller i ChatGPT-appen: Inställningar → MCP servers → Add server. Välj STDIO, klistra in sökvägen som kommando och skriv mcp som argument.")),
+                .field(ClaudeInstall.helperLinkURL.path, what: "the helper path for ChatGPT"),
+                .note(String(localized: "Spara och tryck Restart.")),
+                .note(String(localized: "Inte under Plugins. Där fungerar bara servrar på internet.")),
                 .note(String(localized: "Det fungerar i Codex-delen av ChatGPT, inte i den vanliga chatten.")),
             ])
         case .cursor:
@@ -299,11 +307,7 @@ struct MCPHelpView: View {
             return Section(title: client.title, lines: [
                 .copy(copySetting, text: copied(client), what: "the Zed setting"),
                 .step(String(localized: "Klistra in i Zeds settings.json.")),
-            ])
-        case .gemini:
-            return Section(title: client.title, lines: [
-                .copy(copyCommand, text: copied(client), what: "the Gemini CLI command"),
-                .step(paste),
+                .step(String(localized: "Lägg den inuti de yttersta klamrarna. Har du redan context_servers, lägg bara till mindtalk där.")),
             ])
         case .lmStudio:
             return Section(title: client.title, client: client, lines: [
@@ -314,10 +318,16 @@ struct MCPHelpView: View {
                 .note(String(localized: "Raycast öppnas och frågar om du vill lägga till Mindtalk.")),
             ])
         case .other:
-            return Section(title: String(localized: "Andra program"), lines: [
+            return Section(title: String(localized: "Alla andra program"), lines: [
                 .copy(copySetting, text: copied(client), what: "the MCP server config"),
-                .step(String(localized: "Lägg till den som en lokal server (STDIO) i programmets MCP-inställningar.")),
+                .step(ClaudeInstall.pasteSettingStep),
                 .step(String(localized: "Starta om programmet och fråga om dina möten.")),
+                .note(String(localized: "Frågar programmet efter typ, välj en lokal server (STDIO).")),
+                // Antigravity reads the same setting from its own file.
+                .heading("Antigravity"),
+                .copy(copySetting, text: copied(client), what: "the MCP server config for Antigravity"),
+                .step(String(localized: "Lägg in den i ~/.gemini/config/mcp_config.json. I Antigravity: ⋯ → MCP Servers → Manage MCP Servers → View raw config.")),
+                .step(String(localized: "Starta om Antigravity.")),
             ])
         }
     }

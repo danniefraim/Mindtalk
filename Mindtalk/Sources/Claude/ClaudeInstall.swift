@@ -4,14 +4,17 @@ import os
 
 // MARK: - Integrationer → MCP: getting the connection into the user's program
 //
-// The settings card has a row of buttons for the four most asked for (Claude, ChatGPT,
-// Cursor, Gemini CLI) and the standard setting for all other programs; the help page
+// The settings card has a row of buttons for the four most asked for (Claude, Claude
+// Code, ChatGPT, Cursor) and the standard setting for all other programs; the help page
 // (MCPHelpView) has one section per program (ClaudeInstall.Client). What each does:
 //
 //   • Claude: a .mcpb bundle (a zip with manifest.json at its root, the Claude desktop
 //     app's extension format) that Mindtalk writes and opens. The Claude app registers
 //     the .mcpb type and shows the extension for installation.
-//   • Claude Code, Codex, Gemini CLI: one `… mcp add` line, copied to the clipboard.
+//   • Claude Code, Codex: one `… mcp add` line, copied to the clipboard. The ChatGPT
+//     button on the card copies the helper's path instead, for the app's own MCP
+//     settings. (Gemini CLI is gone since June 2026; Antigravity reads the standard
+//     setting, as any other program.)
 //   • Cursor, VS Code, LM Studio, Raycast: a link in the program's own scheme that
 //     opens it with the server filled in.
 //   • Zed and any other program: the settings snippet, copied to the clipboard.
@@ -140,6 +143,22 @@ enum ClaudeInstall {
         return rep.representation(using: .png, properties: [:])
     }
 
+    /// What the AI programs start: false when Mindtalk runs from outside Applications (or
+    /// ~/Applications), or the link to the helper isn't there. Then the card says so.
+    @MainActor static var helperReachable: Bool {
+        AppMover.isInApplications && FileManager.default.fileExists(atPath: helperLinkURL.path)
+    }
+
+    /// The step after "Lägg till i Claude", the same on the card and the help page.
+    static var claudeOpensStep: String {
+        String(localized: "Claude öppnas och visar Mindtalk. Tryck Installera.")
+    }
+
+    /// Step 2 for any other program, the same on the card and the help page.
+    static var pasteSettingStep: String {
+        String(localized: "Klistra in den där programmet lägger till MCP-servrar.")
+    }
+
     // MARK: Lägg till i Claude
 
     enum Outcome: Equatable {
@@ -193,7 +212,6 @@ enum ClaudeInstall {
         case cursor = "Cursor"
         case vscode = "VS Code"
         case zed = "Zed"
-        case gemini = "Gemini CLI"
         case lmStudio = "LM Studio"
         case raycast = "Raycast"
         case other = "Annat program"
@@ -221,8 +239,6 @@ enum ClaudeInstall {
                 return .copy(title: String(localized: "Kopiera kommandot"), text: ClaudeInstall.claudeCodeCommand())
             case .codex:
                 return .copy(title: String(localized: "Kopiera kommandot"), text: ClaudeInstall.codexCommand())
-            case .gemini:
-                return .copy(title: String(localized: "Kopiera kommandot"), text: ClaudeInstall.geminiCommand())
             case .zed:
                 return .copy(title: String(localized: "Kopiera inställningen"), text: ClaudeInstall.zedConfig())
             case .other:
@@ -253,10 +269,6 @@ enum ClaudeInstall {
     /// For ChatGPT's Codex side (the Codex CLI and the app's MCP settings share one list).
     static func codexCommand(helperPath: String = helperLinkURL.path) -> String {
         "codex mcp add mindtalk -- \"\(helperPath)\" mcp"
-    }
-
-    static func geminiCommand(helperPath: String = helperLinkURL.path) -> String {
-        "gemini mcp add --scope user mindtalk \"\(helperPath)\" mcp"
     }
 
     @MainActor
