@@ -326,6 +326,22 @@
         }
       }
     },
+    "%@ hittades inte.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ was not found."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ hittades inte."
+          }
+        }
+      }
+    },
     "%@ i %@": {
       "localizations": {
         "en": {
@@ -2620,6 +2636,7 @@
       }
     },
     "Alla program som körs som du på den här Macen kan fråga. Loggen visar varje läsning.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2900,6 +2917,22 @@
         }
       }
     },
+    "Allt, även texten från mötena": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everything, including the meetings’ text"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allt, även texten från mötena"
+          }
+        }
+      }
+    },
     "Alltid": {
       "localizations": {
         "en": {
@@ -2929,6 +2962,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Annars finns Mindtalk bara i menyraden när fönstret är stängt."
+          }
+        }
+      }
+    },
+    "Annat program": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other App"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annat program"
           }
         }
       }
@@ -3478,7 +3527,6 @@
       }
     },
     "Av. Inga program kan läsa något.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3495,6 +3543,7 @@
       }
     },
     "Av. Inga program kan läsa något. Slår du på väljer du vad som får läsas och kopplar sedan ditt program.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4682,6 +4731,22 @@
         }
       }
     },
+    "Claude-appen öppnas och frågar om du vill lägga till Mindtalk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Claude app opens and asks whether to add Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude-appen öppnas och frågar om du vill lägga till Mindtalk."
+          }
+        }
+      }
+    },
     "Core ML": {
       "extractionState": "manual",
       "localizations": {
@@ -4712,6 +4777,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Core ML (%@)"
+          }
+        }
+      }
+    },
+    "Cursor öppnas och frågar om du vill lägga till Mindtalk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursor opens and asks whether to add Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursor öppnas och frågar om du vill lägga till Mindtalk."
           }
         }
       }
@@ -7038,6 +7119,22 @@
         }
       }
     },
+    "Ett nytt möte kan läsas när det är klart, om du inte lägger det i en mapp som inte får läsas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A new meeting can be read once it is finished, unless you put it in a folder that may not be read."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ett nytt möte kan läsas när det är klart, om du inte lägger det i en mapp som inte får läsas."
+          }
+        }
+      }
+    },
     "Ett ord till": {
       "localizations": {
         "en": {
@@ -7849,6 +7946,7 @@
       }
     },
     "Fråga nu ditt program om ett möte, så syns det här.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8231,6 +8329,7 @@
       }
     },
     "Fungerar med program på den här Macen, inte med Claude eller ChatGPT på webben eller i mobilen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8328,6 +8427,7 @@
       }
     },
     "Får läsa": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8339,6 +8439,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Får läsa"
+          }
+        }
+      }
+    },
+    "Får läsas": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "May read"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Får läsas"
           }
         }
       }
@@ -12107,6 +12223,22 @@
         }
       }
     },
+    "Installera kommandot": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install Command"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installera kommandot"
+          }
+        }
+      }
+    },
     "Installera ny version %@…": {
       "extractionState": "manual",
       "localizations": {
@@ -12943,6 +13075,70 @@
         }
       }
     },
+    "Klistra in i Terminalen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste into Terminal."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klistra in i Terminalen."
+          }
+        }
+      }
+    },
+    "Klistra in i Terminalen. Gäller ChatGPT:s Codex-läge. I ChatGPT-appen: Inställningar → MCP servers → Add server, typ STDIO.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste into Terminal. Applies to ChatGPT’s Codex mode. In the ChatGPT app: Settings → MCP servers → Add server, type STDIO."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klistra in i Terminalen. Gäller ChatGPT:s Codex-läge. I ChatGPT-appen: Inställningar → MCP servers → Add server, typ STDIO."
+          }
+        }
+      }
+    },
+    "Klistra in i Zeds settings.json.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste into Zed’s settings.json."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klistra in i Zeds settings.json."
+          }
+        }
+      }
+    },
+    "Klistra in i programmets MCP-inställningar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste into the app’s MCP settings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klistra in i programmets MCP-inställningar."
+          }
+        }
+      }
+    },
     "Klistra in igen": {
       "extractionState": "stale",
       "localizations": {
@@ -13091,6 +13287,38 @@
         }
       }
     },
+    "Kommandot kunde inte installeras: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The command could not be installed: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kommandot kunde inte installeras: %@"
+          }
+        }
+      }
+    },
+    "Kommandot kunde inte tas bort: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The command could not be removed: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kommandot kunde inte tas bort: %@"
+          }
+        }
+      }
+    },
     "Kommer du på något mitt i något annat? Säg det, så hamnar det i Tankar, inte i texten.": {
       "localizations": {
         "en": {
@@ -13140,6 +13368,7 @@
       }
     },
     "Kopiera för Claude Code": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13156,6 +13385,7 @@
       }
     },
     "Kopiera för andra program": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13167,6 +13397,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kopiera för andra program"
+          }
+        }
+      }
+    },
+    "Kopiera inställningen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Setting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopiera inställningen"
+          }
+        }
+      }
+    },
+    "Kopiera kommandot": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Command"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopiera kommandot"
           }
         }
       }
@@ -13336,6 +13598,7 @@
       }
     },
     "Kopierat. Klistra in i Terminalen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13352,6 +13615,7 @@
       }
     },
     "Kopierat. Klistra in i programmets MCP-inställningar.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13363,6 +13627,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kopierat. Klistra in i programmets MCP-inställningar."
+          }
+        }
+      }
+    },
+    "Koppla ett program": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect an app"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Koppla ett program"
           }
         }
       }
@@ -13870,6 +14150,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "LM Studio är installerat men inte igång."
+          }
+        }
+      }
+    },
+    "LM Studio öppnas och frågar om du vill lägga till Mindtalk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LM Studio opens and asks whether to add Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LM Studio öppnas och frågar om du vill lägga till Mindtalk."
           }
         }
       }
@@ -14607,6 +14903,38 @@
         }
       }
     },
+    "Listade %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listed %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listade %@"
+          }
+        }
+      }
+    },
+    "Listade %@ i %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listed %1$@ in %2$@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listade %@ i %@"
+          }
+        }
+      }
+    },
     "Listade %lld mappar": {
       "localizations": {
         "en": {
@@ -14657,6 +14985,7 @@
       }
     },
     "Listade möten": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -14673,6 +15002,7 @@
       }
     },
     "Listade möten i %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15902,6 +16232,38 @@
         }
       }
     },
+    "Läste %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läste %@"
+          }
+        }
+      }
+    },
+    "Läste %@ i %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read %1$@ in %2$@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läste %@ i %@"
+          }
+        }
+      }
+    },
     "Läste %@ · hela texten": {
       "localizations": {
         "en": {
@@ -16066,6 +16428,7 @@
       }
     },
     "Läste uppgifter": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -16082,6 +16445,7 @@
       }
     },
     "Läste uppgifter i %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -16127,6 +16491,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Låt alla säga sitt namn"
+          }
+        }
+      }
+    },
+    "Låt din AI-assistent läsa dina möten och tankar på den här Macen. Inget delas förrän du slår på, och varje läsning syns i loggen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let your AI assistant read your meetings and thoughts on this Mac. Nothing is shared until you switch this on, and every reading shows in the log."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Låt din AI-assistent läsa dina möten och tankar på den här Macen. Inget delas förrän du slår på, och varje läsning syns i loggen."
           }
         }
       }
@@ -16197,6 +16577,7 @@
       }
     },
     "MCP är ett öppet sätt för AI-program att läsa dina möten och tankar. Du väljer vilket program: Claude och ChatGPT på Macen, eller andra som stöder MCP.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -16296,7 +16677,6 @@
       }
     },
     "Mappar": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -16313,6 +16693,7 @@
       }
     },
     "Mappar som får läsas": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -18301,7 +18682,24 @@
         }
       }
     },
+    "Möten utan mapp får alltid läsas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meetings in no folder may always be read."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Möten utan mapp får alltid läsas."
+          }
+        }
+      }
+    },
     "Möten utan mapp får alltid läsas. Ett nytt möte kan läsas när det är klart, om du inte lägger det i en mapp som inte får läsas.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -19306,7 +19704,24 @@
         }
       }
     },
+    "När du frågar ett AI-program skickas texten till det programmets leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud och röstavtryck delas aldrig. Alla program som körs som du på den här Macen kan fråga, och loggen visar varje läsning.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When you ask an AI app, the text is sent to that app’s provider under the terms of your account there. Mindtalk sends nothing on its own. Audio and voiceprints are never shared. Any app running as you on this Mac can ask, and the log shows every reading."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "När du frågar ett AI-program skickas texten till det programmets leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud och röstavtryck delas aldrig. Alla program som körs som du på den här Macen kan fråga, och loggen visar varje läsning."
+          }
+        }
+      }
+    },
     "När du frågar skickas texten till det programmets leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud och röstavtryck delas aldrig.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -20172,6 +20587,22 @@
         }
       }
     },
+    "Program": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Program"
+          }
+        }
+      }
+    },
     "Prova": {
       "localizations": {
         "en": {
@@ -20621,6 +21052,22 @@
         }
       }
     },
+    "Raycast öppnas och frågar om du vill lägga till Mindtalk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raycast opens and asks whether to add Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raycast öppnas och frågar om du vill lägga till Mindtalk."
+          }
+        }
+      }
+    },
     "Redigera": {
       "extractionState": "stale",
       "localizations": {
@@ -20834,6 +21281,7 @@
       }
     },
     "Rensa loggen…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -20866,7 +21314,6 @@
       }
     },
     "Rensa…": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -22744,6 +23191,22 @@
         }
       }
     },
+    "Slå på MCP?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch on MCP?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slå på MCP?"
+          }
+        }
+      }
+    },
     "Slå på Mindtalk under Integritet och säkerhet → Hjälpmedel. Den här rutan blir grön av sig själv.": {
       "extractionState": "stale",
       "localizations": {
@@ -23761,6 +24224,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Starta om"
+          }
+        }
+      }
+    },
+    "Starta om programmet efteråt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart the app afterwards."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starta om programmet efteråt."
           }
         }
       }
@@ -24798,6 +25277,7 @@
       }
     },
     "Sökte": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -24814,6 +25294,7 @@
       }
     },
     "Sökte i %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -24825,6 +25306,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sökte i %@"
+          }
+        }
+      }
+    },
+    "Sökte i %@, %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Searched %1$@, %2$@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sökte i %@, %@"
+          }
+        }
+      }
+    },
+    "Sökte, %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Searched, %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sökte, %@"
           }
         }
       }
@@ -25087,6 +25600,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ta bort klara…"
+          }
+        }
+      }
+    },
+    "Ta bort kommandot": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Command"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort kommandot"
           }
         }
       }
@@ -26096,6 +26625,7 @@
       }
     },
     "Tankar, mötenas sammanfattningar och dina anteckningar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -26111,7 +26641,24 @@
         }
       }
     },
+    "Tankar, sammanfattningar och anteckningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thoughts, summaries and notes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tankar, sammanfattningar och anteckningar"
+          }
+        }
+      }
+    },
     "Tankar, sammanfattningar, anteckningar och hela texten från mötena": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -26237,6 +26784,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Teams"
+          }
+        }
+      }
+    },
+    "Terminalen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminalen"
           }
         }
       }
@@ -26966,6 +27529,7 @@
       }
     },
     "Tryck Lägg till i Claude, så öppnas Claude-appen och frågar om du vill lägga till Mindtalk. Eller kopiera inställningen till ditt program.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -27673,6 +28237,22 @@
         }
       }
     },
+    "VS Code öppnas och frågar om du vill lägga till Mindtalk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VS Code opens and asks whether to add Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VS Code öppnas och frågar om du vill lägga till Mindtalk."
+          }
+        }
+      }
+    },
     "Vad bestämdes den här veckan?": {
       "localizations": {
         "en": {
@@ -28246,6 +28826,7 @@
       }
     },
     "Visa alla": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -28534,6 +29115,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa licenser…"
+          }
+        }
+      }
+    },
+    "Visa loggen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Log"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa loggen"
           }
         }
       }
@@ -29302,6 +29899,22 @@
         }
       }
     },
+    "alla möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "all meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "alla möten"
+          }
+        }
+      }
+    },
     "anteckningar": {
       "extractionState": "stale",
       "localizations": {
@@ -29835,6 +30448,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "importerad i går från %@"
+          }
+        }
+      }
+    },
+    "inga träffar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "no hits"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "inga träffar"
           }
         }
       }
@@ -31533,6 +32162,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna Tankar →"
+          }
+        }
+      }
+    },
+    "Öppna i Cursor": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in Cursor"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna i Cursor"
+          }
+        }
+      }
+    },
+    "Öppna i LM Studio": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in LM Studio"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna i LM Studio"
+          }
+        }
+      }
+    },
+    "Öppna i Raycast": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in Raycast"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna i Raycast"
+          }
+        }
+      }
+    },
+    "Öppna i VS Code": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in VS Code"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna i VS Code"
           }
         }
       }

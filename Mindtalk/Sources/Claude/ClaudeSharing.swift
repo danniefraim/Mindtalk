@@ -30,8 +30,8 @@ final class ClaudeSharing: ObservableObject {
         var title: String {
             switch self {
             case .thoughts: return String(localized: "Bara tankar")
-            case .summaries: return String(localized: "Tankar, mötenas sammanfattningar och dina anteckningar")
-            case .everything: return String(localized: "Tankar, sammanfattningar, anteckningar och hela texten från mötena")
+            case .summaries: return String(localized: "Tankar, sammanfattningar och anteckningar")
+            case .everything: return String(localized: "Allt, även texten från mötena")
             }
         }
         var includesMeetings: Bool { self != .thoughts }
@@ -70,10 +70,19 @@ final class ClaudeSharing: ObservableObject {
     @Published var excludedFolders: Set<UUID> {
         didSet { if !previewing { defaults.set(excludedFolders.map(\.uuidString), forKey: "claude.excludedFolders") } }
     }
-    /// "Lägg till i Claude" was pressed, or a setting copied, once: the card then
-    /// says to ask the program, instead of how to connect it.
+    /// "Lägg till i Claude" was pressed, or a setting copied, once.
     @Published var connectedOnce: Bool {
         didSet { if !previewing { defaults.set(connectedOnce, forKey: "claude.connectedOnce") } }
+    }
+    /// The owner has seen "Slå på MCP?" (where the text goes, what is never shared) and
+    /// pressed Slå på once: the card asks the first time only.
+    @Published var enableExplained: Bool {
+        didSet { if !previewing { defaults.set(enableExplained, forKey: "claude.enableExplained") } }
+    }
+    /// The program that read something most recently, as the log names it ("Claude"),
+    /// so the card can offer that program first.
+    var lastClient: String? {
+        entries.first { !($0.client ?? "").isEmpty }?.client
     }
 
     /// One call a program made: what it read, how much, when. The newest first.
@@ -111,6 +120,7 @@ final class ClaudeSharing: ObservableObject {
         level = Level(rawValue: defaults.string(forKey: "claude.level") ?? "") ?? .everything
         excludedFolders = Set((defaults.stringArray(forKey: "claude.excludedFolders") ?? []).compactMap(UUID.init))
         connectedOnce = defaults.bool(forKey: "claude.connectedOnce")
+        enableExplained = defaults.bool(forKey: "claude.enableExplained")
         if let data = try? Data(contentsOf: Self.logURL),
            let saved = try? JSONDecoder().decode([Entry].self, from: data) {
             entries = saved
@@ -157,6 +167,7 @@ final class ClaudeSharing: ObservableObject {
         self.level = level
         excludedFolders = []
         connectedOnce = !demo.isEmpty
+        enableExplained = on
         entries = demo
     }
     #endif

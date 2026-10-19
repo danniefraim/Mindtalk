@@ -868,8 +868,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     let url = try ClaudeInstall.buildBundle(at: URL(fileURLWithPath: args[i + 1]))
                     print(String(decoding: try ClaudeInstall.manifestJSON(), as: UTF8.self))
                     print("Skrev: \(url.path)")
-                    print("Claude Code: \(ClaudeInstall.claudeCodeCommand())")
-                    print("Andra program:\n\(ClaudeInstall.serverConfig())")
+                    // Every program in the picker: what its one button does.
+                    for client in ClaudeInstall.Client.allCases {
+                        switch client.action {
+                        case .addToClaude: print("\(client.rawValue): Lägg till i Claude (\(ClaudeInstall.bundleURL.path))")
+                        case .copy(let title, let text): print("\(client.rawValue): \(title)\n\(text)")
+                        case .open(let title, let url): print("\(client.rawValue): \(title)\n\(url.absoluteString)")
+                        }
+                    }
+                    print("Terminalen: \(ClaudeInstall.administratorScript("/bin/ln -sfn \(ClaudeInstall.shellQuoted(ClaudeInstall.helperLinkURL.path)) \(ClaudeInstall.shellQuoted(ClaudeInstall.commandURL.path))"))")
+                    print("Kommandot installerat: \(ClaudeInstall.commandInstalled)")
                     // The links the helper puts in the answers, read back.
                     let id = UUID()
                     let checks: [(URL, MindtalkLink?)] = [
@@ -894,7 +902,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
-        // `Mindtalk --render-mcp out.png [--dark] [--on]`: Settings → Integrationer → MCP, off
+        // `Mindtalk --render-mcp out.png [--dark] [--on] [--client <name>]`: Settings → Integrationer → MCP, off
         // or on, with made-up folders and a made-up log (nothing saved). `--render-claude`
         // is the old name of the same flag.
         if let i = args.firstIndex(of: "--render-mcp") ?? args.firstIndex(of: "--render-claude"), i + 1 < args.count {
@@ -911,7 +919,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     .init(date: now.addingTimeInterval(-86_400), tool: "mindtalk_list_meetings", scope: "Kunder", items: 12, characters: 2400),
                     .init(date: now.addingTimeInterval(-90_000), tool: "mindtalk_list_thoughts", scope: "Tankar", items: 7, characters: 900),
                 ])
-                let view = ClaudeSettingsCard(sharing: .shared)
+                // `--client "ChatGPT (Codex)"`: the picker on that program.
+                let client = args.firstIndex(of: "--client").flatMap { j in j + 1 < args.count ? ClaudeInstall.Client(rawValue: args[j + 1]) : nil }
+                let view = ClaudeSettingsCard(sharing: .shared, client: client)
                     .padding(28).frame(width: 760).background(DS.Colors.paper)
                     .environment(\.colorScheme, dark ? .dark : .light)
                 let renderer = ImageRenderer(content: view)

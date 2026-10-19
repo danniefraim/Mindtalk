@@ -37,7 +37,7 @@ enum ClaudeTools {
     private static let meetingsLevelMessage =
         "Meetings are not shared: the level in Mindtalk is \"Thoughts only\". Thoughts can be read with mindtalk_list_thoughts and mindtalk_search. The user can change this in Mindtalk under Settings → Integrations → MCP."
     private static let transcriptsLevelMessage =
-        "Transcripts are not shared: the level in Mindtalk is \"Thoughts, the meetings’ summaries and your notes\". Use mindtalk_get_meeting for the summary, decisions, tasks and notes, or mindtalk_search. The user can change this in Mindtalk under Settings → Integrations → MCP."
+        "Transcripts are not shared: the level in Mindtalk is \"Thoughts, summaries and notes\". Use mindtalk_get_meeting for the summary, decisions, tasks and notes, or mindtalk_search. The user can change this in Mindtalk under Settings → Integrations → MCP."
 
     /// About 6 000 tokens for a list, 25 000 characters for a page of text.
     static let listBudget = 24_000
