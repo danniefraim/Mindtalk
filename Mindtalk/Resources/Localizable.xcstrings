@@ -7058,6 +7058,22 @@
         }
       }
     },
+    "Fortsätt, så går vi vidare när jag hört ditt namn.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep going, and we move on once I’ve heard your name."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsätt, så går vi vidare när jag hört ditt namn."
+          }
+        }
+      }
+    },
     "Fortsätter om %lld…": {
       "extractionState": "stale",
       "localizations": {
@@ -17454,6 +17470,22 @@
         }
       }
     },
+    "Nästa: ”Hej, jag heter …”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next: “Hi, my name is …”"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nästa: ”Hej, jag heter …”"
+          }
+        }
+      }
+    },
     "Nästan klart": {
       "localizations": {
         "en": {
@@ -21742,6 +21774,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Säg det du vill komma ihåg"
+          }
+        }
+      }
+    },
+    "Säg det med ditt namn. En i taget, vem som helst kan börja.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Say it with your name. One at a time, anyone can start."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Säg det med ditt namn. En i taget, vem som helst kan börja."
+          }
+        }
+      }
+    },
+    "Säg det, eller skriv det i rutan.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Say it, or type it in the box."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Säg det, eller skriv det i rutan."
           }
         }
       }
@@ -28475,6 +28539,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "”Hej! Det här är min första diktering.”"
+          }
+        }
+      }
+    },
+    "”Hej, jag heter …”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“Hi, my name is …”"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "”Hej, jag heter …”"
           }
         }
       }

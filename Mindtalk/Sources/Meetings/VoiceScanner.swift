@@ -353,18 +353,18 @@ struct VoiceScanner: View {
                                 String(localized: "Nästa person, säg hej och vad du heter."))
                     }
                     return round.turn == 1
-                        ? (String(localized: "Person 1"), String(localized: "Vem vill börja?"), String(localized: "Säg hej och ditt namn, en i taget."))
-                        : (String(localized: "Person \(round.turn)"), String(localized: "Nästa, säg ditt namn"), String(localized: "Det räcker med hej och ditt namn."))
+                        ? (String(localized: "Person 1"), String(localized: "”Hej, jag heter …”"), String(localized: "Säg det med ditt namn. En i taget, vem som helst kan börja."))
+                        : (String(localized: "Person \(round.turn)"), String(localized: "Nästa: ”Hej, jag heter …”"), String(localized: "Det räcker med hej och ditt namn."))
                 case .listening:
                     return round.quiet
                         ? (String(localized: "Hör inget"), String(localized: "Kom lite närmare"), String(localized: "Mikrofonen hör dig knappt."))
-                        : (String(localized: "Person \(round.turn)"), String(localized: "Jag lyssnar…"), String(localized: "Säg ditt namn, så går vi vidare."))
+                        : (String(localized: "Person \(round.turn)"), String(localized: "Jag lyssnar…"), String(localized: "Fortsätt, så går vi vidare när jag hört ditt namn."))
                 case .known(let name):
                     return (String(localized: "Känd röst"), String(localized: "Välkommen tillbaka, \(name)"), String(localized: "Jag känner igen rösten."))
                 case .new:
                     let name = round.draft.trimmingCharacters(in: .whitespaces)
                     return (String(localized: "Ny röst"), name.isEmpty ? String(localized: "Vad heter du?") : name,
-                            name.isEmpty ? String(localized: "Säg ditt namn, eller skriv det i rutan.") : String(localized: "Stämmer det? Annars kan du ändra i rutan."))
+                            name.isEmpty ? String(localized: "Säg det, eller skriv det i rutan.") : String(localized: "Stämmer det? Annars kan du ändra i rutan."))
                 case .same(let name):
                     return (String(localized: "Samma röst"), String(localized: "Det är \(name) igen"), String(localized: "Nästa person, varsågod."))
                 case .closing:
