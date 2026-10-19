@@ -84,6 +84,10 @@ final class Vocabulary: ObservableObject {
 
     private static let key = "vocabulary"
 
+    /// A read-only self-test (`--ask-test`): the list is read as it is, and nothing is
+    /// written back, not even a repaired copy.
+    nonisolated static var readOnly: Bool { CommandLine.arguments.contains("--ask-test") }
+
     private init() {
         let defaults = UserDefaults.standard
         var loaded: [VocabularyEntry]
@@ -103,12 +107,12 @@ final class Vocabulary: ObservableObject {
                 // One entry that can't be read is skipped, not the whole list.
                 loaded = saved.compactMap(\.entry)
                 if loaded.count < saved.count {
-                    defaults.set(data, forKey: Self.key + ".unreadable-\(Int(Date().timeIntervalSince1970))")
+                    if !Self.readOnly { defaults.set(data, forKey: Self.key + ".unreadable-\(Int(Date().timeIntervalSince1970))") }
                     differsFromDisk = true
                 }
             } else {
                 // Unreadable: keep a copy (one per time, never written over) rather than lose it.
-                defaults.set(data, forKey: Self.key + ".unreadable-\(Int(Date().timeIntervalSince1970))")
+                if !Self.readOnly { defaults.set(data, forKey: Self.key + ".unreadable-\(Int(Date().timeIntervalSince1970))") }
                 loaded = []
                 differsFromDisk = true
             }
@@ -117,7 +121,7 @@ final class Vocabulary: ObservableObject {
         }
         matcher = Self.matcher(for: loaded)
         entries = loaded
-        if differsFromDisk { save() }
+        if differsFromDisk, !Self.readOnly { save() }
     }
 
     /// An entry, or nothing if it can't be read.
@@ -134,6 +138,7 @@ final class Vocabulary: ObservableObject {
         #if DEBUG
         if Demo.on { return }
         #endif
+        if Self.readOnly { return }
         UserDefaults.standard.set(try? JSONEncoder().encode(entries), forKey: Self.key)
     }
 

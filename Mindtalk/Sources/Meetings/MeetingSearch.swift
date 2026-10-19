@@ -158,16 +158,25 @@ enum QuestionKind {
     static func isBroad(_ question: String, ignoring: String = "") -> Bool {
         let q = " " + question.lowercased().map { $0.isLetter || $0.isNumber ? $0 : " " }
             .split(separator: " ").joined(separator: " ") + " "
-        let words = q.split(separator: " ").map(String.init)
+        let skip = Set(ignoring.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init))
+        // The folder's own name never cues ("Beslut" as a folder isn't a question about decisions).
+        let words = q.split(separator: " ").map(String.init).filter { !skip.contains($0) }
         let cued = phrases.contains { q.contains(" \($0) ") } || words.contains { w in cues.contains { w.hasPrefix($0) } }
         guard cued else { return false }
-        let skip = Set(ignoring.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init))
         let subject = words.filter { w in
-            w.count >= 3 && !stops.contains(w) && !skip.contains(w) && !cues.contains { w.hasPrefix($0) }
-                && !w.allSatisfy(\.isNumber)
+            w.count >= 3 && !isStop(w) && !cues.contains { w.hasPrefix($0) } && !w.allSatisfy(\.isNumber)
         }
         return subject.isEmpty
     }
+
+    /// A small word, or a form of one ("fattades", "gjordes", "göras").
+    private static func isStop(_ w: String) -> Bool {
+        stops.contains(w) || stopStems.contains { w.hasPrefix($0) }
+    }
+
+    /// The five-letter keys of every cue, phrase and small word: never what a particular
+    /// question searches for (LibraryContext.content).
+    static let keys: Set<String> = Lines.keys((cues + phrases + Array(stops) + stopStems).joined(separator: " "))
 
     /// What a broad question is after: the decisions, the tasks (who does what, what's
     /// promised), or everything.
@@ -190,14 +199,20 @@ enum QuestionKind {
     private static let cues = ["sammanfatt", "summer", "sammandrag", "läget", "läge", "status", "översikt", "överblick",
                                "hände", "hänt", "händer", "beslut", "bestäm", "överens", "uppgift", "todo", "lovat",
                                "lovade", "lovar", "åtag", "pratade", "diskuter", "viktigast", "huvudpunkt", "nyheter",
+                               "berätt", "handla", "ansvar", "nytt", "nyhet", "planen",
                                "summar", "recap", "overview", "happen", "decision", "decide", "agree", "task", "promise",
                                "commit", "takeaway", "highlight"]
     /// …and phrases that do.
     private static let phrases = ["att göra", "vem ska", "vem gör", "vem tar", "vad ska jag", "vad ska vi", "vad behöver jag",
                                   "vad behöver vi", "nästa steg", "gick igenom", "gick vi igenom", "vad sades", "vad sa vi",
+                                  "kom vi fram", "kom fram till", "ligger vi till", "hur ligger", "går det", "ska göras",
+                                  "behöver göras", "vad gjorde vi",
                                   "to do", "action item", "action items", "who will", "who does", "next step", "next steps",
                                   "what should", "what do i need", "main points", "key points", "what did we talk",
-                                  "what did we discuss", "what was said", "what is going on", "what s going on"]
+                                  "what did we discuss", "what was said", "what is going on", "what s going on",
+                                  "who is doing", "who s doing", "tell me", "fill me in", "catch me up"]
+    /// Verb stems that are small words in every form: "fattades", "gjordes", "göras".
+    private static let stopStems = ["fatta", "gjor", "göra"]
     /// Small words, days and the words around the cues: not a subject.
     private static let stops: Set<String> = [
         "vad", "vem", "vilka", "vilken", "vilket", "när", "hur", "varför", "har", "hade", "jag", "mig", "min", "mina",
@@ -219,6 +234,7 @@ enum QuestionKind {
         "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "since", "lately", "recent", "recently",
         "senast", "nyligen", "dina", "din", "ditt", "kvar", "öppna", "ens", "dom", "far", "får", "fick", "var", "vara",
         "varit", "blev", "blir", "over", "into", "onto", "finns", "fanns", "kom", "fram", "vill", "ville", "hos", "inom", "mellan", "kring",
+        "sen", "sist", "sedan", "senast", "mappen", "tl", "dr", "ligger", "doing", "tell", "fill", "catch",
     ]
 }
 
@@ -246,6 +262,8 @@ struct LibraryContext: Sendable {
     let total: Int
     /// The whole picture, from the meetings' notes (QuestionKind).
     let broad: Bool
+    /// The question names days ("i går", "förra veckan"): nothing then is said so.
+    let timeNamed: Bool
     /// A broad question with Apple's model: the meetings in parts that each fit, to be
     /// condensed one by one. One part (or none): read at once.
     let parts: [String]
@@ -281,11 +299,12 @@ struct LibraryContext: Sendable {
             let focused = LibraryContext.notes(of: newest, local: local, budget: localBudget, focus: focus, parts: maxParts)
             picked = focused.isEmpty ? LibraryContext.notes(of: newest, local: local, budget: localBudget, focus: .all, parts: maxParts) : focused
         } else {
-            let pool = inRange.isEmpty ? all : inRange
-            total = pool.count
-            picked = LibraryContext.matching(question, in: pool, nameless: range != nil, now: now,
+            // The days it names, and only those: none there is said, not filled with others.
+            total = inRange.count
+            picked = LibraryContext.matching(question, in: inRange, nameless: range != nil, now: now,
                                              budget: local ? localBudget : Lines.appleBudget)
         }
+        timeNamed = range != nil
 
         // A broad question with Apple's model: the meetings in parts that each fit, newest
         // first, as many parts as it condenses. Otherwise all in one.
@@ -318,7 +337,13 @@ struct LibraryContext: Sendable {
             for b in group.sorted(by: { newest ? $0.record.date > $1.record.date : $0.record.date < $1.record.date }) {
                 k += 1
                 let when = b.record.date.formatted(Date.FormatStyle(date: .complete, time: .shortened).locale(Locale(identifier: "en_GB")))
-                let heading = "Meeting \(k): \"\(b.record.title)\", \(when)"
+                // With who was there, so "Vilka var med?" can be answered.
+                let cast = b.record.cast
+                let people = cast.order.map { cast.name(of: $0) }.filter { !$0.isEmpty }
+                // In English, as the heading is: "with Anna and Erik".
+                let with = people.count <= 1 ? people.first.map { ", with " + $0 } ?? ""
+                    : ", with " + people.dropLast().joined(separator: ", ") + " and " + people[people.count - 1]
+                let heading = "Meeting \(k): \"\(b.record.title)\", \(when)\(with)"
                 var block = heading + "\n"
                 for line in b.lines {
                     n += 1
@@ -500,7 +525,7 @@ struct LibraryContext: Sendable {
 
     /// What the question is about: its word stems without the small words.
     static func content(_ text: String) -> Set<String> {
-        Lines.keys(text).subtracting(["vad", "vem", "vilk", "när", "hur", "varf", "något", "några", "möte", "mötet", "meeti",
+        Lines.keys(text).subtracting(QuestionKind.keys).subtracting(["vad", "vem", "vilk", "när", "hur", "varf", "något", "några", "möte", "mötet", "meeti",
                                       "what", "who", "when", "which", "with", "about", "har", "vi", "jag", "det", "den",
                                       "för", "och", "att", "som", "ska", "skull", "sagt", "sade", "sa", "pratade", "prata",
                                       "bestä", "beslu", "decid", "the", "did", "does", "veckan", "förra", "dagen", "igår",
@@ -543,15 +568,20 @@ struct LibraryContext: Sendable {
             return start...month.start.addingTimeInterval(-1)
         }
         if q.contains("den här månaden") || q.contains("this month") { return month.start...now }
-        // "i måndags", "i tisdags"… / "on monday": the last one before today.
+        // "i måndags", "i tisdags"… / "last monday", "on monday": the last one before today.
+        // Only the past form as a word of its own: not "på tisdag" (ahead), not "måndagsmötet".
         let weekdays: [(String, Int)] = [("måndag", 2), ("tisdag", 3), ("onsdag", 4), ("torsdag", 5), ("fredag", 6),
                                          ("lördag", 7), ("söndag", 1), ("monday", 2), ("tuesday", 3), ("wednesday", 4),
                                          ("thursday", 5), ("friday", 6), ("saturday", 7), ("sunday", 1)]
-        for (name, weekday) in weekdays where q.contains(name) {
+        for (name, weekday) in weekdays where q.contains(" \(name)s ") || q.contains(" last \(name) ") || q.contains(" on \(name) ") {
             for back in 1...7 {
                 let d = calendar.date(byAdding: .day, value: -back, to: today)!
                 if calendar.component(.weekday, from: d) == weekday { return day(-back) }
             }
+        }
+        // Just "veckan" ("Sammanfatta veckan"): the last seven days, as the week card counts.
+        if q.contains(" veckan ") || q.contains(" veckans ") || q.contains(" the week ") || q.contains(" the weeks ") {
+            return now.addingTimeInterval(-7 * 86_400)...now
         }
         return nil
     }
@@ -635,8 +665,9 @@ final class MeetingLibrary: ObservableObject {
         // Nothing to read (no meetings on the days asked about, nothing that matches):
         // said plainly, not filled in by the model.
         guard context.meetings > 0 else {
-            let none = context.broad ? String(localized: "Det finns inga möten från den tiden.")
-                                     : String(localized: "Jag hittar inget om det i mötena.")
+            let none = context.broad || (context.timeNamed && context.total == 0)
+                ? String(localized: "Det finns inga möten från den tiden.")
+                : String(localized: "Jag hittar inget om det i mötena.")
             return LibraryAnswer(question: question, answer: none, sources: [], read: 0, total: context.broad ? 0 : nil,
                                  folder: folderName, folderID: folder)
         }
@@ -694,10 +725,13 @@ enum AskTest {
         // How questions are told apart (QuestionKind): broad reads the notes, particular the lines.
         let samples = ["Vad är läget?", "Sammanfatta mötet.", "Vad hände den här veckan?", "Vilka beslut har vi tagit?",
                        "Vad ska jag göra?", "Vem har lovat vad?", "Vilka uppgifter har jag?", "Vad pratade vi om i går?",
-                       "Vem gör vad?", "Vad var det viktigaste?", "What happened last week?", "Vad bestämde vi om budgeten?",
-                       "Vad sa Anna om priset?", "Vilka risker togs upp?", "Vad sades om gratis AI-modeller?",
-                       "När ska offerten skickas?", "Vad har vi sagt om presentationsverktyget?"]
-        for q in samples { print("\(QuestionKind.isBroad(q) ? "bred     " : "särskild ") \(q)") }
+                       "Vem gör vad?", "Vad var det viktigaste?", "What happened last week?",
+                       "Vilka beslut fattades förra veckan?", "Vilka åtaganden gjordes?", "Vad har hänt sen sist?",
+                       "Vad behöver göras?", "Vad ska göras den här veckan?", "Vad kom vi fram till?", "Vem ansvarar för vad?",
+                       "Berätta om mötet i går", "Vad handlade mötet om?", "Hur ligger vi till?", "Who is doing what?", "Något nytt?",
+                       "Vad bestämde vi om budgeten?", "Vad sa Anna om priset?", "Vilka risker togs upp?",
+                       "Vad sades om gratis AI-modeller?", "När ska offerten skickas?", "Vad har vi sagt om presentationsverktyget?"]
+        for q in samples { print("\(QuestionKind.isBroad(q) ? "bred     " : "särskild ") \(q)   nycklar: \(LibraryContext.content(q).sorted())") }
         guard !meetings.isEmpty, !writers.isEmpty else { return print("Inget att fråga med.") }
 
         // One meeting: the one named, or the longest with notes.

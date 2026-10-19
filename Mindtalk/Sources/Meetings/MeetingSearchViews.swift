@@ -251,9 +251,11 @@ private struct AnswerRow: View {
         .padding(16)
     }
 
-    /// "I Kund X · Läste 3 möten", "Alla möten · Läste de 12 senaste mötena".
+    /// "I Kund X · Läste 3 möten", "Alla möten · Läste de 12 senaste mötena". The folder's
+    /// name as it is now (renamed since: the new one; removed: the one it had).
     private var header: String {
-        let scope = answer.folder.map { String(localized: "I \($0)") } ?? String(localized: "Alla möten")
+        let folder = answer.folderID.flatMap { MeetingFolders.shared.folder($0)?.name } ?? answer.folder
+        let scope = folder.map { String(localized: "I \($0)") } ?? String(localized: "Alla möten")
         let read: String? = switch answer.read {
         case 0: nil
         case 1: String(localized: "Läste 1 möte")

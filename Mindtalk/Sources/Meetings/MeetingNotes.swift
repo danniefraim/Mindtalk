@@ -133,17 +133,23 @@ final class MeetingNotes: ObservableObject {
         let writer = BetterNotes.shared.writer
         let written = (words: record.words.count, duration: record.duration)
         let notesFrom = record.notesFingerprint
-        Task {
+        summaryTasks[id] = Task {
             defer {
                 writing.remove(id)
+                summaryTasks[id] = nil
                 if let next = again.removeValue(forKey: id) { summarize(id, in: next) }
             }
             // Not while a meeting is being recorded: the live words come first.
             while MeetingSession.shared.isRecording { try? await Task.sleep(for: .seconds(2)) }
             do {
                 let t0 = Date()
-                var summary = try await Self.write(lines, writer: writer)
+                var fresh: MeetingSummary?
+                var writeError: Error?
+                do { fresh = try await Self.write(lines, writer: writer) } catch { writeError = error }
+                // Done or not, the writer lets go of what it can (and its progress line).
                 await writer?.finished()
+                if let writeError { throw writeError }
+                guard var summary = fresh else { return }
                 // The meeting went on meanwhile (continued, or listened through again):
                 // these notes are of what it was — written again once it's done.
                 if MeetingSession.shared.record?.id == id {
@@ -167,12 +173,25 @@ final class MeetingNotes: ObservableObject {
                 if !latest.userTitled, let title = summary.title, !title.isEmpty { latest.title = title }
                 MeetingStore.shared.save(latest)
                 Self.log.info("notes written in \(Date().timeIntervalSince(t0), format: .fixed(precision: 1)) s")
+            } catch is CancellationError {
+                // Avbryt pressed: no notes, and nothing to explain.
             } catch {
                 Self.log.error("notes: \(error.localizedDescription, privacy: .public)")
                 failed[id] = Self.explain(error)
             }
         }
     }
+
+    /// The notes being written, by meeting: Avbryt stops one.
+    private var summaryTasks: [UUID: Task<Void, Never>] = [:]
+    private var answerTasks: [UUID: Task<Void, Never>] = [:]
+
+    func cancelSummary(_ id: UUID) {
+        again[id] = nil
+        summaryTasks[id]?.cancel()
+    }
+
+    func cancelAnswer(_ id: UUID) { answerTasks[id]?.cancel() }
 
     /// Notes asked for again while they were being written.
     private var again: [UUID: SummaryLanguage] = [:]
@@ -203,8 +222,8 @@ final class MeetingNotes: ObservableObject {
         let summary = record.summary
         // The last questions, so "och vem?" knows what it follows.
         let history = record.answers.suffix(2).map { "Q: \($0.question)\nA: \($0.answer)" }.joined(separator: "\n")
-        Task {
-            defer { answering.remove(id) }
+        answerTasks[id] = Task {
+            defer { answering.remove(id); answerTasks[id] = nil }
             do {
                 let answer = try await Self.answer(question, from: lines, summary: summary, history: history, writer: writer)
                 // Continued meanwhile: the answer goes with the meeting being recorded.
@@ -215,6 +234,7 @@ final class MeetingNotes: ObservableObject {
                 guard var latest = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
                 latest.answers.append(answer)
                 MeetingStore.shared.save(latest)
+            } catch is CancellationError {
             } catch {
                 Self.log.error("answer: \(error.localizedDescription, privacy: .public)")
                 failed[id] = Self.explain(error)
@@ -282,6 +302,8 @@ final class MeetingNotes: ObservableObject {
 
     private static func explain(_ error: Error) -> String {
         if let e = error as? ServerError { return e.plainWords }
+        if error is EmptyAnswer { return String(localized: "Modellen skrev inget svar. Försök igen.") }
+        if error is CancellationError { return String(localized: "Avbrutet.") }
         if let e = error as? LanguageModelSession.GenerationError {
             switch e {
             case .exceededContextWindowSize: return String(localized: "Mötet blev för långt för Apple Intelligence.")
@@ -364,9 +386,12 @@ final class MeetingNotes: ObservableObject {
         // in as few parts as it can read), in the same line format — and through the
         // same checks below.
         if let writer {
-            for part in lines.parts(budget: writer.wordBudget) {
-                let p = parsePlain(try await writer.complete(
-                    system: plainPrompt(lines.language), user: lines.guidance + "Transcript:\n" + part, maxTokens: 800))
+            // All the parts first: the writer makes itself ready once for the whole job.
+            let system = plainPrompt(lines.language)
+            let prompts = lines.parts(budget: writer.wordBudget).map { lines.guidance + "Transcript:\n" + $0 }
+            try await writer.begin(system: system, prompts: prompts)
+            for prompt in prompts {
+                let p = parsePlain(try await writer.complete(system: system, user: prompt, maxTokens: 800))
                 outcomes.append(Outcomes(decisions: p.decisions, tasks: p.tasks))
                 overviews.append(Overview(title: p.title, summary: p.summary, points: p.points))
             }
@@ -699,10 +724,12 @@ final class MeetingNotes: ObservableObject {
         // An answer is often a name or a yes, sharing no words with its line: the
         // lines it names are its sources, as long as they exist.
         let sources = reply.lines.compactMap { lines.start(ofLine: $0) ?? extra[$0] }
+        let answer = Self.firstSentences(Self.tidy(Self.unnumbered(cleaned)), broad ? 5 : 3)
+        // Nothing written (it happens): said as a failure, never saved as an empty answer.
+        guard !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw EmptyAnswer() }
         // Your own model: an answer that names no line it came from isn't shown.
         if let writer, writer.requiresSources, sources.isEmpty { throw ServerError.noSources }
-        return MeetingAnswer(question: question, answer: Self.firstSentences(Self.tidy(Self.unnumbered(cleaned)), broad ? 5 : 3),
-                             sources: Array(Set(sources)).sorted())
+        return MeetingAnswer(question: question, answer: answer, sources: Array(Set(sources)).sorted())
     }
 
     /// A question across meetings (MeetingSearch.swift): answered from the meetings the
@@ -717,29 +744,44 @@ final class MeetingNotes: ObservableObject {
         let earlier = history.isEmpty ? "" : "\n\nEarlier questions and answers:\n\(history)"
         var meetings = context.text
         if context.broad, !local, context.parts.count > 1 {
-            var condensed: [String] = []
-            for part in context.parts.prefix(LibraryContext.appleParts) {
-                condensed.append(await condense(part, for: question, language: language))
-            }
             // Back under their meetings, by the numbers they kept: the titles and the days
-            // as they are, not as the model retold them.
+            // as they are, not as the model retold them. A part whose condensed lines kept
+            // no number is taken as it is, cut to its notes; never the whole raw text.
             var order: [String] = []
             var under: [String: [String]] = [:]
-            for line in condensed.joined(separator: "\n").components(separatedBy: .newlines) {
-                guard let r = line.range(of: #"\[(\d+)\]"#, options: .regularExpression),
-                      let n = Int(line[r].filter(\.isNumber)), let heading = context.headings[n] else { continue }
-                // "[n] what", as the lines were: a number at the end reads like a date.
-                var text = line.replacingOccurrences(of: #"\s*\[\d+\]"#, with: "", options: .regularExpression)
-                    .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "-•*")))
-                if text.hasPrefix("Meeting "), let colon = text.firstIndex(of: ":") { text = String(text[text.index(after: colon)...]) }
-                if under[heading] == nil { order.append(heading) }
-                under[heading, default: []].append("[\(n)] " + text.trimmingCharacters(in: .whitespaces))
+            func place(_ text: String) -> Bool {
+                var any = false
+                for line in text.components(separatedBy: .newlines) {
+                    let numbers = line.matches(of: #/\[(\d+)\]/#).compactMap { Int($0.output.1) }
+                    let headings = numbers.compactMap { context.headings[$0] }
+                    guard !headings.isEmpty else { continue }
+                    // "[n] what", as the lines were: a number at the end reads like a date.
+                    var what = line.replacingOccurrences(of: #"\s*\[\d+\]"#, with: "", options: .regularExpression)
+                        .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "-•*")))
+                    if what.hasPrefix("Meeting "), let colon = what.firstIndex(of: ":") { what = String(what[what.index(after: colon)...]) }
+                    what = what.trimmingCharacters(in: .whitespaces)
+                    // Several lines cited: under each of their meetings, once.
+                    var seen = Set<String>()
+                    for heading in headings where seen.insert(heading).inserted {
+                        let own = zip(numbers, numbers.compactMap { context.headings[$0] }).filter { $0.1 == heading }.map { "[\($0.0)]" }
+                        if under[heading] == nil { order.append(heading) }
+                        under[heading, default: []].append(own.joined(separator: " ") + " " + what)
+                    }
+                    any = true
+                }
+                return any
             }
-            if !order.isEmpty {
-                meetings = order.sorted { a, b in
-                    (Int(a.dropFirst(8).prefix { $0.isNumber }) ?? 0) < (Int(b.dropFirst(8).prefix { $0.isNumber }) ?? 0)
-                }.map { $0 + "\n" + (under[$0] ?? []).joined(separator: "\n") }.joined(separator: "\n\n")
+            for part in context.parts.prefix(LibraryContext.appleParts) {
+                if !place(await condense(part, for: question, language: language)) {
+                    _ = place(fallbackCondensed(part))
+                }
             }
+            if order.isEmpty {
+                for part in context.parts.prefix(LibraryContext.appleParts) { _ = place(fallbackCondensed(part)) }
+            }
+            meetings = order.sorted { a, b in
+                (Int(a.dropFirst(8).prefix { $0.isNumber }) ?? 0) < (Int(b.dropFirst(8).prefix { $0.isNumber }) ?? 0)
+            }.map { $0 + "\n" + (under[$0] ?? []).joined(separator: "\n") }.joined(separator: "\n\n")
         }
         let prompt = "Today is \(context.today).\n\nMeetings:\n\(meetings)\(earlier)\n\nQuestion: \(question)"
         let task = context.broad
@@ -818,7 +860,11 @@ final class MeetingNotes: ObservableObject {
         } catch {
             log.error("condense: \(String(describing: error), privacy: .public)")
         }
-        // Without the model: each meeting's title, what it was about, decisions and tasks.
+        return fallbackCondensed(part)
+    }
+
+    /// Without the model: each meeting's title, what it was about, decisions and tasks.
+    nonisolated private static func fallbackCondensed(_ part: String) -> String {
         var out: [String] = []
         var words = 0
         for line in part.components(separatedBy: .newlines) {
@@ -837,18 +883,36 @@ final class MeetingNotes: ObservableObject {
     nonisolated private static func parseSources(_ text: String, keep: Int = 4) -> Reply {
         var answer: [String] = []
         var sources: [Int] = []
-        for line in text.components(separatedBy: .newlines) {
+        let lines = text.components(separatedBy: .newlines).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        for (k, line) in lines.enumerated() {
             let upper = line.uppercased()
-            if let r = upper.range(of: "SOURCES:") ?? upper.range(of: "KÄLLOR:") {
-                sources = line[r.upperBound...].split { !$0.isNumber }.compactMap { Int($0) }
+            let trimmed = upper.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "*(-•")))
+            // The marker at the start of a line, or anywhere on the last one (the model
+            // put it after its final sentence): elsewhere, "sources" is a word in the answer.
+            let marker = (upper.range(of: "SOURCES:") ?? upper.range(of: "KÄLLOR:"))
+                .flatMap { r in trimmed.hasPrefix("SOURCES:") || trimmed.hasPrefix("KÄLLOR:") || k == lines.count - 1 ? r : nil }
+            if let r = marker {
+                sources = Self.numbers(after: String(line[r.upperBound...]))
                 // The sources on the answer's own last line: the words before them are the answer.
                 let before = line[..<r.lowerBound].trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "*(")))
                 if !before.isEmpty { answer.append(before) }
-            } else if !line.trimmingCharacters(in: .whitespaces).isEmpty {
+            } else {
                 answer.append(line)
             }
         }
         return Reply(answer: Plain.unmark(answer.joined(separator: " ")), lines: Array(sources.prefix(keep)))
+    }
+
+    /// "3, 7 and [12]." → [3, 7, 12]: read until the first thing that isn't a number.
+    nonisolated private static func numbers(after text: String) -> [Int] {
+        var out: [Int] = []
+        for token in text.split(whereSeparator: { $0 == "," || $0 == ";" || $0.isWhitespace }) {
+            let bare = token.trimmingCharacters(in: CharacterSet(charactersIn: "[]().*"))
+            if bare.isEmpty || ["och", "and", "&"].contains(bare.lowercased()) { continue }
+            guard let n = Int(bare) else { break }
+            out.append(n)
+        }
+        return out
     }
 
     /// Without line numbers written into the answer as "(13)" or "(3, 7)".
