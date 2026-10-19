@@ -104,6 +104,8 @@ enum DS {
 
     /// Page titles: large, light serif.
     static let pageTitle = Font.system(size: 38, weight: .regular, design: .serif)
+    /// A section's title in Inställningar: the same serif, a size down.
+    static let sectionPageTitle = Font.system(size: 30, weight: .regular, design: .serif)
 }
 
 private extension NSColor {

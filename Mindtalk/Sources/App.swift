@@ -967,17 +967,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
-        // `Mindtalk --render-settings out.png [--dark]`: Inställningar, as on this Mac.
+        // `Mindtalk --render-settings out.png [--dark] [--section general|microphone|dictation|
+        // thoughts|meetings|models|integrations|about] [--narrow]`: Inställningar, as on this
+        // Mac — the section given (Allmänt if none), beside the list; `--narrow` as in the
+        // smallest window, with the sections as chips above.
         // `Mindtalk --render-about out.png [--dark]`: the credits ("Tack till").
         for flag in ["--render-settings", "--render-about"] {
             guard let i = args.firstIndex(of: flag), i + 1 < args.count else { continue }
             Task { @MainActor in
                 let dark = args.contains("--dark")
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                let section = args.firstIndex(of: "--section").flatMap { $0 + 1 < args.count ? SettingsSection(rawValue: args[$0 + 1]) : nil }
+                // The page beside the tab bar: in the window Mindtalk opens with (1060), or the smallest (940).
+                let width: CGFloat = flag == "--render-settings" ? (args.contains("--narrow") ? 704 : 824) : 820
                 let page: AnyView = flag == "--render-settings"
-                    ? AnyView(SettingsPage(dictation: .shared, prefs: .shared, plain: true))
+                    ? AnyView(SettingsPage(dictation: .shared, prefs: .shared, plain: true, fixedSection: section ?? .general))
                     : AnyView(CreditsSheet(close: {}, plain: true))
-                let view = page.frame(width: 820).background(DS.Colors.paper)
+                let view = page.frame(width: width).background(DS.Colors.paper)
                     .environment(\.colorScheme, dark ? .dark : .light)
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2
@@ -2137,9 +2143,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     /// Settings, scrolled to "Om Mindtalk" (credits and licences).
     static func showAbout() {
-        SettingsPage.jumpToAbout = true
-        showWindow(page: .settings)
-        NotificationCenter.default.post(name: .showAbout, object: nil)
+        SettingsPage.open(.about)
     }
 
     /// The introduction again. With the main window open it plays inside that

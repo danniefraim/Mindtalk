@@ -11,7 +11,8 @@ import Carbon.HIToolbox
 //   • Möten — meetings in the room, written out live (Meetings/)
 //   • Tankar — what you said with the thought key (Thoughts.swift)
 //   • Ordlista — names and words spelled your way (VocabularyPage.swift)
-//   • Inställningar — shortcuts, text, app, sound, appearance, languages, about
+//   • Inställningar — one section at a time: Allmänt, Mikrofon och språk, Diktering,
+//     Tankar, Möten, Modeller, Integrationer, Om Mindtalk
 
 enum Page: String, CaseIterable, Identifiable {
     case dictation, recent, meetings, thoughts, vocabulary, settings
@@ -37,6 +38,42 @@ enum Page: String, CaseIterable, Identifiable {
         case .recent: return "mic"
         case .vocabulary: return "character.book.closed"
         case .settings: return "slider.horizontal.3"
+        }
+    }
+}
+
+/// Inställningar, one section at a time: the list on the left, the section on the right.
+enum SettingsSection: String, CaseIterable, Identifiable {
+    case general, microphone, dictation, thoughts, meetings, models, integrations, about
+
+    /// Where the section last shown is kept (SettingsPage).
+    static let storageKey = "settings.section"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .general: return String(localized: "Allmänt")
+        case .microphone: return String(localized: "Mikrofon och språk")
+        case .dictation: return String(localized: "Diktering")
+        case .thoughts: return String(localized: "Tankar")
+        case .meetings: return String(localized: "Möten")
+        case .models: return String(localized: "Modeller")
+        case .integrations: return String(localized: "Integrationer")
+        case .about: return String(localized: "Om Mindtalk")
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .general: return "gearshape"
+        case .microphone: return "mic"
+        case .dictation: return "text.cursor"
+        case .thoughts: return "lightbulb"
+        case .meetings: return "person.2.wave.2"
+        case .models: return "square.stack.3d.up"
+        case .integrations: return "point.3.connected.trianglepath.dotted"
+        case .about: return "info.circle"
         }
     }
 }
@@ -122,10 +159,8 @@ extension Notification.Name {
     static let showPage = Notification.Name("MindtalkShowPage")
     /// Play the introduction inside the main window.
     static let showIntroduction = Notification.Name("MindtalkShowIntroduction")
-    /// Scroll Settings to "Om Mindtalk".
-    static let showAbout = Notification.Name("MindtalkShowAbout")
-    /// Scroll Settings to "Modeller".
-    static let showModels = Notification.Name("MindtalkShowModels")
+    /// Show a section of Settings (object: SettingsSection), when Settings is already on screen.
+    static let showSettingsSection = Notification.Name("MindtalkShowSettingsSection")
 }
 
 /// The introduction over the whole main window, with a way out in the corner.
@@ -280,6 +315,8 @@ struct SettingsPage: View {
     @ObservedObject var prefs: AppPrefs
     /// Screenshots: without the scroll view.
     var plain = false
+    /// Screenshots: this section, whatever was shown last.
+    var fixedSection: SettingsSection? = nil
     @ObservedObject private var mics = Microphones.shared
     @ObservedObject private var updates = Updates.shared
     @State private var loginStatus = SMAppService.mainApp.status
@@ -304,290 +341,54 @@ struct SettingsPage: View {
         return thoughtShortcut.key.map { how + " " + $0.note } ?? how
     }
 
-    /// Set before opening Settings to land on "Om Mindtalk".
-    static var jumpToAbout = false
-    /// Set before opening Settings to land on "Modeller" (Byt modell under a summary).
-    static var jumpToModels = false
+    // MARK: Sections
 
-    /// Settings, scrolled to the models — also when Settings is already on screen.
-    static func openModels() {
-        jumpToModels = true
-        NotificationCenter.default.post(name: .showPage, object: Page.settings)
-        NotificationCenter.default.post(name: .showModels, object: nil)
+    /// The section on screen, kept across launches (the menu bar's Inställningar… opens it again).
+    @AppStorage(SettingsSection.storageKey) private var sectionRaw = SettingsSection.general.rawValue
+    /// The page's width: under `narrowWidth` the sections are chips above the section.
+    @State private var width: CGFloat = 900
+    @FocusState private var listFocused: Bool
+
+    private static let narrowWidth: CGFloat = 800
+    private static let listWidth: CGFloat = 188
+    private static let columnGap: CGFloat = 28
+    private static let trailing: CGFloat = 32
+    private var narrow: Bool { width < Self.narrowWidth }
+
+    private var section: SettingsSection {
+        fixedSection ?? SettingsSection(rawValue: sectionRaw) ?? .general
     }
 
-    /// Set before opening Settings to land on Integrationer → MCP (mindtalk://settings/mcp).
-    static var jumpToMCP = false
+    /// Settings on that section, also when Settings is already on screen.
+    static func open(_ section: SettingsSection) {
+        UserDefaults.standard.set(section.rawValue, forKey: SettingsSection.storageKey)
+        AppDelegate.showWindow(page: .settings)
+        NotificationCenter.default.post(name: .showSettingsSection, object: section)
+    }
 
-    /// Settings, scrolled to Integrationer → MCP, also when Settings is already on screen.
-    static func openMCP() {
-        jumpToMCP = true
-        NotificationCenter.default.post(name: .showPage, object: Page.settings)
-        NotificationCenter.default.post(name: .showMCP, object: nil)
+    /// Settings → Modeller (Byt modell under a summary, Hantera i Modeller).
+    static func openModels() { open(.models) }
+
+    /// Settings → Integrationer, where MCP is (mindtalk://settings/mcp).
+    static func openMCP() { open(.integrations) }
+
+    private var version: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-        VStack(alignment: .leading, spacing: 14) {
-            PageHeader(title: "Inställningar",
-                       eyebrow: "Mindtalk " + (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""))
-                .staggered(0)
-                .padding(.bottom, 12)
-
-            // Without Hjälpmedel no shortcut works anywhere: said first, not at the bottom.
-            if !dictation.accessibilityGranted {
-                CardRow(title: "Slå på Hjälpmedel för Mindtalk",
-                        detail: "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen. macOS kräver det ibland efter en uppdatering.") {
-                    Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.ink)
-                }
-                .card()
-                .staggered(1)
-            }
-
-            // MARK: Inspelning — what both dictation and meetings hear with
-
-            SectionTitle("Inspelning")
-            .staggered(1)
-            CardRow(title: "Mikrofon", detail: !dictation.micGranted ? "Mindtalk behöver få använda mikrofonen."
-                    : meeting.isBusy ? String(localized: "\(mics.selectionName) · går att byta när mötet är klart") : mics.selectionName) {
-                if dictation.micGranted {
-                    Button("Ändra") { showMicPicker = true }.buttonStyle(.soft)
-                        .disabled(meeting.isBusy || dictation.phase == .recording || dictation.phase == .transcribing)
-                }
-                else { Button("Tillåt") { dictation.requestMicrophone() }.buttonStyle(.ink) }
-            }
-            .card()
-            .staggered(1)
-            VStack(spacing: 0) {
-                ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
-                    if i > 0 { CardDivider() }
-                    LanguageRow(model: m, dictation: dictation)
-                }
-            }
-            .card()
-            .staggered(1)
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text("Språket du pratar, när du dikterar och i möten. Byt snabbt i menyraden, eller med ⌘1 och ⌘2 när menyn är öppen.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(DS.Colors.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
-                // Size, Finder and removal live with the other models.
-                Button { Self.openModels() } label: {
-                    Text("Hantera i Modeller →")
-                        .font(.system(size: 12, weight: .medium)).foregroundStyle(DS.Colors.muted).underline()
-                        .padding(.vertical, 2).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .fixedSize()
-            }
-
-            // MARK: Diktering
-
-            SectionTitle("Diktering")
-            .staggered(2)
-            VStack(spacing: 0) {
-                CardRow(title: "Genväg", detail: dictation.pickingKey
-                        ? String(localized: "Håll in en eller flera tangenter som ⌥ och ⌘ och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
-                        : dictation.keyRefusal ?? dictation.hotkey.note) { ShortcutField(dictation: dictation) }
-                CardDivider()
-                CardRow(title: "Hur du dikterar", detail: dictation.mode.explanation(key: dictation.hotkey.inlineName)) {
-                    MenuPicker(options: DictationMode.allCases.map { ($0, $0.title) },
-                               selection: Binding(get: { dictation.mode }, set: { dictation.setMode($0) }))
-                }
-                CardDivider()
-                CardRow(title: "Ljud vid diktering", detail: "Ett diskret ljud när Mindtalk börjar lyssna och när texten skrivs in.") {
-                    InkToggle(label: "Ljud vid diktering", isOn: $prefs.sounds)
-                }
-                CardDivider()
-                CardRow(title: "Musik medan du dikterar", detail: prefs.mediaMode.explanation) {
-                    MenuPicker(options: MediaMode.allCases.map { ($0, $0.title) }, selection: $prefs.mediaMode)
-                }
-                CardDivider()
-                CardRow(title: "Klistra in igen", detail: "Hamnade texten fel? Ställ markören rätt och tryck.") {
-                    KeyChip(text: "⌃ ⌥ V")
-                }
-            }
-            .card()
-            .staggered(2)
-            TextCleanupCard(prefs: prefs)
-                .staggered(2)
-
-            // MARK: Möten
-
-            SectionTitle("Möten")
-                .staggered(3)
-            CardRow(title: "Genväg", detail: pickingMeetingKey
-                    ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
-                    : meetingShortcut == nil
-                        ? String(localized: "Av. Inne i Mindtalk fungerar ⇧⌘R.")
-                        : meetingShortcut?.warning ?? String(localized: "Startar och avslutar ett möte i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.")) {
-                MeetingShortcutField(chord: $meetingShortcut, picking: $pickingMeetingKey, taken: [thoughtShortcut?.chord])
-                    .disabled(!dictation.accessibilityGranted)
-            }
-            .card()
-            .staggered(3)
-            SummaryWriterRow()
-                .staggered(3)
-            VoiceMemoryCard(memory: .shared)
-                .staggered(3)
-            MeetingPrivacyCard()
-                .staggered(3)
-
-            // MARK: Tankar
-
-            SectionTitle("Tankar")
-                .staggered(4)
-            CardRow(title: "Genväg", detail: pickingThoughtKey
-                    ? String(localized: "Håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.")
-                    : thoughtRefusal ?? thoughtDetail) {
-                ThoughtShortcutField(shortcut: $thoughtShortcut, picking: $pickingThoughtKey,
-                                     refusal: $thoughtRefusal, meeting: meetingShortcut)
-                .disabled(!dictation.accessibilityGranted)
-            }
-            .card()
-            .staggered(4)
-
-            // MARK: Modeller
-
-            SectionTitle("Modeller")
-                .id("models")
-                .staggered(4)
-            ModelsCard(dictation: dictation)
-                .staggered(4)
-
-            // MARK: Integrationer
-
-            SectionTitle("Integrationer")
-                .id("integrations")
-                .staggered(4)
-            ClaudeSettingsCard(sharing: .shared)
-                .staggered(4)
-
-            // MARK: Allmänt
-
-            SectionTitle("Allmänt")
-            .staggered(4)
-            VStack(spacing: 0) {
-                if !AppMover.isInApplications {
-                    // Outside Applications Mindtalk can't update itself or open at login reliably.
-                    CardRow(title: "Flytta till Program",
-                            detail: "Mindtalk behöver ligga i Program för att kunna uppdatera sig själv och starta vid inloggning.") {
-                        Button("Flytta") { AppMover.moveNow() }.buttonStyle(.ink)
-                            .disabled(dictation.phase != .idle || meeting.isBusy || importer.busy)
-                    }
-                    CardDivider()
-                }
-                CardRow(title: "Starta vid inloggning",
-                        detail: loginError ?? (loginStatus == .requiresApproval ? String(localized: "Godkänn Mindtalk under Allmänt → Inloggningsobjekt och tillägg i Systeminställningar.") : nil)) {
-                    HStack(spacing: 10) {
-                        if loginStatus == .requiresApproval {
-                            Button("Öppna") { SMAppService.openSystemSettingsLoginItems() }.buttonStyle(.soft)
-                        }
-                        InkToggle(label: "Starta vid inloggning", isOn: Binding(
-                            get: { loginStatus == .enabled || loginStatus == .requiresApproval },
-                            set: { on in
-                                do {
-                                    if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-                                    loginError = nil
-                                } catch {
-                                    NSLog("Mindtalk: launch at login: \(error.localizedDescription)")
-                                    // Said in the row: usually that Mindtalk isn't in Applications.
-                                    loginError = AppMover.isInApplications
-                                        ? String(localized: "Det gick inte just nu: \(error.localizedDescription)")
-                                        : String(localized: "Mindtalk behöver ligga i Program för att starta vid inloggning.")
-                                }
-                                loginStatus = SMAppService.mainApp.status
-                            }))
-                    }
-                }
-                CardDivider()
-                CardRow(title: "Visa i Dock", detail: "Annars finns Mindtalk bara i menyraden när fönstret är stängt.") {
-                    InkToggle(label: "Visa i Dock", isOn: $prefs.showInDock)
-                }
-                CardDivider()
-                CardRow(title: "Utseende") {
-                    PillPicker(options: Appearance.allCases.map { ($0, $0.title) }, selection: $prefs.appearance)
-                }
-                CardDivider()
-                CardRow(title: "Appens språk",
-                        detail: appLanguage.resolved == AppLanguage.running ? nil
-                            : meeting.isBusy ? "Mindtalk behöver startas om för att byta språk. Det går när mötet är klart."
-                            : importer.busy ? "Mindtalk behöver startas om för att byta språk. Det går när inspelningen är nedskriven."
-                            : dictation.phase != .idle ? "Mindtalk behöver startas om för att byta språk. Det går när dikteringen är klar."
-                            : "Mindtalk behöver startas om för att byta språk.") {
-                    HStack(spacing: 10) {
-                        if appLanguage.resolved != AppLanguage.running {
-                            Button("Starta om") { AppDelegate.relaunch(showing: .settings) }
-                                .buttonStyle(.ink)
-                                .fixedSize()
-                                .disabled(dictation.phase != .idle || meeting.isBusy || importer.busy)
-                        }
-                        PillPicker(options: AppLanguage.allCases.map { ($0, $0.title) }, selection: $appLanguage)
-                            .onChange(of: appLanguage) { _, new in AppLanguage.chosen = new }
-                    }
-                }
-                CardDivider()
-                CardRow(title: "Uppdateringar",
-                        detail: AppMover.isInApplications ? "Sök efter nya versioner automatiskt, en gång om dagen."
-                            : "Mindtalk behöver ligga i Program för att uppdateras.") {
-                    HStack(spacing: 12) {
-                        Button("Sök nu") { Updates.shared.checkNow() }.buttonStyle(.soft)
-                        InkToggle(label: "Sök automatiskt", isOn: $updates.automatic)
-                    }
-                    .disabled(!Updates.isAvailable || !AppMover.isInApplications)
-                }
-                if dictation.accessibilityGranted {
-                    CardDivider()
-                    CardRow(title: "Hjälpmedel", detail: "Låter Mindtalk känna av genvägarna och skriva in texten där markören står.") {
-                        GrantedLabel()
-                    }
-                }
-            }
-            .card()
-            .staggered(4)
-
-            SectionTitle("Om Mindtalk")
-            .staggered(5)
-            AboutCard()
-                .id("about")
-                .staggered(5)
+        Group {
+            if narrow { narrowLayout } else { wideLayout }
         }
-        .onAppear {
-            if Self.jumpToAbout { showAbout(proxy, after: 0.45) }
-            if Self.jumpToModels {
-                Self.jumpToModels = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                    withAnimation(.spring(duration: 0.6)) { proxy.scrollTo("models", anchor: .top) }
-                }
-            }
-            if Self.jumpToMCP {
-                Self.jumpToMCP = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                    withAnimation(.spring(duration: 0.6)) { proxy.scrollTo("integrations", anchor: .top) }
-                }
-            }
+        .frame(maxWidth: .infinity, maxHeight: plain ? nil : .infinity, alignment: .topLeading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .onReceive(NotificationCenter.default.publisher(for: .showSettingsSection)) { note in
+            if let target = note.object as? SettingsSection { select(target) }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .showMCP)) { _ in
-            guard Self.jumpToMCP else { return }
-            Self.jumpToMCP = false
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.spring(duration: 0.6)) { proxy.scrollTo("integrations", anchor: .top) }
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .showAbout)) { _ in showAbout(proxy, after: 0.1) }
-        .onReceive(NotificationCenter.default.publisher(for: .showModels)) { _ in
-            // Already on screen: scrolled now (a fresh page scrolls from onAppear instead).
-            guard Self.jumpToModels else { return }
-            Self.jumpToModels = false
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.spring(duration: 0.6)) { proxy.scrollTo("models", anchor: .top) }
-            }
-        }
+        // The dictation key's field is only in Diktering: picking stops when it's left.
+        .onChange(of: sectionRaw) { _, _ in dictation.stopPickingKey(reason: "Settings section changed") }
         // A new dictation key moves the thought key's default (left ⌥ unless dictation has it).
         .onChange(of: dictation.hotkey) { _, _ in thoughtShortcut = Settings.thoughtShortcut }
-        }
-        .modifier(PageScroll(on: !plain))
         .onAppear { loginStatus = SMAppService.mainApp.status; updates.refresh() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             loginStatus = SMAppService.mainApp.status
@@ -596,6 +397,409 @@ struct SettingsPage: View {
         .onDisappear { dictation.stopPickingKey(reason: "Settings left") }
         .sheet(isPresented: $showMicPicker) {
             MicrophonePicker(mics: mics) { showMicPicker = false }
+        }
+    }
+
+    // MARK: Layout
+
+    /// The list on the left, the section beside it. On a big window the two stay
+    /// together in the middle, as the other pages' column does.
+    private var wideLayout: some View {
+        let inset = max(24, (width - (Self.listWidth + Self.columnGap + DS.Layout.readingWidth + Self.trailing)) / 2)
+        return HStack(alignment: .top, spacing: 0) {
+            sectionList
+                .frame(width: Self.listWidth, alignment: .leading)
+                .padding(.top, DS.Layout.pageTop - 2)
+                .padding(.leading, inset)
+                .staggered(0)
+            scrolling(content: sectionContent
+                .padding(.leading, Self.columnGap)
+                .padding(.trailing, Self.trailing)
+                .padding(.top, DS.Layout.pageTop))
+        }
+    }
+
+    /// Too narrow for two columns: the sections as chips over the section.
+    private var narrowLayout: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
+                CapsLabel(String(localized: "Inställningar"))
+                FlowLayout(spacing: 6) {
+                    ForEach(SettingsSection.allCases) { chip($0) }
+                }
+            }
+            .padding(.horizontal, DS.Layout.pageHorizontal)
+            .padding(.top, DS.Layout.pageTop - 2)
+            .padding(.bottom, 4)
+            .modifier(SectionKeys(focus: $listFocused, step: step))
+            .staggered(0)
+            scrolling(content: sectionContent
+                .padding(.horizontal, DS.Layout.pageHorizontal)
+                .padding(.top, 24))
+        }
+    }
+
+    /// The section scrolls on its own; a new section starts at its top.
+    @ViewBuilder private func scrolling<Content: View>(content: Content) -> some View {
+        let column = content
+            .frame(maxWidth: DS.Layout.readingWidth + (narrow ? 2 * DS.Layout.pageHorizontal : Self.columnGap + Self.trailing), alignment: .leading)
+            .padding(.bottom, 40)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        if plain {
+            column
+        } else {
+            ScrollView { column }
+                .scrollContentBackground(.hidden)
+                .id(section)
+                .transition(.opacity)
+                .staggered(1)
+        }
+    }
+
+    /// INSTÄLLNINGAR, the sections, and the version under them.
+    private var sectionList: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            CapsLabel(String(localized: "Inställningar"))
+                .padding(.leading, 10)
+                .padding(.bottom, 12)
+            ForEach(SettingsSection.allCases) { row($0) }
+            Text(verbatim: "Mindtalk \(version)")
+                .font(.system(size: 11.5))
+                .foregroundStyle(DS.Colors.muted)
+                .padding(.leading, 10)
+                .padding(.top, 14)
+        }
+        .padding(.bottom, 40)
+        .modifier(SectionKeys(focus: $listFocused, step: step))
+    }
+
+    private func row(_ s: SettingsSection) -> some View {
+        let selected = s == section
+        return Button { select(s, focusList: true) } label: {
+            HStack(spacing: 10) {
+                Image(systemName: s.icon)
+                    .font(.system(size: 15))
+                    .foregroundStyle(selected ? DS.Colors.ink : DS.Colors.muted)
+                    .frame(width: 22)
+                    .overlay(alignment: .topTrailing) { attentionDot(s) }
+                Text(verbatim: s.title)
+                    .font(.system(size: 13.5, weight: selected ? .semibold : .regular))
+                    .foregroundStyle(DS.Colors.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .frame(minHeight: 34)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(SectionRowStyle(selected: selected, shape: RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)))
+        .accessibilityLabel(s.title)
+        .accessibilityHint(needsAttention(s) ? Text("Något behöver ordnas här.") : Text(verbatim: ""))
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func chip(_ s: SettingsSection) -> some View {
+        let selected = s == section
+        return Button { select(s, focusList: true) } label: {
+            HStack(spacing: 7) {
+                Image(systemName: s.icon)
+                    .font(.system(size: 13))
+                    .foregroundStyle(selected ? DS.Colors.ink : DS.Colors.muted)
+                    .overlay(alignment: .topTrailing) { attentionDot(s) }
+                Text(verbatim: s.title)
+                    .font(.system(size: 13, weight: selected ? .semibold : .regular))
+                    .foregroundStyle(DS.Colors.ink)
+                    .fixedSize()
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 32)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(SectionRowStyle(selected: selected, shape: RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)))
+        .accessibilityLabel(s.title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    /// The microphone isn't allowed, or the speech model isn't there yet: both are put
+    /// right in Mikrofon och språk. (Without Hjälpmedel its card is over every section.)
+    private func needsAttention(_ s: SettingsSection) -> Bool {
+        guard s == .microphone else { return false }
+        switch dictation.model {
+        case .missing, .failed: return true
+        default: return !dictation.micGranted
+        }
+    }
+
+    @ViewBuilder private func attentionDot(_ s: SettingsSection) -> some View {
+        if needsAttention(s) {
+            Circle().fill(DS.Colors.ink)
+                .frame(width: 6, height: 6)
+                .offset(x: 3, y: -1)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private func select(_ s: SettingsSection, focusList: Bool = false) {
+        if focusList { listFocused = true }
+        guard s != section else { return }
+        withAnimation(.easeOut(duration: 0.18)) { sectionRaw = s.rawValue }
+    }
+
+    /// ↑ and ↓ in the list: the section before or after.
+    private func step(_ by: Int) {
+        let all = SettingsSection.allCases
+        guard let i = all.firstIndex(of: section), all.indices.contains(i + by) else { return }
+        select(all[i + by])
+    }
+
+    // MARK: The section
+
+    private var sectionContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(verbatim: section.title)
+                .font(DS.sectionPageTitle)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.bottom, 10)
+
+            // Without Hjälpmedel no shortcut works anywhere: said first, in every section.
+            if !dictation.accessibilityGranted {
+                CardRow(title: "Slå på Hjälpmedel för Mindtalk",
+                        detail: "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen. macOS kräver det ibland efter en uppdatering.") {
+                    Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.ink)
+                }
+                .card()
+            }
+
+            switch section {
+            case .general: generalSection
+            case .microphone: microphoneSection
+            case .dictation: dictationSection
+            case .thoughts: thoughtsSection
+            case .meetings: meetingsSection
+            case .models: ModelsCard(dictation: dictation)
+            case .integrations: ClaudeSettingsCard(sharing: .shared)
+            case .about: AboutCard()
+            }
+        }
+    }
+
+    // MARK: Mikrofon och språk — what both dictation and meetings hear with
+
+    @ViewBuilder private var microphoneSection: some View {
+        CardRow(title: "Mikrofon", detail: !dictation.micGranted ? "Mindtalk behöver få använda mikrofonen."
+                : meeting.isBusy ? String(localized: "\(mics.selectionName) · går att byta när mötet är klart") : mics.selectionName) {
+            if dictation.micGranted {
+                Button("Ändra") { showMicPicker = true }.buttonStyle(.soft)
+                    .disabled(meeting.isBusy || dictation.phase == .recording || dictation.phase == .transcribing)
+            }
+            else { Button("Tillåt") { dictation.requestMicrophone() }.buttonStyle(.ink) }
+        }
+        .card()
+        VStack(spacing: 0) {
+            ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
+                if i > 0 { CardDivider() }
+                LanguageRow(model: m, dictation: dictation)
+            }
+        }
+        .card()
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text("Språket du pratar, när du dikterar och i möten. Byt snabbt i menyraden, eller med ⌘1 och ⌘2 när menyn är öppen.")
+                .font(.system(size: 12))
+                .foregroundStyle(DS.Colors.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            // Size, Finder and removal live with the other models.
+            Button { select(.models) } label: {
+                Text("Hantera i Modeller →")
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(DS.Colors.muted).underline()
+                    .padding(.vertical, 2).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .fixedSize()
+        }
+    }
+
+    // MARK: Diktering
+
+    @ViewBuilder private var dictationSection: some View {
+        VStack(spacing: 0) {
+            CardRow(title: "Genväg", detail: dictation.pickingKey
+                    ? String(localized: "Håll in en eller flera tangenter som ⌥ och ⌘ och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
+                    : dictation.keyRefusal ?? dictation.hotkey.note) { ShortcutField(dictation: dictation) }
+            CardDivider()
+            CardRow(title: "Hur du dikterar", detail: dictation.mode.explanation(key: dictation.hotkey.inlineName)) {
+                MenuPicker(options: DictationMode.allCases.map { ($0, $0.title) },
+                           selection: Binding(get: { dictation.mode }, set: { dictation.setMode($0) }))
+            }
+            CardDivider()
+            CardRow(title: "Ljud vid diktering", detail: "Ett diskret ljud när Mindtalk börjar lyssna och när texten skrivs in.") {
+                InkToggle(label: "Ljud vid diktering", isOn: $prefs.sounds)
+            }
+            CardDivider()
+            CardRow(title: "Musik medan du dikterar", detail: prefs.mediaMode.explanation) {
+                MenuPicker(options: MediaMode.allCases.map { ($0, $0.title) }, selection: $prefs.mediaMode)
+            }
+            CardDivider()
+            CardRow(title: "Klistra in igen", detail: "Hamnade texten fel? Ställ markören rätt och tryck.") {
+                KeyChip(text: "⌃ ⌥ V")
+            }
+        }
+        .card()
+        TextCleanupCard(prefs: prefs)
+    }
+
+    // MARK: Tankar
+
+    private var thoughtsSection: some View {
+        CardRow(title: "Genväg", detail: pickingThoughtKey
+                ? String(localized: "Håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.")
+                : thoughtRefusal ?? thoughtDetail) {
+            ThoughtShortcutField(shortcut: $thoughtShortcut, picking: $pickingThoughtKey,
+                                 refusal: $thoughtRefusal, meeting: meetingShortcut)
+            .disabled(!dictation.accessibilityGranted)
+        }
+        .card()
+    }
+
+    // MARK: Möten
+
+    @ViewBuilder private var meetingsSection: some View {
+        CardRow(title: "Genväg", detail: pickingMeetingKey
+                ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
+                : meetingShortcut == nil
+                    ? String(localized: "Av. Inne i Mindtalk fungerar ⇧⌘R.")
+                    : meetingShortcut?.warning ?? String(localized: "Startar och avslutar ett möte i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.")) {
+            MeetingShortcutField(chord: $meetingShortcut, picking: $pickingMeetingKey, taken: [thoughtShortcut?.chord])
+                .disabled(!dictation.accessibilityGranted)
+        }
+        .card()
+        SummaryWriterRow()
+        VoiceMemoryCard(memory: .shared)
+        MeetingPrivacyCard()
+    }
+
+    // MARK: Allmänt
+
+    private var generalSection: some View {
+        VStack(spacing: 0) {
+            if !AppMover.isInApplications {
+                // Outside Applications Mindtalk can't update itself or open at login reliably.
+                CardRow(title: "Flytta till Program",
+                        detail: "Mindtalk behöver ligga i Program för att kunna uppdatera sig själv och starta vid inloggning.") {
+                    Button("Flytta") { AppMover.moveNow() }.buttonStyle(.ink)
+                        .disabled(dictation.phase != .idle || meeting.isBusy || importer.busy)
+                }
+                CardDivider()
+            }
+            CardRow(title: "Starta vid inloggning",
+                    detail: loginError ?? (loginStatus == .requiresApproval ? String(localized: "Godkänn Mindtalk under Allmänt → Inloggningsobjekt och tillägg i Systeminställningar.") : nil)) {
+                HStack(spacing: 10) {
+                    if loginStatus == .requiresApproval {
+                        Button("Öppna") { SMAppService.openSystemSettingsLoginItems() }.buttonStyle(.soft)
+                    }
+                    InkToggle(label: "Starta vid inloggning", isOn: Binding(
+                        get: { loginStatus == .enabled || loginStatus == .requiresApproval },
+                        set: { on in
+                            do {
+                                if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+                                loginError = nil
+                            } catch {
+                                NSLog("Mindtalk: launch at login: \(error.localizedDescription)")
+                                // Said in the row: usually that Mindtalk isn't in Applications.
+                                loginError = AppMover.isInApplications
+                                    ? String(localized: "Det gick inte just nu: \(error.localizedDescription)")
+                                    : String(localized: "Mindtalk behöver ligga i Program för att starta vid inloggning.")
+                            }
+                            loginStatus = SMAppService.mainApp.status
+                        }))
+                }
+            }
+            CardDivider()
+            CardRow(title: "Visa i Dock", detail: "Annars finns Mindtalk bara i menyraden när fönstret är stängt.") {
+                InkToggle(label: "Visa i Dock", isOn: $prefs.showInDock)
+            }
+            CardDivider()
+            CardRow(title: "Utseende") {
+                PillPicker(options: Appearance.allCases.map { ($0, $0.title) }, selection: $prefs.appearance)
+            }
+            CardDivider()
+            CardRow(title: "Appens språk",
+                    detail: appLanguage.resolved == AppLanguage.running ? nil
+                        : meeting.isBusy ? "Mindtalk behöver startas om för att byta språk. Det går när mötet är klart."
+                        : importer.busy ? "Mindtalk behöver startas om för att byta språk. Det går när inspelningen är nedskriven."
+                        : dictation.phase != .idle ? "Mindtalk behöver startas om för att byta språk. Det går när dikteringen är klar."
+                        : "Mindtalk behöver startas om för att byta språk.") {
+                HStack(spacing: 10) {
+                    if appLanguage.resolved != AppLanguage.running {
+                        Button("Starta om") { AppDelegate.relaunch(showing: .settings) }
+                            .buttonStyle(.ink)
+                            .fixedSize()
+                            .disabled(dictation.phase != .idle || meeting.isBusy || importer.busy)
+                    }
+                    PillPicker(options: AppLanguage.allCases.map { ($0, $0.title) }, selection: $appLanguage)
+                        .onChange(of: appLanguage) { _, new in AppLanguage.chosen = new }
+                }
+            }
+            CardDivider()
+            CardRow(title: "Uppdateringar",
+                    detail: AppMover.isInApplications ? "Sök efter nya versioner automatiskt, en gång om dagen."
+                        : "Mindtalk behöver ligga i Program för att uppdateras.") {
+                HStack(spacing: 12) {
+                    Button("Sök nu") { Updates.shared.checkNow() }.buttonStyle(.soft)
+                    InkToggle(label: "Sök automatiskt", isOn: $updates.automatic)
+                }
+                .disabled(!Updates.isAvailable || !AppMover.isInApplications)
+            }
+            if dictation.accessibilityGranted {
+                CardDivider()
+                CardRow(title: "Hjälpmedel", detail: "Låter Mindtalk känna av genvägarna och skriva in texten där markören står.") {
+                    GrantedLabel()
+                }
+            }
+        }
+        .card()
+    }
+}
+
+/// ↑ and ↓ move between sections while the list (or the chips) has focus. A click on
+/// a section gives the list focus.
+private struct SectionKeys: ViewModifier {
+    var focus: FocusState<Bool>.Binding
+    let step: (Int) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .focusable()
+            .focused(focus)
+            .focusEffectDisabled()
+            .onKeyPress(.upArrow) { step(-1); return .handled }
+            .onKeyPress(.downArrow) { step(1); return .handled }
+            .onKeyPress(.leftArrow) { step(-1); return .handled }
+            .onKeyPress(.rightArrow) { step(1); return .handled }
+    }
+}
+
+/// A section in the list: the chip grey under the chosen one, a lighter grey under the pointer.
+private struct SectionRowStyle<S: Shape>: ButtonStyle {
+    let selected: Bool
+    let shape: S
+
+    func makeBody(configuration: Configuration) -> some View {
+        Row(configuration: configuration, selected: selected, shape: shape)
+    }
+
+    private struct Row: View {
+        let configuration: ButtonStyle.Configuration
+        let selected: Bool
+        let shape: S
+        @State private var hovering = false
+        var body: some View {
+            configuration.label
+                .background(shape.fill(DS.Colors.chip.opacity(selected ? 1 : hovering ? 0.55 : 0)))
+                .opacity(configuration.isPressed ? 0.8 : 1)
+                .animation(.easeOut(duration: 0.12), value: hovering)
+                .onHover { hovering = $0 }
         }
     }
 }
@@ -1407,15 +1611,6 @@ struct LicensesSheet: View {
     }
 }
 
-extension SettingsPage {
-    fileprivate func showAbout(_ proxy: ScrollViewProxy, after delay: Double) {
-        Self.jumpToAbout = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            withAnimation(.spring(duration: 0.6)) { proxy.scrollTo("about", anchor: .top) }
-        }
-    }
-}
-
 /// Om Mindtalk: the version and who makes it, the introduction again, and the
 /// credits — the models and code Mindtalk is built on — in a window of their own.
 private struct AboutCard: View {
@@ -1433,6 +1628,7 @@ private struct AboutCard: View {
                 Button("Tack till och licenser…") { showsCredits = true }
                     .buttonStyle(.soft)
             }
+            .fixedSize()
         }
         .card()
         .sheet(isPresented: $showsCredits) { CreditsSheet(close: { showsCredits = false }) }
