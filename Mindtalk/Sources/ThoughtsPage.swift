@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 // MARK: - The Tankar page
 //
 // The key card (as Diktering's, with Säg en tanke), a line to type in beside the
-// search; then the pinned;
+// search (alone while there's nothing to search); then the pinned;
 // then a section per day, today and yesterday open, older days folded with a count.
 // Click a thought to choose it, click it again (or Return) to change the words.
 // ↑↓ move between them, Space marks one done, ⌫ removes, ⌥⌘↑↓ moves it, ⌘Z undoes.
@@ -97,7 +97,8 @@ struct ThoughtsPage: View {
         HStack(alignment: .top) {
             PageHeader(title: "Tankar",
                        // (What the page is for, the key card under it says.)
-                       eyebrow: live == 0 ? nil : live == 1 ? String(localized: "1 tanke") : String(localized: "\(live) tankar"))
+                       // Empty too, so the title stays put when the first thought comes.
+                       eyebrow: live == 0 ? String(localized: "Inga tankar än") : live == 1 ? String(localized: "1 tanke") : String(localized: "\(live) tankar"))
             Spacer(minLength: 16)
             Menu {
                 Button("Exportera alla som Markdown…", action: export).disabled(live == 0)
@@ -123,25 +124,26 @@ struct ThoughtsPage: View {
         let detail: String
         let spoken: String
         if pickingKey {
-            title = String(localized: "Tryck på genvägen…")
-            detail = String(localized: "Håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.")
+            title = String(localized: "Tryck på en tangent…")
+            detail = String(localized: "Håll in en tangent, som vänster ⌥, och släpp. Du kan också trycka på en kombination, som ⌃⌥T. Esc avbryter.")
             spoken = title
         } else if let thoughtKey {
-            title = String(localized: "Håll in \(thoughtKey.titleName) och säg det")
-            // A quick tap listens until the next one, but a double tap doesn't lock:
-            // that part of Diktering's text is left out.
-            detail = String(localized: "Släpp när du är klar, så sparas tanken här, inte där du står.")
-            spoken = String(localized: "Genväg: \(thoughtKey.spokenName). \(String(localized: "Håll in och säg det."))")
+            title = String(localized: "Håll in \(thoughtKey.titleName) och tänk högt")
+            // A short tap locks: it listens until the next tap (or Spara tanken), as
+            // thoughtReleased does.
+            detail = dictation.accessibilityGranted
+                ? String(localized: "Släpp när du är klar, så sparas tanken här. Tryck kort för att låsa och prata fritt. Esc avbryter.")
+                : String(localized: "Slå på Hjälpmedel för Mindtalk, så fungerar tangenten.")
+            spoken = String(localized: "Genväg: \(thoughtKey.spokenName). \(String(localized: "Håll in och tänk högt."))")
         } else {
-            title = String(localized: "Ingen genväg för tankar")
-            detail = String(localized: "Välj en tangent för att säga en tanke var du än är.")
+            title = String(localized: "Välj en genväg för tankar")
+            detail = String(localized: "Då kan du säga en tanke var du än är.")
             spoken = title
         }
         return KeyCard(keycap: thoughtKey?.keycap, picking: pickingKey, title: title, detail: keyRefusal ?? detail,
                        refused: keyRefusal != nil, spoken: spoken) {
             ThoughtShortcutField(shortcut: $thoughtKey, picking: $pickingKey, refusal: $keyRefusal,
-                                 meeting: Settings.meetingShortcut, style: .button)
-                .disabled(!dictation.accessibilityGranted)
+                                 meeting: Settings.meetingShortcut, style: .button, granted: dictation.accessibilityGranted)
         } trailing: {
             SayThoughtButton(dictation: dictation)
         }
@@ -150,15 +152,18 @@ struct ThoughtsPage: View {
     /// Type one instead: Return adds it.
     private var writeField: some View {
         HStack(spacing: 9) {
-            Image(systemName: "pencil").font(.system(size: 12, weight: .semibold)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
-            TextField("Eller skriv en tanke och tryck ↩", text: $typed)
+            Image(systemName: "pencil").font(.system(size: 13, weight: .semibold)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
+            TextField("Eller skriv en tanke och tryck på retur", text: $typed)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
                 .focused($typing)
+                .accessibilityLabel("Skriv en tanke")
                 .onSubmit {
                     withAnimation(.snappy) { thoughts.add(typed) }
                     typed = ""
                 }
+            // Return adds it: said at the end while there's something to add.
+            if !typed.isEmpty { KeyChip(text: "↩", small: true).accessibilityHidden(true) }
         }
         .padding(.horizontal, 14)
         .frame(height: 40)
@@ -199,18 +204,13 @@ struct ThoughtsPage: View {
         }
     }
 
-    /// No thoughts yet: the card above says how, so only an example here.
+    /// No thoughts yet: the card above says how and the eyebrow says there are none,
+    /// so only what lands here and an example, quietly under the fields.
     private var empty: some View {
-        VStack(spacing: 8) {
-            Text("Inga tankar än").font(.system(size: 14, weight: .semibold))
-            Text(thoughtKey == nil ? "Prova: tryck på Säg en tanke och säg ”Ring tillbaka om offerten”."
-                                   : "Prova: håll in tangenten och säg ”Ring tillbaka om offerten”.")
-                .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 28)
-        .accessibilityElement(children: .combine)
+        Text("Det du kommer på mitt i något annat hamnar här. Prova att säga ”Ring tillbaka om offerten”.")
+            .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: The list
@@ -971,16 +971,17 @@ private struct SayThoughtButton: View {
             if listening { dictation.finishFromHUD() } else { dictation.startThought() }
         } label: {
             HStack(spacing: 7) {
-                Image(systemName: listening ? "checkmark" : "mic.fill").font(.system(size: 11, weight: .semibold)).accessibilityHidden(true)
+                Image(systemName: listening ? "checkmark" : "mic.fill").font(.system(size: 10.5, weight: .semibold)).accessibilityHidden(true)
                 Text(listening ? "Spara tanken" : "Säg en tanke")
             }
         }
-        .buttonStyle(.ink)
+        .buttonStyle(TileButtonStyle(primary: true))
         .disabled(dictation.phase == .transcribing
                   || (!listening && (dictation.phase == .recording || !dictation.engine.isInstalled || meeting.isRecording)))
         .help(listening ? String(localized: "Spara tanken")
               : meeting.isRecording ? String(localized: "Går inte medan ett möte spelas in.")
-              : String(localized: "Lyssnar tills du trycker på ✓ i bubblan."))
+              : !dictation.engine.isInstalled ? String(localized: "Talmodellen är inte nedladdad än.")
+              : String(localized: "Lyssnar tills du trycker på Spara tanken. Esc avbryter."))
         .animation(.easeOut(duration: 0.15), value: listening)
     }
 }

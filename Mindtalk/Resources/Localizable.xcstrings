@@ -97,6 +97,7 @@
       }
     },
     "%@ används redan för Tankar. Välj en annan tangent.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -113,6 +114,7 @@
       }
     },
     "%@ används redan för diktering. Välj en annan tangent.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -124,6 +126,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ används redan för diktering. Välj en annan tangent."
+          }
+        }
+      }
+    },
+    "%@ används redan för diktering. Välj en annan.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is already used for dictation. Choose another."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ används redan för diktering. Välj en annan."
+          }
+        }
+      }
+    },
+    "%@ används redan för tankar. Välj en annan.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is already used for thoughts. Choose another."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ används redan för tankar. Välj en annan."
           }
         }
       }
@@ -4760,6 +4794,22 @@
         }
       }
     },
+    "Det du kommer på mitt i något annat hamnar här. Prova att säga ”Ring tillbaka om offerten”.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What comes to mind in the middle of something else lands here. Try saying “Call back about the quote”."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det du kommer på mitt i något annat hamnar här. Prova att säga ”Ring tillbaka om offerten”."
+          }
+        }
+      }
+    },
     "Det du kommer på mitt i något annat. Håll in %@ och säg det, så hamnar det här, inte i appen du är i.": {
       "extractionState": "stale",
       "localizations": {
@@ -6065,6 +6115,22 @@
         }
       }
     },
+    "Då kan du säga en tanke var du än är.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Then you can say a thought wherever you are."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Då kan du säga en tanke var du än är."
+          }
+        }
+      }
+    },
     "Dölj": {
       "localizations": {
         "en": {
@@ -6149,7 +6215,6 @@
       }
     },
     "Eller skriv en tanke och tryck på retur": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6166,6 +6231,7 @@
       }
     },
     "Eller skriv en tanke och tryck ↩": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9107,6 +9173,7 @@
       }
     },
     "Håll in %@ och säg det": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9152,6 +9219,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in %@ och säg något."
+          }
+        }
+      }
+    },
+    "Håll in %@ och tänk högt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold %@ and think out loud"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in %@ och tänk högt"
           }
         }
       }
@@ -9340,6 +9423,22 @@
         }
       }
     },
+    "Håll in en eller flera tangenter, som ⌥ och ⌘, och släpp. Du kan också trycka på en vanlig tangent. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold one or more keys, like ⌥ and ⌘, and let go. You can also press an ordinary key. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in en eller flera tangenter, som ⌥ och ⌘, och släpp. Du kan också trycka på en vanlig tangent. Esc avbryter."
+          }
+        }
+      }
+    },
     "Håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.": {
       "extractionState": "stale",
       "localizations": {
@@ -9386,6 +9485,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in en tangent och prata."
+          }
+        }
+      }
+    },
+    "Håll in en tangent, som vänster ⌥, och släpp. Du kan också trycka på en kombination, som ⌃⌥T. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold one key, like left ⌥, and let go. You can also press a combination, like ⌃⌥T. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in en tangent, som vänster ⌥, och släpp. Du kan också trycka på en kombination, som ⌃⌥T. Esc avbryter."
           }
         }
       }
@@ -9537,6 +9652,7 @@
       }
     },
     "Håll in och säg det.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9548,6 +9664,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in och säg det."
+          }
+        }
+      }
+    },
+    "Håll in och tänk högt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold and think out loud."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in och tänk högt."
           }
         }
       }
@@ -10513,6 +10645,7 @@
       }
     },
     "Ingen genväg för tankar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11607,7 +11740,24 @@
         }
       }
     },
+    "Klicka här och säg något.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click here and say something."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klicka här och säg något."
+          }
+        }
+      }
+    },
     "Klicka här, håll in %@ och säg något.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11624,6 +11774,7 @@
       }
     },
     "Klicka här, tryck på %@ och säg något.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11710,7 +11861,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Click and hold the keys you want to use. Release to save. You can also press a regular key. Esc cancels."
+            "value": "Click and hold the keys you want to use. Let go to save. You can also press an ordinary key. Esc cancels."
           }
         },
         "sv": {
@@ -13851,7 +14002,24 @@
         }
       }
     },
+    "Lyssnar tills du trycker på Spara tanken. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listens until you press Save Thought. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssnar tills du trycker på Spara tanken. Esc avbryter."
+          }
+        }
+      }
+    },
     "Lyssnar tills du trycker på ✓ i bubblan.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -18174,6 +18342,22 @@
         }
       }
     },
+    "Prova diktering": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try dictation"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prova diktering"
+          }
+        }
+      }
+    },
     "Prova diktering här": {
       "localizations": {
         "en": {
@@ -18275,6 +18459,7 @@
       }
     },
     "Prova: håll in tangenten och säg ”Ring tillbaka om offerten”.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -18308,6 +18493,7 @@
       }
     },
     "Prova: tryck på Säg en tanke och säg ”Ring tillbaka om offerten”.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -18753,6 +18939,22 @@
         }
       }
     },
+    "Rensa historiken…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear History…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rensa historiken…"
+          }
+        }
+      }
+    },
     "Rensa sökningen": {
       "localizations": {
         "en": {
@@ -18770,6 +18972,7 @@
       }
     },
     "Rensa…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -19779,6 +19982,22 @@
         }
       }
     },
+    "Skriv en tanke": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type a thought"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriv en tanke"
+          }
+        }
+      }
+    },
     "Skriv en tanke och tryck på retur": {
       "extractionState": "stale",
       "localizations": {
@@ -20407,6 +20626,7 @@
       }
     },
     "Släpp när du är klar, så sparas tanken här, inte där du står.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -20418,6 +20638,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Släpp när du är klar, så sparas tanken här, inte där du står."
+          }
+        }
+      }
+    },
+    "Släpp när du är klar, så sparas tanken här. Tryck kort för att låsa och prata fritt. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let go when you’re done, and the thought is saved here. Tap once to lock and talk hands-free. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Släpp när du är klar, så sparas tanken här. Tryck kort för att låsa och prata fritt. Esc avbryter."
           }
         }
       }
@@ -20519,7 +20755,6 @@
       }
     },
     "Slå på Hjälpmedel för Mindtalk först.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -20531,6 +20766,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Slå på Hjälpmedel för Mindtalk först."
+          }
+        }
+      }
+    },
+    "Slå på Hjälpmedel för Mindtalk, så fungerar tangenten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn on Accessibility for Mindtalk, and the key will work."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slå på Hjälpmedel för Mindtalk, så fungerar tangenten."
           }
         }
       }
@@ -20820,7 +21071,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Save the thought"
+            "value": "Save Thought"
           }
         },
         "sv": {
@@ -21894,6 +22145,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stäng panelen. Inspelningen fortsätter."
+          }
+        }
+      }
+    },
+    "Stäng provrutan": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close the practice box"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stäng provrutan"
           }
         }
       }
@@ -24775,6 +25042,7 @@
       }
     },
     "Tryck på genvägen…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -26330,6 +26598,22 @@
         }
       }
     },
+    "Välj en genväg för tankar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a shortcut for thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj en genväg för tankar"
+          }
+        }
+      }
+    },
     "Välj en ljud- eller videofil (⌘O)": {
       "localizations": {
         "en": {
@@ -26380,6 +26664,7 @@
       }
     },
     "Välj en tangent för att säga en tanke var du än är.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

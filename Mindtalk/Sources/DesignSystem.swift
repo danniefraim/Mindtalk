@@ -11,6 +11,8 @@ enum DS {
         static let card: CGFloat = 16
         static let control: CGFloat = 10
         static let chip: CGFloat = 7
+        /// The big key on Diktering's and Tankar's card.
+        static let keycap: CGFloat = 12
         /// The introduction's tiles and panels.
         static let panel: CGFloat = 20
         /// The big tiles at the top of a page (Hem's day, Möten's start).

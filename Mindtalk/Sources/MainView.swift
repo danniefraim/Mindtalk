@@ -733,7 +733,7 @@ struct MeetingShortcutField: View {
 /// The thought shortcut: a key held on its own (left ⌥), like the dictation key — or a
 /// chord like ⌃⌥T. Click, then hold the key alone and let go, or press the combination.
 /// Never the dictation key: that's refused, and said why. In Inställningar a white
-/// field (`.field`); on Tankar a soft button, Ändra (`.button`), in the key card.
+/// field (`.field`); on Tankar a flat tile button, Ändra (`.button`), in the key card.
 struct ThoughtShortcutField: View {
     enum Style { case field, button }
 
@@ -742,6 +742,8 @@ struct ThoughtShortcutField: View {
     @Binding var refusal: String?
     var meeting: KeyChord?
     var style: Style = .field
+    /// Hjälpmedel is on: without it the key can't be felt, so `.button` can't pick one.
+    var granted = true
     var apply: (ThoughtShortcut?) -> Void = { new in
         Settings.thoughtShortcut = new
         KeyListener.shared.thoughtShortcut = new
@@ -765,7 +767,7 @@ struct ThoughtShortcutField: View {
                     Button { tapped() } label: {
                         PickerFieldLabel(picking: picking, wide: shortcut == nil || picking) {
                             if picking {
-                                Text("Tryck på genvägen…").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                                Text("Tryck på en tangent…").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                             } else if let shortcut {
                                 KeyChip(text: shortcut.chip)
                             } else {
@@ -784,8 +786,11 @@ struct ThoughtShortcutField: View {
                 }
             case .button:
                 Button { tapped() } label: { picking ? Text("Avbryt") : shortcut == nil ? Text("Välj") : Text("Ändra") }
-                    .buttonStyle(.soft)
-                    .help(picking ? Text("Esc avbryter.") : Text("Klicka och håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination. Esc avbryter."))
+                    .buttonStyle(TileButtonStyle())
+                    .disabled(!granted)
+                    .help(!granted ? Text("Slå på Hjälpmedel för Mindtalk först.")
+                          : picking ? Text("Esc avbryter.")
+                          : Text("Klicka och håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination. Esc avbryter."))
                     .accessibilityLabel(picking ? Text("Avbryt") : shortcut == nil ? Text("Välj en genväg") : Text("Ändra genvägen"))
             }
         }
@@ -925,7 +930,7 @@ private struct DictationKeyCard: View {
                 picking: picking,
                 title: picking ? String(localized: "Tryck på en tangent…") : title,
                 detail: dictation.keyRefusal ?? (picking
-                    ? String(localized: "Håll in en eller flera tangenter som ⌥ och ⌘ och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
+                    ? String(localized: "Håll in en eller flera tangenter, som ⌥ och ⌘, och släpp. Du kan också trycka på en vanlig tangent. Esc avbryter.")
                     : how),
                 refused: dictation.keyRefusal != nil,
                 spoken: spoken) {
@@ -935,7 +940,7 @@ private struct DictationKeyCard: View {
             } label: {
                 picking ? Text("Avbryt") : Text("Ändra")
             }
-            .buttonStyle(.soft)
+            .buttonStyle(TileButtonStyle())
             .disabled(!dictation.accessibilityGranted)
             .help(LocalizedStringKey(dictation.accessibilityGranted ? "Klicka och håll in tangenterna du vill använda. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter."
                                                                     : "Slå på Hjälpmedel för Mindtalk först."))
@@ -945,7 +950,8 @@ private struct DictationKeyCard: View {
                 Button(trying ? "Stäng" : "Prova") {
                     withAnimation(.spring(duration: 0.35, bounce: 0.1)) { trying.toggle() }
                 }
-                .buttonStyle(.soft)
+                .buttonStyle(TileButtonStyle())
+                .accessibilityLabel(trying ? Text("Stäng provrutan") : Text("Prova diktering"))
             }
         } below: {
             if trying && !dictation.needsSetup {
@@ -961,7 +967,8 @@ private struct DictationKeyCard: View {
                                           lineWidth: practice.isEmpty ? 1 : 1.5))
                         .accessibilityLabel("Prova diktering här")
                     if practice.isEmpty {
-                        Text(dictation.mode == .toggle ? "Klicka här, tryck på \(key) och säg något." : "Klicka här, håll in \(key) och säg något.")
+                        // The card's title already says which key, and how.
+                        Text("Klicka här och säg något.")
                             .font(.system(size: 17))
                             .foregroundStyle(DS.Colors.muted)
                             .padding(.horizontal, 17).padding(.vertical, 12)
@@ -1061,14 +1068,25 @@ struct RecentPage: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .top) {
                 PageHeader(title: "Diktering",
                            eyebrow: stats.today.words > 0 ? (stats.today.words == 1 ? String(localized: "1 ord i dag") : String(localized: "\(Stats.number(stats.today.words)) ord i dag"))
                                : stats.totalWords > 0 ? String(localized: "Inget sagt i dag än") : nil)
                     .staggered(0)
-                Spacer()
+                Spacer(minLength: 16)
                 if !dictation.recent.isEmpty {
-                    Button("Rensa…") { confirmClear = true }.buttonStyle(.soft)
+                    // As Tankar's: what's done to the whole page, behind ….
+                    Menu {
+                        Button("Rensa historiken…") { confirmClear = true }
+                    } label: {
+                        Image(systemName: "ellipsis.circle").font(.system(size: 17)).foregroundStyle(DS.Colors.muted)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .padding(.top, 14)
+                    .help("Mer")
+                    .accessibilityLabel("Mer")
                 }
             }
             DictationKeyCard(dictation: dictation).staggered(1)

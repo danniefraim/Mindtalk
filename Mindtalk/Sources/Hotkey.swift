@@ -367,13 +367,13 @@ enum ThoughtShortcut: Equatable {
     /// Why this can't be the thought key next to that dictation key — nil when it can.
     func refusal(besides dictation: Hotkey) -> String? {
         guard let key, collides(with: dictation) else { return nil }
-        return String(localized: "\(key.name) används redan för diktering. Välj en annan tangent.")
+        return String(localized: "\(key.name) används redan för diktering. Välj en annan.")
     }
 
     /// Why a newly picked dictation key can't be taken next to this thought key — nil when it can.
     static func refusal(dictation: Hotkey, besides thought: ThoughtShortcut?) -> String? {
         guard let thought, let key = thought.key, thought.collides(with: dictation) else { return nil }
-        return String(localized: "\(key.name) används redan för Tankar. Välj en annan tangent.")
+        return String(localized: "\(key.name) används redan för tankar. Välj en annan.")
     }
 }
 

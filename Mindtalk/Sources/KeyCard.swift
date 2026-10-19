@@ -4,16 +4,18 @@ import SwiftUI
 /// with it, and Ändra under that (Avbryt while a key is being picked, Välj when there
 /// is none). On the right the page's own button: Prova, or Säg en tanke. `below`:
 /// anything the page keeps in the same card (Diktering's box to try it in).
+/// The same tile as Hem's and Möten's, with their flat buttons: the key is the only
+/// raised thing on it.
 struct KeyCard<Change: View, Trailing: View, Below: View>: View {
-    /// What's printed on the big key ("⌥ Opt →", "⌃ ⌥ T"). nil: no key, "Ingen genväg".
+    /// What's printed on the big key ("⌥ Opt →", "⌃ ⌥ T"). nil: no key, an empty dashed outline.
     let keycap: String?
-    /// A key is being picked: the cap gets the ink edge.
+    /// A key is being picked: the cap gets the ink edge, the old key fades.
     let picking: Bool
     let title: String
     let detail: String
-    /// The detail is why a key just picked wasn't taken: in the warning colour.
+    /// The detail is why a key just picked wasn't taken: in ink, not muted.
     var refused = false
-    /// The cap and the title, read as one: "Genväg: vänster Option. Håll in och säg det."
+    /// The cap and the title, read as one: "Genväg: vänster option. Håll in och tänk högt."
     let spoken: String
     @ViewBuilder var change: Change
     @ViewBuilder var trailing: Trailing
@@ -30,7 +32,8 @@ struct KeyCard<Change: View, Trailing: View, Below: View>: View {
                         .accessibilityLabel(Text(verbatim: spoken))
                     Text(verbatim: detail)
                         .font(.system(size: 13))
-                        .foregroundStyle(refused ? DS.Colors.warning : DS.Colors.muted)
+                        .fontWeight(refused ? .medium : .regular)
+                        .foregroundStyle(refused ? Color.primary : DS.Colors.muted)
                         .fixedSize(horizontal: false, vertical: true)
                         // Both pages wrap at the same length.
                         .frame(maxWidth: 480, alignment: .leading)
@@ -42,29 +45,32 @@ struct KeyCard<Change: View, Trailing: View, Below: View>: View {
             }
             below
         }
-        .padding(22)
-        .card()
+        .padding(28)
+        .tile()
         .animation(.snappy(duration: 0.2), value: picking)
     }
 
-    /// A big KeyChip: the same raised control fill, edge and shadow.
-    private var cap: some View {
-        let shape = RoundedRectangle(cornerRadius: DS.Radius.control + 2, style: .continuous)
-        return Group {
-            if let keycap {
-                Text(verbatim: keycap).font(.system(size: 20, weight: .semibold))
-            } else {
-                Text("Ingen genväg").font(.system(size: 13, weight: .medium)).foregroundStyle(DS.Colors.muted)
-            }
+    /// A big KeyChip: the same raised control fill, edge and shadow. No key: only a
+    /// dashed outline where it would be.
+    @ViewBuilder private var cap: some View {
+        let shape = RoundedRectangle(cornerRadius: DS.Radius.keycap, style: .continuous)
+        if let keycap {
+            Text(verbatim: keycap).font(.system(size: 20, weight: .semibold))
+                .lineLimit(1)
+                .opacity(picking ? 0.35 : 1)
+                .padding(.horizontal, 16)
+                // Wide enough for "⌥ Opt ←", so the words beside it stay put for a short chord.
+                .frame(minWidth: 112, minHeight: 56)
+                .background(shape.fill(DS.Colors.control).shadow(color: .black.opacity(0.08), radius: 0, y: 2))
+                .overlay(shape.strokeBorder(picking ? DS.Colors.ink : DS.Colors.fieldStroke, lineWidth: picking ? 2 : 1))
+                .fixedSize()
+                .accessibilityHidden(true)
+        } else {
+            shape.strokeBorder(picking ? DS.Colors.ink : DS.Colors.fieldStroke,
+                               style: StrokeStyle(lineWidth: picking ? 2 : 1, dash: [4, 3]))
+                .frame(width: 112, height: 56)
+                .accessibilityHidden(true)
         }
-        .lineLimit(1)
-        .padding(.horizontal, 16)
-        // Wide enough for "⌥ Opt ←", so the words beside it stay put for a short chord.
-        .frame(minWidth: 112, minHeight: 56)
-        .background(shape.fill(DS.Colors.control).shadow(color: .black.opacity(0.08), radius: 0, y: 2))
-        .overlay(shape.strokeBorder(picking ? DS.Colors.ink : DS.Colors.fieldStroke, lineWidth: 1))
-        .fixedSize()
-        .accessibilityHidden(true)
     }
 }
 
@@ -91,8 +97,10 @@ extension Hotkey {
 }
 
 extension ThoughtShortcut {
-    /// For VoiceOver: "vänster option", or the chord ("⌃⌥T").
-    var spokenName: String { key?.spokenName ?? chip }
+    /// For VoiceOver: "vänster option", or the chord in words ("control option T").
+    var spokenName: String {
+        key?.spokenName ?? keycaps.map { $0.caption.isEmpty ? $0.symbol : $0.caption }.joined(separator: " ")
+    }
     /// Mid-sentence in a title: "vänster ⌥ Option", or the chord ("⌃⌥T").
     var titleName: String { key?.inlineName ?? chip }
 }
