@@ -909,9 +909,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
-        // `Mindtalk --render-mcp out.png [--dark] [--on] [--client <name>]`: Settings → Integrationer → MCP, off
-        // or on, with made-up folders and a made-up log (nothing saved). `--render-claude`
-        // is the old name of the same flag.
+        // `Mindtalk --render-mcp out.png [--dark] [--on] [--client <name>] [--help-page]`: Settings →
+        // Integrationer → MCP, off or on, with made-up folders and a made-up log (nothing
+        // saved). `--client "ChatGPT (Codex)"`: as right after pressing that program's button.
+        // `--help-page`: the help page from "Läs mer" instead. `--render-claude` is the old
+        // name of the same flag.
         if let i = args.firstIndex(of: "--render-mcp") ?? args.firstIndex(of: "--render-claude"), i + 1 < args.count {
             Task { @MainActor in
                 let dark = args.contains("--dark")
@@ -926,11 +928,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     .init(date: now.addingTimeInterval(-86_400), tool: "mindtalk_list_meetings", scope: "Kunder", items: 12, characters: 2400),
                     .init(date: now.addingTimeInterval(-90_000), tool: "mindtalk_list_thoughts", scope: "Tankar", items: 7, characters: 900),
                 ])
-                // `--client "ChatGPT (Codex)"`: the picker on that program.
                 let client = args.firstIndex(of: "--client").flatMap { j in j + 1 < args.count ? ClaudeInstall.Client(rawValue: args[j + 1]) : nil }
-                let view = ClaudeSettingsCard(sharing: .shared, client: client)
-                    .padding(28).frame(width: 760).background(DS.Colors.paper)
-                    .environment(\.colorScheme, dark ? .dark : .light)
+                let view: AnyView = args.contains("--help-page")
+                    ? AnyView(MCPHelpView(sharing: .shared, close: {}, plain: true)
+                        .environment(\.colorScheme, dark ? .dark : .light))
+                    : AnyView(ClaudeSettingsCard(sharing: .shared, preview: client)
+                        .padding(28).frame(width: 760).background(DS.Colors.paper)
+                        .environment(\.colorScheme, dark ? .dark : .light))
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2
                 if let image = renderer.nsImage, let tiff = image.tiffRepresentation,

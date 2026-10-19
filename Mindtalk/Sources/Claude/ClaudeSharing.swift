@@ -79,12 +79,6 @@ final class ClaudeSharing: ObservableObject {
     @Published var enableExplained: Bool {
         didSet { if !previewing { defaults.set(enableExplained, forKey: "claude.enableExplained") } }
     }
-    /// The program that read something most recently, as the log names it ("Claude"),
-    /// so the card can offer that program first.
-    var lastClient: String? {
-        entries.first { !($0.client ?? "").isEmpty }?.client
-    }
-
     /// One call a program made: what it read, how much, when. The newest first.
     struct Entry: Codable, Identifiable, Equatable {
         var id = UUID()
