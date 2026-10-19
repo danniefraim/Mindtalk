@@ -17,14 +17,15 @@ import Foundation
 // settings card shows.
 //
 // Text the assistant reads (descriptions, errors, notes) is English and plain. Only
-// the log's scope is shown to you, so only it goes through the catalog.
+// the log's scope is shown to you: a title or a folder's name as it is, and "all
+// meetings", "thoughts" and the refusals as LogScope's marks, put into words when shown.
 
 @MainActor
 enum ClaudeTools {
     struct Failure: Error {
         let message: String
         /// Set when the owner's settings said no (off, an id that isn't there):
-        /// noted in the log as "nekad: …", so the card shows what was asked for and refused.
+        /// noted in the log as a LogScope refusal, so the card shows what was asked for and refused.
         var refusal: String? = nil
     }
 
@@ -88,7 +89,7 @@ enum ClaudeTools {
     }
 
     private static func refusedOff() -> Failure {
-        Failure(message: offMessage, refusal: String(localized: "nekad: avstängt"))
+        Failure(message: offMessage, refusal: LogScope.off)
     }
     /// A whole number from a value read from disk, never a crash: NaN and infinity
     /// become 0, and anything beyond what a meeting could hold is held there.
@@ -220,7 +221,7 @@ enum ClaudeTools {
 
     private struct Scope {
         var meetings: [MeetingRecord]
-        /// What the log says: a title, a folder's name, "Alla möten".
+        /// What the log says: a title, a folder's name, LogScope.all.
         var label: String
         var meeting: MeetingRecord?
         var folder: MeetingFolder?
@@ -235,11 +236,11 @@ enum ClaudeTools {
             out = Scope(meetings: [m], label: title(of: m), meeting: m)
         } else if allowFolder, try args.string("folder_id") != nil {
             guard let id = try args.uuid("folder_id"), let folder = visibleFolders().first(where: { $0.id == id }) else {
-                throw Failure(message: "No such folder. Use an id from mindtalk_list_folders.", refusal: String(localized: "nekad: okänd mapp"))
+                throw Failure(message: "No such folder. Use an id from mindtalk_list_folders.", refusal: LogScope.unknownFolder)
             }
             out = Scope(meetings: visibleMeetings().filter { $0.folder == id }, label: folder.name, folder: folder)
         } else {
-            out = Scope(meetings: visibleMeetings(), label: String(localized: "Alla möten"))
+            out = Scope(meetings: visibleMeetings(), label: LogScope.all)
         }
         if let from = try args.date("from") { out.meetings.removeAll { $0.date < from } }
         if let to = try args.date("to", end: true) { out.meetings.removeAll { $0.date > to } }
@@ -248,7 +249,7 @@ enum ClaudeTools {
 
     private static func meeting(_ args: Args) throws -> MeetingRecord {
         guard let id = try args.uuid("meeting_id"), let m = visibleMeetings().first(where: { $0.id == id }) else {
-            throw Failure(message: "No such meeting. Use an id from mindtalk_list_meetings or mindtalk_search.", refusal: String(localized: "nekad: okänt möte"))
+            throw Failure(message: "No such meeting. Use an id from mindtalk_list_meetings or mindtalk_search.", refusal: LogScope.unknownMeeting)
         }
         return m
     }
@@ -394,7 +395,7 @@ enum ClaudeTools {
             "folders": rows,
             "meetings_without_folder": meetings.filter { $0.folder == nil || MeetingFolders.shared.folder($0.folder) == nil }.count,
         ]
-        return (result, String(localized: "Alla möten"), rows.count)
+        return (result, LogScope.all, rows.count)
     }
 
     // MARK: mindtalk_list_meetings
@@ -565,7 +566,7 @@ enum ClaudeTools {
         var spots: [Spot] = []
         var thoughts: [Thought] = []
         var meetings: [MeetingRecord] = []
-        var label = String(localized: "Alla möten")
+        var label = LogScope.all
 
         // Thoughts: every word in the thought. Not when a meeting or a folder is asked about.
         if kinds.contains("thoughts"), !inMeetings {
@@ -579,7 +580,7 @@ enum ClaudeTools {
                 spots.append(Spot(kind: "thought", text: t.text, owner: thoughts.count))
                 thoughts.append(t)
             }
-            if searched.isEmpty { label = String(localized: "Tankar") }
+            if searched.isEmpty { label = LogScope.thoughts }
         }
 
         if !searched.isEmpty {
@@ -713,6 +714,6 @@ enum ClaudeTools {
             result["nextCursor"] = cursor(offset: offset + rows.count)
             result["note"] = moreNote
         }
-        return (result, String(localized: "Tankar"), rows.count)
+        return (result, LogScope.thoughts, rows.count)
     }
 }

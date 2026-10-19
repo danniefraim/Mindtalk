@@ -307,7 +307,7 @@ enum ClaudeLogLine {
         var parts = [MeetingRecord.when(entry.date)]
         if entry.wasRefused {
             if let client = entry.client { parts.append(client) }
-            parts.append(entry.scope)
+            parts.append(LogScope.shown(entry.scope))
             if let times = entry.times, times > 1 { parts.append(String(localized: "\(times) gånger")) }
             return parts.joined(separator: " · ")
         }
@@ -328,9 +328,11 @@ enum ClaudeLogLine {
     /// What the program did, with where and how much ("Sökte i Klang, 4 träffar",
     /// "Listade 10 möten i Kunder", "Läste Styrelsemöte 14 okt · sammanfattning").
     private static func action(_ entry: ClaudeSharing.Entry) -> String {
-        let scope = entry.scope.trimmingCharacters(in: .whitespaces)
-        // "Alla möten" inside a sentence: "sökte i alla möten".
-        let place = scope == String(localized: "Alla möten") ? String(localized: "alla möten") : scope
+        let mark = LogScope.mark(entry.scope)
+        let all = mark == LogScope.all
+        let scope = LogScope.shown(entry.scope).trimmingCharacters(in: .whitespaces)
+        // All meetings inside a sentence: "sökte i alla möten".
+        let place = all ? String(localized: "alla möten") : scope
         let n = entry.items
         switch entry.tool {
         case "mindtalk_search":
@@ -342,13 +344,13 @@ enum ClaudeLogLine {
             return String(localized: "Läste \(scope) · hela texten")
         case "mindtalk_list_meetings":
             let meetings = n == 1 ? String(localized: "1 möte") : String(localized: "\(n) möten")
-            return place.isEmpty || scope == String(localized: "Alla möten")
+            return place.isEmpty || all
                 ? String(localized: "Listade \(meetings)") : String(localized: "Listade \(meetings) i \(scope)")
         case "mindtalk_list_folders":
             return n == 1 ? String(localized: "Listade 1 mapp") : String(localized: "Listade \(n) mappar")
         case "mindtalk_list_tasks":
             let tasks = n == 1 ? String(localized: "1 uppgift") : String(localized: "\(n) uppgifter")
-            return place.isEmpty || scope == String(localized: "Alla möten")
+            return place.isEmpty || all
                 ? String(localized: "Läste \(tasks)") : String(localized: "Läste \(tasks) i \(scope)")
         case "mindtalk_list_thoughts":
             return n == 1 ? String(localized: "Läste 1 tanke") : String(localized: "Läste \(n) tankar")

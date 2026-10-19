@@ -321,7 +321,7 @@ enum BridgeTest {
               "\(answered.count) inlägg, \(answeredCalls) besvarade")
         check("loggen: den som frågar är namngiven (den här processen)", answered.allSatisfy { $0.client == "Mindtalk" },
               Set(answered.map { $0.client ?? "okänd" }).joined(separator: ", "))
-        let refusals = [String(localized: "nekad: okänt möte"), String(localized: "nekad: okänd mapp")]
+        let refusals = [LogScope.unknownMeeting, LogScope.unknownFolder]
         // The same refusal in a row is one line that counts.
         check("loggen: nekade anrop skrivs utan id, med 0 tecken", refused.reduce(0) { $0 + ($1.times ?? 1) } == refusedCalls && refused.allSatisfy {
             $0.items == 0 && $0.characters == 0 && refusals.contains($0.scope)
@@ -331,9 +331,17 @@ enum BridgeTest {
         let before = logged.count
         _ = await call("mindtalk_get_meeting", ["meeting_id": m5])
         check("loggen: ett nekat möte skrivs som nekad: okänt möte",
-              sharing.entries.count == before + 1 && sharing.entries.first?.scope == String(localized: "nekad: okänt möte") && sharing.entries.first?.wasRefused == true)
+              sharing.entries.count == before + 1 && sharing.entries.first?.scope == LogScope.unknownMeeting && sharing.entries.first?.wasRefused == true)
         _ = await call("mindtalk_list_meetings", ["limit": "abc"])
         check("loggen: ett fel i argumenten skrivs inte", sharing.entries.count == before + 1)
+        // Kept in no language: an older entry in English words reads in the app's language.
+        let all = answered.filter { LogScope.mark($0.scope) == LogScope.all }
+        let english = ClaudeSharing.Entry(tool: "mindtalk_search", scope: "All meetings", items: 0, characters: 0, client: "Claude")
+        check("loggen: alla möten sparas utan språk och visas på appens språk",
+              !all.isEmpty && all.allSatisfy { $0.scope == LogScope.all }
+              && ClaudeLogLine.text(for: english).hasSuffix("Claude " + String(localized: "Sökte i \(String(localized: "alla möten")), \(String(localized: "inga träffar"))").lowercasedFirst)
+              && LogScope.shown("nekad: okänt möte") == LogScope.shown(LogScope.unknownMeeting),
+              ClaudeLogLine.text(for: english))
 
         // A folder removed: its meeting stays, now without a folder.
         folders.remove(fixture.folderB)
@@ -352,9 +360,9 @@ enum BridgeTest {
             r = await call(tool, ["meeting_id": m1, "query": "budget"])
             check("avstängt: \(tool)", r.error == ClaudeTools.offMessage)
         }
-        check("avstängt: loggas som avstängt", sharing.entries.first?.scope == String(localized: "nekad: avstängt") && sharing.entries.first?.items == 0)
+        check("avstängt: loggas som avstängt", sharing.entries.first?.scope == LogScope.off && sharing.entries.first?.items == 0)
         check("avstängt: sju nekanden i rad är ett inlägg, sju gånger", sharing.entries.first?.times == 7
-              && !(sharing.entries.dropFirst().first?.scope == String(localized: "nekad: avstängt")),
+              && !(sharing.entries.dropFirst().first?.scope == LogScope.off),
               "\(sharing.entries.first?.times ?? 1) gånger")
         check("avstängt: raden säger hur många gånger", ClaudeLogLine.text(for: sharing.entries[0]).hasSuffix(String(localized: "\(7) gånger")))
         sharing.enabled = true
@@ -690,5 +698,10 @@ enum BridgeTest {
             return String(decoding: buffer.prefix { $0 != 0x0A }, as: UTF8.self)
         }
     }
+}
+
+private extension String {
+    /// "Sökte i …" as mid-sentence: "sökte i …", as the log line has it after the program.
+    var lowercasedFirst: String { prefix(1).lowercased() + dropFirst() }
 }
 #endif

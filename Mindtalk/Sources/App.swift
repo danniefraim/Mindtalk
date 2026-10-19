@@ -935,11 +935,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 let now = Date()
                 ClaudeSharing.shared.preview(enabled: args.contains("--on"), entries: [
                     .init(date: now.addingTimeInterval(-120), tool: "mindtalk_search", scope: "Klang", items: 4, characters: 3000, client: "Claude"),
-                    .init(date: now.addingTimeInterval(-150), tool: "mindtalk_get_transcript", scope: String(localized: "nekad: okänt möte"),
+                    .init(date: now.addingTimeInterval(-150), tool: "mindtalk_get_transcript", scope: LogScope.unknownMeeting,
                           items: 0, characters: 0, client: "Claude", refused: true),
                     .init(date: now.addingTimeInterval(-180), tool: "mindtalk_get_meeting", scope: "Styrelsemöte 14 okt", items: 1, characters: 1850, client: "Claude"),
                     .init(date: now.addingTimeInterval(-86_400), tool: "mindtalk_list_meetings", scope: "Kunder", items: 12, characters: 2400),
-                    .init(date: now.addingTimeInterval(-90_000), tool: "mindtalk_list_thoughts", scope: "Tankar", items: 7, characters: 900),
+                    .init(date: now.addingTimeInterval(-90_000), tool: "mindtalk_list_thoughts", scope: LogScope.thoughts, items: 7, characters: 900),
                 ])
                 let client = args.firstIndex(of: "--client").flatMap { j in j + 1 < args.count ? ClaudeInstall.Client(rawValue: args[j + 1]) : nil }
                 let view: AnyView = args.contains("--help-page")

@@ -12,6 +12,55 @@ import os
 //
 // Off until switched on. Audio and voiceprints are never shared.
 
+/// The log's places that aren't a name: kept as marks in no language, and put into words
+/// when shown, so a log written while Mindtalk ran in English reads in Swedish after a
+/// switch ("sökte i alla möten", not "sökte i All meetings"). Entries from before were
+/// kept in words: those are known in both languages.
+enum LogScope {
+    static let all = "@all"
+    static let thoughts = "@thoughts"
+    static let off = "@refused:off"
+    static let unknownFolder = "@refused:folder"
+    static let unknownMeeting = "@refused:meeting"
+
+    /// A stored scope as a mark, when it is one (or the words for one, from an older log).
+    static func mark(_ stored: String) -> String {
+        switch stored.trimmingCharacters(in: .whitespaces) {
+        case all, "Alla möten", "All meetings": return all
+        case thoughts, "Tankar", "Thoughts": return thoughts
+        case off, "nekad: avstängt", "refused: switched off", "refused: turned off": return off
+        case unknownFolder, "nekad: okänd mapp", "refused: unknown folder": return unknownFolder
+        case unknownMeeting, "nekad: okänt möte", "refused: unknown meeting": return unknownMeeting
+        default: return stored
+        }
+    }
+
+    /// What it says in the app's language: the words for a mark, a name as it is.
+    static func shown(_ stored: String) -> String {
+        switch mark(stored) {
+        case all: return String(localized: "Alla möten")
+        case thoughts: return String(localized: "Tankar")
+        case off: return String(localized: "nekad: avstängt")
+        case unknownFolder: return String(localized: "nekad: okänd mapp")
+        case unknownMeeting: return String(localized: "nekad: okänt möte")
+        default: return legacyRefusal(stored) ?? stored
+        }
+    }
+
+    /// Refusals only older versions made (the levels and parts before 2.0), in either language.
+    private static func legacyRefusal(_ stored: String) -> String? {
+        let known: [(sv: String, en: String, now: String)] = [
+            ("nekad: hela texten", "refused: the full text", String(localized: "nekad: hela texten")),
+            ("nekad: anteckningar", "refused: notes and marks", String(localized: "nekad: anteckningar")),
+            ("nekad: möten", "refused: meetings", String(localized: "nekad: möten")),
+            ("nekad: nivån", "refused: the level", String(localized: "nekad: nivån")),
+            ("nekad: sammanfattningar", "refused: summaries", String(localized: "nekad: sammanfattningar")),
+            ("nekad: tankar", "refused: thoughts", String(localized: "nekad: tankar")),
+        ]
+        return known.first { $0.sv == stored || $0.en == stored }?.now
+    }
+}
+
 /// The owner's choices under Inställningar → Integrationer → MCP.
 @MainActor
 final class ClaudeSharing: ObservableObject {
@@ -57,8 +106,9 @@ final class ClaudeSharing: ObservableObject {
         var date = Date()
         /// The tool, as the program names it ("mindtalk_search").
         var tool: String
-        /// Where it looked, in words: a meeting title, a folder name, "Alla möten", "Tankar".
-        /// Refused: what was refused ("nekad: hela texten"), never an id.
+        /// Where it looked: a meeting title or a folder name as they are, or one of
+        /// LogScope's marks (all meetings, thoughts). Refused: LogScope's mark for what was
+        /// refused, never an id. Shown with LogScope.shown, in the app's language then.
         var scope: String
         /// How many meetings, thoughts or hits came back.
         var items: Int
@@ -141,7 +191,7 @@ final class ClaudeSharing: ObservableObject {
         // A program that keeps asking while MCP is off (or for the same unknown meeting)
         // counts up one line, and doesn't push what was read out of the log.
         let now = Date()
-        if refused, let last = entries.first, last.wasRefused, last.scope == scope, last.client == client,
+        if refused, let last = entries.first, last.wasRefused, LogScope.mark(last.scope) == LogScope.mark(scope), last.client == client,
            now.timeIntervalSince(last.date) < Self.repeatWindow {
             entries[0].times = (last.times ?? 1) + 1
             entries[0].date = now
