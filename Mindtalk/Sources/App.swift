@@ -19,6 +19,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // `Mindtalk --clean "text"` runs only the cleanup.
         let args = CommandLine.arguments
         #if DEBUG
+        // `Mindtalk --bridge-test --models-dir <empty folder>`: Claude's tools through the
+        // socket, against a made-up store in that folder (BridgeTest.swift).
+        if args.contains("--bridge-test") {
+            Task { exit(await BridgeTest.run()) }
+            RunLoop.main.run()
+            return
+        }
         // Synthetic keyboard events only; no event tap, permissions or app UI.
         if args.contains("--hotkey-test") {
             Task { exit(await HotkeySelfTest.run()) }
@@ -850,6 +857,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     print("Ritad: \(args[i + 1])")
                 }
                 exit(0)
+            }
+            RunLoop.main.run()
+        }
+        // `Mindtalk --write-mcpb out.mcpb`: the Claude extension bundle as "Lägg till i
+        // Claude" writes it (nothing opened), with the manifest printed, to check both.
+        if let i = args.firstIndex(of: "--write-mcpb"), i + 1 < args.count {
+            Task { @MainActor in
+                do {
+                    let url = try ClaudeInstall.buildBundle(at: URL(fileURLWithPath: args[i + 1]))
+                    print(String(decoding: try ClaudeInstall.manifestJSON(), as: UTF8.self))
+                    print("Skrev: \(url.path)")
+                    print("Claude Code: \(ClaudeInstall.claudeCodeCommand())")
+                    // The links the helper puts in Claude's answers, read back.
+                    let id = UUID()
+                    let checks: [(URL, MindtalkLink?)] = [
+                        (MindtalkLink.url(meeting: id, at: 754), .meeting(id, at: 754)),
+                        (MindtalkLink.url(meeting: id), .meeting(id, at: nil)),
+                        (MindtalkLink.url(thought: id), .thought(id)),
+                        (MindtalkLink.claudeSettingsURL, .claudeSettings),
+                        (URL(string: "mindtalk://meeting/not-an-id")!, nil),
+                        (URL(string: "mindtalk://settings/other")!, nil),
+                        (URL(string: "https://example.com/meeting/\(id.uuidString)")!, nil),
+                    ]
+                    for (url, expected) in checks where MindtalkLink.parse(url) != expected {
+                        print("Länk fel: \(url.absoluteString)"); exit(1)
+                    }
+                    print("Länkar: \(checks.count) kontrollerade")
+                    exit(0)
+                } catch {
+                    print("Misslyckades: \(error.localizedDescription)")
+                    exit(1)
+                }
             }
             RunLoop.main.run()
         }

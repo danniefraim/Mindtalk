@@ -117,7 +117,7 @@ enum ClaudeInstall {
 
     /// The app icon at 128 pt, as PNG, for the bundle.
     private static func iconPNG() -> Data? {
-        let image = NSApp.applicationIconImage ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
+        let image = NSApp?.applicationIconImage ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
         let size = NSSize(width: 128, height: 128)
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 256, pixelsHigh: 256, bitsPerSample: 8,
                                          samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
