@@ -60,6 +60,11 @@ if [ -d "$SPARKLE" ]; then
   sign "$SPARKLE/Autoupdate"
   sign "$SPARKLE/Updater.app"
   sign "$APP_PATH/Contents/Frameworks/Sparkle.framework"
+  # The helper Claude runs (Mindtalk i Claude): its own signature, hardened runtime
+  # and timestamp, before the app's seal covers it.
+  HELPER="$APP_PATH/Contents/Helpers/mindtalk"
+  [ -x "$HELPER" ] || { echo "✗ Hittar inte hjälpappen i $HELPER. Byggdes MindtalkHelper?"; exit 1; }
+  sign "$HELPER"
   sign --entitlements "$ROOT/Mindtalk/Mindtalk.entitlements" "$APP_PATH"
 fi
 codesign --verify --deep --strict "$APP_PATH"
@@ -68,7 +73,7 @@ while IFS= read -r -d '' part; do
   if codesign -d --entitlements - "$part" 2>/dev/null | grep -q get-task-allow; then
     echo "✗ $part har get-task-allow – notariseringen skulle nekas."; exit 1
   fi
-done < <(find "$APP_PATH" \( -name "*.app" -o -name "*.xpc" -o -name "*.framework" \) -print0)
+done < <(find "$APP_PATH" \( -name "*.app" -o -name "*.xpc" -o -name "*.framework" -o -path "*/Helpers/*" \) -print0)
 if [ "${LOCAL:-0}" = "1" ]; then
   pkill -x "$APP" 2>/dev/null || true
   rm -rf "/Applications/$APP.app"

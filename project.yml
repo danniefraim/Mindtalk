@@ -22,11 +22,11 @@ packages:
   # The helper `mindtalk` speaks MCP to Claude (Helper/). Linked into the helper only.
   MCP:
     url: https://github.com/modelcontextprotocol/swift-sdk
-    from: "0.11.0"
+    exactVersion: 0.12.1
 targets:
   # Mindtalk i Claude: the helper inside the app (Contents/Helpers/mindtalk). It talks
   # to the running app over a local socket (Bridge.swift); it holds no app code.
-  mindtalk:
+  MindtalkHelper:
     type: tool
     platform: macOS
     sources:
@@ -66,7 +66,7 @@ targets:
       - package: SwiftTransformers
         product: Tokenizers
       # The helper, copied into Contents/Helpers and signed with the app.
-      - target: mindtalk
+      - target: MindtalkHelper
         embed: true
         link: false
         codeSign: true
