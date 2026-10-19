@@ -118,7 +118,7 @@ struct ThoughtsPage: View {
                 Spacer(minLength: 16)
                 keyLine
             }
-            if let below = keyRefusal ?? (pickingKey ? String(localized: "Håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.") : nil) {
+            if let below = keyRefusal ?? (pickingKey ? String(localized: "Håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.") : nil) {
                 Text(verbatim: below)
                     .font(.system(size: 12.5))
                     .foregroundStyle(keyRefusal == nil ? DS.Colors.muted : DS.Colors.ink)

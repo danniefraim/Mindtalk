@@ -9291,6 +9291,7 @@
       }
     },
     "Håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9302,6 +9303,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter."
+          }
+        }
+      }
+    },
+    "Håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold a key on its own, like left ⌥, and let go. Or press a combination like ⌃⌥T. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter."
           }
         }
       }
@@ -11541,6 +11558,7 @@
       }
     },
     "Klicka och håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination. Esc avbryter.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11552,6 +11570,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klicka och håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination. Esc avbryter."
+          }
+        }
+      }
+    },
+    "Klicka och håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click and hold a key on its own, like left ⌥, and let go. Or press a combination. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klicka och håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination. Esc avbryter."
           }
         }
       }

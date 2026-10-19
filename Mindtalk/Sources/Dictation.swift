@@ -281,7 +281,7 @@ final class Dictation: ObservableObject {
 
     /// Which press the delayed confirm belongs to — a stale one never confirms the next.
     private var pressGeneration = 0
-    /// The thought was started with its key held alone (right ⌘), not a click or a chord.
+    /// The thought was started with its key held alone (left ⌥), not a click or a chord.
     private var thoughtByKey = false
     /// The key went down again while the last one was being written: once that's done,
     /// and if it's still held, a new recording starts.
@@ -634,7 +634,7 @@ final class Dictation: ObservableObject {
             guard let self else { return }
             self.pickingKey = false
             // The thought key's: one press can't be both. The old key stays. A thought key
-            // you chose counts; the default (right ⌘) just moves out of the way (⌃⌥T).
+            // you chose counts; the default (left ⌥) just moves out of the way.
             if let why = ThoughtShortcut.refusal(dictation: key, besides: Settings.thoughtShortcut(in: .standard, besides: key)) {
                 ShortcutLog.log.notice("dictation key: refused \(key.keyCode, privacy: .public)/\(String(key.modifierMask, radix: 16), privacy: .public) (the thought key has it)")
                 return self.refuse(why)
@@ -643,7 +643,7 @@ final class Dictation: ObservableObject {
             self.hotkey = key
             Settings.hotkey = key
             KeyListener.shared.hotkey = key
-            // The thought key's default depends on the dictation key (right ⌘ unless
+            // The thought key's default depends on the dictation key (left ⌥ unless
             // that's taken): the listener gets the one that goes with the new key.
             KeyListener.shared.thoughtShortcut = Settings.thoughtShortcut
             KeyListener.shared.reset()
@@ -765,7 +765,7 @@ final class Dictation: ObservableObject {
     private func thoughtPressed() {
         switch phase {
         case .recording where forThought && handsFree:
-            // A key held alone (right ⌘) is also the start of ⌘C: it ends the thought
+            // A key held alone (left ⌥) is also the start of ⌥2 for @: it ends the thought
             // when it's let go with nothing else pressed.
             if KeyListener.shared.thoughtShortcut?.isModifier == true {
                 thoughtStopPending = true

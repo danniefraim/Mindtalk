@@ -163,10 +163,10 @@ struct ThoughtsStep: View {
         return l.ready && l.micGranted && progress == 0 && !l.held && !l.locked && !l.writing && arrivals.isEmpty && incoming == nil
     }
 
-    /// "höger ⌘", "⌃⌥T"
+    /// "vänster ⌥", "⌃⌥T"
     private var keysInline: String { shortcut?.inlineName ?? "" }
 
-    /// One key held on its own (right ⌘), not keys pressed together.
+    /// One key held on its own (left ⌥), not keys pressed together.
     private var oneKey: Bool { shortcut?.isModifier == true }
 
     private enum Note: Equatable {
@@ -201,7 +201,7 @@ struct ThoughtsStep: View {
                         .scaleEffect(scale)
                         .frame(width: width, height: 96 * scale)
                     // What's printed on the key, for those who don't know ⌃ from ⌥ — and
-                    // which side, for a key held on its own ("höger command").
+                    // which side, for a key held on its own ("vänster option").
                     Text(verbatim: part.caption)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(DS.Colors.muted)

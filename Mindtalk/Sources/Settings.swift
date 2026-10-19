@@ -27,7 +27,7 @@ enum Settings {
     }
 
     /// Say a thought (Tankar): held, it listens until you let go; tapped, until you
-    /// tap again. Right ⌘ held on its own by default; a chord you chose (⌃⌥T was the
+    /// tap again. Left ⌥ held on its own by default; a chord you chose (⌃⌥T was the
     /// default before) is kept.
     static var thoughtShortcut: ThoughtShortcut? {
         get { thoughtShortcut(in: defaults, besides: hotkey) }
@@ -35,7 +35,7 @@ enum Settings {
     }
 
     /// A key held alone is under "thoughtKey", a chord under "thoughtShortcut" (where
-    /// it always was). Neither saved: the default — right ⌘, unless dictation has it.
+    /// it always was). Neither saved: the default, left ⌥ (right ⌘ or ⌃⌥T if dictation has it).
     static func thoughtShortcut(in defaults: UserDefaults, besides dictation: Hotkey) -> ThoughtShortcut? {
         if defaults.bool(forKey: "thoughtShortcutOff") { return nil }
         if let data = defaults.data(forKey: "thoughtKey"),

@@ -429,7 +429,7 @@ struct SettingsPage: View {
             SectionTitle("Tankar")
                 .staggered(4)
             CardRow(title: "Genväg", detail: pickingThoughtKey
-                    ? String(localized: "Håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.")
+                    ? String(localized: "Håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.")
                     : thoughtRefusal ?? thoughtDetail) {
                 ThoughtShortcutField(shortcut: $thoughtShortcut, picking: $pickingThoughtKey,
                                      refusal: $thoughtRefusal, meeting: meetingShortcut)
@@ -553,7 +553,7 @@ struct SettingsPage: View {
                 withAnimation(.spring(duration: 0.6)) { proxy.scrollTo("models", anchor: .top) }
             }
         }
-        // A new dictation key moves the thought key's default (right ⌘ unless dictation has it).
+        // A new dictation key moves the thought key's default (left ⌥ unless dictation has it).
         .onChange(of: dictation.hotkey) { _, _ in thoughtShortcut = Settings.thoughtShortcut }
         }
         .modifier(PageScroll(on: !plain))
@@ -730,7 +730,7 @@ struct MeetingShortcutField: View {
     }
 }
 
-/// The thought shortcut: a key held on its own (right ⌘), like the dictation key — or a
+/// The thought shortcut: a key held on its own (left ⌥), like the dictation key — or a
 /// chord like ⌃⌥T. Click, then hold the key alone and let go, or press the combination.
 /// Never the dictation key: that's refused, and said why. In Inställningar a white
 /// field (`.field`); on Tankar a soft button, Ändra (`.button`), beside the key.
@@ -774,7 +774,7 @@ struct ThoughtShortcutField: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .help("Klicka och håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination. Esc avbryter.")
+                    .help("Klicka och håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination. Esc avbryter.")
                     if shortcut != nil, !picking {
                         ShortcutOffButton {
                             ShortcutLog.log.notice("thought key: turned off")
@@ -785,7 +785,7 @@ struct ThoughtShortcutField: View {
             case .button:
                 Button { tapped() } label: { picking ? Text("Avbryt") : shortcut == nil ? Text("Välj") : Text("Ändra") }
                     .buttonStyle(.soft)
-                    .help(picking ? Text("Esc avbryter.") : Text("Klicka och håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination. Esc avbryter."))
+                    .help(picking ? Text("Esc avbryter.") : Text("Klicka och håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination. Esc avbryter."))
             }
         }
         .onDisappear { if picking { stop(because: "field gone") } }

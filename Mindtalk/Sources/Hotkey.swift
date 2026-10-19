@@ -230,8 +230,9 @@ struct KeyChord: Codable, Equatable {
     static let meetingDefault = KeyChord(keyCode: UInt16(kVK_ANSI_M),
                                          modifiers: CGEventFlags([.maskControl, .maskAlternate, .maskCommand]).rawValue)
 
-    /// ⌃⌥T — T for tanke: the thought shortcut before right ⌘, and still the one when the
-    /// dictation key is right ⌘. (⌃⌥ + space is macOS's switch of input source.)
+    /// ⌃⌥T — T for tanke: the thought shortcut before keys held alone, and still the one
+    /// when the dictation key has both left ⌥ and right ⌘. (⌃⌥ + space is macOS's switch
+    /// of input source.)
     static let thoughtDefault = KeyChord(keyCode: UInt16(kVK_ANSI_T),
                                          modifiers: CGEventFlags([.maskControl, .maskAlternate]).rawValue)
 
@@ -297,18 +298,21 @@ struct KeyChord: Codable, Equatable {
 
 // MARK: - The thought shortcut
 
-/// Say a thought (Tankar): a modifier held on its own, like the dictation key — right ⌘
-/// by default — or a chord like ⌃⌥T, the default before. On its own means on its own:
-/// ⌘C, ⌘Tab or a ⌘-click with right ⌘ stay what they always were.
+/// Say a thought (Tankar): a modifier held on its own, like the dictation key — left ⌥
+/// by default — or a chord like ⌃⌥T, the default long ago. On its own means on its own:
+/// ⌥2 for @, ⌥-click or ⌥-scroll with left ⌥ stay what they always were, and so do
+/// ⌘C and ⌘Tab for someone who chose right ⌘ (the default before left ⌥).
 enum ThoughtShortcut: Equatable {
     case key(Hotkey)
     case chord(KeyChord)
 
+    static let leftOption = ThoughtShortcut.key(Hotkey(keyCode: UInt16(kVK_Option), modifierMask: 0x20))
     static let rightCommand = ThoughtShortcut.key(Hotkey(keyCode: UInt16(kVK_RightCommand), modifierMask: 0x10))
 
-    /// Right ⌘ — unless the dictation key already uses it: then ⌃⌥T, as before.
+    /// Left ⌥ — unless the dictation key already uses it: then right ⌘, and if that's
+    /// taken too, ⌃⌥T.
     static func standard(besides dictation: Hotkey) -> ThoughtShortcut {
-        rightCommand.collides(with: dictation) ? .chord(.thoughtDefault) : rightCommand
+        [leftOption, rightCommand].first { !$0.collides(with: dictation) } ?? .chord(.thoughtDefault)
     }
 
     var key: Hotkey? { if case .key(let key) = self { return key } else { return nil } }
@@ -321,7 +325,7 @@ enum ThoughtShortcut: Equatable {
         return dictation.containsModifier(key.keyCode)
     }
 
-    /// For a chip: "⌘ Cmd →", "⌃⌥T".
+    /// For a chip: "⌥ Opt ←", "⌃⌥T".
     var chip: String {
         switch self {
         case .key(let key): return key.chip
@@ -329,7 +333,7 @@ enum ThoughtShortcut: Equatable {
         }
     }
 
-    /// On one big key: "⌘ Cmd →", "⌃ ⌥ T".
+    /// On one big key: "⌥ Opt ←", "⌃ ⌥ T".
     var keycap: String {
         switch self {
         case .key(let key): return key.chip
@@ -337,10 +341,10 @@ enum ThoughtShortcut: Equatable {
         }
     }
 
-    /// Mid-sentence: "höger ⌘", "⌃⌥T" ("Håll in höger ⌘ och prata").
+    /// Mid-sentence: "vänster ⌥", "⌃⌥T" ("Håll in vänster ⌥ och prata").
     var inlineName: String { key?.shortName ?? chip }
 
-    /// One big key each, with what's printed on it: ⌘ over "höger command" — or ⌃ ⌥ T.
+    /// One big key each, with what's printed on it: ⌥ over "vänster option", or ⌃ ⌥ T.
     var keycaps: [(symbol: String, caption: String)] {
         switch self {
         case .key(let key): return [key.keycap]
@@ -575,19 +579,19 @@ final class KeyListener {
         return Self.keyWentDown(since: pressedAt)
     }
 
-    /// The same for the thought key held alone: ⌘C.
+    /// The same for the thought key held alone: ⌥2 for @, or ⌘C with right ⌘.
     var keyTypedSinceThoughtPress: Bool {
         guard thoughtShortcut?.isModifier == true, let thoughtPressedAt else { return false }
         return Self.keyWentDown(since: thoughtPressedAt)
     }
 
-    /// The thought key held on its own. Never swallows anything — ⌘ stays ⌘ for every
-    /// app — it only notes what happens: down alone, something joining in, let go.
+    /// The thought key held on its own. Never swallows anything (⌥ stays ⌥, ⌘ stays ⌘,
+    /// for every app); it only notes what happens: down alone, something joining in, let go.
     private func thoughtKeyEvent(_ key: Hotkey, _ type: CGEventType, _ keyCode: UInt16, _ flags: CGEventFlags) {
         if type == .flagsChanged, key.containsModifier(keyCode) {
             if key.modifiersAreDown(in: flags) {
                 guard !thoughtKeyDown, !thoughtKeySpoiled else { return }
-                // Another modifier already held (⇧, then right ⌘): a shortcut on its way.
+                // Another modifier already held (⇧, then left ⌥): a shortcut on its way.
                 let others = flags.rawValue & Hotkey.allModifierMasks & ~key.modifierMask
                     & ~CGEventFlags.maskSecondaryFn.rawValue
                 if others != 0 || (fnDown && Int(keyCode) != kVK_Function) {
@@ -653,7 +657,7 @@ final class KeyListener {
         // (holding right ⌥ to pick it mustn't begin a dictation). One already going ends.
         if pickingChord, !isDown { return pass }
 
-        // A thought on a key held alone (right ⌘): noted, never swallowed.
+        // A thought on a key held alone (left ⌥): noted, never swallowed.
         if let key = thoughtShortcut?.key { thoughtKeyEvent(key, type, keyCode, event.flags) }
 
         // A thought on a chord: held while you talk. The key's own presses (and repeats)
