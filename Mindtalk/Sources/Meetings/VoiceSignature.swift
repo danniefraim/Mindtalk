@@ -2,63 +2,107 @@ import SwiftUI
 
 // MARK: - A voice's signature
 //
-// The voiceprint itself, drawn: a ring of bars, each one's length a stretch of the
-// print's numbers (VoiceMemory: 192 per voice). The same print gives the same
-// signature every time, and two people's look nothing alike — so it is the mark a
-// person is known by: large beside the name the moment the round has it, small in
-// "I rummet" and in Settings beside the names Mindtalk remembers. Nothing about the
-// voice can be heard back from it: it is a picture of a few averages.
+// The voiceprint itself, drawn: a soft closed curve round a centre, its radius at each
+// point a stretch of the print's numbers (VoiceMemory: 192 per voice), filled with a
+// glow of the speaker's colour and edged with a bright line. The same print gives the
+// same curve every time, and two people's look nothing alike — so it is the mark a
+// person is known by: large beside the name the moment the round has it, in the
+// column "I rummet" after that, small in Settings beside the names Mindtalk
+// remembers. Nothing about the voice can be heard back from it: it is a picture of a
+// few averages.
 //
-// In the round it is also seen being made: while someone talks it grows bar by bar
+// In the round it is also seen being made: while someone talks the curve sweeps round
 // beside the cloud, drawn from how their voice rises and falls until there is a print
 // of it (from a second and a half of speech), and from the print after that. The
-// bars morph from one to the other, so it settles into the signature rather than
+// radii morph from one to the other, so it settles into the signature rather than
 // switching.
 
 struct VoiceSignature: View {
     enum Size {
-        /// Beside a name in a row (16–18 pt): fewer bars, or they'd blur together.
+        /// Beside a name in a chip (18 pt).
         case compact
-        /// The moment of the round (56 pt).
+        /// A row of "I rummet" (44 pt).
+        case room
+        /// Beside the cloud while it forms, and in the reveal (72 pt).
         case large
 
-        var bars: Int { self == .compact ? 24 : 64 }
-        var points: CGFloat { self == .compact ? 18 : 56 }
-        var lineWidth: CGFloat { self == .compact ? 0.8 : 1.3 }
-        /// Where the bars start, as a share of the radius: a wider hole when small.
-        var hole: CGFloat { self == .compact ? 0.42 : 0.36 }
+        /// Points on the curve. The room and the reveal share one count: the reveal's
+        /// signature lands on the row's and must be the same shape.
+        var bars: Int { self == .compact ? 32 : 48 }
+        var points: CGFloat {
+            switch self {
+            case .compact: return 18
+            case .room: return 44
+            case .large: return 72
+            }
+        }
+        var lineWidth: CGFloat { self == .compact ? 0.8 : 1.2 }
+        /// The curve's smallest radius, as a share of the whole: a rounder shape when small.
+        var base: CGFloat { self == .compact ? 0.52 : 0.46 }
+        /// The glow's blur on a dark surface (none in a chip).
+        var glow: CGFloat {
+            switch self {
+            case .compact: return 0
+            case .room: return 6
+            case .large: return 8
+            }
+        }
     }
 
-    /// The bars' lengths (0…1), one per bar of the size.
+    /// The radii (0…1), one per point of the size.
     let values: [Double]
     let color: Color
     var size: Size = .compact
-    /// How much of the ring is drawn so far (0…1): it sweeps round as it appears.
+    /// How much of the curve is drawn so far (0…1): it sweeps round as it appears.
     var progress: Double = 1
+    /// Drawn at another width than the size's (the reveal's signature shrinking into
+    /// its row); the line and the glow stay as they are.
+    var diameter: CGFloat?
+    @Environment(\.colorScheme) private var scheme
 
     /// The signature of a print.
-    init(print: [Float], color: Color, size: Size = .compact, progress: Double = 1) {
-        self.init(bars: Self.bars(of: print, count: size.bars), color: color, size: size, progress: progress)
+    init(print: [Float], color: Color, size: Size = .compact, progress: Double = 1, diameter: CGFloat? = nil) {
+        self.init(bars: Self.bars(of: print, count: size.bars), color: color, size: size, progress: progress, diameter: diameter)
     }
 
-    /// Bars given directly (the signature forming from the voice's levels).
-    init(bars: [Double], color: Color, size: Size = .compact, progress: Double = 1) {
+    /// Radii given directly (the signature forming from the voice's levels).
+    init(bars: [Double], color: Color, size: Size = .compact, progress: Double = 1, diameter: CGFloat? = nil) {
         self.values = bars
         self.color = color
         self.size = size
         self.progress = progress
+        self.diameter = diameter
     }
 
     var body: some View {
-        Bars(values: AnimatableValues(values), hole: size.hole, progress: progress)
-            .stroke(color, style: StrokeStyle(lineWidth: size.lineWidth, lineCap: .round))
-            .frame(width: size.points, height: size.points)
-            .accessibilityHidden(true)
+        // On a light surface (a chip in Settings) ink and grey, no glow; on a dark one
+        // the speaker's colour, lit from within.
+        let light = scheme == .light
+        let line = light ? DS.Colors.ink : color
+        let fill = light ? DS.Colors.muted : color
+        let radii = AnimatableValues(values)
+        let width = diameter ?? size.points
+        ZStack {
+            Curve(values: radii, base: size.base, progress: progress)
+                .fill(RadialGradient(colors: [fill.opacity(light ? 0.3 : 0.35), fill.opacity(0.08)],
+                                     center: .center, startRadius: 0, endRadius: width / 2))
+            if size != .compact {
+                // Depth: a second, smaller curve from the other half of the print.
+                Curve(values: radii, base: size.base, progress: progress, inner: true)
+                    .stroke(line.opacity(0.2), style: StrokeStyle(lineWidth: 0.8, lineCap: .round, lineJoin: .round))
+            }
+            Curve(values: radii, base: size.base, progress: progress, open: true)
+                .stroke(line.opacity(0.9), style: StrokeStyle(lineWidth: size.lineWidth, lineCap: .round, lineJoin: .round))
+                .shadow(color: light ? .clear : color.opacity(0.35), radius: size.glow)
+        }
+        .frame(width: width, height: width)
+        .accessibilityHidden(true)
     }
 
-    /// The bars' lengths (0…1) from a print: the print cut into `count` stretches, the
-    /// size of each stretch's numbers, lightly smoothed with its neighbours, and
-    /// spread so the smallest is 0 and the largest 1 — the same print, the same bars.
+    /// The radii (0…1) from a print: the print cut into `count` stretches, the size of
+    /// each stretch's numbers, smoothed with its neighbours (three times over, so the
+    /// curve rolls rather than spikes), and spread so the smallest is 0 and the largest 1 — the
+    /// same print, the same curve.
     static func bars(of print: [Float], count: Int) -> [Double] {
         guard !print.isEmpty, count > 0 else { return [] }
         var raw = (0..<count).map { b -> Double in
@@ -67,16 +111,18 @@ struct VoiceSignature: View {
             let slice = print[lo..<min(hi, print.count)]
             return slice.reduce(0.0) { $0 + abs(Double($1)) } / Double(slice.count)
         }
-        raw = raw.indices.map { i in (raw[(i + count - 1) % count] + 2 * raw[i] + raw[(i + 1) % count]) / 4 }
+        for _ in 0..<3 {
+            raw = raw.indices.map { i in (raw[(i + count - 1) % count] + 2 * raw[i] + raw[(i + 1) % count]) / 4 }
+        }
         guard let lo = raw.min(), let hi = raw.max(), hi > lo else { return raw.map { _ in 0.5 } }
         return raw.map { ($0 - lo) / (hi - lo) }
     }
 
-    /// The bars while the signature is forming, from the voice's levels so far (0…1,
-    /// one per 20 ms of speech): a full ring is `span` levels, so the ring fills in
-    /// step with the round's progress; the bars not reached yet are 0 (not drawn).
-    /// The lengths are the levels as they are, not spread out: a bar that has grown
-    /// keeps its length as the next ones come.
+    /// The radii while the signature is forming, from the voice's levels so far (0…1,
+    /// one per 20 ms of speech): a full turn is `span` levels, so the curve fills in
+    /// step with the round's progress; the points not reached yet are 0 (not drawn).
+    /// The radii are the levels as they are, not spread out: a point that has grown
+    /// keeps its radius as the next ones come.
     static func bars(fromLevels levels: [Float], span: Int, count: Int) -> [Double] {
         guard count > 0, span > 0 else { return [] }
         let raw = (0..<count).map { b -> Double in
@@ -91,8 +137,8 @@ struct VoiceSignature: View {
         }
     }
 
-    /// Bar lengths SwiftUI can animate between: the forming bars settle into the
-    /// print's rather than switching to them.
+    /// Radii SwiftUI can animate between: the forming curve settles into the print's
+    /// rather than switching to it.
     struct AnimatableValues: VectorArithmetic {
         var values: [Double]
         init(_ values: [Double]) { self.values = values }
@@ -116,35 +162,66 @@ struct VoiceSignature: View {
         var magnitudeSquared: Double { values.reduce(0) { $0 + $1 * $1 } }
     }
 
-    /// The ring of bars, drawn from an inner circle outwards; `progress` sweeps round it.
-    struct Bars: Shape {
+    /// The curve: a smooth closed line (Catmull-Rom through the points) whose radius
+    /// at each point is `base` plus its value; `progress` sweeps it round, each point
+    /// rising from the base as the sweep passes. `open` draws only the part swept so
+    /// far, as a line with a soft end (the outline while forming); `inner` is the
+    /// smaller curve inside, read from half a turn on.
+    struct Curve: Shape {
         var values: AnimatableValues
-        let hole: CGFloat
+        let base: CGFloat
         var progress: Double
+        var open = false
+        var inner = false
         var animatableData: AnimatablePair<AnimatableValues, Double> {
             get { AnimatablePair(values, progress) }
             set { values = newValue.first; progress = newValue.second }
         }
 
         func path(in rect: CGRect) -> Path {
-            var path = Path()
             let n = values.values.count
-            guard n > 0 else { return path }
+            guard n > 2 else { return Path() }
             let c = CGPoint(x: rect.midX, y: rect.midY)
-            let r = min(rect.width, rect.height) / 2
-            let inner = r * hole
-            // Each bar grows as the sweep passes it, over a sixth of the turn.
+            let r = min(rect.width, rect.height) / 2 * (inner ? 0.5 : 1)
+            let least = r * base
+            let shift = inner ? n / 2 : 0
+            // Each point rises as the sweep passes it, over a sixth of the turn. While
+            // forming, the first points rise softly too (no step at the top where the
+            // sweep began); they fill out as the curve closes.
             let sweep = progress * (1 + 1 / 6.0)
-            for (i, v) in values.values.enumerated() {
+            let closing = min(1, max(0, (progress - 0.8) / 0.2))
+            var points: [CGPoint] = []
+            var reached = 0
+            var whole = true
+            for i in 0..<n {
                 let at = Double(i) / Double(n)
-                let grown = min(1, max(0, (sweep - at) * 6))
-                guard grown > 0 else { continue }
+                let entry = min(1, at * 10) + (1 - min(1, at * 10)) * closing
+                let grown = min(1, max(0, (sweep - at) * 6)) * entry
+                let v = min(1, max(0, values.values[(i + shift) % n]))
+                let radius = least + (r - least) * (0.12 + 0.88 * v) * grown
                 let angle = at * 2 * .pi - .pi / 2
-                let len = (inner + (r - inner) * (0.12 + 0.88 * min(1, max(0, v)))) * grown + inner * (1 - grown)
-                let dx = cos(angle), dy = sin(angle)
-                path.move(to: CGPoint(x: c.x + dx * inner, y: c.y + dy * inner))
-                path.addLine(to: CGPoint(x: c.x + dx * len, y: c.y + dy * len))
+                points.append(CGPoint(x: c.x + cos(angle) * radius, y: c.y + sin(angle) * radius))
+                if grown > 0 { reached = i + 1 }
+                if grown < 1 { whole = false }
             }
+            if open && !whole { return Self.spline(through: Array(points.prefix(reached)), closed: false) }
+            return Self.spline(through: points, closed: true)
+        }
+
+        /// A Catmull-Rom spline through the points, as cubic curves.
+        static func spline(through p: [CGPoint], closed: Bool) -> Path {
+            var path = Path()
+            let n = p.count
+            guard n > 1 else { return path }
+            func at(_ i: Int) -> CGPoint { closed ? p[(i + n) % n] : p[min(max(i, 0), n - 1)] }
+            path.move(to: p[0])
+            for i in 0..<(closed ? n : n - 1) {
+                let p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2)
+                let c1 = CGPoint(x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6)
+                let c2 = CGPoint(x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6)
+                path.addCurve(to: p2, control1: c1, control2: c2)
+            }
+            if closed { path.closeSubpath() }
             return path
         }
     }

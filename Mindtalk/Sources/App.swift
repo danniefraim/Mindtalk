@@ -681,7 +681,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 round.demo(state)
                 let renderer = ImageRenderer(content: VoiceScanner.still(round: round, size: CGSize(width: 1100, height: 680))
                     .padding(28).background(DS.Colors.night))
-                renderer.scale = 2
+                // `--render-scale 3`: closer, to check the signature's edges.
+                renderer.scale = args.firstIndex(of: "--render-scale").flatMap { $0 + 1 < args.count ? CGFloat(Double(args[$0 + 1]) ?? 2) : nil } ?? 2
                 if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
                    let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
                     try? png.write(to: URL(fileURLWithPath: args[i + 1]))
