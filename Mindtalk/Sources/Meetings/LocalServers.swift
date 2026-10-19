@@ -917,9 +917,20 @@ struct LocalServerWriter: SummaryWriter {
                 job.instance = loaded.id
                 return
             }
+            let smaller = ((try? await LocalServers.list(.lmStudio))?.first { $0.id == model })?.instances.map(\.id) ?? []
             let (status, reply) = try await LocalServerClient.shared.call(
                 .lmStudio, "/api/v1/models/load", json: ["model": model, "context_length": wanted], timeout: 180)
-            if status == 200 { job.instance = reply["instance_id"] as? String ?? model; return }
+            if status == 200 {
+                let id = reply["instance_id"] as? String ?? model
+                job.instance = id
+                // LM Studio loads a second copy rather than growing the first: the
+                // smaller copies are let go, or each summary would keep one more in memory.
+                for other in smaller where other != id {
+                    Self.log.info("letting go of \(other, privacy: .public): a copy with more context is loaded")
+                    _ = try? await LocalServerClient.shared.call(.lmStudio, "/api/v1/models/unload", json: ["instance_id": other], timeout: 10)
+                }
+                return
+            }
             // An older LM Studio without the call loads the model with the chat itself
             // (the model is here: the fresh list just said so).
             guard status == 404 else { throw LocalServerClient.serverError(status: status, body: reply) }
@@ -996,14 +1007,16 @@ struct LocalServerWriter: SummaryWriter {
     /// said in the request. An older LM Studio without it: the OpenAI-style chat.
     private func lmStudio(system: String, user: String, context: Int, maxTokens: Int) async throws -> Collected {
         var body: [String: Any] = [
-            "model": model,
+            "model": job.instance ?? model,
             "input": user,
             "stream": true,
             "store": false,
             "temperature": 0.2,
-            "context_length": context,
             "max_output_tokens": maxTokens,
         ]
+        // A loaded copy has its context already; asking for one here makes LM Studio
+        // load another copy. Only an older LM Studio, loading with the chat, is told.
+        if job.instance == nil { body["context_length"] = context }
         if !system.isEmpty { body["system_prompt"] = system }
         if thinking { body["reasoning"] = "off" }
         let out = Collected()
