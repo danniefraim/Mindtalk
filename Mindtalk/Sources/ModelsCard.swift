@@ -7,8 +7,9 @@ import SwiftUI
 // thoughts), the voices in meetings, the summaries, and the word list's listener.
 // Each says how big it is and what it needs, and can be shown in Finder or removed;
 // at the foot, what they take together. For the summaries you choose which writes:
-// Apple Intelligence, built in, or a Gemma 4 you've downloaded — the one that suits
-// this Mac's memory is marked.
+// in Mindtalk, Apple Intelligence (built in) or a Gemma 4 it downloads (the one that
+// suits this Mac's memory is marked); or, in another app on this Mac, a model of your
+// own in Ollama or LM Studio.
 
 struct ModelsCard: View {
     @ObservedObject var dictation: Dictation
@@ -54,14 +55,18 @@ struct ModelsCard: View {
                     Text("Inbyggd").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                 }
             }
+            // Two halves: the writers Mindtalk fetches itself, and the ones that live in
+            // Ollama or LM Studio.
             group(String(localized: "Sammanfattningar"), "Skriver sammanfattningen av ett möte och svarar på dina frågor. Välj vilken som skriver.") {
+                SubLabel(String(localized: "I Mindtalk"))
                 appleRow
                 ForEach(NotesModel.allCases) { m in
                     CardDivider()
                     notesRow(m)
                 }
                 CardDivider()
-                ServerWriterRow()
+                SubLabel(String(localized: "I andra program på din Mac"))
+                ServerWriterRows()
             }
             group(String(localized: "Ordlista"), nil) {
                 listenerRow
@@ -258,11 +263,11 @@ struct ModelsCard: View {
             case .unsupported:
                 return String(localized: "Kräver minst \(m.minimumMemoryGB) GB minne. Den här Macen har \(BetterNotes.memoryGB) GB.")
             case .ready:
-                return String(localized: "Från Google · tar \(size(m.directory, fallback: m.sizeText)) på disken")
+                return String(localized: "Laddas ned av Mindtalk · tar \(size(m.directory, fallback: m.sizeText)) på disken")
             case .failed(let message):
                 return message
             case .missing, .downloading:
-                var text = String(localized: "Från Google · \(m.sizeText) · för Macar med minst \(m.minimumMemoryGB) GB minne")
+                var text = String(localized: "Laddas ned av Mindtalk · \(m.sizeText) · för Macar med minst \(m.minimumMemoryGB) GB minne")
                 // Not room for it: say how much more, so you can tell whether emptying
                 // the Trash will do.
                 if !m.hasRoom {
@@ -332,37 +337,12 @@ struct ModelsCard: View {
     private func row<T: View>(name: String, detail: String, badge: String? = nil,
                               chooser: (on: Bool, enabled: Bool, pick: () -> Void)? = nil,
                               @ViewBuilder trailing: () -> T) -> some View {
-        HStack(alignment: .center, spacing: 14) {
-            if let chooser {
-                Button(action: chooser.pick) {
-                    Image(systemName: chooser.on ? "largecircle.fill.circle" : "circle")
-                        .font(.system(size: 16))
-                        .foregroundStyle(chooser.on ? DS.Colors.accent : DS.Colors.muted)
-                }
-                .buttonStyle(.plain)
-                .disabled(!chooser.enabled)
-                .opacity(chooser.enabled ? 1 : 0.35)
-                .help(chooser.enabled ? "Använd för sammanfattningarna" : "Ladda ned den först")
-                .accessibilityLabel(Text("Använd \(name)"))
-                .accessibilityAddTraits(chooser.on ? .isSelected : [])
-            }
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 8) {
-                    Text(verbatim: name).font(.system(size: 14, weight: .semibold))
-                    if let badge {
-                        Text(verbatim: badge).font(.system(size: 11, weight: .semibold))
-                            .padding(.horizontal, 7).padding(.vertical, 2)
-                            .background(Capsule().fill(DS.Colors.chip))
-                    }
-                }
-                Text(verbatim: detail).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 12)
+        ModelRow(name: name, badge: badge, chooser: chooser) {
+            Text(verbatim: detail).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        } trailing: {
             trailing()
         }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 16)
     }
 
     private func progress(_ p: Double) -> some View {
@@ -505,20 +485,109 @@ private struct WriterPicker: View {
     }
 }
 
-// MARK: - Ollama or LM Studio
+// MARK: - Rows
 
-/// The third choice under Sammanfattningar: your own model in Ollama or LM Studio. Each
-/// is shown as running, installed but not running, or not here, with its models to pick
-/// from, a Testa button, and the ports under Avancerat.
-struct ServerWriterRow: View {
+/// A model: its name (and a mark), what it is, and what can be done with it. With a
+/// chooser, a round button in front picks it; `whenDisabled` says why it can't be picked.
+private struct ModelRow<Detail: View, Trailing: View>: View {
+    let name: String
+    var badge: String? = nil
+    var chooser: (on: Bool, enabled: Bool, pick: () -> Void)? = nil
+    var whenDisabled = String(localized: "Ladda ned den först")
+    let detail: Detail
+    let trailing: Trailing
+
+    init(name: String, badge: String? = nil, chooser: (on: Bool, enabled: Bool, pick: () -> Void)? = nil,
+         whenDisabled: String = String(localized: "Ladda ned den först"),
+         @ViewBuilder detail: () -> Detail, @ViewBuilder trailing: () -> Trailing) {
+        self.name = name
+        self.badge = badge
+        self.chooser = chooser
+        self.whenDisabled = whenDisabled
+        self.detail = detail()
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            if let chooser {
+                Button(action: chooser.pick) {
+                    Image(systemName: chooser.on ? "largecircle.fill.circle" : "circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(chooser.on ? DS.Colors.accent : DS.Colors.muted)
+                }
+                .buttonStyle(.plain)
+                .disabled(!chooser.enabled)
+                .opacity(chooser.enabled ? 1 : 0.35)
+                .help(chooser.enabled ? String(localized: "Använd för sammanfattningarna") : whenDisabled)
+                .accessibilityLabel(Text("Använd \(name) för sammanfattningarna"))
+                .accessibilityAddTraits(chooser.on ? .isSelected : [])
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text(verbatim: name).font(.system(size: 14, weight: .semibold))
+                    if let badge {
+                        Text(verbatim: badge).font(.system(size: 11, weight: .semibold))
+                            .padding(.horizontal, 7).padding(.vertical, 2)
+                            .background(Capsule().fill(DS.Colors.chip))
+                    }
+                }
+                detail
+            }
+            // The only part that stretches: the text gets all the room the controls
+            // don't need, so it wraps or yields only when the row is truly tight.
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, 26)
+            trailing.fixedSize()
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 16)
+    }
+}
+
+/// Content lined up with a row's text: past the card's edge and the room a chooser takes.
+private struct RowInset<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: "circle").font(.system(size: 16)).hidden().accessibilityHidden(true)
+            content
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 22)
+    }
+}
+
+/// A heading between a card's rows, smaller than the CapsLabel over the card: "I MINDTALK".
+private struct SubLabel: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        RowInset {
+            Text(verbatim: text.uppercased())
+                .font(.system(size: 11, weight: .semibold)).tracking(1.4)
+                .foregroundStyle(DS.Colors.muted)
+                .accessibilityLabel(text)
+                .accessibilityAddTraits(.isHeader)
+        }
+        .padding(.top, 18)
+        .padding(.bottom, -4)
+    }
+}
+
+// MARK: - Ollama and LM Studio
+
+/// The writers in other apps on this Mac, one row each: running or not, its models to
+/// pick from and a Testa button; beneath both, where the models come from, what Testa
+/// gave, and the ports under Avancerat.
+struct ServerWriterRows: View {
     @ObservedObject private var notes = BetterNotes.shared
     @ObservedObject private var servers = LocalServers.shared
     @State private var advanced = false
     /// The ports as typed: taken on Return, not at every keystroke.
     @State private var portText: [ServerBackend: String] = [:]
-
-    /// The writer chosen is one of these.
-    private var isOn: Bool { notes.server != nil }
 
     /// Either of them is on this Mac.
     private var anyInstalled: Bool { ServerBackend.allCases.contains { servers.state($0) != .notInstalled } }
@@ -535,56 +604,18 @@ struct ServerWriterRow: View {
         return nil
     }
 
-    /// Something to choose: a backend running with a model picked, or any model at all.
-    private var canChoose: Bool {
-        ServerBackend.allCases.contains { servers.state($0) == .running && !(servers.models[$0] ?? []).isEmpty }
-    }
-
-    private func choose() {
-        for backend in ServerBackend.allCases where servers.state(backend) == .running {
-            if let model = picked(backend) ?? servers.models[backend]?.first?.id {
-                notes.choice = .server(backend, model)
-                return
-            }
-        }
-    }
-
-    /// What the row says under its name: the model chosen, or what this is for.
-    private var detail: String {
-        if let server = notes.server { return "\(server.backend.name) · \(server.model)" }
-        return anyInstalled ? String(localized: "Din egen modell, på din Mac")
-                            : String(localized: "Valfritt. För dig som redan kör Ollama eller LM Studio.")
-    }
-
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            Button(action: choose) {
-                Image(systemName: isOn ? "largecircle.fill.circle" : "circle")
-                    .font(.system(size: 16))
-                    .foregroundStyle(isOn ? DS.Colors.accent : DS.Colors.muted)
-            }
-            .buttonStyle(.plain)
-            .disabled(!canChoose && !isOn)
-            .opacity(canChoose || isOn ? 1 : 0.35)
-            .help(canChoose || isOn ? "Använd för sammanfattningarna" : "Kräver Ollama eller LM Studio med minst en modell.")
-            .accessibilityLabel(Text("Använd Ollama eller LM Studio"))
-            .accessibilityAddTraits(isOn ? .isSelected : [])
-            .padding(.top, 1)
+        ForEach(Array(ServerBackend.allCases.enumerated()), id: \.element) { i, backend in
+            if i > 0 { CardDivider() }
+            row(backend)
+        }
+        RowInset {
             VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Ollama eller LM Studio").font(.system(size: 14, weight: .semibold))
-                    Text(verbatim: detail).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(ServerBackend.allCases) { backend in
-                        backendLine(backend)
-                    }
-                }
-                if anyInstalled {
-                    Text("Mindtalk pratar bara med den här datorn. Ollamas molnmodeller visas inte.")
-                        .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                Text(anyInstalled
+                     ? "Modellerna laddar du ned i Ollama eller LM Studio. Mindtalk pratar bara med den här datorn, och Ollamas molnmodeller visas inte."
+                     : "Valfritt. För dig som redan kör Ollama eller LM Studio.")
+                    .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let test = servers.test { testView(test) }
                 // A plain disclosure group only opens on its chevron: here the word opens it too.
                 Button { withAnimation(.easeOut(duration: 0.2)) { advanced.toggle() } } label: {
@@ -629,8 +660,7 @@ struct ServerWriterRow: View {
                 }
             }
         }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 16)
+        .padding(.bottom, 16)
         // Another model or backend: the test answer was about the one before.
         .onChange(of: notes.choice) { servers.clearTest() }
     }
@@ -645,77 +675,70 @@ struct ServerWriterRow: View {
         Task { await servers.probe(backend) }
     }
 
-    /// "Ollama  ● Igång  [ qwen3.5:9b ⌄ ]  [ Testa ]"
-    private func backendLine(_ backend: ServerBackend) -> some View {
+    /// "( ) Ollama  ● Igång  [ qwen3.5:9b ⌄ ]  Bra på svenska        [ Testa ]"
+    private func row(_ backend: ServerBackend) -> some View {
         let state = servers.state(backend)
         let models = servers.models[backend] ?? []
         let model = picked(backend)
-        return VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 10) {
-                Text(verbatim: backend.name).font(.system(size: 13, weight: .medium)).frame(width: 74, alignment: .leading)
-                Circle().fill(state == .running ? DS.Colors.ink : Color.clear)
-                    .overlay(Circle().strokeBorder(state == .running ? Color.clear : DS.Colors.muted, lineWidth: 1.2))
-                    .frame(width: 8, height: 8)
-                    .accessibilityHidden(true)
-                // The status gives way first when the line is tight.
-                Text(verbatim: state.title).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                    .lineLimit(1).layoutPriority(-1)
-                    .frame(minWidth: 30, idealWidth: 120, maxWidth: 120, alignment: .leading)
-                if state == .running, !models.isEmpty {
-                    ServerModelPicker(models: models, selection: Binding(
-                        get: { model },
-                        set: { if let id = $0 { notes.choice = .server(backend, id) } }))
-                    if let model, let m = models.first(where: { $0.id == model }), m.goodAtSwedish {
-                        Text("Bra på svenska").font(.system(size: 11, weight: .semibold))
-                            .lineLimit(1).fixedSize()
-                            .padding(.horizontal, 7).padding(.vertical, 2)
-                            .background(Capsule().fill(DS.Colors.chip))
-                    }
-                }
-                Spacer(minLength: 8)
-                // Both can be ready: the one that writes is marked, the other offers to.
-                if state == .running, let model {
-                    if notes.server?.backend == backend {
-                        Text("Används").font(.system(size: 11, weight: .semibold))
-                            .lineLimit(1).fixedSize()
-                            .padding(.horizontal, 7).padding(.vertical, 2)
-                            .background(Capsule().fill(DS.Colors.chip))
-                            .accessibilityLabel(Text("\(backend.name) används"))
-                    } else if notes.server != nil {
-                        Button("Använd") { notes.choice = .server(backend, model) }.buttonStyle(.soft)
-                            .help("Låt \(model) i \(backend.name) skriva sammanfattningarna")
-                    }
-                }
-                switch state {
-                case .running:
-                    if servers.testing == backend {
-                        HStack(spacing: 10) {
-                            ProgressView().controlSize(.small)
-                            Button("Avbryt") { servers.cancelTest() }.buttonStyle(.soft)
+        let on = notes.server?.backend == backend
+        let ready = state == .running && model != nil
+        return ModelRow(name: backend.name, badge: on ? String(localized: "Används") : nil,
+                        chooser: (on, ready || on, { if let model { notes.choice = .server(backend, model) } }),
+                        whenDisabled: String(localized: "Kräver att \(backend.name) är igång med en modell.")) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 10) {
+                    Circle().fill(state == .running ? DS.Colors.ink : Color.clear)
+                        .overlay(Circle().strokeBorder(state == .running ? Color.clear : DS.Colors.muted, lineWidth: 1.2))
+                        .frame(width: 8, height: 8)
+                        .accessibilityHidden(true)
+                    // The status gives way first when the line is tight.
+                    Text(verbatim: state.title).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                        .lineLimit(1).layoutPriority(-1)
+                        .frame(minWidth: 30, alignment: .leading)
+                    if state == .running, !models.isEmpty {
+                        ServerModelPicker(models: models, selection: Binding(
+                            get: { model },
+                            set: { if let id = $0 { notes.choice = .server(backend, id) } }))
+                        if let model, let m = models.first(where: { $0.id == model }), m.goodAtSwedish {
+                            Text("Bra på svenska").font(.system(size: 11, weight: .semibold))
+                                .lineLimit(1).fixedSize()
+                                .padding(.horizontal, 7).padding(.vertical, 2)
+                                .background(Capsule().fill(DS.Colors.chip))
                         }
-                    } else if let model {
-                        Button("Testa") { servers.runTest(backend, model) }.buttonStyle(.soft)
                     }
-                case .installedNotRunning:
-                    if servers.probing.contains(backend) {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Button(backend.openTitle) { servers.open(backend) }.buttonStyle(.soft)
-                    }
-                case .notInstalled:
-                    Button("Läs mer") { NSWorkspace.shared.open(backend.site) }.buttonStyle(.soft)
+                }
+                if let note = servers.notes[backend] {
+                    Text(verbatim: note).font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if state == .running, !models.isEmpty, model == nil {
+                    Text("Välj en modell, så kan du testa den.").font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                }
+                // LM Studio's list can't tell a model on another computer (LM Link) from one here.
+                if backend == .lmStudio, state != .notInstalled {
+                    Text("Har du kopplat LM Studio till en annan dator (LM Link) kan den skicka mötet dit. Koppla bort den för möten som ska stanna här.")
+                        .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            if let note = servers.notes[backend] {
-                Text(verbatim: note).font(.system(size: 12)).foregroundStyle(DS.Colors.muted).padding(.leading, 84)
-            } else if state == .running, !models.isEmpty, model == nil {
-                Text("Välj en modell, så kan du testa den.").font(.system(size: 12)).foregroundStyle(DS.Colors.muted).padding(.leading, 84)
-            }
-            // LM Studio's list can't tell a model on another computer (LM Link) from one here.
-            if backend == .lmStudio, state != .notInstalled {
-                Text("Har du kopplat LM Studio till en annan dator (LM Link) kan den skicka mötet dit. Koppla bort den för möten som ska stanna här.")
-                    .font(.system(size: 12)).foregroundStyle(DS.Colors.muted).padding(.leading, 84)
-                    .fixedSize(horizontal: false, vertical: true)
+        } trailing: {
+            switch state {
+            case .running:
+                if servers.testing == backend {
+                    HStack(spacing: 10) {
+                        ProgressView().controlSize(.small)
+                        Button("Avbryt") { servers.cancelTest() }.buttonStyle(.soft)
+                    }
+                } else if let model {
+                    Button("Testa") { servers.runTest(backend, model) }.buttonStyle(.soft)
+                }
+            case .installedNotRunning:
+                if servers.probing.contains(backend) {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button(backend.openTitle) { servers.open(backend) }.buttonStyle(.soft)
+                }
+            case .notInstalled:
+                Button("Läs mer") { NSWorkspace.shared.open(backend.site) }.buttonStyle(.soft)
             }
         }
     }

@@ -97,6 +97,7 @@
       }
     },
     "%@ används": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2915,6 +2916,7 @@
       }
     },
     "Använd %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2930,7 +2932,24 @@
         }
       }
     },
+    "Använd %@ för sammanfattningarna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use %@ for the summaries"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Använd %@ för sammanfattningarna"
+          }
+        }
+      }
+    },
     "Använd Ollama eller LM Studio": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5642,6 +5661,7 @@
       }
     },
     "Din egen modell, på din Mac": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7734,6 +7754,7 @@
       }
     },
     "Från Google · %@ · för Macar med minst %lld GB minne": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7750,6 +7771,7 @@
       }
     },
     "Från Google · tar %@ på disken": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10487,6 +10509,38 @@
         }
       }
     },
+    "I Mindtalk": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Mindtalk"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I Mindtalk"
+          }
+        }
+      }
+    },
+    "I andra program på din Mac": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In other apps on your Mac"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I andra program på din Mac"
+          }
+        }
+      }
+    },
     "I dag": {
       "localizations": {
         "en": {
@@ -12806,6 +12860,7 @@
       }
     },
     "Kräver Ollama eller LM Studio med minst en modell.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12817,6 +12872,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kräver Ollama eller LM Studio med minst en modell."
+          }
+        }
+      }
+    },
+    "Kräver att %@ är igång med en modell.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs %@ running with a model."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kräver att %@ är igång med en modell."
           }
         }
       }
@@ -13732,6 +13803,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Laddar ned talmodellen · %lld %%"
+          }
+        }
+      }
+    },
+    "Laddas ned av Mindtalk · %@ · för Macar med minst %lld GB minne": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloaded by Mindtalk · %1$@ · for Macs with at least %2$lld GB of memory"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddas ned av Mindtalk · %@ · för Macar med minst %lld GB minne"
+          }
+        }
+      }
+    },
+    "Laddas ned av Mindtalk · tar %@ på disken": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloaded by Mindtalk · takes %@ on disk"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddas ned av Mindtalk · tar %@ på disken"
           }
         }
       }
@@ -15165,6 +15268,7 @@
       }
     },
     "Låt %@ i %@ skriva sammanfattningarna": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -16827,6 +16931,7 @@
       }
     },
     "Mindtalk pratar bara med den här datorn. Ollamas molnmodeller visas inte.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -17050,6 +17155,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Modeller"
+          }
+        }
+      }
+    },
+    "Modellerna laddar du ned i Ollama eller LM Studio. Mindtalk pratar bara med den här datorn, och Ollamas molnmodeller visas inte.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You download the models in Ollama or LM Studio. Mindtalk only talks to this computer, and Ollama's cloud models are not listed."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modellerna laddar du ned i Ollama eller LM Studio. Mindtalk pratar bara med den här datorn, och Ollamas molnmodeller visas inte."
           }
         }
       }
@@ -18571,6 +18692,7 @@
       }
     },
     "Ollama eller LM Studio": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
