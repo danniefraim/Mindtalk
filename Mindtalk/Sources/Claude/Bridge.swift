@@ -70,8 +70,10 @@ final class Bridge: @unchecked Sendable {
         guard listener < 0 else { return }
         let path = url.path
         let fm = FileManager.default
-        try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true,
-                                attributes: [.posixPermissions: 0o700])
+        let folder = url.deletingLastPathComponent()
+        try? fm.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        // Yours alone also when the folder was made before, by an older build or by hand.
+        try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path)
         guard var address = Self.address(path) else {
             Self.log.error("socket path too long: \(path, privacy: .public)")
             return
@@ -93,9 +95,12 @@ final class Bridge: @unchecked Sendable {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { Self.log.error("socket: \(String(cString: strerror(errno)), privacy: .public)"); return }
         _ = fcntl(fd, F_SETFD, FD_CLOEXEC)
+        // Made 0600 from the start: no moment when another user could connect.
+        let mask = umask(0o077)
         let bound = withUnsafePointer(to: &address) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
         }
+        umask(mask)
         guard bound == 0 else {
             Self.log.error("bind \(path, privacy: .public): \(String(cString: strerror(errno)), privacy: .public)")
             close(fd)
@@ -157,6 +162,14 @@ final class Bridge: @unchecked Sendable {
             guard client >= 0 else {
                 if errno == EINTR { continue }
                 return
+            }
+            // Only you: a connection from another user (the folder and the socket
+            // already keep them out) is closed unanswered.
+            var uid: uid_t = 0, gid: gid_t = 0
+            guard getpeereid(client, &uid, &gid) == 0, uid == getuid() else {
+                Self.log.error("refused a connection from another user")
+                close(client)
+                continue
             }
             var one: Int32 = 1
             setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
