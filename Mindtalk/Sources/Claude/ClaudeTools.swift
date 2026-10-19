@@ -112,10 +112,16 @@ enum ClaudeTools {
             let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
             return t.isEmpty ? nil : t
         }
+        /// true and false come in as numbers (1 and 0): never taken for one.
+        private func isBool(_ v: Any) -> Bool {
+            guard let n = v as? NSNumber else { return false }
+            return CFGetTypeID(n) == CFBooleanGetTypeID()
+        }
         /// A whole number. Anything that isn't one (text, NaN, a number too large for
-        /// a count) is an error, never a crash: Int(1e300) would trap.
+        /// a count, true) is an error, never a crash: Int(1e300) would trap.
         func int(_ key: String) throws -> Int? {
             guard let v = given(key) else { return nil }
+            guard !isBool(v) else { throw Failure(message: "\(key) must be a whole number.") }
             if let n = v as? Int { return n }
             let d: Double?
             if let x = v as? Double { d = x } else if let s = v as? String { d = Double(s) } else { d = nil }
@@ -126,6 +132,7 @@ enum ClaudeTools {
         }
         func double(_ key: String) throws -> Double? {
             guard let v = given(key) else { return nil }
+            guard !isBool(v) else { throw Failure(message: "\(key) must be a number.") }
             let d: Double?
             if let x = v as? Double { d = x } else if let n = v as? Int { d = Double(n) } else if let s = v as? String { d = Double(s) } else { d = nil }
             guard let d, d.isFinite else { throw Failure(message: "\(key) must be a number.") }
