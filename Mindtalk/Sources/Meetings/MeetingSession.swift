@@ -472,11 +472,11 @@ final class MeetingSession: ObservableObject {
             return
         }
         guard dictation.engine.isInstalled else {
-            lastError = String(localized: "Ladda ned \(dictation.engine.modelName) först, under Inställningar → Modeller.")
+            lastError = String(localized: "Ladda ned \(dictation.engine.modelName) först, under Inställningar → Språk.")
             return
         }
         guard VoiceModels.isInstalled else {
-            lastError = String(localized: "Ladda ned Nemotron 3 först, under Inställningar → Modeller.")
+            lastError = String(localized: "Ladda ned Nemotron 3 först, under Inställningar → Möten.")
             return
         }
         guard Recorder.micAuthorized else {
@@ -600,7 +600,7 @@ final class MeetingSession: ObservableObject {
             return
         }
         guard VoiceModels.isInstalled else {
-            lastError = String(localized: "Ladda ned Nemotron 3 först, under Inställningar → Modeller.")
+            lastError = String(localized: "Ladda ned Nemotron 3 först, under Inställningar → Möten.")
             return
         }
         guard saved.finished, saved.hasAudio else {
@@ -611,7 +611,7 @@ final class MeetingSession: ObservableObject {
         }
         language = saved.language
         guard language.isInstalled else {
-            lastError = String(localized: "Ladda ned \(language.modelName) först, under Inställningar → Modeller.")
+            lastError = String(localized: "Ladda ned \(language.modelName) först, under Inställningar → Språk.")
             return
         }
         guard Recorder.micAuthorized else {

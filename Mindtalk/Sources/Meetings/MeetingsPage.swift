@@ -815,7 +815,7 @@ struct StartCard: View {
                 }
             } else {
                 Button("Ladda ned \(dictation.engine.title)") {
-                    SettingsPage.open(.microphone)     // the language rows, each with its Ladda ned
+                    SettingsPage.open(.language)     // the language rows, each with its Ladda ned
                 }
                 .buttonStyle(.soft)
             }
@@ -2233,10 +2233,10 @@ private struct SummaryView: View {
                     Image(systemName: summary.writer == nil ? "apple.intelligence" : "sparkle")
                         .font(.system(size: 12))
                     Text(String(localized: "Sammanfattat av \(summary.writer ?? "Apple Intelligence")."))
-                    // Who writes the summaries is chosen in Settings → Modeller: one click away.
-                    Button("Byt modell") { SettingsPage.openModels() }
+                    // Who writes the summaries is chosen in Settings → Möten: one click away.
+                    Button("Byt modell") { SettingsPage.open(.meetings) }
                         .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.accent)
-                        .help("Välj vilken modell som skriver sammanfattningarna i Inställningar → Modeller.")
+                        .help("Välj vilken modell som skriver sammanfattningarna i Inställningar → Möten.")
                     Text("Stämmer något inte? Klicka på en tid och lyssna själv.")
                     Spacer(minLength: 16)
                     if MeetingNotes.isAvailable {
@@ -2301,7 +2301,7 @@ private struct SummaryView: View {
             }
             // The other way: Gemma 4, on this Mac, when it can run it.
             if NotesModel.recommended != nil {
-                Button("Ladda ned Gemma 4") { SettingsPage.openModels() }
+                Button("Ladda ned Gemma 4") { SettingsPage.open(.meetings) }
                     .buttonStyle(.soft)
             }
         }
@@ -2315,7 +2315,7 @@ private struct SummaryView: View {
         case .notReady: return String(localized: "Apple Intelligence laddas ned. Sammanfatta när den är klar.")
         default:
             return NotesModel.recommended != nil
-                ? String(localized: "Den här Macen kan inte köra Apple Intelligence. Ladda ned Gemma 4 under Inställningar → Modeller. Texten finns under fliken Text.")
+                ? String(localized: "Den här Macen kan inte köra Apple Intelligence. Ladda ned Gemma 4 under Inställningar → Möten. Texten finns under fliken Text.")
                 : String(localized: "Den här Macen kan inte köra Apple Intelligence. Texten finns under fliken Text.")
         }
     }

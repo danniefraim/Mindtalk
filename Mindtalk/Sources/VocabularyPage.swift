@@ -557,6 +557,7 @@ private struct ListenerRow: View {
     /// The offer above (ListenerOffer) has been answered: only then is "Ladda ned"
     /// here too, so the page never asks twice.
     @AppStorage("listenerOfferAnswered") private var offerAnswered = false
+    @State private var confirmRemove = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -579,10 +580,26 @@ private struct ListenerRow: View {
                 }
             } else if status.state == .missing, vocabulary.hasOwnWords, offerAnswered || Settings.listenerAllowed {
                 Button("Ladda ned \(VocabularyBoost.sizeText)") { vocabulary.allowListener() }.buttonStyle(.soft)
+            } else if status.state == .ready {
+                // The only place the listener is: Finder and removal too.
+                Menu {
+                    Button("Visa i Finder") { DiskSize.reveal(VocabularyBoost.directory) }
+                    Divider()
+                    Button("Ta bort…", role: .destructive) { confirmRemove = true }
+                } label: { ModelParts.more(ticked: false) }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                .help("Mer")
+                .accessibilityLabel(Text("Mer om lyssnaren"))
             }
         }
         .padding(18)
         .card()
+        .confirmationDialog("Ta bort lyssnaren?", isPresented: $confirmRemove) {
+            Button("Ta bort", role: .destructive) { vocabulary.removeListener() }
+            Button("Avbryt", role: .cancel) {}
+        } message: {
+            Text("Dina ord rättas ändå i texten. Den kan laddas ned igen senare.")
+        }
     }
 
     private var symbol: String {
@@ -607,6 +624,7 @@ private struct ListenerRow: View {
         switch status.state {
         case .ready:
             return String(localized: "När något du dikterar liknar ett ord i listan lyssnar Mindtalk en gång till just där, så att namnet stavas rätt.")
+                + " " + String(localized: "Lyssnaren (Parakeet CTC), \(VocabularyBoost.sizeText).")
         case .downloading:
             return String(localized: "Laddar ned lyssnaren (\(VocabularyBoost.sizeText)). Det sker bara en gång, sedan fungerar den utan internet.")
         case .missing:

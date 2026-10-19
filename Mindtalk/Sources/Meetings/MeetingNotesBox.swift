@@ -596,12 +596,25 @@ struct SavedNotes: View {
 }
 
 /// Settings → Möten: the summary's language, how long recordings stay, and where they are.
-struct MeetingPrivacyCard: View {
+/// The language the summaries are written in (Inställningar → Möten).
+struct SummaryLanguageCard: View {
+    @State private var summaryLanguage = SummaryLanguage.chosen
+
+    var body: some View {
+        CardRow(title: "Sammanfattningens språk",
+                detail: String(localized: "Sammanfattningen skrivs på mötets språk om du inte väljer ett annat.")) {
+            MenuPicker(options: SummaryLanguage.allCases.map { ($0, $0.title) }, selection: $summaryLanguage)
+                .onChange(of: summaryLanguage) { _, new in SummaryLanguage.chosen = new }
+        }
+        .card()
+    }
+}
+
+/// How long a meeting's sound is kept, and where the meetings are (Inställningar → Möten).
+struct MeetingStorageCard: View {
     @ObservedObject private var store = MeetingStore.shared
     @State private var days = MeetingAudio.keepDays
     @State private var asking: Int?
-
-    @State private var summaryLanguage = SummaryLanguage.chosen
     /// What the meetings take on disk; nil while it's being counted.
     @State private var bytes: Int64?
 
@@ -609,17 +622,11 @@ struct MeetingPrivacyCard: View {
         let n = store.meetings.count
         let count = n == 1 ? String(localized: "1 möte") : String(localized: "\(n) möten")
         guard let bytes else { return count }
-        return count + " · " + ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+        return count + " · " + DiskSize.text(bytes)
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            CardRow(title: "Sammanfattningens språk",
-                    detail: String(localized: "Sammanfattningen skrivs på mötets språk om du inte väljer ett annat.")) {
-                MenuPicker(options: SummaryLanguage.allCases.map { ($0, $0.title) }, selection: $summaryLanguage)
-                    .onChange(of: summaryLanguage) { _, new in SummaryLanguage.chosen = new }
-            }
-            CardDivider()
             CardRow(title: "Spara inspelningar",
                     detail: String(localized: "Texten, dina anteckningar och sammanfattningen sparas alltid. Äldre inspelningar flyttas till papperskorgen.")) {
                 MenuPicker(options: MeetingAudio.choices.map { ($0, MeetingAudio.title($0)) },

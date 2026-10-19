@@ -1,243 +1,205 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Inställningar → Modeller
+// MARK: - The models, where they're used
 //
-// Every model Mindtalk uses, by what it does: speech (dictation, meetings and
-// thoughts), the voices in meetings, the summaries, and the word list's listener.
-// Each says how big it is and what it needs, and can be shown in Finder or removed;
-// at the foot, what they take together. For the summaries you choose which writes:
-// in Mindtalk, Apple Intelligence (built in) or a Gemma 4 it downloads (the one that
-// suits this Mac's memory is marked); or, in another app on this Mac, a model of your
-// own in Ollama or LM Studio.
+// No page of models of their own: each sits with what it does. Under Inställningar →
+// Språk, the two speech models, one language each (use, download, size, Finder,
+// removal). Under Möten, who writes the summaries: in Mindtalk, Apple Intelligence
+// (built in) or a Gemma 4 it downloads (the one that suits this Mac's memory is
+// marked); or, in another app on this Mac, a model of your own in Ollama or LM
+// Studio; and Nemotron 3, which tells the voices apart, while it isn't here. The word
+// list's listener is on Ordlista. Under Allmänt → Mer, what they take together.
 
-struct ModelsCard: View {
+/// "450 MB", "1,2 GB": one way to say a size everywhere.
+enum DiskSize {
+    static func text(_ bytes: Int64) -> String {
+        bytes < 1_000_000_000 ? "\(max(1, Int((Double(bytes) / 1_000_000).rounded()))) MB" : BetterNotes.gigabytes(bytes)
+    }
+
+    /// What a folder takes, counted off the main thread.
+    static func measure(_ folders: [URL]) async -> [URL: Int64] {
+        await Task.detached(priority: .utility) {
+            Dictionary(uniqueKeysWithValues: folders.map { ($0, ModelDownload.allocatedBytes(in: $0)) })
+        }.value
+    }
+
+    static func reveal(_ folder: URL) {
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        NSWorkspace.shared.activateFileViewerSelecting([folder])
+    }
+}
+
+// MARK: - Språk
+
+/// The two speech models, one row per language: use it, download it, how big it is,
+/// and ⋯ for Finder and removal.
+struct SpeechLanguagesCard: View {
     @ObservedObject var dictation: Dictation
-    @ObservedObject private var voices = VoiceModels.shared
-    @ObservedObject private var notes = BetterNotes.shared
-    @ObservedObject private var servers = LocalServers.shared
     @ObservedObject private var meeting = MeetingSession.shared
-    @ObservedObject private var listener = VocabularyBoostStatus.shared
-    @ObservedObject private var vocabulary = Vocabulary.shared
     /// Recordings being written out use the speech model too: not removed meanwhile.
     @ObservedObject private var importing = MeetingImport.shared
-    /// What each folder takes on disk — counted when the card shows.
     @State private var onDisk: [URL: Int64] = [:]
-    @State private var total: Int64?
-    @State private var confirmDownload: NotesModel?
-    @State private var confirmRemove: Removal?
-
-    private enum Removal: Identifiable {
-        case speech(SpeechModel), voices, notes(NotesModel), listener
-        var id: String {
-            switch self {
-            case .speech(let m): return "speech-\(m.rawValue)"
-            case .voices: return "voices"
-            case .notes(let m): return "notes-\(m.rawValue)"
-            case .listener: return "listener"
-            }
-        }
-    }
+    @State private var confirmRemove: SpeechModel?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            RecommendedDownloads()
-            group(String(localized: "Tal"), "Skriver ned det du säger när du dikterar, i möten och för tankar.") {
-                ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
-                    if i > 0 { CardDivider() }
-                    speechRow(m)
-                }
+        VStack(spacing: 0) {
+            ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
+                if i > 0 { CardDivider() }
+                row(m)
             }
-            group(String(localized: "Röster i möten"), "Håller isär vem som pratar och känner igen röster till nästa gång.") {
-                voicesRow
-                CardDivider()
-                row(name: "ReDimNet2+", detail: String(localized: "Känner igen röster mellan möten · följer med appen")) {
-                    Text("Inbyggd").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                }
+        }
+        .card()
+        .task(id: SpeechModel.allCases.map { "\($0.isInstalled)" }.joined()) {
+            onDisk = await DiskSize.measure(SpeechModel.allCases.map(\.ownDirectory))
+        }
+        .confirmationDialog(confirmRemove.map { String(localized: "Ta bort \($0.modelName)?") } ?? "",
+                            isPresented: Binding(get: { confirmRemove != nil }, set: { if !$0 { confirmRemove = nil } }),
+                            presenting: confirmRemove) { m in
+            Button("Ta bort", role: .destructive) { dictation.removeModel(m); confirmRemove = nil }
+            Button("Avbryt", role: .cancel) {}
+        } message: { _ in
+            Text("Den kan laddas ned igen senare.")
+        }
+    }
+
+    private func size(_ m: SpeechModel) -> String {
+        guard m.isInstalled, let bytes = onDisk[m.ownDirectory], bytes > 0 else { return m.sizeText }
+        return DiskSize.text(bytes)
+    }
+
+    private func row(_ m: SpeechModel) -> some View {
+        let active = dictation.engine == m
+        return HStack(spacing: 16) {
+            ModelBadge(model: m, size: 13)
+                .foregroundStyle(active ? DS.Colors.accent : .secondary)
+                .frame(width: 38, height: 38)
+                .background(Circle().fill(active ? DS.Colors.accent.opacity(0.12) : DS.Colors.chip))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(m.title).font(.system(size: 14, weight: .semibold))
+                Text(detail(m)).font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(verbatim: String(localized: "\(m.modelName) av \(m.credit)") + " · " + size(m))
+                    .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
             }
-            // Two halves: the writers Mindtalk fetches itself, and the ones that live in
-            // Ollama or LM Studio.
-            group(String(localized: "Sammanfattningar"), "Skriver sammanfattningen av ett möte och svarar på dina frågor. Välj vilken som skriver.") {
-                SubLabel(String(localized: "I Mindtalk"))
-                appleRow
-                ForEach(NotesModel.allCases) { m in
-                    CardDivider()
-                    notesRow(m)
-                }
-                CardDivider()
-                SubLabel(String(localized: "I andra program på din Mac"))
-                ServerWriterRows()
-            }
-            group(String(localized: "Ordlista"), nil) {
-                listenerRow
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            control(m, active: active).fixedSize()
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 16)
+    }
+
+    private func detail(_ m: SpeechModel) -> String {
+        if let why = dictation.downloadErrors[m] { return why }
+        // Mid-meeting the model in use stays: said where the choice is.
+        if meeting.isBusy, dictation.engine != m, dictation.installed.contains(m) {
+            return m.pitch + " " + String(localized: "Går att byta när mötet är klart.")
+        }
+        return m.pitch
+    }
+
+    @ViewBuilder private func control(_ m: SpeechModel, active: Bool) -> some View {
+        if let p = dictation.downloads[m] {
             HStack(spacing: 10) {
-                Text(verbatim: total.map { String(localized: "Modellerna tar \(BetterNotes.gigabytes($0)) på den här Macen.") }
-                     ?? String(localized: "Räknar ihop…"))
-                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                Spacer()
-                Button("Visa i Finder") { reveal(SpeechModel.rootDirectory) }.buttonStyle(.soft)
-            }
-            .padding(.top, 2)
-        }
-        .task(id: refreshKey) { await measure() }
-        .task { await servers.refresh() }     // Ollama and LM Studio: here, running, and their models
-        .onAppear { listener.refresh() }      // the listener's folder deleted in Finder, or put back
-        .confirmationDialog(confirmDownload.map { String(localized: "Ladda ned \($0.name) (\($0.sizeText))?") } ?? "",
-                            isPresented: Binding(get: { confirmDownload != nil }, set: { if !$0 { confirmDownload = nil } }),
-                            presenting: confirmDownload) { m in
-            Button("Ladda ned") { notes.download(m) }
-            Button("Avbryt", role: .cancel) {}
-        } message: { m in
-            Text("Den laddas ned i bakgrunden medan du använder Mindtalk och fungerar sedan utan internet. Du har \(BetterNotes.gigabytes(BetterNotes.freeBytes)) ledigt.")
-                + Text(verbatim: m.page.host.map { " " + String(localized: "Från \($0).") } ?? "")
-        }
-        .confirmationDialog(removalTitle, isPresented: Binding(get: { confirmRemove != nil }, set: { if !$0 { confirmRemove = nil } }),
-                            presenting: confirmRemove) { what in
-            Button("Ta bort", role: .destructive) { remove(what) }
-            Button("Avbryt", role: .cancel) {}
-        } message: { what in
-            switch what {
-            case .speech: Text("Den kan laddas ned igen senare.")
-            case .voices where VoiceModels.isInstalled: Text("Möten kan inte spelas in förrän den laddats ned igen.")
-            case .voices: Text("Det som laddats ned hittills tas bort. Du kan börja om senare.")
-            case .notes(let m) where m.isInstalled: Text("Den kan laddas ned igen senare. Apple Intelligence skriver sammanfattningarna så länge.")
-            case .notes: Text("Det som laddats ned hittills tas bort. Du kan börja om senare.")
-            case .listener: Text("Dina ord rättas ändå i texten. Den kan laddas ned igen senare.")
-            }
-        }
-    }
-
-    /// Recounted when something is installed or removed.
-    private var refreshKey: String {
-        SpeechModel.allCases.map { "\($0.isInstalled)" }.joined()
-            + "\(VoiceModels.isInstalled)\(VocabularyBoost.isInstalled)"
-            + NotesModel.allCases.map { "\($0.isInstalled)" }.joined()
-    }
-
-    private func measure() async {
-        let folders = SpeechModel.allCases.map(\.ownDirectory) + [VoiceModels.directory, VocabularyBoost.directory]
-            + NotesModel.allCases.map(\.directory)
-        let root = SpeechModel.rootDirectory
-        let (sizes, all) = await Task.detached(priority: .utility) {
-            (Dictionary(uniqueKeysWithValues: folders.map { ($0, ModelDownload.allocatedBytes(in: $0)) }),
-             ModelDownload.allocatedBytes(in: root))
-        }.value
-        onDisk = sizes
-        total = all
-    }
-
-    private func size(_ folder: URL, fallback: String) -> String {
-        guard let bytes = onDisk[folder], bytes > 0 else { return fallback }
-        return bytes >= 1_000_000_000 ? BetterNotes.gigabytes(bytes) : "\(Int((Double(bytes) / 1_000_000).rounded())) MB"
-    }
-
-    // MARK: Speech
-
-    private func speechRow(_ m: SpeechModel) -> some View {
-        let inUse = dictation.engine == m && m.isInstalled
-        let language = m == .swedish ? String(localized: "Svenska") : String(localized: "Flerspråkig")
-        var detail = language + " · " + (m.isInstalled ? size(m.ownDirectory, fallback: m.sizeText) : m.sizeText)
-        // A download that failed says why, in plain words (Dictation.plainWords).
-        if let why = dictation.downloadErrors[m] { detail += "\n" + why }
-        else if meeting.isBusy, m.isInstalled, !inUse { detail += "\n" + String(localized: "Går att byta när mötet är klart.") }
-        return row(name: m.modelName, detail: detail, badge: inUse ? String(localized: "Används") : nil) {
-            if let p = dictation.downloads[m] {
                 // The last tenth is checking and compiling, not fetching.
-                if SpeechModel.isPreparing(p) { preparingLabel } else { progress(min(1, p / 0.9)) }
-            } else if m.isInstalled {
+                if SpeechModel.isPreparing(p) { ModelParts.preparing } else { ModelParts.progress(min(1, p / 0.9)) }
+                Button("Avbryt") { dictation.cancelDownload(m) }.buttonStyle(.soft)
+            }
+        } else if !dictation.installed.contains(m) {
+            Button(LocalizedStringKey(dictation.downloadErrors[m] == nil ? "Ladda ned" : "Försök igen")) {
+                dictation.downloadModel(m)
+            }
+            .buttonStyle(.ink)
+        } else {
+            HStack(spacing: 10) {
+                if active {
+                    if dictation.model == .loading { ProgressView().controlSize(.small) }
+                    Label("Används", systemImage: "checkmark.circle.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.accent)
+                } else {
+                    Button("Använd") { dictation.setEngine(m) }.buttonStyle(.soft)
+                        .disabled(meeting.isBusy)
+                }
                 Menu {
-                    Button("Visa i Finder") { reveal(m.ownDirectory) }
-                    if !inUse, m.isOwnInstall {
+                    Button("Visa i Finder") { DiskSize.reveal(m.ownDirectory) }
+                    if !active, m.isOwnInstall {
                         Divider()
                         // Not while a meeting, or a recording being written out, may need it:
                         // the model is let go when they're done.
-                        Button("Ta bort…", role: .destructive) { confirmRemove = .speech(m) }.disabled(meeting.isBusy || importing.busy)
+                        Button("Ta bort…", role: .destructive) { confirmRemove = m }.disabled(meeting.isBusy || importing.busy)
                     }
-                } label: { moreLabel }
+                } label: { ModelParts.more(ticked: false) }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                .help(inUse ? "Den som används kan inte tas bort. Byt språk under Inspelning först." : "Mer")
-            } else {
-                Button(dictation.downloadErrors[m] == nil ? String(localized: "Ladda ned") : String(localized: "Försök igen")) { dictation.downloadModel(m) }.buttonStyle(.soft)
+                .help(active ? "Den som används kan inte tas bort. Byt språk först." : "Mer")
+                .accessibilityLabel(Text("Mer om \(m.title)"))
             }
         }
     }
+}
 
-    // MARK: The listener
+// MARK: - Möten
 
-    private var listenerRow: some View {
-        let detail: String = {
-            switch listener.state {
-            case .failed(let why):
-                return why
-            case .downloading:
-                return String(localized: "Laddar ned lyssnaren (\(VocabularyBoost.sizeText)). Det sker bara en gång, sedan fungerar den utan internet.")
-            case .ready, .missing:
-                return VocabularyBoost.isInstalled
-                    ? String(localized: "Hör orden i din ordlista · \(size(VocabularyBoost.directory, fallback: VocabularyBoost.sizeText))")
-                    : String(localized: "Hör orden i din ordlista, så att de stavas rätt redan när du pratar · \(VocabularyBoost.sizeText)")
-            }
-        }()
-        return row(name: String(localized: "Lyssnaren (Parakeet CTC)"), detail: detail) {
-            if case .downloading = listener.state {
-                ProgressView().controlSize(.small)
-            } else if case .failed = listener.state {
-                // Here but wouldn't start: fetched afresh. Not here: fetched again.
-                if VocabularyBoost.isInstalled {
-                    Button("Ladda ned igen") { vocabulary.refetchListener() }.buttonStyle(.soft)
-                } else {
-                    Button("Försök igen") { vocabulary.fetchListener() }.buttonStyle(.soft)
+/// Nemotron 3, which tells the voices in a meeting apart: here only while it isn't
+/// downloaded (or the download failed), since meetings can't be recorded without it.
+struct VoiceModelSettingsCard: View {
+    @ObservedObject private var voices = VoiceModels.shared
+    @State private var confirmRemove = false
+
+    var body: some View {
+        ModelRow(name: String(localized: "Röstmodellen (Nemotron 3)"), badge: nil) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Håller isär vem som pratar i ett möte. Möten kan inte spelas in utan den.")
+                    .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                if case .failed(let why) = voices.state {
+                    Text(verbatim: why).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-            } else if VocabularyBoost.isInstalled {
-                Menu {
-                    Button("Visa i Finder") { reveal(VocabularyBoost.directory) }
-                    Divider()
-                    Button("Ta bort…", role: .destructive) { confirmRemove = .listener }
-                } label: { moreLabel }
-                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                .help("Mer")
-            } else {
-                Button("Ladda ned") { vocabulary.fetchListener() }.buttonStyle(.soft)
+                Text(verbatim: String(localized: "Från NVIDIA") + " · " + VoiceModels.sizeText)
+                    .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
             }
-        }
-    }
-
-    // MARK: Voices
-
-    private var voicesRow: some View {
-        var detail = String(localized: "Från NVIDIA · ") + (VoiceModels.isInstalled ? size(VoiceModels.directory, fallback: VoiceModels.sizeText) : VoiceModels.sizeText)
-        if case .failed(let why) = voices.state { detail += "\n" + why }
-        return row(name: "Nemotron 3", detail: detail) {
+        } trailing: {
             switch voices.state {
             case .downloading(let p):
-                if voices.preparing { preparingLabel } else { progress(p) }
+                if voices.preparing { ModelParts.preparing } else { ModelParts.progress(p) }
             case .ready:
-                Menu {
-                    Button("Visa i Finder") { reveal(VoiceModels.directory) }
-                    Divider()
-                    Button("Ta bort…", role: .destructive) { confirmRemove = .voices }.disabled(meeting.isBusy)
-                } label: { moreLabel }
-                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                .help("Mer")
+                EmptyView()
             case .missing:
-                Button("Ladda ned") { voices.download() }.buttonStyle(.soft)
+                Button("Ladda ned") { voices.download() }.buttonStyle(.ink)
             case .failed:
                 // What came in stays for the next try — or goes, if you'd rather start over.
                 HStack(spacing: 10) {
-                    Button("Försök igen") { voices.download() }.buttonStyle(.soft)
+                    Button("Försök igen") { voices.download() }.buttonStyle(.ink)
                     Menu {
-                        Button("Ta bort det nedladdade…", role: .destructive) { confirmRemove = .voices }
-                    } label: { moreLabel(ticked: false) }
+                        Button("Ta bort det nedladdade…", role: .destructive) { confirmRemove = true }
+                    } label: { ModelParts.more(ticked: false) }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                     .help("Mer")
                 }
             }
         }
+        .card()
+        .confirmationDialog("Ta bort Nemotron 3?", isPresented: $confirmRemove) {
+            Button("Ta bort", role: .destructive) { voices.remove() }
+            Button("Avbryt", role: .cancel) {}
+        } message: {
+            Text("Det som laddats ned hittills tas bort. Du kan börja om senare.")
+        }
     }
+}
 
-    // MARK: Summaries
+/// Who writes a meeting's summary and answers your questions: the round button in
+/// front of a row picks it. In Mindtalk: Apple Intelligence and the Gemmas (downloaded
+/// here); in other programs on this Mac: Ollama and LM Studio.
+struct SummaryWritersCard: View {
+    @ObservedObject private var notes = BetterNotes.shared
+    @ObservedObject private var servers = LocalServers.shared
+    @State private var onDisk: [URL: Int64] = [:]
+    @State private var confirmDownload: NotesModel?
+    @State private var confirmRemove: NotesModel?
 
-    /// Where Apple Intelligence stands on this Mac — here, and under Möten.
+    /// Where Apple Intelligence stands on this Mac.
     static func appleDetail(_ status: Polisher.Status) -> String {
         switch status {
         case .available: return String(localized: "Inbyggd i macOS · alla Macar med Apple Intelligence")
@@ -247,12 +209,66 @@ struct ModelsCard: View {
         }
     }
 
+    /// "Skrivs på din Mac.", or the program that writes them.
+    private var headline: String {
+        if let server = notes.server { return String(localized: "Skrivs av \(server.backend.name).") }
+        return String(localized: "Skrivs på din Mac.")
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            CardRow(title: "Sammanfattningar", detail: headline) { EmptyView() }
+                .padding(.bottom, -6)
+            SubLabel(String(localized: "I Mindtalk"))
+            appleRow
+            ForEach(NotesModel.allCases) { m in
+                CardDivider()
+                notesRow(m)
+            }
+            CardDivider()
+            SubLabel(String(localized: "I andra program på din Mac"))
+            ServerWriterRows()
+        }
+        .card()
+        .task(id: NotesModel.allCases.map { "\($0.isInstalled)" }.joined()) {
+            onDisk = await DiskSize.measure(NotesModel.allCases.map(\.directory))
+        }
+        .task { await servers.refresh() }     // Ollama and LM Studio: here, running, and their models
+        .confirmationDialog(confirmDownload.map { String(localized: "Ladda ned \($0.name) (\($0.sizeText))?") } ?? "",
+                            isPresented: Binding(get: { confirmDownload != nil }, set: { if !$0 { confirmDownload = nil } }),
+                            presenting: confirmDownload) { m in
+            Button("Ladda ned") { notes.download(m) }
+            Button("Avbryt", role: .cancel) {}
+        } message: { m in
+            Text("Den laddas ned i bakgrunden medan du använder Mindtalk och fungerar sedan utan internet. Du har \(BetterNotes.gigabytes(BetterNotes.freeBytes)) ledigt.")
+                + Text(verbatim: m.page.host.map { " " + String(localized: "Från \($0).") } ?? "")
+        }
+        .confirmationDialog(confirmRemove.map { String(localized: "Ta bort \($0.name)?") } ?? "",
+                            isPresented: Binding(get: { confirmRemove != nil }, set: { if !$0 { confirmRemove = nil } }),
+                            presenting: confirmRemove) { m in
+            Button("Ta bort", role: .destructive) { notes.remove(m); confirmRemove = nil }
+            Button("Avbryt", role: .cancel) {}
+        } message: { m in
+            if m.isInstalled {
+                Text("Den kan laddas ned igen senare. Apple Intelligence skriver sammanfattningarna så länge.")
+            } else {
+                Text("Det som laddats ned hittills tas bort. Du kan börja om senare.")
+            }
+        }
+    }
+
     private var appleRow: some View {
         let status = Polisher.status
-        let detail = Self.appleDetail(status)
-        return row(name: "Apple Intelligence", detail: detail, chooser: (!notes.isActive, status == .available, { notes.choice = .apple })) {
+        return ModelRow(name: "Apple Intelligence", chooser: (!notes.isActive, status == .available, { notes.choice = .apple })) {
+            ModelParts.detail(Self.appleDetail(status))
+        } trailing: {
             EmptyView()
         }
+    }
+
+    private func size(_ m: NotesModel) -> String {
+        guard let bytes = onDisk[m.directory], bytes > 0 else { return m.sizeText }
+        return DiskSize.text(bytes)
     }
 
     private func notesRow(_ m: NotesModel) -> some View {
@@ -263,7 +279,7 @@ struct ModelsCard: View {
             case .unsupported:
                 return String(localized: "Kräver minst \(m.minimumMemoryGB) GB minne. Den här Macen har \(BetterNotes.memoryGB) GB.")
             case .ready:
-                return String(localized: "Laddas ned av Mindtalk · tar \(size(m.directory, fallback: m.sizeText)) på disken")
+                return String(localized: "Laddas ned av Mindtalk · tar \(size(m)) på disken")
             case .failed(let message):
                 return message
             case .missing, .downloading:
@@ -279,22 +295,24 @@ struct ModelsCard: View {
         }()
         // Recommended, but not while it wouldn't fit: a badge next to "Får inte plats" would argue with it.
         let fits = state == .ready || m.hasRoom
-        return row(name: m.name, detail: detail, badge: recommended && state != .unsupported && fits ? String(localized: "Rekommenderas för din Mac") : nil,
-                   chooser: (notes.active == m, state == .ready, { notes.chosen = m })) {
+        return ModelRow(name: m.name, badge: recommended && state != .unsupported && fits ? String(localized: "Rekommenderas för din Mac") : nil,
+                        chooser: (notes.active == m, state == .ready, { notes.chosen = m })) {
+            ModelParts.detail(detail)
+        } trailing: {
             switch state {
             case .unsupported:
                 EmptyView()
             case .downloading(let p):
                 HStack(spacing: 10) {
-                    progress(p)
+                    ModelParts.progress(p)
                     Button("Avbryt") { notes.cancel() }.buttonStyle(.soft)
                 }
             case .ready:
                 Menu {
-                    Button("Visa i Finder") { reveal(m.directory) }
+                    Button("Visa i Finder") { DiskSize.reveal(m.directory) }
                     Divider()
-                    Button("Ta bort…", role: .destructive) { confirmRemove = .notes(m) }
-                } label: { moreLabel }
+                    Button("Ta bort…", role: .destructive) { confirmRemove = m }
+                } label: { ModelParts.more }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 .help("Mer")
             case .missing, .failed:
@@ -308,8 +326,8 @@ struct ModelsCard: View {
                     // Something of it is on disk (a cancelled or failed download): it can go.
                     if m.remainingBytes < m.bytes {
                         Menu {
-                            Button("Ta bort det nedladdade…", role: .destructive) { confirmRemove = .notes(m) }
-                        } label: { moreLabel(ticked: false) }
+                            Button("Ta bort det nedladdade…", role: .destructive) { confirmRemove = m }
+                        } label: { ModelParts.more(ticked: false) }
                         .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                         .help("Mer")
                     }
@@ -317,35 +335,36 @@ struct ModelsCard: View {
             }
         }
     }
+}
 
-    // MARK: Parts
+// MARK: - Allmänt → Mer
 
-    /// A group of models under a label in small capitals, as on Hem, and a line on what they do.
-    private func group<C: View>(_ title: String, _ detail: LocalizedStringKey?, @ViewBuilder content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            VStack(alignment: .leading, spacing: 4) {
-                CapsLabel(title)
-                if let detail { Text(detail).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted) }
-            }
-            .padding(.leading, 4)
-            VStack(spacing: 0) { content() }.card()
+/// "Modellerna tar 3,4 GB": everything Mindtalk has downloaded, and where it is.
+struct ModelsFootprintRow: View {
+    @State private var total: Int64?
+
+    var body: some View {
+        CardRow(title: total.map { String(localized: "Modellerna tar \(DiskSize.text($0))") } ?? String(localized: "Modellerna"),
+                detail: total == nil ? String(localized: "Räknar ihop…") : String(localized: "Talmodellerna och de andra modellerna Mindtalk har laddat ned.")) {
+            Button("Visa i Finder") { DiskSize.reveal(SpeechModel.rootDirectory) }.buttonStyle(.soft)
+        }
+        .task {
+            let root = SpeechModel.rootDirectory
+            total = await DiskSize.measure([root])[root]
         }
     }
+}
 
-    /// A model: its name (and a mark), what it is, and what can be done with it. With
-    /// a chooser, a round button in front picks it.
-    private func row<T: View>(name: String, detail: String, badge: String? = nil,
-                              chooser: (on: Bool, enabled: Bool, pick: () -> Void)? = nil,
-                              @ViewBuilder trailing: () -> T) -> some View {
-        ModelRow(name: name, badge: badge, chooser: chooser) {
-            Text(verbatim: detail).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                .fixedSize(horizontal: false, vertical: true)
-        } trailing: {
-            trailing()
-        }
+// MARK: - Parts
+
+/// What the model rows share.
+enum ModelParts {
+    static func detail(_ text: String) -> some View {
+        Text(verbatim: text).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func progress(_ p: Double) -> some View {
+    static func progress(_ p: Double) -> some View {
         HStack(spacing: 8) {
             InkProgressBar(progress: p).frame(width: 90)
             Text(p, format: .percent.precision(.fractionLength(0))).font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.Colors.muted)
@@ -353,7 +372,7 @@ struct ModelsCard: View {
     }
 
     /// The files are in; now it's checked and made ready for this Mac.
-    private var preparingLabel: some View {
+    static var preparing: some View {
         HStack(spacing: 8) {
             ProgressView().controlSize(.small)
             Text("Förbereder…").font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
@@ -361,10 +380,10 @@ struct ModelsCard: View {
     }
 
     /// On a model that's here: a green tick that says so, and ⋯ for Finder and removing.
-    private var moreLabel: some View { moreLabel(ticked: true) }
+    static var more: some View { more(ticked: true) }
 
     /// ⋯ in a small chip disc — with the green tick in front when the model is here.
-    private func moreLabel(ticked: Bool) -> some View {
+    static func more(ticked: Bool) -> some View {
         HStack(spacing: 10) {
             if ticked {
                 Label("Nedladdad", systemImage: "checkmark.circle.fill")
@@ -377,111 +396,6 @@ struct ModelsCard: View {
                 .background(Circle().fill(DS.Colors.chip))
         }
         .contentShape(Rectangle())
-    }
-
-    private func finderMenu(_ folder: URL) -> some View {
-        Menu { Button("Visa i Finder") { reveal(folder) } } label: { moreLabel }
-            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-            .help("Mer")
-    }
-
-    private func reveal(_ folder: URL) {
-        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        NSWorkspace.shared.activateFileViewerSelecting([folder])
-    }
-
-    private var removalTitle: String {
-        switch confirmRemove {
-        case .speech(let m): return String(localized: "Ta bort \(m.modelName)?")
-        case .voices: return String(localized: "Ta bort Nemotron 3?")
-        case .notes(let m): return String(localized: "Ta bort \(m.name)?")
-        case .listener: return String(localized: "Ta bort lyssnaren?")
-        case nil: return ""
-        }
-    }
-
-    private func remove(_ what: Removal) {
-        switch what {
-        case .speech(let m): dictation.removeModel(m)
-        case .voices: voices.remove()
-        case .notes(let m): notes.remove(m)
-        case .listener: vocabulary.removeListener()
-        }
-        confirmRemove = nil
-    }
-}
-
-/// Which writes a meeting's summary — in Settings → Möten, beside the rest.
-struct SummaryWriterRow: View {
-    @ObservedObject private var notes = BetterNotes.shared
-
-    /// Apple, the Gemmas that are here, and the server model chosen, if one is.
-    private var options: [(value: String, title: String)] {
-        let ready = NotesModel.allCases.filter { notes.state($0) == .ready }
-        var options: [(value: String, title: String)] = [("apple", "Apple Intelligence")] + ready.map { ("gemma:\($0.rawValue)", $0.name) }
-        if let server = notes.server {
-            options.append((SummaryWriterChoice.server(server.backend, server.model).stored, notes.writerName))
-        }
-        return options
-    }
-
-    var body: some View {
-        let status = Polisher.status
-        // Apple Intelligence off or missing: said as under Modeller, not as if it wrote them.
-        let apple = status == .available ? String(localized: "Apple Intelligence.")
-            : String(localized: "Apple Intelligence: ") + ModelsCard.appleDetail(status)
-        let options = options
-        CardRow(title: "Sammanfattningarna skrivs av",
-                detail: options.count == 1
-                    ? (NotesModel.recommended.map { apple + " " + String(localized: "\($0.name) skriver mer träffsäkert och laddas ned under Modeller.") }
-                       ?? apple)
-                    : String(localized: "Fler val under Modeller.")) {
-            if options.count > 1 {
-                WriterPicker(options: options, selection: Binding(
-                    get: { notes.isActive ? notes.choice.stored : "apple" },
-                    set: { if let c = SummaryWriterChoice(stored: $0) { notes.choice = c } }))
-            }
-        }
-        .card()
-    }
-}
-
-/// The pop-up over the writers, their names as they are ("Ollama · qwen3.5:9b" isn't a
-/// string to translate).
-private struct WriterPicker: View {
-    let options: [(value: String, title: String)]
-    @Binding var selection: String
-
-    var body: some View {
-        Menu {
-            ForEach(options, id: \.value) { option in
-                Button { selection = option.value } label: {
-                    if option.value == selection {
-                        Label { Text(verbatim: option.title) } icon: { Image(systemName: "checkmark") }
-                    } else {
-                        Text(verbatim: option.title)
-                    }
-                }
-            }
-        } label: {
-            HStack(spacing: 7) {
-                Text(verbatim: options.first { $0.value == selection }?.title ?? "")
-                    .font(.system(size: 12.5, weight: .semibold))
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(DS.Colors.muted)
-                    .accessibilityHidden(true)
-            }
-            .padding(.horizontal, 13)
-            .frame(height: 30)
-            .background(Capsule().fill(DS.Colors.control).shadow(color: .black.opacity(0.06), radius: 2, y: 1))
-            .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
-            .contentShape(Capsule())
-        }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .menuIndicator(.hidden)
-        .fixedSize()
     }
 }
 
@@ -895,7 +809,7 @@ struct NotesModelOffer: View {
                         Spacer()
                         Button("Inte nu") { withAnimation(.snappy) { answered = true } }
                             .buttonStyle(.plain).font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
-                        Button("Visa modeller") { SettingsPage.openModels() }
+                        Button("Visa modeller") { SettingsPage.open(.meetings) }
                             .buttonStyle(.ink)
                     }
                 }

@@ -42,9 +42,9 @@ enum Page: String, CaseIterable, Identifiable {
     }
 }
 
-/// Inställningar, one section at a time: the list on the left, the section on the right.
+/// Inställningar, one section at a time: the sections in the tab bar, the section as the page.
 enum SettingsSection: String, CaseIterable, Identifiable {
-    case general, microphone, dictation, thoughts, meetings, models, integrations, about
+    case general, language, dictation, meetings, integrations
 
     /// Where the section last shown is kept (SettingsPage and the tab bar).
     static let storageKey = "settings.section"
@@ -54,34 +54,33 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     /// The section kept under `storageKey`; one from an older Mindtalk is read as the
-    /// nearest one now.
+    /// nearest one now (Mikrofon och språk and Modeller as Språk; Tankar and Om
+    /// Mindtalk, which are elsewhere now, as Allmänt).
     init(stored raw: String) {
-        self = SettingsSection(rawValue: raw) ?? .general
+        switch raw {
+        case "microphone", "models": self = .language
+        case "thoughts", "about": self = .general
+        default: self = SettingsSection(rawValue: raw) ?? .general
+        }
     }
 
     var title: String {
         switch self {
         case .general: return String(localized: "Allmänt")
-        case .microphone: return String(localized: "Mikrofon och språk")
+        case .language: return String(localized: "Språk")
         case .dictation: return String(localized: "Diktering")
-        case .thoughts: return String(localized: "Tankar")
         case .meetings: return String(localized: "Möten")
-        case .models: return String(localized: "Modeller")
         case .integrations: return String(localized: "Integrationer")
-        case .about: return String(localized: "Om Mindtalk")
         }
     }
 
     var icon: String {
         switch self {
         case .general: return "gearshape"
-        case .microphone: return "mic"
+        case .language: return "globe"
         case .dictation: return "text.cursor"
-        case .thoughts: return "lightbulb"
         case .meetings: return "person.2.wave.2"
-        case .models: return "square.stack.3d.up"
         case .integrations: return "point.3.connected.trianglepath.dotted"
-        case .about: return "info.circle"
         }
     }
 }
@@ -338,6 +337,7 @@ struct SettingsPage: View {
     static var previewMore = false
     @ObservedObject private var mics = Microphones.shared
     @ObservedObject private var updates = Updates.shared
+    @ObservedObject private var voices = VoiceModels.shared
     @State private var loginStatus = SMAppService.mainApp.status
     /// Why "Starta vid inloggning" couldn't be switched, from macOS.
     @State private var loginError: String?
@@ -346,19 +346,11 @@ struct SettingsPage: View {
     @State private var showMicPicker = false
     @State private var appLanguage = AppLanguage.chosen
     @State private var meetingShortcut = Settings.meetingShortcut
+    /// The thought key, so the meeting shortcut never takes the same keys.
     @State private var thoughtShortcut = Settings.thoughtShortcut
-    @State private var pickingThoughtKey = false
-    /// Why the thought key just picked wasn't taken (the dictation key has it).
-    @State private var thoughtRefusal: String?
     @State private var pickingMeetingKey = false
-
-    /// What the thought shortcut does — and, for a key held alone, that ⌘C still works.
-    private var thoughtDetail: String {
-        guard let thoughtShortcut else { return String(localized: "Av. Du kan fortfarande säga en tanke på sidan Tankar.") }
-        if let warning = thoughtShortcut.chord?.warning { return warning }
-        let how = String(localized: "Håll in och säg det du kommer på, så hamnar det i Tankar. Tryck snabbt, så lyssnar Mindtalk tills du trycker igen.")
-        return thoughtShortcut.key.map { how + " " + $0.note } ?? how
-    }
+    /// Allmänt's Mer: closed until opened.
+    @State private var more = SettingsPage.previewMore
 
     // MARK: Sections
 
@@ -375,9 +367,6 @@ struct SettingsPage: View {
         UserDefaults.standard.set(section.rawValue, forKey: SettingsSection.storageKey)
         AppDelegate.showWindow(page: .settings)
     }
-
-    /// Settings → Modeller (Byt modell under a summary, Hantera i Modeller).
-    static func openModels() { open(.models) }
 
     /// Settings → Integrationer, where MCP is (mindtalk://settings/mcp).
     static func openMCP() { open(.integrations) }
@@ -403,8 +392,6 @@ struct SettingsPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: plain ? nil : .infinity, alignment: .topLeading)
         .animation(.easeOut(duration: 0.18), value: section)
-        // The dictation key's field is only in Diktering: picking stops when it's left.
-        .onChange(of: sectionRaw) { _, _ in dictation.stopPickingKey(reason: "Settings section changed") }
         // A new dictation key moves the thought key's default (left ⌥ unless dictation has it).
         .onChange(of: dictation.hotkey) { _, _ in thoughtShortcut = Settings.thoughtShortcut }
         .onAppear { loginStatus = SMAppService.mainApp.status; updates.refresh() }
@@ -412,7 +399,6 @@ struct SettingsPage: View {
             loginStatus = SMAppService.mainApp.status
             updates.refresh()
         }
-        .onDisappear { dictation.stopPickingKey(reason: "Settings left") }
         .sheet(isPresented: $showMicPicker) {
             MicrophonePicker(mics: mics) { showMicPicker = false }
         }
@@ -427,126 +413,19 @@ struct SettingsPage: View {
                 .accessibilityAddTraits(.isHeader)
                 .padding(.bottom, 10)
 
-            // Without Hjälpmedel no shortcut works anywhere: said first, in every section.
-            if !dictation.accessibilityGranted {
-                CardRow(title: "Slå på Hjälpmedel för Mindtalk",
-                        detail: "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen. macOS kräver det ibland efter en uppdatering.") {
-                    Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.ink)
-                }
-                .card()
-            }
-
             switch section {
             case .general: generalSection
-            case .microphone: microphoneSection
+            case .language: languageSection
             case .dictation: dictationSection
-            case .thoughts: thoughtsSection
             case .meetings: meetingsSection
-            case .models: ModelsCard(dictation: dictation)
             case .integrations: ClaudeSettingsCard(sharing: .shared)
-            case .about: AboutCard()
             }
         }
-    }
-
-    // MARK: Mikrofon och språk — what both dictation and meetings hear with
-
-    @ViewBuilder private var microphoneSection: some View {
-        CardRow(title: "Mikrofon", detail: !dictation.micGranted ? "Mindtalk behöver få använda mikrofonen."
-                : meeting.isBusy ? String(localized: "\(mics.selectionName) · går att byta när mötet är klart") : mics.selectionName) {
-            if dictation.micGranted {
-                Button("Ändra") { showMicPicker = true }.buttonStyle(.soft)
-                    .disabled(meeting.isBusy || dictation.phase == .recording || dictation.phase == .transcribing)
-            }
-            else { Button("Tillåt") { dictation.requestMicrophone() }.buttonStyle(.ink) }
-        }
-        .card()
-        VStack(spacing: 0) {
-            ForEach(Array(SpeechModel.allCases.enumerated()), id: \.element) { i, m in
-                if i > 0 { CardDivider() }
-                LanguageRow(model: m, dictation: dictation)
-            }
-        }
-        .card()
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text("Språket du pratar, när du dikterar och i möten. Byt snabbt i menyraden, eller med ⌘1 och ⌘2 när menyn är öppen.")
-                .font(.system(size: 12))
-                .foregroundStyle(DS.Colors.muted)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-            // Size, Finder and removal live with the other models.
-            Button { withAnimation(.easeOut(duration: 0.18)) { sectionRaw = SettingsSection.models.rawValue } } label: {
-                Text("Hantera i Modeller →")
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(DS.Colors.muted).underline()
-                    .padding(.vertical, 2).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .fixedSize()
-        }
-    }
-
-    // MARK: Diktering
-
-    @ViewBuilder private var dictationSection: some View {
-        VStack(spacing: 0) {
-            CardRow(title: "Genväg", detail: dictation.pickingKey
-                    ? String(localized: "Håll in en eller flera tangenter som ⌥ och ⌘ och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
-                    : dictation.keyRefusal ?? dictation.hotkey.note) { ShortcutField(dictation: dictation) }
-            CardDivider()
-            CardRow(title: "Hur du dikterar", detail: dictation.mode.explanation(key: dictation.hotkey.inlineName)) {
-                MenuPicker(options: DictationMode.allCases.map { ($0, $0.title) },
-                           selection: Binding(get: { dictation.mode }, set: { dictation.setMode($0) }))
-            }
-            CardDivider()
-            CardRow(title: "Ljud vid diktering", detail: "Ett diskret ljud när Mindtalk börjar lyssna och när texten skrivs in.") {
-                InkToggle(label: "Ljud vid diktering", isOn: $prefs.sounds)
-            }
-            CardDivider()
-            CardRow(title: "Musik medan du dikterar", detail: prefs.mediaMode.explanation) {
-                MenuPicker(options: MediaMode.allCases.map { ($0, $0.title) }, selection: $prefs.mediaMode)
-            }
-            CardDivider()
-            CardRow(title: "Klistra in igen", detail: "Hamnade texten fel? Ställ markören rätt och tryck.") {
-                KeyChip(text: "⌃ ⌥ V")
-            }
-        }
-        .card()
-        TextCleanupCard(prefs: prefs)
-    }
-
-    // MARK: Tankar
-
-    private var thoughtsSection: some View {
-        CardRow(title: "Genväg", detail: pickingThoughtKey
-                ? String(localized: "Håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.")
-                : thoughtRefusal ?? thoughtDetail) {
-            ThoughtShortcutField(shortcut: $thoughtShortcut, picking: $pickingThoughtKey,
-                                 refusal: $thoughtRefusal, meeting: meetingShortcut)
-            .disabled(!dictation.accessibilityGranted)
-        }
-        .card()
-    }
-
-    // MARK: Möten
-
-    @ViewBuilder private var meetingsSection: some View {
-        CardRow(title: "Genväg", detail: pickingMeetingKey
-                ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
-                : meetingShortcut == nil
-                    ? String(localized: "Av. Inne i Mindtalk fungerar ⇧⌘R.")
-                    : meetingShortcut?.warning ?? String(localized: "Startar och avslutar ett möte i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.")) {
-            MeetingShortcutField(chord: $meetingShortcut, picking: $pickingMeetingKey, taken: [thoughtShortcut?.chord])
-                .disabled(!dictation.accessibilityGranted)
-        }
-        .card()
-        SummaryWriterRow()
-        VoiceMemoryCard(memory: .shared)
-        MeetingPrivacyCard()
     }
 
     // MARK: Allmänt
 
-    private var generalSection: some View {
+    @ViewBuilder private var generalSection: some View {
         VStack(spacing: 0) {
             if !AppMover.isInApplications {
                 // Outside Applications Mindtalk can't update itself or open at login reliably.
@@ -557,106 +436,178 @@ struct SettingsPage: View {
                 }
                 CardDivider()
             }
-            CardRow(title: "Starta vid inloggning",
-                    detail: loginError ?? (loginStatus == .requiresApproval ? String(localized: "Godkänn Mindtalk under Allmänt → Inloggningsobjekt och tillägg i Systeminställningar.") : nil)) {
-                HStack(spacing: 10) {
-                    if loginStatus == .requiresApproval {
-                        Button("Öppna") { SMAppService.openSystemSettingsLoginItems() }.buttonStyle(.soft)
-                    }
-                    InkToggle(label: "Starta vid inloggning", isOn: Binding(
-                        get: { loginStatus == .enabled || loginStatus == .requiresApproval },
-                        set: { on in
-                            do {
-                                if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-                                loginError = nil
-                            } catch {
-                                NSLog("Mindtalk: launch at login: \(error.localizedDescription)")
-                                // Said in the row: usually that Mindtalk isn't in Applications.
-                                loginError = AppMover.isInApplications
-                                    ? String(localized: "Det gick inte just nu: \(error.localizedDescription)")
-                                    : String(localized: "Mindtalk behöver ligga i Program för att starta vid inloggning.")
-                            }
-                            loginStatus = SMAppService.mainApp.status
-                        }))
-                }
-            }
+            microphoneRow
             CardDivider()
-            CardRow(title: "Visa i Dock", detail: "Annars finns Mindtalk bara i menyraden när fönstret är stängt.") {
-                InkToggle(label: "Visa i Dock", isOn: $prefs.showInDock)
-            }
+            loginRow
             CardDivider()
-            CardRow(title: "Utseende") {
-                PillPicker(options: Appearance.allCases.map { ($0, $0.title) }, selection: $prefs.appearance)
-            }
-            CardDivider()
-            CardRow(title: "Appens språk",
-                    detail: appLanguage.resolved == AppLanguage.running ? nil
-                        : meeting.isBusy ? "Mindtalk behöver startas om för att byta språk. Det går när mötet är klart."
-                        : importer.busy ? "Mindtalk behöver startas om för att byta språk. Det går när inspelningen är nedskriven."
-                        : dictation.phase != .idle ? "Mindtalk behöver startas om för att byta språk. Det går när dikteringen är klar."
-                        : "Mindtalk behöver startas om för att byta språk.") {
-                HStack(spacing: 10) {
-                    if appLanguage.resolved != AppLanguage.running {
-                        Button("Starta om") { AppDelegate.relaunch(showing: .settings) }
-                            .buttonStyle(.ink)
-                            .fixedSize()
-                            .disabled(dictation.phase != .idle || meeting.isBusy || importer.busy)
-                    }
-                    PillPicker(options: AppLanguage.allCases.map { ($0, $0.title) }, selection: $appLanguage)
-                        .onChange(of: appLanguage) { _, new in AppLanguage.chosen = new }
-                }
-            }
-            CardDivider()
-            CardRow(title: "Uppdateringar",
-                    detail: AppMover.isInApplications ? "Sök efter nya versioner automatiskt, en gång om dagen."
-                        : "Mindtalk behöver ligga i Program för att uppdateras.") {
-                HStack(spacing: 12) {
-                    Button("Sök nu") { Updates.shared.checkNow() }.buttonStyle(.soft)
-                    InkToggle(label: "Sök automatiskt", isOn: $updates.automatic)
-                }
-                .disabled(!Updates.isAvailable || !AppMover.isInApplications)
-            }
-            if dictation.accessibilityGranted {
-                CardDivider()
-                CardRow(title: "Hjälpmedel", detail: "Låter Mindtalk känna av genvägarna och skriva in texten där markören står.") {
-                    GrantedLabel()
-                }
+            CardRow(title: "Uppdateringar", detail: updatesDetail) {
+                Button("Sök nu") { Updates.shared.checkNow() }.buttonStyle(.soft)
+                    .disabled(!Updates.isAvailable || !AppMover.isInApplications)
             }
         }
         .card()
-    }
-}
 
-/// A dictation shortcut in a white field — choose a key or hold modifiers together.
-private struct ShortcutField: View {
-    @ObservedObject var dictation: Dictation
-
-    var body: some View {
-        Button {
-            dictation.togglePickingKey()
-        } label: {
-            HStack(spacing: 10) {
-                if dictation.pickingKey {
-                    Text("Tryck på en tangent…").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                } else {
-                    KeyChip(text: dictation.hotkey.chip)
-                }
-                Spacer(minLength: 16)
-                Image(systemName: "pencil").foregroundStyle(DS.Colors.muted)
+        // The rest, behind Mer: set once, if ever.
+        Button { withAnimation(.easeOut(duration: 0.2)) { more.toggle() } } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                    .rotationEffect(.degrees(more ? 90 : 0))
+                Text("Mer").font(.system(size: 13, weight: .semibold))
             }
-            .padding(.leading, 8)
-            .padding(.trailing, 12)
-            .frame(width: 280)
-            .frame(minHeight: 38)
-            .background(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous).fill(DS.Colors.field))
-            .overlay(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
-                .strokeBorder(dictation.pickingKey ? DS.Colors.ink : DS.Colors.fieldStroke, lineWidth: 1))
+            .foregroundStyle(DS.Colors.muted)
+            .padding(.horizontal, 4).padding(.vertical, 4)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(!dictation.accessibilityGranted)
-        .help(LocalizedStringKey(dictation.accessibilityGranted ? "Klicka och håll in tangenterna du vill använda. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter."
-                                             : "Slå på Hjälpmedel för Mindtalk först."))
+        .accessibilityLabel(Text("Mer"))
+        .accessibilityValue(more ? Text("Öppen") : Text("Stängd"))
+        .padding(.top, 6)
+
+        if more {
+            VStack(spacing: 0) {
+                CardRow(title: "Visa i Dock", detail: "Annars finns Mindtalk bara i menyraden när fönstret är stängt.") {
+                    InkToggle(label: "Visa i Dock", isOn: $prefs.showInDock)
+                }
+                CardDivider()
+                CardRow(title: "Utseende") {
+                    PillPicker(options: Appearance.allCases.map { ($0, $0.title) }, selection: $prefs.appearance)
+                }
+                CardDivider()
+                languageRow
+                CardDivider()
+                CardRow(title: "Ljud vid diktering", detail: "Ett diskret ljud när Mindtalk börjar lyssna och när texten skrivs in.") {
+                    InkToggle(label: "Ljud vid diktering", isOn: $prefs.sounds)
+                }
+                CardDivider()
+                CardRow(title: "Sök efter uppdateringar automatiskt", detail: "En gång om dagen.") {
+                    InkToggle(label: "Sök efter uppdateringar automatiskt", isOn: $updates.automatic)
+                        .disabled(!Updates.isAvailable || !AppMover.isInApplications)
+                }
+                CardDivider()
+                ModelsFootprintRow()
+            }
+            .card()
+            .transition(.opacity.combined(with: .move(edge: .top)))
+        }
+    }
+
+    /// What both dictation and meetings hear with.
+    private var microphoneRow: some View {
+        CardRow(title: "Mikrofon", detail: !dictation.micGranted ? "Mindtalk behöver få använda mikrofonen."
+                : meeting.isBusy ? String(localized: "\(mics.selectionName) · går att byta när mötet är klart") : mics.selectionName) {
+            if dictation.micGranted {
+                Button("Ändra") { showMicPicker = true }.buttonStyle(.soft)
+                    .disabled(meeting.isBusy || dictation.phase == .recording || dictation.phase == .transcribing)
+            }
+            else { Button("Tillåt") { dictation.requestMicrophone() }.buttonStyle(.ink) }
+        }
+    }
+
+    private var loginRow: some View {
+        CardRow(title: "Starta vid inloggning",
+                detail: loginError ?? (loginStatus == .requiresApproval ? String(localized: "Godkänn Mindtalk under Allmänt → Inloggningsobjekt och tillägg i Systeminställningar.") : nil)) {
+            HStack(spacing: 10) {
+                if loginStatus == .requiresApproval {
+                    Button("Öppna") { SMAppService.openSystemSettingsLoginItems() }.buttonStyle(.soft)
+                }
+                InkToggle(label: "Starta vid inloggning", isOn: Binding(
+                    get: { loginStatus == .enabled || loginStatus == .requiresApproval },
+                    set: { on in
+                        do {
+                            if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+                            loginError = nil
+                        } catch {
+                            NSLog("Mindtalk: launch at login: \(error.localizedDescription)")
+                            // Said in the row: usually that Mindtalk isn't in Applications.
+                            loginError = AppMover.isInApplications
+                                ? String(localized: "Det gick inte just nu: \(error.localizedDescription)")
+                                : String(localized: "Mindtalk behöver ligga i Program för att starta vid inloggning.")
+                        }
+                        loginStatus = SMAppService.mainApp.status
+                    }))
+            }
+        }
+    }
+
+    private var updatesDetail: String {
+        #if DEBUG
+        return String(localized: "Avstängt i utvecklingsbygget.")
+        #else
+        if !AppMover.isInApplications { return String(localized: "Mindtalk behöver ligga i Program för att uppdateras.") }
+        return updates.automatic ? String(localized: "Mindtalk söker själv en gång om dagen.")
+                                 : String(localized: "Mindtalk söker bara när du trycker på Sök nu.")
+        #endif
+    }
+
+    /// The app's language; "Starta om" once another one is chosen.
+    private var languageRow: some View {
+        CardRow(title: "Appens språk",
+                detail: appLanguage.resolved == AppLanguage.running ? nil
+                    : meeting.isBusy ? "Mindtalk behöver startas om för att byta språk. Det går när mötet är klart."
+                    : importer.busy ? "Mindtalk behöver startas om för att byta språk. Det går när inspelningen är nedskriven."
+                    : dictation.phase != .idle ? "Mindtalk behöver startas om för att byta språk. Det går när dikteringen är klar."
+                    : "Mindtalk behöver startas om för att byta språk.") {
+            HStack(spacing: 10) {
+                if appLanguage.resolved != AppLanguage.running {
+                    Button("Starta om") { AppDelegate.relaunch(showing: .settings) }
+                        .buttonStyle(.ink)
+                        .fixedSize()
+                        .disabled(dictation.phase != .idle || meeting.isBusy || importer.busy)
+                }
+                MenuPicker(options: AppLanguage.allCases.map { ($0, $0.title) }, selection: $appLanguage)
+                    .onChange(of: appLanguage) { _, new in AppLanguage.chosen = new }
+            }
+        }
+    }
+
+    // MARK: Språk — what both dictation and meetings hear in
+
+    @ViewBuilder private var languageSection: some View {
+        SpeechLanguagesCard(dictation: dictation)
+        Text("Språket du pratar, när du dikterar och i möten. Byt snabbt i menyraden, eller med ⌘1 och ⌘2 när menyn är öppen.")
+            .font(.system(size: 12))
+            .foregroundStyle(DS.Colors.muted)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 4)
+    }
+
+    // MARK: Diktering
+    //
+    // The key is on the Diktering page's card, and ⌃⌥V under its list.
+
+    @ViewBuilder private var dictationSection: some View {
+        VStack(spacing: 0) {
+            CardRow(title: "Hur du dikterar", detail: dictation.mode.explanation(key: dictation.hotkey.inlineName)) {
+                MenuPicker(options: DictationMode.allCases.map { ($0, $0.title) },
+                           selection: Binding(get: { dictation.mode }, set: { dictation.setMode($0) }))
+            }
+            CardDivider()
+            CardRow(title: "Musik medan du dikterar", detail: prefs.mediaMode.explanation) {
+                MenuPicker(options: MediaMode.allCases.map { ($0, $0.title) }, selection: $prefs.mediaMode)
+            }
+        }
+        .card()
+        TextCleanupCard(prefs: prefs)
+    }
+
+    // MARK: Möten
+
+    @ViewBuilder private var meetingsSection: some View {
+        // Meetings can't be recorded without it: first, until it's here.
+        if voices.state != .ready { VoiceModelSettingsCard() }
+        SummaryWritersCard()
+        SummaryLanguageCard()
+        VoiceMemoryCard(memory: .shared)
+        MeetingStorageCard()
+        CardRow(title: "Genväg", detail: pickingMeetingKey
+                ? String(localized: "Tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
+                : meetingShortcut == nil
+                    ? String(localized: "Av. Inne i Mindtalk fungerar ⇧⌘R.")
+                    : meetingShortcut?.warning ?? String(localized: "Startar och avslutar ett möte i alla appar. Inne i Mindtalk fungerar även ⇧⌘R.")) {
+            MeetingShortcutField(chord: $meetingShortcut, picking: $pickingMeetingKey, taken: [thoughtShortcut?.chord])
+                .disabled(!dictation.accessibilityGranted)
+        }
+        .card()
     }
 }
 
@@ -1279,74 +1230,6 @@ private struct RecentRow: View {
     }
 }
 
-// MARK: - Språk
-
-/// One language: use it, or download it. Size, Finder and removal are under Modeller.
-private struct LanguageRow: View {
-    let model: SpeechModel
-    @ObservedObject var dictation: Dictation
-    @ObservedObject private var meeting = MeetingSession.shared
-
-    private var active: Bool { dictation.engine == model }
-
-    var body: some View {
-        HStack(spacing: 16) {
-            ModelBadge(model: model, size: 13)
-                .foregroundStyle(active ? DS.Colors.accent : .secondary)
-                .frame(width: 38, height: 38)
-                .background(Circle().fill(active ? DS.Colors.accent.opacity(0.12) : DS.Colors.chip))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(model.title).font(.system(size: 14, weight: .semibold))
-                Text(detail).font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                if dictation.downloadErrors[model] == nil {
-                    Text(String(localized: "\(model.modelName) av \(model.credit)"))
-                        .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
-                }
-            }
-            Spacer(minLength: 12)
-            control
-        }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 16)
-    }
-
-    private var detail: String {
-        if let why = dictation.downloadErrors[model] { return why }
-        // Mid-meeting the model in use stays: said where the choice is.
-        if meeting.isBusy, !active, dictation.installed.contains(model) { return model.pitch + " " + String(localized: "Går att byta när mötet är klart.") }
-        return model.pitch
-    }
-
-    @ViewBuilder private var control: some View {
-        if let p = dictation.downloads[model] {
-            HStack(spacing: 10) {
-                ProgressView(value: p).frame(width: 90).tint(DS.Colors.accent)
-                Text(p, format: .percent.precision(.fractionLength(0)))
-                    .font(.system(size: 12))
-                    .monospacedDigit()
-                    .foregroundStyle(DS.Colors.muted)
-                Button("Avbryt") { dictation.cancelDownload(model) }.buttonStyle(.soft)
-            }
-        } else if !dictation.installed.contains(model) {
-            Button(LocalizedStringKey(dictation.downloadErrors[model] == nil ? "Ladda ned" : "Försök igen")) {
-                dictation.downloadModel(model)
-            }
-            .buttonStyle(.ink)
-        } else if active {
-            HStack(spacing: 8) {
-                if dictation.model == .loading { ProgressView().controlSize(.small) }
-                Label("Används", systemImage: "checkmark.circle.fill")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(DS.Colors.accent)
-            }
-        } else {
-            Button("Använd") { dictation.setEngine(model) }.buttonStyle(.soft)
-                .disabled(meeting.isBusy)
-        }
-    }
-}
-
 // MARK: - Text
 
 /// What happens to the text between the model and your cursor.
@@ -1364,10 +1247,6 @@ private struct TextCleanupCard: View {
                 InkToggle(label: "Röstkommandon", isOn: $prefs.voiceCommands)
             }
             CardDivider()
-            CardRow(title: "Lämna texten i urklipp", detail: "Texten skrivs in som vanligt och ligger sedan kvar i urklipp. Aldrig lösenord.") {
-                InkToggle(label: "Lämna texten i urklipp", isOn: $prefs.keepInClipboard)
-            }
-            CardDivider()
             CardRow(title: "Putsa med AI", detail: polishDetail) {
                 if status == .notEnabled {
                     Button("Slå på") {
@@ -1379,6 +1258,10 @@ private struct TextCleanupCard: View {
                         .disabled(status != .available)
                         .opacity(status == .available ? 1 : 0.4)
                 }
+            }
+            CardDivider()
+            CardRow(title: "Lämna texten i urklipp", detail: "Texten skrivs in som vanligt och ligger sedan kvar i urklipp. Aldrig lösenord.") {
+                InkToggle(label: "Lämna texten i urklipp", isOn: $prefs.keepInClipboard)
             }
         }
         .card()
@@ -1431,35 +1314,6 @@ struct LicensesSheet: View {
         }
         .frame(width: 680, height: 560)
         .background(DS.Colors.paper)
-    }
-}
-
-/// Om Mindtalk: the version and who makes it, the introduction again, and the
-/// credits — the models and code Mindtalk is built on — in a window of their own.
-private struct AboutCard: View {
-    @State private var showsCredits = false
-
-    private var version: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-    }
-
-    var body: some View {
-        CardRow(title: "Mindtalk \(version)", detail: "© 2026 Mindact Solutions AB") {
-            HStack(spacing: 10) {
-                Button("Visa introduktionen") { AppDelegate.showIntroduction() }
-                    .buttonStyle(.soft)
-                Button("Tack till och licenser…") { showsCredits = true }
-                    .buttonStyle(.soft)
-            }
-            .fixedSize()
-        }
-        .card()
-        .sheet(isPresented: $showsCredits) { CreditsSheet(close: { showsCredits = false }) }
-        #if DEBUG
-        .task {   // screenshots
-            if CommandLine.arguments.contains("--show-licenses") { try? await Task.sleep(for: .seconds(1.5)); showsCredits = true }
-        }
-        #endif
     }
 }
 

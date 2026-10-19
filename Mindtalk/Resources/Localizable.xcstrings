@@ -670,6 +670,7 @@
       }
     },
     "%@ skriver mer träffsäkert och laddas ned under Modeller.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3410,6 +3411,7 @@
       }
     },
     "Apple Intelligence.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3443,6 +3445,7 @@
       }
     },
     "Apple Intelligence: ": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3592,6 +3595,7 @@
       }
     },
     "Av. Du kan fortfarande säga en tanke på sidan Tankar.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4064,6 +4068,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Avslutas strax, ångra"
+          }
+        }
+      }
+    },
+    "Avstängt i utvecklingsbygget.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turned off in the development build."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avstängt i utvecklingsbygget."
           }
         }
       }
@@ -5127,6 +5147,7 @@
       }
     },
     "Den här Macen kan inte köra Apple Intelligence. Ladda ned Gemma 4 under Inställningar → Modeller. Texten finns under fliken Text.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5138,6 +5159,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Den här Macen kan inte köra Apple Intelligence. Ladda ned Gemma 4 under Inställningar → Modeller. Texten finns under fliken Text."
+          }
+        }
+      }
+    },
+    "Den här Macen kan inte köra Apple Intelligence. Ladda ned Gemma 4 under Inställningar → Möten. Texten finns under fliken Text.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac can't run Apple Intelligence. Download Gemma 4 under Settings → Meetings. The text is under the Text tab."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den här Macen kan inte köra Apple Intelligence. Ladda ned Gemma 4 under Inställningar → Möten. Texten finns under fliken Text."
           }
         }
       }
@@ -5273,7 +5310,24 @@
         }
       }
     },
+    "Den som används kan inte tas bort. Byt språk först.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The one in use can't be removed. Switch language first."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den som används kan inte tas bort. Byt språk först."
+          }
+        }
+      }
+    },
     "Den som används kan inte tas bort. Byt språk under Inspelning först.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5306,6 +5360,7 @@
       }
     },
     "Den större %@ (%@) passar också din Mac och är ännu bättre. Frigör %@ till, så föreslås den här i stället.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7169,6 +7224,23 @@
         }
       }
     },
+    "En gång om dagen.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once a day."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En gång om dagen."
+          }
+        }
+      }
+    },
     "En gång räcker. Samma tillåtelse gäller diktering, tankar och möten.": {
       "extractionState": "stale",
       "localizations": {
@@ -7872,6 +7944,7 @@
       }
     },
     "Fler val under Modeller.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -8545,7 +8618,24 @@
         }
       }
     },
+    "Från NVIDIA": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From NVIDIA"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Från NVIDIA"
+          }
+        }
+      }
+    },
     "Från NVIDIA · ": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9817,6 +9907,7 @@
       }
     },
     "Hantera i Modeller →": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10616,6 +10707,7 @@
       }
     },
     "Håll in en eller flera tangenter som ⌥ och ⌘ och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10665,6 +10757,7 @@
       }
     },
     "Håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10844,6 +10937,7 @@
       }
     },
     "Håll in och säg det du kommer på, så hamnar det i Tankar. Tryck snabbt, så lyssnar Mindtalk tills du trycker igen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11039,6 +11133,22 @@
         }
       }
     },
+    "Håller isär vem som pratar i ett möte. Möten kan inte spelas in utan den.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tells apart who is speaking in a meeting. Meetings can't be recorded without it."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håller isär vem som pratar i ett möte. Möten kan inte spelas in utan den."
+          }
+        }
+      }
+    },
     "Håller isär vem som pratar i möten. Av NVIDIA, Core ML av FluidInference. OpenMDW 1.1.": {
       "extractionState": "manual",
       "localizations": {
@@ -11057,6 +11167,7 @@
       }
     },
     "Håller isär vem som pratar och känner igen röster till nästa gång.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11237,6 +11348,7 @@
       }
     },
     "Hör orden i din ordlista · %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11253,6 +11365,7 @@
       }
     },
     "Hör orden i din ordlista, så att de stavas rätt redan när du pratar · %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11773,6 +11886,7 @@
       }
     },
     "Inbyggd": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -14469,6 +14583,7 @@
       }
     },
     "Känner igen röster mellan möten · följer med appen": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -14748,6 +14863,7 @@
       }
     },
     "Ladda ned %@ först, under Inställningar → Modeller.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -14764,12 +14880,11 @@
       }
     },
     "Ladda ned %@ först, under Inställningar → Språk.": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Download %@ first, under Settings → Languages."
+            "value": "Download %@ first, under Settings → Language."
           }
         },
         "sv": {
@@ -14813,6 +14928,7 @@
       }
     },
     "Ladda ned Nemotron 3 först, under Inställningar → Modeller.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -14828,7 +14944,24 @@
         }
       }
     },
+    "Ladda ned Nemotron 3 först, under Inställningar → Möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download Nemotron 3 first, under Settings → Meetings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda ned Nemotron 3 först, under Inställningar → Möten."
+          }
+        }
+      }
+    },
     "Ladda ned allt · %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -14926,6 +15059,7 @@
       }
     },
     "Ladda ned talmodellen och Nemotron 3 först, under Inställningar → Modeller.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -14937,6 +15071,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ladda ned talmodellen och Nemotron 3 först, under Inställningar → Modeller."
+          }
+        }
+      }
+    },
+    "Ladda ned talmodellen under Inställningar → Språk och Nemotron 3 under Inställningar → Möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download the speech model under Settings → Language and Nemotron 3 under Settings → Meetings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda ned talmodellen under Inställningar → Språk och Nemotron 3 under Inställningar → Möten."
           }
         }
       }
@@ -15252,6 +15402,7 @@
       }
     },
     "Laddas ned en gång och körs på din Mac. Du har %@ ledigt.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -16155,6 +16306,7 @@
       }
     },
     "Lyssnaren (Parakeet CTC)": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -16166,6 +16318,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lyssnaren (Parakeet CTC)"
+          }
+        }
+      }
+    },
+    "Lyssnaren (Parakeet CTC), %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The listener (Parakeet CTC), %@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssnaren (Parakeet CTC), %@."
           }
         }
       }
@@ -17825,6 +17993,38 @@
         }
       }
     },
+    "Mer om %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More about %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mer om %@"
+          }
+        }
+      }
+    },
+    "Mer om lyssnaren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More about the listener"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mer om lyssnaren"
+          }
+        }
+      }
+    },
     "Mer träffsäkra sammanfattningar": {
       "localizations": {
         "en": {
@@ -17890,6 +18090,7 @@
       }
     },
     "Mikrofon och språk": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -18899,6 +19100,40 @@
         }
       }
     },
+    "Mindtalk söker bara när du trycker på Sök nu.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk only checks when you click Check Now."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk söker bara när du trycker på Sök nu."
+          }
+        }
+      }
+    },
+    "Mindtalk söker själv en gång om dagen.": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk checks on its own once a day."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk söker själv en gång om dagen."
+          }
+        }
+      }
+    },
     "Minimera": {
       "extractionState": "stale",
       "localizations": {
@@ -19062,6 +19297,7 @@
       }
     },
     "Modeller": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -19073,6 +19309,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Modeller"
+          }
+        }
+      }
+    },
+    "Modellerna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The models"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modellerna"
           }
         }
       }
@@ -19093,7 +19345,24 @@
         }
       }
     },
+    "Modellerna tar %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The models take up %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modellerna tar %@"
+          }
+        }
+      }
+    },
     "Modellerna tar %@ på den här Macen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -19260,6 +19529,7 @@
       }
     },
     "Möten kan inte spelas in förrän den laddats ned igen.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -22217,6 +22487,7 @@
       }
     },
     "Röster i möten": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -23347,6 +23618,7 @@
       }
     },
     "Skriver ned det du säger när du dikterar, i möten och för tankar.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -23429,6 +23701,7 @@
       }
     },
     "Skriver sammanfattningen av ett möte och svarar på dina frågor. Välj vilken som skriver.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -23593,6 +23866,22 @@
         }
       }
     },
+    "Skrivs av %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Written by %@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skrivs av %@."
+          }
+        }
+      }
+    },
     "Skrivs av Apple Intelligence.": {
       "localizations": {
         "en": {
@@ -23621,6 +23910,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skrivs av Apple Intelligence. %@ från Google hittar fler beslut och uppgifter (%@)."
+          }
+        }
+      }
+    },
+    "Skrivs på din Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Written on your Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skrivs på din Mac."
           }
         }
       }
@@ -25987,6 +26292,23 @@
         }
       }
     },
+    "Sök efter uppdateringar automatiskt": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check for updates automatically"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sök efter uppdateringar automatiskt"
+          }
+        }
+      }
+    },
     "Sök efter uppdateringar…": {
       "extractionState": "stale",
       "localizations": {
@@ -26784,6 +27106,7 @@
       }
     },
     "Tal": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -27362,6 +27685,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Talmodellen är inte redo. Öppnar Mindtalk."
+          }
+        }
+      }
+    },
+    "Talmodellerna och de andra modellerna Mindtalk har laddat ned.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The speech models and the other models Mindtalk has downloaded."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellerna och de andra modellerna Mindtalk har laddat ned."
           }
         }
       }
@@ -30630,6 +30969,7 @@
       }
     },
     "Välj vilken modell som skriver sammanfattningarna i Inställningar → Modeller.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -30641,6 +30981,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Välj vilken modell som skriver sammanfattningarna i Inställningar → Modeller."
+          }
+        }
+      }
+    },
+    "Välj vilken modell som skriver sammanfattningarna i Inställningar → Möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose which model writes the summaries in Settings → Meetings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj vilken modell som skriver sammanfattningarna i Inställningar → Möten."
           }
         }
       }

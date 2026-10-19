@@ -324,7 +324,7 @@ final class MeetingImport: ObservableObject {
         }
         let language = job.language
         guard language.isInstalled, VoiceModels.isInstalled else {
-            update(id) { $0.stage = .failed; $0.error = String(localized: "Ladda ned talmodellen och Nemotron 3 först, under Inställningar → Modeller.") }
+            update(id) { $0.stage = .failed; $0.error = String(localized: "Ladda ned talmodellen under Inställningar → Språk och Nemotron 3 under Inställningar → Möten.") }
             return
         }
         Self.log.info("import: \(job.video ? "video" : "audio", privacy: .public), \(job.url.pathExtension, privacy: .public), \(language.rawValue, privacy: .public)")

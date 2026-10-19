@@ -906,6 +906,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                         (URL(string: "mindtalk://settings/claude")!, .mcpSettings),
                         (URL(string: "mindtalk://meeting/not-an-id")!, nil),
                         (URL(string: "mindtalk://settings/other")!, nil),
+                        (URL(string: "mindtalk://settings/meetings")!, .settings(.meetings)),
+                        (URL(string: "mindtalk://settings/language")!, .settings(.language)),
                         (URL(string: "https://example.com/meeting/\(id.uuidString)")!, nil),
                     ]
                     for (url, expected) in checks where MindtalkLink.parse(url) != expected {
@@ -957,12 +959,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
-        // `Mindtalk --render-models out.png [--dark]`: Settings → Modeller, as on this Mac.
+        // `Mindtalk --render-models out.png [--dark]`: every model row, as on this Mac (Språk's
+        // languages, Nemotron 3 and Möten's summary writers).
         if let i = args.firstIndex(of: "--render-models"), i + 1 < args.count {
             Task { @MainActor in
                 let dark = args.contains("--dark")
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-                let view = ModelsCard(dictation: .shared)
+                let view = VStack(spacing: 14) {
+                    SpeechLanguagesCard(dictation: .shared)
+                    VoiceModelSettingsCard()
+                    SummaryWritersCard()
+                }
                     .padding(28).frame(width: 760).background(DS.Colors.paper)
                     .environment(\.colorScheme, dark ? .dark : .light)
                 let renderer = ImageRenderer(content: view)
@@ -978,10 +985,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
-        // `Mindtalk --render-settings out.png [--dark] [--section general|microphone|dictation|
-        // thoughts|meetings|models|integrations|about] [--narrow]`: Inställningar, as on this
-        // Mac — the section given (Allmänt if none), beside the list; `--narrow` as in the
-        // smallest window, with the sections as chips above.
+        // `Mindtalk --render-settings out.png [--dark] [--section general|language|dictation|
+        // meetings|integrations] [--narrow]`: a section of Inställningar, as on this Mac (Allmänt
+        // if none), without the tab bar; --render-window draws it in the window.
         // `Mindtalk --render-about out.png [--dark]`: the credits ("Tack till").
         for flag in ["--render-settings", "--render-about"] {
             guard let i = args.firstIndex(of: flag), i + 1 < args.count else { continue }
@@ -1995,6 +2001,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             NotificationCenter.default.post(name: .showThought, object: id)
         case .mcpSettings:
             SettingsPage.openMCP()
+        case .settings(let section):
+            SettingsPage.open(section)
         }
     }
     @objc func menuSettings() { Self.showWindow(page: .settings) }

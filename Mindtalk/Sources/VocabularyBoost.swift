@@ -64,7 +64,7 @@ actor VocabularyBoost {
         }
     }
 
-    /// Lets go of the listener and deletes its folder ("Ta bort" under Modeller, or
+    /// Lets go of the listener and deletes its folder ("Ta bort" on Ordlista, or
     /// before fetching it afresh).
     func remove() async {
         models = nil

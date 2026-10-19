@@ -209,7 +209,7 @@ struct OnboardingView: View {
             let extra = Self.extras(listener: listener, voices: voices, gemma: gemma ? gemmaPick : nil)
             if missing.isEmpty, extra == 0 { return String(localized: "Fortsätt") }
             let bytes = missing.reduce(Int64(0)) { $0 + $1.downloadBytes } + extra
-            return String(localized: "Ladda ned \(RecommendedDownloads.size(bytes)) och fortsätt")
+            return String(localized: "Ladda ned \(DiskSize.text(bytes)) och fortsätt")
         case .ready: return String(localized: "Sätt igång")
         default: return String(localized: "Fortsätt")
         }

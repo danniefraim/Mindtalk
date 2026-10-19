@@ -9,6 +9,7 @@ import Foundation
 //   mindtalk://thought/<uuid>                 Tankar, scrolled to the thought
 //   mindtalk://settings/mcp                   Inställningar, on Integrationer (MCP)
 //                                             (mindtalk://settings/claude still works, the old name)
+//   mindtalk://settings/<section>             Inställningar on general, language, dictation or meetings
 //
 // The scheme is registered in Info.plist (CFBundleURLTypes); AppDelegate hands the
 // URLs here. Anything else is ignored, with a line in the log.
@@ -18,6 +19,8 @@ enum MindtalkLink: Equatable {
     case thought(UUID)
     /// Inställningar → Integrationer → MCP.
     case mcpSettings
+    /// Another section of Inställningar.
+    case settings(SettingsSection)
 
     static let scheme = "mindtalk"
 
@@ -39,7 +42,8 @@ enum MindtalkLink: Equatable {
             return .thought(id)
         case "settings":
             switch rest.first?.lowercased() {
-            case "mcp", "claude": return .mcpSettings
+            case "mcp", "claude", "integrations": return .mcpSettings
+            case let name?: return SettingsSection(rawValue: name).map { .settings($0) }
             default: return nil
             }
         default:

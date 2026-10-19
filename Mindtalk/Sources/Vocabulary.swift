@@ -419,7 +419,7 @@ final class Vocabulary: ObservableObject {
         }
     }
 
-    /// "Ta bort" under Modeller: the folder goes, and it isn't fetched again until you say so.
+    /// "Ta bort" on Ordlista: the folder goes, and it isn't fetched again until you say so.
     func removeListener() {
         Settings.listenerAllowed = false
         Task { await VocabularyBoost.shared.remove() }
@@ -430,7 +430,7 @@ final class Vocabulary: ObservableObject {
         if !VocabularyBoost.isInstalled {
             let bytes = VocabularyBoost.bytes
             guard BetterNotes.freeBytes > bytes * 2 + 500_000_000 else {
-                VocabularyBoostStatus.shared.set(.failed(String(localized: "Det behövs drygt \(RecommendedDownloads.size(bytes * 2)) ledigt på disken.")))
+                VocabularyBoostStatus.shared.set(.failed(String(localized: "Det behövs drygt \(DiskSize.text(bytes * 2)) ledigt på disken.")))
                 return
             }
         }

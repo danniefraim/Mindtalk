@@ -144,7 +144,7 @@ struct FloatingTabBar: View {
 
     /// The speech model isn't there, or wouldn't start: put right under Språk.
     private func needsAttention(_ s: SettingsSection) -> Bool {
-        guard s == .microphone else { return false }
+        guard s == .language else { return false }
         switch dictation.model {
         case .missing, .failed: return true
         default: return false

@@ -86,7 +86,7 @@ struct DropSign: View {
     }
 
     private var subtitle: String {
-        if missing { return String(localized: "Ladda ned talmodellen och Nemotron 3 först, under Inställningar → Modeller.") }
+        if missing { return String(localized: "Ladda ned talmodellen under Inställningar → Språk och Nemotron 3 under Inställningar → Möten.") }
         if later { return String(localized: "Ljud eller video. Filen skrivs ned när mötet är slut.") }
         if let folder { return String(localized: "Ljud eller video. Mötet hamnar i \(folder).") }
         return String(localized: "Ljud eller video. Du ser vem som sa vad, får en sammanfattning och kan ställa frågor om innehållet.")
