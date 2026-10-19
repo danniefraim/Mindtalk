@@ -1983,7 +1983,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             ThoughtsPage.pendingShow = id
             NotificationCenter.default.post(name: .showThought, object: id)
         case .mcpSettings:
-            showWindow(page: .settings)
             SettingsPage.openMCP()
         }
     }
@@ -2141,7 +2140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         statusPanel.toggle(from: sender)
     }
 
-    /// Settings, scrolled to "Om Mindtalk" (credits and licences).
+    /// Settings on "Om Mindtalk" (credits and licences).
     static func showAbout() {
         SettingsPage.open(.about)
     }

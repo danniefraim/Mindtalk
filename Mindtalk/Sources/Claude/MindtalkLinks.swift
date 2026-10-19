@@ -7,7 +7,7 @@ import Foundation
 //
 //   mindtalk://meeting/<uuid>?t=<seconds>     Möten, the meeting, its text at t (and played from there)
 //   mindtalk://thought/<uuid>                 Tankar, scrolled to the thought
-//   mindtalk://settings/mcp                   Inställningar, scrolled to Integrationer → MCP
+//   mindtalk://settings/mcp                   Inställningar, on Integrationer (MCP)
 //                                             (mindtalk://settings/claude still works, the old name)
 //
 // The scheme is registered in Info.plist (CFBundleURLTypes); AppDelegate hands the
@@ -70,6 +70,4 @@ extension Notification.Name {
     static let openMeeting = Notification.Name("MindtalkOpenMeeting")
     /// Show a thought on the Tankar page (object: UUID).
     static let showThought = Notification.Name("MindtalkShowThought")
-    /// Scroll Settings to Integrationer → MCP.
-    static let showMCP = Notification.Name("MindtalkShowMCP")
 }

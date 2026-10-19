@@ -236,7 +236,7 @@ final class Dictation: ObservableObject {
         case .microphone: requestMicrophone()
         case .modelMissing: downloadModel()
         case .modelFailed: retryModel()
-        case .modelDownloading: AppDelegate.showWindow(page: .settings)
+        case .modelDownloading: SettingsPage.open(.microphone)     // the download's progress, in its language row
         }
     }
 

@@ -815,7 +815,7 @@ struct StartCard: View {
                 }
             } else {
                 Button("Ladda ned \(dictation.engine.title)") {
-                    NotificationCenter.default.post(name: .showPage, object: Page.settings)
+                    SettingsPage.open(.microphone)     // the language rows, each with its Ladda ned
                 }
                 .buttonStyle(.soft)
             }
