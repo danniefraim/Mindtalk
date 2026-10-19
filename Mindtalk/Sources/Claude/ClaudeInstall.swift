@@ -322,9 +322,11 @@ enum ClaudeInstall {
         "{\"command\":\(jsonPath(helperPath)),\"args\":[\"mcp\"]}"
     }
 
-    /// Cursor: name and the server as base64 (cursor.com/docs/context/mcp, "Install link").
+    /// Cursor: name and the server as base64 (cursor.com/docs/context/mcp, "Install link"),
+    /// percent-encoded: a `+` or `/` in the base64 would otherwise change on the way.
     static func cursorURL(helperPath: String = helperLinkURL.path) -> URL {
-        let config = Data(serverJSON(helperPath: helperPath).utf8).base64EncodedString()
+        let base64 = Data(serverJSON(helperPath: helperPath).utf8).base64EncodedString()
+        let config = base64.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? base64
         return URL(string: "cursor://anysphere.cursor-deeplink/mcp/install?name=mindtalk&config=\(config)")!
     }
 
