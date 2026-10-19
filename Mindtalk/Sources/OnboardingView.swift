@@ -253,7 +253,7 @@ struct OnboardingView: View {
     }
 
     private func done() {
-        dictation.stopPickingKey()
+        dictation.stopPickingKey(reason: "introduction done")
         finish()
     }
 
@@ -794,7 +794,7 @@ private struct TryStep: View {
                 withAnimation(.easeOut(duration: 0.3)) { justReady = false }
             }
         }
-        .onDisappear { dictation.stopPickingKey() }
+        .onDisappear { dictation.stopPickingKey(reason: "introduction step left") }
     }
 
     /// Words in the box, and they were dictated: the first text, celebrated once.

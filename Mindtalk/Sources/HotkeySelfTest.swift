@@ -689,3 +689,170 @@ enum HotkeySelfTest {
     }
 }
 #endif
+
+#if DEBUG
+import SwiftUI
+
+/// `--shortcut-field-test`: the thought and meeting fields in a real (borderless,
+/// off-screen) window, clicked and keyed with events posted to Mindtalk's own queue —
+/// as they're used in Inställningar and on Tankar. Nothing is saved.
+@MainActor
+enum ShortcutFieldSelfTest {
+    final class Model: ObservableObject {
+        @Published var shortcut: ThoughtShortcut?
+        @Published var picking = false
+        @Published var refusal: String?
+        @Published var meeting: KeyChord? = .meetingDefault
+        @Published var pickingMeeting = false
+        @Published var control = 0
+        var applied: [ThoughtShortcut?] = []
+        var appliedMeeting: [KeyChord?] = []
+    }
+
+    /// The thought field on top, the meeting field under it, a plain button at the bottom.
+    private struct Harness: View {
+        @ObservedObject var model: Model
+        var body: some View {
+            VStack(alignment: .leading, spacing: 0) {
+                ThoughtShortcutField(shortcut: $model.shortcut, picking: $model.picking, refusal: $model.refusal,
+                                     meeting: model.meeting, apply: { model.applied.append($0) })
+                    .frame(height: 38)
+                MeetingShortcutField(chord: $model.meeting, picking: $model.pickingMeeting, taken: [model.shortcut?.chord],
+                                     apply: { model.appliedMeeting.append($0) })
+                    .frame(height: 38)
+                Button { model.control += 1 } label: { Color.gray.frame(width: 400, height: 24).contentShape(Rectangle()) }
+                    .buttonStyle(.plain)
+            }
+            .frame(width: 400, height: 100, alignment: .topLeading)
+        }
+    }
+
+    private final class KeyWindow: NSWindow {
+        override var canBecomeKey: Bool { true }
+    }
+
+    private static var window: NSWindow!
+    private static let thoughtField = NSPoint(x: 120, y: 100 - 19)
+    private static let meetingField = NSPoint(x: 120, y: 100 - 57)
+
+    static func run() async -> Int32 {
+        let model = Model()
+        let window = KeyWindow(contentRect: NSRect(x: -6000, y: -6000, width: 400, height: 100),
+                               styleMask: .borderless, backing: .buffered, defer: false)
+        window.contentView = NSHostingView(rootView: Harness(model: model))
+        window.makeKeyAndOrderFront(nil)
+        Self.window = window
+        KeyListener.shared.modifiersHeldNow = { 0 }
+        do {
+            try await settle()
+            // The clicks themselves reach SwiftUI buttons.
+            try await click(NSPoint(x: 200, y: 12))
+            try require(model.control == 1, "Posted clicks don't reach the window")
+            // Off (✕ pressed): "Ingen genväg". Click, hold left ⌥ alone, let go.
+            try await click(thoughtField)
+            try require(model.picking && KeyListener.shared.pickingChord,
+                        "Clicking the empty thought field did not start picking (it stopped itself)")
+            try await flags(UInt16(kVK_Option), 0x80120)
+            try await flags(UInt16(kVK_Option), 0x100)
+            try require(model.applied.last == .key(Hotkey(keyCode: UInt16(kVK_Option), modifierMask: 0x20)),
+                        "Left ⌥ held alone was not picked (applied \(model.applied), picking \(model.picking))")
+            try require(!model.picking && model.shortcut == model.applied.last! && !KeyListener.shared.pickingChord,
+                        "Picking did not end with the key shown")
+            // Left ⌥ with 2 (@) is a chord, not the key held alone: refused as a chord
+            // (⌥ and a digit is fine), never taken as left ⌥.
+            try await click(thoughtField)
+            try await flags(UInt16(kVK_Option), 0x80120)
+            try await key(UInt16(kVK_ANSI_2), 0x80120)
+            try require(model.applied.last == .chord(KeyChord(keyCode: UInt16(kVK_ANSI_2), modifiers: CGEventFlags.maskAlternate.rawValue)),
+                        "⌥2 was not taken as a chord")
+            try await flags(UInt16(kVK_Option), 0x100)
+            try require(model.applied.count == 2, "Letting go of ⌥ after ⌥2 picked again")
+            // With a key: click, then ⌃⌥T.
+            try await click(thoughtField)
+            try require(model.picking, "Clicking the thought field with a key did not start picking")
+            try await flags(UInt16(kVK_Control), 0x40101)
+            try await flags(UInt16(kVK_Option), 0xC0121)
+            try await key(UInt16(kVK_ANSI_T), 0xC0121)
+            try require(model.shortcut == .chord(.thoughtDefault), "⌃⌥T was not picked (\(String(describing: model.shortcut)))")
+            try await flags(UInt16(kVK_Option), 0x40101)
+            try await flags(UInt16(kVK_Control), 0x100)
+            try require(model.shortcut == .chord(.thoughtDefault), "Letting go of ⌃⌥ changed the chord")
+            // The dictation key is refused, said why, and nothing is saved.
+            let count = model.applied.count
+            let dictation = Settings.hotkey
+            if dictation.isModifier, dictation.modifierKeys.count == 1 {
+                try await click(thoughtField)
+                try await flags(dictation.keyCode, 0x80100 | dictation.modifierMask)
+                try await flags(dictation.keyCode, 0x100)
+                try require(model.applied.count == count && model.refusal != nil && !model.picking,
+                            "The dictation key was not refused")
+            }
+            // Esc ends picking and keeps what was there.
+            try await click(thoughtField)
+            try await key(UInt16(kVK_Escape), 0x100)
+            try require(!model.picking && model.shortcut == .chord(.thoughtDefault) && !KeyListener.shared.pickingChord,
+                        "Esc did not end picking")
+            // The meeting field: click, ⌃⌥⌘K.
+            try await click(meetingField)
+            try require(model.pickingMeeting && KeyListener.shared.pickingChord, "Clicking the meeting field did not start picking")
+            try await key(UInt16(kVK_ANSI_K), 0x1C0000)
+            let k = KeyChord(keyCode: UInt16(kVK_ANSI_K), modifiers: CGEventFlags([.maskControl, .maskAlternate, .maskCommand]).rawValue)
+            try require(model.meeting == k && model.appliedMeeting == [k] && !model.pickingMeeting, "The meeting chord was not picked")
+            // One at a time: the meeting field starting stops the thought field, and the
+            // listener stays held for the one still waiting.
+            try await click(thoughtField)
+            try await click(meetingField)
+            try require(!model.picking && model.pickingMeeting && KeyListener.shared.pickingChord,
+                        "Starting the meeting field did not hand over from the thought field")
+            // Leaving Mindtalk stops every field.
+            ShortcutPicking.stopAll(reason: "test")
+            try await settle()
+            try require(!model.pickingMeeting && !KeyListener.shared.pickingChord, "stopAll did not end picking")
+            print("Shortcut field self-test passed (empty field, key held alone, ⌥2, chord, refusal, Esc, meeting, one at a time, stop).")
+            return 0
+        } catch {
+            print("Shortcut field self-test failed: \(error.localizedDescription)")
+            return 1
+        }
+    }
+
+    private static func settle() async throws { try await Task.sleep(for: .milliseconds(200)) }
+
+    private static var clicks = 0
+
+    /// A mouse down and up at `at` (window coordinates).
+    private static func click(_ at: NSPoint) async throws {
+        clicks += 1
+        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+            let e = NSEvent.mouseEvent(with: type, location: at, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                       windowNumber: window.windowNumber, context: nil, eventNumber: clicks,
+                                       clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0)!
+            NSApp.postEvent(e, atStart: false)
+            try await Task.sleep(for: .milliseconds(60))
+        }
+        try await settle()
+    }
+
+    private static func flags(_ code: UInt16, _ raw: UInt64) async throws {
+        let e = NSEvent.keyEvent(with: .flagsChanged, location: .zero, modifierFlags: NSEvent.ModifierFlags(rawValue: UInt(raw)),
+                                 timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+                                 characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: code)!
+        NSApp.postEvent(e, atStart: false)
+        try await settle()
+    }
+
+    private static func key(_ code: UInt16, _ raw: UInt64) async throws {
+        for type in [NSEvent.EventType.keyDown, .keyUp] {
+            let e = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: NSEvent.ModifierFlags(rawValue: UInt(raw)),
+                                     timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+                                     characters: "x", charactersIgnoringModifiers: "x", isARepeat: false, keyCode: code)!
+            NSApp.postEvent(e, atStart: false)
+        }
+        try await settle()
+    }
+
+    private static func require(_ ok: Bool, _ message: String) throws {
+        if !ok { throw NSError(domain: "ShortcutFieldSelfTest", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
+    }
+}
+#endif

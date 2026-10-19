@@ -6314,6 +6314,22 @@
         }
       }
     },
+    "Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esc avbryter."
+          }
+        }
+      }
+    },
     "Ett diskret ljud när Mindtalk börjar lyssna och när texten klistras in.": {
       "extractionState": "stale",
       "localizations": {
@@ -17372,6 +17388,7 @@
       }
     },
     "Nästa person, säg hej och vad du heter.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -17454,6 +17471,7 @@
       }
     },
     "Nästa, säg ditt namn": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -21844,6 +21862,7 @@
       }
     },
     "Säg ditt namn, eller skriv det i rutan.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -21860,6 +21879,7 @@
       }
     },
     "Säg ditt namn, så går vi vidare.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -21925,6 +21945,7 @@
       }
     },
     "Säg hej och ditt namn, en i taget.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -25295,6 +25316,7 @@
       }
     },
     "Vem vill börja?": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -26007,6 +26029,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visas när ett möte börjar, tills du trycker ”Jag har berättat”. Det noteras i mötet."
+          }
+        }
+      }
+    },
+    "Välj": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj"
           }
         }
       }

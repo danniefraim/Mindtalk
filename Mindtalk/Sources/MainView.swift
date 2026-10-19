@@ -1,5 +1,6 @@
 import ServiceManagement
 import SwiftUI
+import os
 import Carbon.HIToolbox
 
 // MARK: - Main window
@@ -125,8 +126,6 @@ extension Notification.Name {
     static let showAbout = Notification.Name("MindtalkShowAbout")
     /// Scroll Settings to "Modeller".
     static let showModels = Notification.Name("MindtalkShowModels")
-    /// A shortcut field in Settings stops waiting for keys (another one starts, or you left the app).
-    static let stopChordPicking = Notification.Name("MindtalkStopChordPicking")
 }
 
 /// The introduction over the whole main window, with a way out in the corner.
@@ -157,7 +156,7 @@ private struct IntroductionOverlay: View {
     }
 
     private func done(finished: Bool) {
-        dictation.stopPickingKey()
+        dictation.stopPickingKey(reason: "introduction closed")
         VocabularyStep.commitPending?()     // a word typed but not added
         VocabularyStep.commitPending = nil
         Settings.didOnboard = true
@@ -563,7 +562,7 @@ struct SettingsPage: View {
             loginStatus = SMAppService.mainApp.status
             updates.refresh()
         }
-        .onDisappear { dictation.stopPickingKey() }
+        .onDisappear { dictation.stopPickingKey(reason: "Settings left") }
         .sheet(isPresented: $showMicPicker) {
             MicrophonePicker(mics: mics) { showMicPicker = false }
         }
@@ -576,10 +575,7 @@ private struct ShortcutField: View {
 
     var body: some View {
         Button {
-            if dictation.pickingKey { dictation.stopPickingKey() } else {
-                NotificationCenter.default.post(name: .stopChordPicking, object: nil)
-                dictation.pickKey()
-            }
+            dictation.togglePickingKey()
         } label: {
             HStack(spacing: 10) {
                 if dictation.pickingKey {
@@ -606,9 +602,46 @@ private struct ShortcutField: View {
     }
 }
 
-/// A shortcut heard in every app (the meeting, a thought): click, then press it — a
-/// key with ⌘, ⌃ or ⌥. `taken`: the others, so two never share keys.
-private struct MeetingShortcutField: View {
+/// The white field the meeting and thought shortcuts are shown and picked in.
+private struct PickerFieldLabel<Content: View>: View {
+    let picking: Bool
+    let wide: Bool
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        HStack(spacing: 10) {
+            content
+            Spacer(minLength: 16)
+            Image(systemName: "pencil").foregroundStyle(DS.Colors.muted)
+        }
+        .padding(.leading, 8)
+        .padding(.trailing, 12)
+        .frame(width: wide ? 280 : 244)
+        .frame(minHeight: 38)
+        .background(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous).fill(DS.Colors.field))
+        .overlay(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
+            .strokeBorder(picking ? DS.Colors.ink : DS.Colors.fieldStroke, lineWidth: 1))
+        .contentShape(Rectangle())
+    }
+}
+
+/// ✕ beside a shortcut field: the shortcut off.
+private struct ShortcutOffButton: View {
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark.circle.fill").font(.system(size: 15)).foregroundStyle(DS.Colors.faint)
+                .frame(width: 28, height: 38).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Stäng av genvägen")
+        .accessibilityLabel("Stäng av genvägen")
+    }
+}
+
+/// A shortcut heard in every app (the meeting): click, then press it — a key with
+/// ⌘, ⌃ or ⌥. `taken`: the others, so two never share keys.
+struct MeetingShortcutField: View {
     @Binding var chord: KeyChord?
     @Binding var picking: Bool
     var taken: [KeyChord?] = []
@@ -617,11 +650,13 @@ private struct MeetingShortcutField: View {
         KeyListener.shared.meetingChord = new
     }
     @State private var monitor: Any?
+    /// Who this field is, to the others (and to itself: its own "stop" isn't for it).
+    @State private var token = "meeting " + UUID().uuidString.prefix(8)
 
     var body: some View {
         HStack(spacing: 8) {
-            Button { picking ? stop() : start() } label: {
-                HStack(spacing: 10) {
+            Button { tapped() } label: {
+                PickerFieldLabel(picking: picking, wide: chord == nil || picking) {
                     if picking {
                         Text("Tryck på kombinationen…").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                     } else if let chord {
@@ -629,46 +664,46 @@ private struct MeetingShortcutField: View {
                     } else {
                         Text("Ingen genväg").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                     }
-                    Spacer(minLength: 16)
-                    Image(systemName: "pencil").foregroundStyle(DS.Colors.muted)
                 }
-                .padding(.leading, 8)
-                .padding(.trailing, 12)
-                .frame(width: chord == nil || picking ? 280 : 244)
-                .frame(minHeight: 38)
-                .background(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous).fill(DS.Colors.field))
-                .overlay(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
-                    .strokeBorder(picking ? DS.Colors.ink : DS.Colors.fieldStroke, lineWidth: 1))
-                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Klicka och tryck på en tangent tillsammans med ⌘, ⌃ eller ⌥. Esc avbryter.")
             if chord != nil, !picking {
-                Button { set(nil) } label: {
-                    Image(systemName: "xmark.circle.fill").font(.system(size: 15)).foregroundStyle(DS.Colors.faint)
-                        .frame(width: 28, height: 38).contentShape(Rectangle())
+                ShortcutOffButton {
+                    ShortcutLog.log.notice("meeting shortcut: turned off")
+                    set(nil)
                 }
-                .buttonStyle(.plain)
-                .help("Stäng av genvägen")
-                .accessibilityLabel("Stäng av genvägen")
             }
         }
-        .onDisappear { stop() }
-        .onReceive(NotificationCenter.default.publisher(for: .stopChordPicking)) { _ in if picking { stop() } }
+        .onDisappear { if picking { stop(because: "field gone") } }
+        .onReceive(NotificationCenter.default.publisher(for: .stopChordPicking)) { note in
+            if picking, ShortcutPicking.concerns(note, token: token) { stop(because: ShortcutPicking.reason(note)) }
+        }
+    }
+
+    private func tapped() {
+        ShortcutLog.log.notice("meeting shortcut: field tapped (picking \(picking, privacy: .public), accessibility \(Dictation.shared.accessibilityGranted, privacy: .public))")
+        picking ? stop(because: "pressed again") : start()
     }
 
     private func start() {
         // One picker at a time: the other field, or the dictation key, stops first.
-        NotificationCenter.default.post(name: .stopChordPicking, object: nil)
-        Dictation.shared.stopPickingKey()
+        ShortcutPicking.stopOthers(token)
+        Dictation.shared.stopPickingKey(reason: "another field started")
         picking = true
-        KeyListener.shared.pickingChord = true
+        ShortcutPicking.hold(token)
+        ShortcutLog.log.notice("meeting shortcut: picking started")
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            if event.keyCode == UInt16(kVK_Escape) { stop(); return nil }
+            if event.keyCode == UInt16(kVK_Escape) { stop(because: "Esc"); return nil }
             let new = KeyChord(keyCode: event.keyCode, modifiers: UInt64(event.modifierFlags.rawValue))
-            guard Self.acceptable(new, taken: taken) else { NSSound.beep(); return nil }
+            guard Self.acceptable(new, taken: taken) else {
+                ShortcutLog.log.notice("meeting shortcut: refused \(new.keyCode, privacy: .public) with \(String(new.modifiers, radix: 16), privacy: .public)")
+                NSSound.beep()
+                return nil
+            }
+            ShortcutLog.log.notice("meeting shortcut: picked \(new.keyCode, privacy: .public) with \(String(new.modifiers, radix: 16), privacy: .public)")
             set(new)
-            stop()
+            stop(because: "picked")
             return nil
         }
     }
@@ -681,11 +716,12 @@ private struct MeetingShortcutField: View {
         return new.isValid && !new.isReserved && new != pasteLast && !taken.contains(new)
     }
 
-    private func stop() {
+    private func stop(because reason: String) {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
+        if picking { ShortcutLog.log.notice("meeting shortcut: picking stopped (\(reason, privacy: .public))") }
         picking = false
-        KeyListener.shared.pickingChord = false
+        ShortcutPicking.release(token)
     }
 
     private func set(_ new: KeyChord?) {
@@ -696,12 +732,20 @@ private struct MeetingShortcutField: View {
 
 /// The thought shortcut: a key held on its own (right ⌘), like the dictation key — or a
 /// chord like ⌃⌥T. Click, then hold the key alone and let go, or press the combination.
-/// Never the dictation key: that's refused, and said why.
-private struct ThoughtShortcutField: View {
+/// Never the dictation key: that's refused, and said why. In Inställningar a white
+/// field (`.field`); on Tankar a soft button, Ändra (`.button`), beside the key.
+struct ThoughtShortcutField: View {
+    enum Style { case field, button }
+
     @Binding var shortcut: ThoughtShortcut?
     @Binding var picking: Bool
     @Binding var refusal: String?
     var meeting: KeyChord?
+    var style: Style = .field
+    var apply: (ThoughtShortcut?) -> Void = { new in
+        Settings.thoughtShortcut = new
+        KeyListener.shared.thoughtShortcut = new
+    }
     @State private var monitor: Any?
     /// The modifiers held together so far, at their most — one alone is the choice.
     @State private var most: UInt64 = 0
@@ -710,65 +754,75 @@ private struct ThoughtShortcutField: View {
     /// Modifiers already down when picking began (⇧ held while clicking the field):
     /// not part of the choice, as for the dictation key.
     @State private var heldOver: UInt64 = 0
+    /// Who this field is, to the others (and to itself: its own "stop" isn't for it).
+    @State private var token = "thought " + UUID().uuidString.prefix(8)
 
     var body: some View {
-        HStack(spacing: 8) {
-            Button { picking ? stop() : start() } label: {
-                HStack(spacing: 10) {
-                    if picking {
-                        Text("Tryck på genvägen…").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                    } else if let shortcut {
-                        KeyChip(text: shortcut.chip)
-                    } else {
-                        Text("Ingen genväg").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+        Group {
+            switch style {
+            case .field:
+                HStack(spacing: 8) {
+                    Button { tapped() } label: {
+                        PickerFieldLabel(picking: picking, wide: shortcut == nil || picking) {
+                            if picking {
+                                Text("Tryck på genvägen…").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                            } else if let shortcut {
+                                KeyChip(text: shortcut.chip)
+                            } else {
+                                Text("Ingen genväg").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                            }
+                        }
                     }
-                    Spacer(minLength: 16)
-                    Image(systemName: "pencil").foregroundStyle(DS.Colors.muted)
+                    .buttonStyle(.plain)
+                    .help("Klicka och håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination. Esc avbryter.")
+                    if shortcut != nil, !picking {
+                        ShortcutOffButton {
+                            ShortcutLog.log.notice("thought key: turned off")
+                            set(nil)
+                        }
+                    }
                 }
-                .padding(.leading, 8)
-                .padding(.trailing, 12)
-                .frame(width: shortcut == nil || picking ? 280 : 244)
-                .frame(minHeight: 38)
-                .background(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous).fill(DS.Colors.field))
-                .overlay(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
-                    .strokeBorder(picking ? DS.Colors.ink : DS.Colors.fieldStroke, lineWidth: 1))
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Klicka och håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination. Esc avbryter.")
-            if shortcut != nil, !picking {
-                Button { set(nil) } label: {
-                    Image(systemName: "xmark.circle.fill").font(.system(size: 15)).foregroundStyle(DS.Colors.faint)
-                        .frame(width: 28, height: 38).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help("Stäng av genvägen")
-                .accessibilityLabel("Stäng av genvägen")
+            case .button:
+                Button { tapped() } label: { picking ? Text("Avbryt") : shortcut == nil ? Text("Välj") : Text("Ändra") }
+                    .buttonStyle(.soft)
+                    .help(picking ? Text("Esc avbryter.") : Text("Klicka och håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination. Esc avbryter."))
             }
         }
-        .onDisappear { stop() }
-        .onReceive(NotificationCenter.default.publisher(for: .stopChordPicking)) { _ in if picking { stop() } }
+        .onDisappear { if picking { stop(because: "field gone") } }
+        .onReceive(NotificationCenter.default.publisher(for: .stopChordPicking)) { note in
+            if picking, ShortcutPicking.concerns(note, token: token) { stop(because: ShortcutPicking.reason(note)) }
+        }
+    }
+
+    private func tapped() {
+        ShortcutLog.log.notice("thought key: field tapped (picking \(picking, privacy: .public), accessibility \(Dictation.shared.accessibilityGranted, privacy: .public))")
+        picking ? stop(because: "pressed again") : start()
     }
 
     private func start() {
         // One picker at a time: the other field, or the dictation key, stops first.
-        NotificationCenter.default.post(name: .stopChordPicking, object: nil)
-        Dictation.shared.stopPickingKey()
+        ShortcutPicking.stopOthers(token)
+        Dictation.shared.stopPickingKey(reason: "another field started")
         picking = true
         refusal = nil
         most = 0
         typed = false
         heldOver = KeyListener.shared.modifiersHeldNow() & Hotkey.allModifierMasks
-        KeyListener.shared.pickingChord = true
+        ShortcutPicking.hold(token)
+        ShortcutLog.log.notice("thought key: picking started (held over \(String(heldOver, radix: 16), privacy: .public))")
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
             if event.type == .flagsChanged {
                 modifiersChanged(event)
                 return event
             }
-            if event.keyCode == UInt16(kVK_Escape) { stop(); return nil }
+            if event.keyCode == UInt16(kVK_Escape) { stop(because: "Esc"); return nil }
             typed = true
             let new = KeyChord(keyCode: event.keyCode, modifiers: UInt64(event.modifierFlags.rawValue))
-            guard MeetingShortcutField.acceptable(new, taken: [meeting]) else { NSSound.beep(); return nil }
+            guard MeetingShortcutField.acceptable(new, taken: [meeting]) else {
+                ShortcutLog.log.notice("thought key: refused chord \(new.keyCode, privacy: .public) with \(String(new.modifiers, radix: 16), privacy: .public)")
+                NSSound.beep()
+                return nil
+            }
             pick(.chord(new))
             return nil
         }
@@ -777,42 +831,52 @@ private struct ThoughtShortcutField: View {
     /// Like the dictation key: the choice is made when everything is let go — one
     /// modifier, held with nothing else, is the key.
     private func modifiersChanged(_ event: NSEvent) {
+        let raw = UInt64(event.modifierFlags.rawValue)
+        ShortcutLog.log.notice("thought key picker: flagsChanged \(event.keyCode, privacy: .public) flags \(String(raw, radix: 16), privacy: .public) heldOver \(String(heldOver, radix: 16), privacy: .public)")
         guard Hotkey.modifierMasks[event.keyCode] != nil else { return }
         // NSEvent's flags carry the same sided bits as the event tap's. One let go
         // since picking began stops being held over.
-        heldOver &= UInt64(event.modifierFlags.rawValue)
-        let held = UInt64(event.modifierFlags.rawValue) & Hotkey.allModifierMasks & ~heldOver
+        heldOver &= raw
+        let held = raw & Hotkey.allModifierMasks & ~heldOver
         if held.nonzeroBitCount > most.nonzeroBitCount { most = held }
         guard held == 0 else { return }
         defer { most = 0; typed = false }
         guard !typed, let key = Hotkey.modifierCombination(mask: most) else { return }
         // Several held together: a key held alone is one key.
-        guard key.modifierKeys.count == 1 else { NSSound.beep(); return }
+        guard key.modifierKeys.count == 1 else {
+            ShortcutLog.log.notice("thought key: refused \(key.modifierKeys.count, privacy: .public) keys held together")
+            NSSound.beep()
+            return
+        }
         pick(.key(key))
     }
 
     private func pick(_ new: ThoughtShortcut) {
-        stop()
+        stop(because: "picked")
+        let what = new.key.map { "key \($0.keyCode)/\(String($0.modifierMask, radix: 16))" }
+            ?? new.chord.map { "chord \($0.keyCode) with \(String($0.modifiers, radix: 16))" } ?? ""
         if let why = new.refusal(besides: Settings.hotkey) {
+            ShortcutLog.log.notice("thought key: refused \(what, privacy: .public) (the dictation key has it)")
             NSSound.beep()
             refusal = why
             DispatchQueue.main.asyncAfter(deadline: .now() + 6) { if refusal == why { refusal = nil } }
             return
         }
+        ShortcutLog.log.notice("thought key: picked \(what, privacy: .public)")
         set(new)
     }
 
-    private func stop() {
+    private func stop(because reason: String) {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
+        if picking { ShortcutLog.log.notice("thought key: picking stopped (\(reason, privacy: .public))") }
         picking = false
-        KeyListener.shared.pickingChord = false
+        ShortcutPicking.release(token)
     }
 
     private func set(_ new: ThoughtShortcut?) {
         shortcut = new
-        Settings.thoughtShortcut = new
-        KeyListener.shared.thoughtShortcut = new
+        apply(new)
     }
 }
 

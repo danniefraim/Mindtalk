@@ -627,6 +627,7 @@ final class Dictation: ObservableObject {
     // MARK: Picking the key
 
     func pickKey() {
+        ShortcutLog.log.notice("dictation key: picking started (accessibility \(self.accessibilityGranted, privacy: .public), tap running \(KeyListener.shared.isRunning, privacy: .public))")
         pickingKey = true
         keyRefusal = nil
         KeyListener.shared.capture = { [weak self] key in
@@ -635,8 +636,10 @@ final class Dictation: ObservableObject {
             // The thought key's: one press can't be both. The old key stays. A thought key
             // you chose counts; the default (right ⌘) just moves out of the way (⌃⌥T).
             if let why = ThoughtShortcut.refusal(dictation: key, besides: Settings.thoughtShortcut(in: .standard, besides: key)) {
+                ShortcutLog.log.notice("dictation key: refused \(key.keyCode, privacy: .public)/\(String(key.modifierMask, radix: 16), privacy: .public) (the thought key has it)")
                 return self.refuse(why)
             }
+            ShortcutLog.log.notice("dictation key: picked \(key.keyCode, privacy: .public)/\(String(key.modifierMask, radix: 16), privacy: .public)")
             self.hotkey = key
             Settings.hotkey = key
             KeyListener.shared.hotkey = key
@@ -647,7 +650,16 @@ final class Dictation: ObservableObject {
         }
     }
 
-    func stopPickingKey() {
+    /// The dictation key's field (or Ändra on Diktering) was pressed.
+    func togglePickingKey() {
+        ShortcutLog.log.notice("dictation key: field tapped (picking \(self.pickingKey, privacy: .public), accessibility \(self.accessibilityGranted, privacy: .public))")
+        if pickingKey { return stopPickingKey(reason: "pressed again") }
+        ShortcutPicking.stopOthers("dictation")
+        pickKey()
+    }
+
+    func stopPickingKey(reason: String = "stopped") {
+        if pickingKey { ShortcutLog.log.notice("dictation key: picking stopped (\(reason, privacy: .public))") }
         pickingKey = false
         KeyListener.shared.capture = nil
     }

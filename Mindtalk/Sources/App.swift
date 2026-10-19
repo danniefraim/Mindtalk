@@ -24,6 +24,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             RunLoop.main.run()
             return
         }
+        // The shortcut fields in a real window, clicked and keyed with posted events:
+        // nothing reaches the keyboard or other apps, and settings are never written.
+        if args.contains("--shortcut-field-test") {
+            NSApplication.shared.setActivationPolicy(.accessory)
+            Task { @MainActor in exit(await ShortcutFieldSelfTest.run()) }
+            NSApplication.shared.run()
+            return
+        }
         // Exercise microphone startup and device switching without loading a
         // speech model, listening for hotkeys, or typing into another app.
         if args.contains("--record-test") {
@@ -1427,8 +1435,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // would swallow a key there and take the next modifier as your shortcut.
         NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
             .sink { [weak self] _ in
-                self?.dictation.stopPickingKey()
-                NotificationCenter.default.post(name: .stopChordPicking, object: nil)
+                self?.dictation.stopPickingKey(reason: "Mindtalk left")
+                ShortcutPicking.stopAll(reason: "Mindtalk left")
             }
             .store(in: &cancellables)
         // A meeting lives in its own panel beside your work, and in the menu bar —
@@ -2053,7 +2061,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     }
 
     func windowWillClose(_ notification: Notification) {
-        dictation.stopPickingKey()
+        dictation.stopPickingKey(reason: "window closed")
         let closing = notification.object as? NSWindow
         // The meeting carries on in its panel when its window goes.
         if closing === window {

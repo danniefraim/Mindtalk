@@ -369,6 +369,56 @@ enum ThoughtShortcut: Equatable {
     }
 }
 
+// MARK: - Picking a shortcut
+
+/// Picking a shortcut, in the system log (kept, also in the release build; only keys,
+/// flags and states, nothing typed):
+/// `/usr/bin/log show --last 1h --predicate 'subsystem == "ai.mindact.mindtalk" AND category == "Shortcut"'`
+enum ShortcutLog {
+    static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "Shortcut")
+}
+
+/// One shortcut field waits for keys at a time. A field that starts tells the others
+/// to stop, with its own token as the sender, so it never stops itself: SwiftUI hands
+/// `onReceive` the notification after the button's action, when the field that sent it
+/// is already waiting.
+@MainActor
+enum ShortcutPicking {
+    /// The field the listener's `pickingChord` is held for: only it lets it go.
+    private(set) static var owner: String?
+
+    static func stopOthers(_ sender: String) {
+        NotificationCenter.default.post(name: .stopChordPicking, object: sender, userInfo: ["reason": "another field started (\(sender))"])
+    }
+
+    /// Everyone stops (Mindtalk was left).
+    static func stopAll(reason: String) {
+        NotificationCenter.default.post(name: .stopChordPicking, object: nil, userInfo: ["reason": reason])
+    }
+
+    /// Should the field `token` stop for this notification? Not for its own.
+    static func concerns(_ note: Notification, token: String) -> Bool { (note.object as? String) != token }
+
+    static func reason(_ note: Notification) -> String { note.userInfo?["reason"] as? String ?? "asked to stop" }
+
+    static func hold(_ token: String) {
+        owner = token
+        KeyListener.shared.pickingChord = true
+    }
+
+    static func release(_ token: String) {
+        guard owner == token else { return }
+        owner = nil
+        KeyListener.shared.pickingChord = false
+    }
+}
+
+extension Notification.Name {
+    /// A shortcut field stops waiting for keys (another one starts, or you left the app).
+    /// object: the token of the field that started, or nil for all.
+    static let stopChordPicking = Notification.Name("MindtalkStopChordPicking")
+}
+
 // MARK: - Global key listener
 
 /// Listens to every key press system-wide through a CGEvent tap (needs Accessibility).
@@ -580,6 +630,7 @@ final class KeyListener {
             if type == .flagsChanged, Hotkey.modifierMasks[keyCode] != nil {
                 heldOver &= event.flags.rawValue
                 let held = event.flags.rawValue & Hotkey.allModifierMasks & ~heldOver
+                ShortcutLog.log.notice("dictation key picker: flagsChanged \(keyCode, privacy: .public) flags \(String(event.flags.rawValue, radix: 16), privacy: .public) heldOver \(String(self.heldOver, radix: 16), privacy: .public)")
                 if held.nonzeroBitCount > capturedModifierMask.nonzeroBitCount {
                     capturedModifierMask = held
                 }
@@ -591,6 +642,7 @@ final class KeyListener {
             }
             guard type == .keyDown else { return type == .keyUp ? nil : pass }
             if Int(keyCode) != kVK_Escape, capturedModifierMask != 0 { return nil }
+            ShortcutLog.log.notice("dictation key picker: keyDown \(keyCode, privacy: .public)")
             self.capture = nil
             if Int(keyCode) != kVK_Escape { capture(Hotkey(keyCode: keyCode, modifierMask: 0)) }
             else { capture(hotkey) }                                          // Esc = keep the old one
