@@ -1561,6 +1561,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
         // Voice memory's first value, before onboarding marks this Mac as onboarded.
         VoiceMemory.settleDefault()
+        // The dictation language too: kept as it is when Appens språk changes.
+        Settings.settleEngine()
         // From the disk image or Downloads: offer to move to Applications first.
         if AppMover.offerIfNeeded() { return }
         MediaControl.shared.restoreAfterCrash()

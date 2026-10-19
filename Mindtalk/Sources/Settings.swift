@@ -72,6 +72,13 @@ enum Settings {
         set { defaults.set(newValue.rawValue, forKey: "engine") }
     }
 
+    /// The language you dictate in, never chosen: the suggestion written down at the
+    /// first launch. The suggestion follows the app's language, so changing Appens
+    /// språk later would otherwise change the speech model too.
+    static func settleEngine() {
+        if defaults.string(forKey: "engine") == nil { engine = SpeechModel.recommended }
+    }
+
     /// Set once the first-run window has been completed.
     static var didOnboard: Bool {
         get { defaults.bool(forKey: "didOnboard") }
