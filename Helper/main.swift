@@ -2,14 +2,15 @@ import Foundation
 import MCP
 import os
 
-// MARK: - mindtalk: the helper Claude talks to
+// MARK: - mindtalk: the helper the assistant talks to
 //
 // A small command-line tool inside the app (Contents/Helpers/mindtalk), reached
 // through the fixed path ~/Library/Application Support/Mindtalk/bin/mindtalk.
-// `mindtalk mcp` is an MCP server over stdio, built with the official Swift SDK.
-// It holds no data and reads no files: every tool call is sent to the running app
-// over its local socket (BridgeClient), and the app decides what may be answered.
-// Not running, the app is opened in the background first.
+// `mindtalk mcp` is an MCP server over stdio, built with the official Swift SDK, for
+// Claude, ChatGPT and any other app that speaks MCP. It holds no data and reads no
+// files: every tool call is sent to the running app over its local socket
+// (BridgeClient), and the app decides what may be answered. Not running, the app is
+// opened in the background first.
 //
 // No SwiftUI, no app code: the binary stays small and starts at once.
 
@@ -37,14 +38,15 @@ let instructions = """
     with mindtalk_get_transcript only when the summary and search are not enough, and expect it in pages. \
     Every item has a link (mindtalk://meeting/<id>?t=<seconds>, mindtalk://thought/<id>) that opens that \
     moment in Mindtalk: include it when you cite something. Dates are ISO 8601 in the user's time zone. \
-    The user chooses in Mindtalk's settings what may be read (thoughts only, summaries, or whole transcripts) \
-    and which folders stay private; an error tells you when something is outside that.
+    The user chooses in Mindtalk under Settings → Integrations → MCP what their assistant may read (thoughts \
+    only, summaries, or whole transcripts) and which folders stay private; an error tells you when something \
+    is outside that.
     """
 
 func usage() {
     print("""
     mindtalk \(HelperInfo.version)
-      mindtalk mcp         start the MCP server (stdio) for Claude and other programs
+      mindtalk mcp         start the MCP server (stdio) for Claude, ChatGPT and other MCP apps
       mindtalk --version   print the version
     """)
 }

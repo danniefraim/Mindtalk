@@ -3,20 +3,23 @@ import os
 
 // MARK: - The bridge: how the helper `mindtalk` reaches the running app
 //
-// Claude never reads the disk. The helper in the app bundle (Contents/Helpers/mindtalk)
-// speaks MCP to Claude and asks the app over a Unix socket in Application Support,
-// readable by you alone (mode 0600). One request per line, UTF-8 JSON:
+// The assistant (Claude, ChatGPT or any other MCP app) never reads the disk. The
+// helper in the app bundle (Contents/Helpers/mindtalk) speaks MCP to it and asks the
+// app over a Unix socket in Application Support, readable by you alone (mode 0600).
+// One request per line, UTF-8 JSON:
 //
 //   {"id": 1, "tool": "mindtalk_search", "args": {"query": "offerten"}}
 //   {"id": 1, "result": {...}}      or      {"id": 1, "error": {"message": "..."}}
 //
 // The app alone checks the switch, the level and the folders (ClaudeSharing) and
 // writes the log; every tool is answered on the main thread by ClaudeTools. The
-// socket listens from launch: switched off, every request is answered with that.
+// socket listens from launch: switched off, every request is answered with that. A
+// request that comes in before the meetings are read from disk (the helper opens the
+// app when it isn't running) waits for them: ClaudeTools awaits MeetingStore.ready().
 //
 // A fixed path for the helper: at every start the app points
 // ~/Library/Application Support/Mindtalk/bin/mindtalk at the helper in the bundle,
-// so Claude's configuration keeps working when the app moves or is updated.
+// so the assistant's configuration keeps working when the app moves or is updated.
 
 final class Bridge: @unchecked Sendable {
     static let shared = Bridge()
@@ -29,7 +32,7 @@ final class Bridge: @unchecked Sendable {
             .appendingPathComponent("Mindtalk", isDirectory: true)
     }
     /// The socket the helper connects to.
-    nonisolated static var socketURL: URL { supportFolder.appendingPathComponent("claude.sock") }
+    nonisolated static var socketURL: URL { supportFolder.appendingPathComponent("mcp.sock") }
     /// The fixed path to the helper, kept pointing at the current bundle.
     nonisolated static var helperLinkURL: URL {
         supportFolder.appendingPathComponent("bin", isDirectory: true).appendingPathComponent("mindtalk")

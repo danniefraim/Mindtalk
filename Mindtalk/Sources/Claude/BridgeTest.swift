@@ -1,38 +1,69 @@
 #if DEBUG
 import Foundation
 
-// MARK: - `Mindtalk --bridge-test --models-dir <empty folder>`
+// MARK: - `Mindtalk --bridge-test --models-dir <empty folder>/models`
 //
-// Claude's seven tools, exercised through the socket as the helper would: a made-up
-// store (three meetings, two folders of which one is kept away, three thoughts) is
-// written to the folder next to --models-dir, so your own meetings, thoughts and
-// settings are never touched (ClaudeSharing in preview: nothing saved). Asserts the
-// scope rules, the levels, the pages, the log, and that a sentence said in a meeting
-// comes back as the data it is. `--serve` keeps the bridge up afterwards, so the
-// helper can be run against it: MINDTALK_SOCKET=<printed path> mindtalk mcp.
+// The seven tools, exercised through the socket as the helper would: a made-up store
+// (four meetings, two folders of which one is kept away, three thoughts) is written
+// to the folder next to --models-dir, so your own meetings, thoughts and settings are
+// never touched (ClaudeSharing in preview: nothing saved). Asserts the scope rules,
+// the levels, the pages, the log, and that a sentence said in a meeting comes back as
+// the data it is. `--serve` keeps the bridge up afterwards, so the helper can be run
+// against it: MINDTALK_SOCKET=<printed path> mindtalk mcp.
+//
+// A new, empty folder every run (mktemp -d /tmp/mt.XXXX; the socket path must stay
+// under 104 bytes): the store reads every meeting under the folder, so one left from
+// an earlier run would be answered too, and a handful of checks would fail at random.
+// The test refuses a folder that isn't empty rather than guess.
 
 enum BridgeTest {
     @MainActor static func run() async -> Int32 {
         let args = CommandLine.arguments
         guard let i = args.firstIndex(of: "--models-dir"), i + 1 < args.count else {
-            print("Kör med --models-dir <tom mapp>: butiken skrivs bredvid den, aldrig i din egen.")
+            print("Kör med --models-dir <tom mapp>/models: butiken skrivs bredvid den, aldrig i din egen.")
             return 2
         }
-        let root = URL(fileURLWithPath: args[i + 1]).deletingLastPathComponent()
+        let models = URL(fileURLWithPath: args[i + 1])
+        let root = models.deletingLastPathComponent()
         guard MeetingStore.root.path.hasPrefix(root.path) else { print("FEL  butiken pekar inte på \(root.path)"); return 2 }
+        // Never your own folder, and nothing from before: a store left by an earlier
+        // run (or one running right now in the same folder) would be read in too.
+        let own = Bridge.supportFolder.standardizedFileURL.path
+        let here = root.standardizedFileURL.path
+        guard here != own, !here.hasPrefix(own + "/") else {
+            print("FEL  --models-dir pekar in i din egen mapp (\(own)). Använd en ny, tom mapp: mktemp -d /tmp/mt.XXXX")
+            return 2
+        }
+        let leftovers = ((try? FileManager.default.contentsOfDirectory(atPath: root.path)) ?? [])
+            .filter { $0 != models.lastPathComponent && !$0.hasPrefix(".") }
+        guard leftovers.isEmpty else {
+            print("FEL  mappen \(root.path) är inte tom (\(leftovers.joined(separator: ", "))). Varje körning behöver en ny, tom mapp: mktemp -d /tmp/mt.XXXX")
+            return 2
+        }
         let fixture = Fixture.write(to: root)
 
-        MeetingStore.shared.loadNow()
-        _ = MeetingFolders.shared
-        _ = Thoughts.shared
+        // The whole store, before the first call: the meetings at once (the read begun
+        // at start is then ignored), the folders and the thoughts as they are first touched.
+        let store = MeetingStore.shared
+        store.loadNow()
+        await store.ready()
+        let folders = MeetingFolders.shared
+        let thoughts = Thoughts.shared
         let sharing = ClaudeSharing.shared
         sharing.preview(enabled: true, level: .everything, entries: [])
         sharing.excludedFolders = [fixture.folderB]
-        let socket = root.appendingPathComponent("claude.sock")
+        let socket = root.appendingPathComponent("mcp.sock")
         Bridge.shared.start(at: socket)
 
         var failed = 0
-        func check(_ what: String, _ ok: Bool) { print((ok ? "OK   " : "FEL  ") + what); if !ok { failed += 1 } }
+        func check(_ what: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
+            let more = ok ? "" : detail()
+            print((ok ? "OK   " : "FEL  ") + what + (more.isEmpty ? "" : "  (\(more))"))
+            if !ok { failed += 1 }
+        }
+        check("butiken läst: fyra möten, två mappar, tre tankar",
+              store.loaded && store.meetings.count == 4 && folders.folders.count == 2 && thoughts.all.filter { $0.deleted == nil }.count == 3,
+              "\(store.meetings.count) möten, \(folders.folders.count) mappar, \(thoughts.all.count) tankar varav \(thoughts.all.filter { $0.deleted != nil }.count) borttagna")
         // Off the main thread: the bridge answers on it.
         let path = socket.path
         func call(_ tool: String, _ a: [String: Any] = [:]) async -> (result: [String: Any]?, error: String?) {
@@ -42,17 +73,27 @@ enum BridgeTest {
         func ids(_ list: [[String: Any]]) -> Set<String> { Set(list.compactMap { $0["id"] as? String }) }
         let a = fixture.folderA.uuidString, b = fixture.folderB.uuidString
         let m1 = fixture.meeting1.uuidString, m2 = fixture.meeting2.uuidString, m3 = fixture.meeting3.uuidString, m4 = fixture.meeting4.uuidString
+        let names = [a: "A", b: "B", m1: "m1", m2: "m2", m3: "m3", m4: "m4"]
+        /// What came back, in the fixture's names: "m1 m2 (och 1 okänt)".
+        func said(_ r: (result: [String: Any]?, error: String?), _ key: String) -> String {
+            if let error = r.error { return "fel: \(error)" }
+            let list = rows(r.result, key)
+            let known = list.compactMap { ($0["id"] as? String).flatMap { names[$0] } }
+            let unknown = list.count - known.count
+            return "\(list.count) \(key): " + known.joined(separator: " ") + (unknown > 0 ? " och \(unknown) okända" : "")
+        }
 
         // Folders: B is kept away, never listed.
         var r = await call("mindtalk_list_folders")
-        let folders = rows(r.result, "folders")
-        check("list_folders: bara A", ids(folders) == [a] && folders.first?["meeting_count"] as? Int == 2 && r.error == nil)
-        check("list_folders: ett möte utan mapp", r.result?["meetings_without_folder"] as? Int == 1)
+        let folderRows = rows(r.result, "folders")
+        check("list_folders: bara A", ids(folderRows) == [a] && folderRows.first?["meeting_count"] as? Int == 2 && r.error == nil, said(r, "folders"))
+        check("list_folders: ett möte utan mapp", r.result?["meetings_without_folder"] as? Int == 1,
+              "meetings_without_folder = \(r.result?["meetings_without_folder"] ?? "saknas")")
 
         // Meetings: B's meeting never, not even by id.
         r = await call("mindtalk_list_meetings")
         let meetings = rows(r.result, "meetings")
-        check("list_meetings: tre möten, inte B:s", ids(meetings) == [m1, m2, m4] && r.result?["total"] as? Int == 3)
+        check("list_meetings: tre möten, inte B:s", ids(meetings) == [m1, m2, m4] && r.result?["total"] as? Int == 3, said(r, "meetings"))
         check("list_meetings: rad med gist, talare och länk", meetings.first.map {
             ($0["gist"] as? String)?.isEmpty == false && ($0["speakers"] as? [String])?.isEmpty == false
                 && ($0["link"] as? String)?.hasPrefix("mindtalk://meeting/") == true && ($0["start"] as? String)?.contains("+") == true
@@ -68,7 +109,8 @@ enum BridgeTest {
         r = await call("mindtalk_search", ["query": "hemligt", "meeting_id": m3])
         check("search i B:s möte: No such meeting", r.error == "No such meeting.")
         r = await call("mindtalk_search", ["query": "hemligt"])
-        check("search: B:s ord hittas inte", r.error == nil && rows(r.result, "hits").isEmpty)
+        check("search: B:s ord hittas inte", r.error == nil && rows(r.result, "hits").isEmpty,
+              r.error.map { "fel: \($0)" } ?? rows(r.result, "hits").map { "\($0["kind"] ?? "") i \((($0["meeting"] as? [String: Any])?["title"]) ?? $0["text"] ?? "")" }.joined(separator: ", "))
         r = await call("mindtalk_list_meetings", ["query": "budget"])
         check("list_meetings med query", ids(rows(r.result, "meetings")) == [m1])
         r = await call("mindtalk_list_meetings", ["from": "2026-10-10", "to": "2026-10-12"])
@@ -130,12 +172,15 @@ enum BridgeTest {
         check("search utan ord: fel", r.error?.hasPrefix("query is required") == true)
 
         // Tasks.
+        func taskRows(_ r: (result: [String: Any]?, error: String?)) -> String {
+            r.error.map { "fel: \($0)" } ?? rows(r.result, "tasks").map { "\($0["task"] ?? "") (\($0["owner"] ?? "ingen"), \($0["done"] as? Bool == true ? "klar" : "öppen"), \((($0["meeting"] as? [String: Any])?["title"]) ?? ""))" }.joined(separator: "; ")
+        }
         r = await call("mindtalk_list_tasks")
-        check("list_tasks: öppna", rows(r.result, "tasks").count == 2 && rows(r.result, "tasks").allSatisfy { $0["done"] as? Bool == false })
+        check("list_tasks: öppna", rows(r.result, "tasks").count == 2 && rows(r.result, "tasks").allSatisfy { $0["done"] as? Bool == false }, taskRows(r))
         r = await call("mindtalk_list_tasks", ["status": "done"])
-        check("list_tasks: klara", rows(r.result, "tasks").count == 1)
+        check("list_tasks: klara", rows(r.result, "tasks").count == 1, taskRows(r))
         r = await call("mindtalk_list_tasks", ["status": "all", "owner": "anna"])
-        check("list_tasks: alla med ägare", rows(r.result, "tasks").count == 2 && rows(r.result, "tasks").first?["t_seconds"] as? Int == 300)
+        check("list_tasks: alla med ägare", rows(r.result, "tasks").count == 2 && rows(r.result, "tasks").first?["t_seconds"] as? Int == 300, taskRows(r))
 
         // Thoughts.
         r = await call("mindtalk_list_thoughts")

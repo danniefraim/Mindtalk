@@ -614,6 +614,9 @@ final class MeetingStore: ObservableObject {
     }
 
     private func finishLoading(_ read: [MeetingRecord]) {
+        // Read once: a self-test's loadNow() got there first, and the read begun at
+        // start says nothing new about the same disk.
+        guard !loaded else { return }
         let saved = Set(meetings.map(\.id))
         meetings = (meetings + read.filter { !saved.contains($0.id) }).sorted { $0.date > $1.date }
         loaded = true

@@ -1,30 +1,31 @@
 import Foundation
 
-// MARK: - What Claude may read, tool by tool
+// MARK: - What the assistant may read, tool by tool
 //
 // Seven tools, all reading: folders, meetings, one meeting's notes, one meeting's
-// text, search, tasks and thoughts. The helper exposes them to Claude (Helper/); the
-// app answers them here, on the main thread, from the same stores as its own pages
-// (MeetingStore, MeetingFolders, Thoughts) and with the same search engine
-// (MeetingSearch). Nothing is written. Audio and voiceprints are never given out.
+// text, search, tasks and thoughts. The helper exposes them to the assistant (Claude,
+// ChatGPT or any other MCP app; Helper/); the app answers them here, on the main
+// thread, from the same stores as its own pages (MeetingStore, MeetingFolders,
+// Thoughts) and with the same search engine (MeetingSearch). Nothing is written.
+// Audio and voiceprints are never given out.
 //
 // Every request is checked against ClaudeSharing first: off, the level, and the
 // folders kept away, which are never listed and never named: an id from one is
 // "No such meeting". Every answer is noted in the log the settings card shows.
 //
-// Text Claude reads (descriptions, errors, notes) is English and plain. Only the
-// log's scope is shown to you, so only it goes through the catalog.
+// Text the assistant reads (descriptions, errors, notes) is English and plain. Only
+// the log's scope is shown to you, so only it goes through the catalog.
 
 @MainActor
 enum ClaudeTools {
     struct Failure: Error { let message: String }
 
-    static let offMessage = "Sharing is switched off in Mindtalk. Turn it on under Settings → Mindtalk i Claude."
+    static let offMessage = "Sharing is switched off in Mindtalk. Turn it on in Mindtalk under Settings → Integrations → MCP."
     static let moreNote = "More available: narrow with from/to, folder_id or query, or follow nextCursor."
     private static let meetingsLevelMessage =
-        "Meetings are not shared: the level under Settings → Mindtalk i Claude is \"Only thoughts\". Thoughts can be read with mindtalk_list_thoughts and mindtalk_search."
+        "Meetings are not shared: the level in Mindtalk under Settings → Integrations → MCP is \"Only thoughts\". Thoughts can be read with mindtalk_list_thoughts and mindtalk_search."
     private static let transcriptsLevelMessage =
-        "Transcripts are not shared: the level under Settings → Mindtalk i Claude is \"Thoughts and summaries\". Use mindtalk_get_meeting for the summary, decisions and tasks, or mindtalk_search."
+        "Transcripts are not shared: the level in Mindtalk under Settings → Integrations → MCP is \"Thoughts and summaries\". Use mindtalk_get_meeting for the summary, decisions and tasks, or mindtalk_search."
 
     /// About 6 000 tokens for a list, 25 000 characters for a page of text.
     static let listBudget = 24_000
@@ -34,6 +35,10 @@ enum ClaudeTools {
     static func handle(tool: String, args raw: [String: Any]) async throws -> [String: Any] {
         let sharing = ClaudeSharing.shared
         guard sharing.enabled else { throw Failure(message: offMessage) }
+        // Just started (the helper opens the app when it isn't running): the meetings
+        // are still being read from disk. Answered from an empty list, "no meetings"
+        // would be a lie, so every tool waits for them. Folders and thoughts are read
+        // the moment they are first asked for, on this thread.
         await MeetingStore.shared.ready()
         let args = Args(raw)
         let result: [String: Any]
@@ -145,7 +150,7 @@ enum ClaudeTools {
 
     // MARK: What may be seen
 
-    /// The meetings Claude may read: not in a folder kept away. Newest first.
+    /// The meetings the assistant may read: not in a folder kept away. Newest first.
     private static func visibleMeetings() -> [MeetingRecord] {
         let sharing = ClaudeSharing.shared
         return MeetingStore.shared.meetings.filter { sharing.allows(folder: $0.folder) }

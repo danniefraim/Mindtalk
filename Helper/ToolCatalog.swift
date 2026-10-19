@@ -1,7 +1,7 @@
 import Foundation
 import MCP
 
-// MARK: - The seven tools, as Claude sees them
+// MARK: - The seven tools, as the assistant sees them
 //
 // Names, descriptions and schemas. All read-only: the annotations say so, and the
 // app answers nothing else. The app (ClaudeTools.swift) parses the same argument
@@ -42,7 +42,7 @@ enum ToolCatalog {
         Definition(
             name: "mindtalk_list_folders",
             title: "List folders",
-            description: "The folders the user shares with Claude, with how many meetings each holds. Folders kept private are not listed. Use a folder's id as folder_id in the other tools.",
+            description: "The folders the user shares with their assistant, with how many meetings each holds. Folders kept private are not listed. Use a folder's id as folder_id in the other tools.",
             input: """
                 {"type": "object", "properties": {}, "additionalProperties": false}
                 """,

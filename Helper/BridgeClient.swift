@@ -17,7 +17,7 @@ enum BridgeClient {
     static var socketPath: String {
         if let env = ProcessInfo.processInfo.environment["MINDTALK_SOCKET"], !env.isEmpty { return env }
         return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Mindtalk/claude.sock").path
+            .appendingPathComponent("Mindtalk/mcp.sock").path
     }
 
     private static let queue = DispatchQueue(label: "ai.mindact.mindtalk.helper.bridge", qos: .userInitiated)
@@ -29,7 +29,7 @@ enum BridgeClient {
         }
     }
 
-    /// The answer's `result`, as JSON text for the content Claude reads.
+    /// The answer's `result`, as JSON text for the content the assistant reads.
     static func json(_ value: Value) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
@@ -106,7 +106,7 @@ enum BridgeClient {
         guard fd >= 0 else { return nil }
         var one: Int32 = 1
         setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
-        // A search over years of meetings takes a while; an app that never answers must not hang Claude.
+        // A search over years of meetings takes a while; an app that never answers must not hang the assistant.
         var timeout = timeval(tv_sec: 120, tv_usec: 0)
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
         let ok = withUnsafePointer(to: &address) {
