@@ -125,10 +125,12 @@ final class ClaudeSharing: ObservableObject {
     /// and the last words have settled.
     static let grace: TimeInterval = 120
 
-    /// When the meeting was over: its start plus its length, or the moment it was imported.
+    /// When the meeting was over: when it was last done by the clock (a pause or a
+    /// continuation makes that later than its start plus its length), its start plus
+    /// its length for meetings from before that was kept, or the moment it was imported.
     static func finishedAt(_ m: MeetingRecord) -> Date {
         let length = m.duration > 0 ? m.duration : (m.words.last?.end ?? 0)
-        return max(m.date.addingTimeInterval(length), m.source?.importedAt ?? .distantPast)
+        return max(m.endedAt ?? .distantPast, m.date.addingTimeInterval(length), m.source?.importedAt ?? .distantPast)
     }
 
     /// A refusal like the one before, from the same program within this long, adds to it.

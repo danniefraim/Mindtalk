@@ -128,6 +128,12 @@ enum BridgeTest {
         check("get_meeting på ett möte som slutade nyss: No such meeting", r.error?.hasPrefix("No such meeting.") == true)
         r = await call("mindtalk_get_transcript", ["meeting_id": m6])
         check("get_transcript på ett möte som slutade nyss: No such meeting", r.error?.hasPrefix("No such meeting.") == true)
+        // Paused or continued: started long ago, but done only now. The clock decides.
+        var continued = MeetingRecord(title: "Fortsatt", date: Date().addingTimeInterval(-86_400), language: .swedish)
+        continued.duration = 600
+        check("ett möte som pågick för länge sedan läses", sharing.allows(continued))
+        continued.endedAt = Date().addingTimeInterval(-10)
+        check("samma möte, fortsatt och klart nyss: läses inte", !sharing.allows(continued))
         r = await call("mindtalk_search", ["query": "nyss"])
         check("search: det nyss avslutade hittas inte", r.error == nil && rows(r.result, "hits").isEmpty, r.error ?? "")
         check("list_meetings: rad med gist, talare och länk", meetings.first.map {

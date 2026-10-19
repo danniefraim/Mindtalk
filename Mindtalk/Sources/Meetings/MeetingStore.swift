@@ -77,6 +77,9 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     var continuedAt: Double?
     /// Imported from a file rather than recorded here: which, and when.
     var source: Source?
+    /// When it was last done, by the clock: after a pause or a continuation that is
+    /// later than its start plus its length. Nil for meetings from before it was kept.
+    var endedAt: Date?
 
     struct Source: Codable, Equatable {
         /// The file's name, as it was.
@@ -245,6 +248,7 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         folderAsked = (try? c.decodeIfPresent(Bool.self, forKey: .folderAsked)) ?? false
         continuedAt = try? c.decodeIfPresent(Double.self, forKey: .continuedAt)
         source = try? c.decodeIfPresent(Source.self, forKey: .source)
+        endedAt = try? c.decodeIfPresent(Date.self, forKey: .endedAt)
         // A field since dropped ("hiddenFromAI") is passed over: the meeting opens as before.
     }
 

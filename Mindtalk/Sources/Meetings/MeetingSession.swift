@@ -1815,6 +1815,7 @@ final class MeetingSession: ObservableObject {
         let continued = continuing || record?.continuedAt != nil
         if var record {
             record.finished = !keepUnfinished
+            if record.finished { record.endedAt = Date() }
             // Listened through as one: a continuation no longer.
             if record.refined { record.continuedAt = nil }
             MeetingStore.shared.save(record)
