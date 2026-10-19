@@ -922,21 +922,29 @@ private struct DictationKeyCard: View {
                     .padding(.horizontal, 16)
                     .frame(minWidth: 64, minHeight: 56)
                     .background(cap.fill(DS.Colors.control).shadow(color: .black.opacity(0.08), radius: 0, y: 2))
-                    .overlay(cap.strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
+                    .overlay(cap.strokeBorder(dictation.pickingKey ? DS.Colors.ink : DS.Colors.fieldStroke, lineWidth: 1))
                     .fixedSize()
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(verbatim: title).font(.system(size: 17, weight: .semibold))
-                    Text(verbatim: how).font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                    Text(verbatim: dictation.pickingKey ? String(localized: "Tryck på en tangent…") : title)
+                        .font(.system(size: 17, weight: .semibold))
+                    Text(verbatim: dictation.pickingKey
+                         ? String(localized: "Håll in en eller flera tangenter som ⌥ och ⌘ och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
+                         : dictation.keyRefusal ?? how)
+                        .font(.system(size: 13)).foregroundStyle(dictation.keyRefusal == nil ? DS.Colors.muted : DS.Colors.ink)
                         .fixedSize(horizontal: false, vertical: true)
+                    // Picked right here, as in Inställningar.
                     Button {
-                        NotificationCenter.default.post(name: .showPage, object: Page.settings)
+                        dictation.togglePickingKey()
                     } label: {
-                        Text("Ändra i Inställningar")
+                        (dictation.pickingKey ? Text("Avbryt") : Text("Ändra"))
                             .font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted).underline()
                             .padding(.vertical, 4).contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .disabled(!dictation.accessibilityGranted)
+                    .help(LocalizedStringKey(dictation.accessibilityGranted ? "Klicka och håll in tangenterna du vill använda. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter."
+                                                                            : "Slå på Hjälpmedel för Mindtalk först."))
                 }
                 Spacer(minLength: 12)
                 if !dictation.needsSetup {
@@ -971,6 +979,7 @@ private struct DictationKeyCard: View {
         }
         .padding(22)
         .card()
+        .onDisappear { dictation.stopPickingKey(reason: "Diktering left") }
     }
 }
 

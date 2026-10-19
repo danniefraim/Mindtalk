@@ -9073,6 +9073,22 @@
         }
       }
     },
+    "Håll in %@ och säg det du kommer på.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold %@ and say what comes to mind."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in %@ och säg det du kommer på."
+          }
+        }
+      }
+    },
     "Håll in %@ och säg något.": {
       "extractionState": "stale",
       "localizations": {
@@ -28136,6 +28152,7 @@
       }
     },
     "Ändra i Inställningar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

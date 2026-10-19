@@ -32,8 +32,13 @@ struct ThoughtsPage: View {
     @FocusState private var typing: Bool
     @FocusState private var searching: Bool
     @FocusState private var listFocused: Bool
+    /// The thought key, changed right here with Ändra (or Välj when it's off).
+    @State private var thoughtKey = Settings.thoughtShortcut
+    @State private var pickingKey = false
+    /// Why the key just picked wasn't taken (the dictation key has it).
+    @State private var keyRefusal: String?
 
-    private var chord: String { Settings.thoughtShortcut?.inlineName ?? "" }
+    private var chord: String { thoughtKey?.inlineName ?? "" }
     private var live: Int { thoughts.pinned.count + thoughts.days.reduce(0) { $0 + $1.items.count } }
     /// Keys go to the list, not to a field being typed in.
     private var listKeys: Bool { editing == nil && !typing && !searching }
@@ -85,7 +90,7 @@ struct ThoughtsPage: View {
                        eyebrow: live == 0 ? nil : live == 1 ? String(localized: "1 tanke") : String(localized: "\(live) tankar"),
                        // (The empty page says it itself.)
                        subtitle: live == 0 || live >= 5 ? nil
-                           : String(localized: "Det du kommer på mitt i något annat. Håll in \(Settings.thoughtShortcut?.inlineName ?? String(localized: "genvägen")) och säg det, så hamnar det här, inte i appen du är i."))
+                           : String(localized: "Det du kommer på mitt i något annat. Håll in \(thoughtKey?.inlineName ?? String(localized: "genvägen")) och säg det, så hamnar det här, inte i appen du är i."))
             Spacer(minLength: 16)
             Menu {
                 Button("Exportera alla som Markdown…", action: export).disabled(live == 0)
@@ -104,10 +109,24 @@ struct ThoughtsPage: View {
         }
     }
 
-    /// Type one, or say one — a light tile, like Möten's start card.
+    /// Type one, or say one — a light tile, like Möten's start card. Its top line has
+    /// the thought key, to change right here.
     private var captureBar: some View {
         VStack(alignment: .leading, spacing: 12) {
-            CapsLabel(String(localized: "Ny tanke"))
+            HStack(alignment: .center, spacing: 10) {
+                CapsLabel(String(localized: "Ny tanke")).fixedSize()
+                Spacer(minLength: 16)
+                keyLine
+            }
+            if let below = keyRefusal ?? (pickingKey ? String(localized: "Håll in en tangent ensam, som höger ⌘, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.") : nil) {
+                Text(verbatim: below)
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(keyRefusal == nil ? DS.Colors.muted : DS.Colors.ink)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .multilineTextAlignment(.trailing)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .transition(.opacity)
+            }
             HStack(spacing: 10) {
                 HStack(spacing: 9) {
                     Image(systemName: "pencil").font(.system(size: 12)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
@@ -130,6 +149,27 @@ struct ThoughtsPage: View {
         }
         .padding(20)
         .tile()
+    }
+
+    /// The thought key as a chip and what to do with it, and Ändra to pick another
+    /// (the same picker as in Inställningar). Off: Ingen genväg, and Välj.
+    private var keyLine: some View {
+        HStack(spacing: 10) {
+            if pickingKey {
+                Text("Tryck på genvägen…").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+            } else if let thoughtKey {
+                KeyChip(text: thoughtKey.chip)
+                Text(verbatim: String(localized: "Håll in \(thoughtKey.inlineName) och säg det du kommer på."))
+                    .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                    .lineLimit(1)
+            } else {
+                Text("Ingen genväg").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+            }
+            ThoughtShortcutField(shortcut: $thoughtKey, picking: $pickingKey, refusal: $keyRefusal,
+                                 meeting: Settings.meetingShortcut, style: .button)
+                .disabled(!dictation.accessibilityGranted)
+        }
+        .animation(.snappy(duration: 0.2), value: pickingKey)
     }
 
     private var searchField: some View {
@@ -165,7 +205,7 @@ struct ThoughtsPage: View {
 
     private var empty: some View {
         VStack(spacing: 14) {
-            if let keys = Settings.thoughtShortcut {
+            if let keys = thoughtKey {
                 // The key you hold, mid-sentence.
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text("Håll in")
