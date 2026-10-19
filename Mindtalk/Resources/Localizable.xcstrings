@@ -2767,7 +2767,6 @@
       }
     },
     "Allmänt": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12802,7 +12801,6 @@
       }
     },
     "Integrationer": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -17859,6 +17857,22 @@
         }
       }
     },
+    "Mikrofon och språk": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Microphone and Language"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofon och språk"
+          }
+        }
+      }
+    },
     "Mikrofonen ger inget ljud. Är den avstängd?": {
       "localizations": {
         "en": {
@@ -19016,7 +19030,6 @@
       }
     },
     "Modeller": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -20652,6 +20665,22 @@
         }
       }
     },
+    "Något behöver ordnas här.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Something here needs setting up."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Något behöver ordnas här."
+          }
+        }
+      }
+    },
     "Något gick fel under nedladdningen. Försök igen.": {
       "localizations": {
         "en": {
@@ -20782,7 +20811,6 @@
       }
     },
     "Om Mindtalk": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -28997,6 +29025,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen. Det kräver macOS ibland efter en uppdatering."
+          }
+        }
+      }
+    },
+    "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen. macOS kräver det ibland efter en uppdatering.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Without it, no shortcuts work. Is Mindtalk already under Privacy & Security → Accessibility? Turn it off and on again. macOS sometimes needs that after an update."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen. macOS kräver det ibland efter en uppdatering."
           }
         }
       }
