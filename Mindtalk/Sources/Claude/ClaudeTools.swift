@@ -9,9 +9,11 @@ import Foundation
 // Thoughts) and with the same search engine (MeetingSearch). Nothing is written.
 // Audio and voiceprints are never given out.
 //
-// Every request is checked against ClaudeSharing first: off, the level, and the
-// folders kept away, which are never listed and never named: an id from one is
-// "No such meeting". Every answer is noted in the log the settings card shows.
+// Every request is checked against ClaudeSharing first: off, the boxes ticked (Parts),
+// and, for every meeting, ClaudeSharing.allows: the one place that decides whether a
+// meeting may be read. A meeting or folder hidden from AI apps is never listed and never
+// named: an id from one is "No such meeting". Every answer is noted in the log the
+// settings card shows.
 //
 // Text the assistant reads (descriptions, errors, notes) is English and plain. Only
 // the log's scope is shown to you, so only it goes through the catalog.
@@ -20,24 +22,17 @@ import Foundation
 enum ClaudeTools {
     struct Failure: Error {
         let message: String
-        /// Set when the owner's settings said no (off, the level, a meeting kept away):
+        /// Set when the owner's settings said no (off, a box not ticked, a meeting hidden):
         /// noted in the log as "nekad: …", so the card shows what was asked for and refused.
         var refusal: String? = nil
     }
 
     static let offMessage = "MCP is switched off in Mindtalk, so nothing can be read. Ask the user to switch it on in Mindtalk under Settings → Integrations → MCP."
-    /// A meeting must be over before it can be read: finished this long ago, so the owner
-    /// has a moment to put it in a folder that is kept away.
-    static let grace: TimeInterval = 120
     /// A list or a search that didn't fit, or has another page.
     static let moreNote = "More hits than shown: narrow with meeting_id, folder_id, from/to or more specific words, or follow nextCursor where there is one."
     /// A meeting's notes that didn't fit.
     static let moreNotesNote = "Not all notes fit; use mindtalk_search with meeting_id to find a specific one."
-    // The levels, named as the English card names them (ClaudeSharing.Level.title).
-    private static let meetingsLevelMessage =
-        "Meetings are not shared: the level in Mindtalk is \"Thoughts only\". Thoughts can be read with mindtalk_list_thoughts and mindtalk_search. The user can change this in Mindtalk under Settings → Integrations → MCP."
-    private static let transcriptsLevelMessage =
-        "Transcripts are not shared: the level in Mindtalk is \"Thoughts, summaries and notes\". Use mindtalk_get_meeting for the summary, decisions, tasks and notes, or mindtalk_search. The user can change this in Mindtalk under Settings → Integrations → MCP."
+    static let changeHere = "The user can change this in Mindtalk under Settings → Integrations → MCP."
 
     /// About 6 000 tokens for a list, 25 000 characters for a page of text.
     static let listBudget = 24_000
@@ -72,14 +67,16 @@ enum ClaudeTools {
                 (result, scope, items) = try getMeeting(args)
             case "mindtalk_get_transcript":
                 try requireMeetings()
-                try requireTranscripts()
+                try require(.transcripts)
                 (result, scope, items) = try getTranscript(args)
             case "mindtalk_search":
                 (result, scope, items) = try search(args)
             case "mindtalk_list_tasks":
                 try requireMeetings()
+                try require(.summaries)
                 (result, scope, items) = try listTasks(args)
             case "mindtalk_list_thoughts":
+                try require(.thoughts)
                 (result, scope, items) = try listThoughts(args)
             default:
                 throw Failure(message: "Unknown tool \"\(tool)\".")
@@ -99,15 +96,33 @@ enum ClaudeTools {
     private static func refusedOff() -> Failure {
         Failure(message: offMessage, refusal: String(localized: "nekad: avstängt"))
     }
+    /// No meeting box ticked: no meeting can be listed, by any tool.
     private static func requireMeetings() throws {
-        guard ClaudeSharing.shared.level.includesMeetings else {
-            throw Failure(message: meetingsLevelMessage, refusal: String(localized: "nekad: nivån"))
+        guard ClaudeSharing.shared.meetingsShared else {
+            let thoughts = ClaudeSharing.shared.parts.contains(.thoughts)
+                ? " Thoughts can be read with mindtalk_list_thoughts and mindtalk_search." : ""
+            throw Failure(message: "Meetings are not shared: none of \"Meeting summaries\", \"Your notes and marks\" and \"Meetings’ full text\" is ticked in Mindtalk.\(thoughts) \(changeHere)",
+                          refusal: String(localized: "nekad: möten"))
         }
     }
-    private static func requireTranscripts() throws {
-        guard ClaudeSharing.shared.level.includesTranscripts else {
-            throw Failure(message: transcriptsLevelMessage, refusal: String(localized: "nekad: hela texten"))
+    /// One box not ticked: said by its name on the English card, and what is shared instead.
+    private static func require(_ part: ClaudeSharing.Parts) throws {
+        guard !ClaudeSharing.shared.parts.contains(part) else { return }
+        throw refused(part)
+    }
+    private static func refused(_ part: ClaudeSharing.Parts) -> Failure {
+        let what: String
+        switch part {
+        case .thoughts: what = "Thoughts are not shared"
+        case .summaries: what = "Meeting summaries (overview, decisions, tasks) are not shared"
+        case .notes: what = "The user’s own notes and marks are not shared"
+        default: what = "Transcripts are not shared"
         }
+        var message = "\(what): \"\(part.english)\" is not ticked in Mindtalk."
+        if part != .thoughts, ClaudeSharing.shared.meetingsShared {
+            message += " Use mindtalk_get_meeting or mindtalk_search for what is shared."
+        }
+        return Failure(message: message + " " + changeHere, refusal: part.refusal)
     }
 
     /// A whole number from a value read from disk, never a crash: NaN and infinity
@@ -218,26 +233,15 @@ enum ClaudeTools {
 
     // MARK: What may be seen
 
-    /// The meetings the assistant may read: not in a folder kept away, and over. The one
-    /// being recorded or finished, one whose notes are being written, one cut off by a
-    /// crash, and one that ended only moments ago (the owner may still be putting it in a
-    /// folder kept away) are not there yet. Newest first.
-    private static func visibleMeetings(now: Date = Date()) -> [MeetingRecord] {
+    /// The meetings the assistant may read, newest first: those ClaudeSharing.allows.
+    private static func visibleMeetings() -> [MeetingRecord] {
         let sharing = ClaudeSharing.shared
-        let live = MeetingSession.shared.record?.id
-        let writing = MeetingNotes.shared.writing
-        return MeetingStore.shared.meetings.filter { m in
-            sharing.allows(folder: m.folder) && m.id != live && m.finished && !writing.contains(m.id)
-                && now.timeIntervalSince(finishedAt(m)) >= grace
-        }
-    }
-    /// When the meeting was over: its start plus its length, or the moment it was imported.
-    static func finishedAt(_ m: MeetingRecord) -> Date {
-        max(m.date.addingTimeInterval(seconds(m)), m.source?.importedAt ?? .distantPast)
+        let now = Date()
+        return MeetingStore.shared.meetings.filter { sharing.allows($0, now: now) }
     }
     private static func visibleFolders() -> [MeetingFolder] {
         let sharing = ClaudeSharing.shared
-        return MeetingFolders.shared.folders.filter { sharing.allows(folder: $0.id) }
+        return MeetingFolders.shared.folders.filter { sharing.allows(folder: $0) }
     }
     /// Thoughts as the page shows them: written down, not removed. Newest first.
     private static func liveThoughts() -> [Thought] {
@@ -312,7 +316,8 @@ enum ClaudeTools {
             "link": link(meeting: m.id),
         ]
         if let f = MeetingFolders.shared.folder(of: m) { d["folder"] = ["id": f.id.uuidString, "name": f.name] }
-        if let g = gist(m) { d["gist"] = g }
+        // The gist is the summary's first sentence: only when summaries are shared.
+        if ClaudeSharing.shared.parts.contains(.summaries), let g = gist(m) { d["gist"] = g }
         return d
     }
 
@@ -371,13 +376,14 @@ enum ClaudeTools {
     private static func has(_ text: String, _ word: String) -> Bool { text.range(of: word, options: .caseInsensitive) != nil }
     private static func hasAll(_ text: String, _ words: [String]) -> Bool { words.allSatisfy { has(text, $0) } }
 
-    /// All of a meeting the assistant may match at this level, as one string: the title,
-    /// the summary's lines, the notes, the marks with words, and what was said only when
-    /// `transcripts` are shared.
-    private static func everything(of m: MeetingRecord, transcripts: Bool) -> String {
-        var parts = [title(of: m)] + MeetingSearch.summaryLines(of: m).map(\.text) + m.notes.map(\.text) + m.marks.compactMap(\.text)
-        if transcripts { parts.append(MeetingSearch.said(of: m)) }
-        return parts.joined(separator: " ")
+    /// All of a meeting the assistant may match, as one string: the title always, and
+    /// of the summary, the notes and marks, and what was said only the `parts` given.
+    private static func everything(of m: MeetingRecord, parts: ClaudeSharing.Parts) -> String {
+        var text = [title(of: m)]
+        if parts.contains(.summaries) { text += MeetingSearch.summaryLines(of: m).map(\.text) }
+        if parts.contains(.notes) { text += m.notes.map(\.text) + m.marks.compactMap(\.text) }
+        if parts.contains(.transcripts) { text.append(MeetingSearch.said(of: m)) }
+        return text.joined(separator: " ")
     }
 
     // MARK: mindtalk_list_folders
@@ -402,11 +408,11 @@ enum ClaudeTools {
         var meetings = scope.meetings
         if let query = try args.string("query") {
             // As the app's own search, every word somewhere in the meeting: but only in
-            // what this level lets the assistant read. Matching the spoken text at a
-            // level without it would give that text away a word at a time.
+            // what the boxes let the assistant read. Matching the spoken text without
+            // that box would give the text away a word at a time.
             let words = words(query)
-            let transcripts = ClaudeSharing.shared.level.includesTranscripts
-            meetings = meetings.filter { hasAll(everything(of: $0, transcripts: transcripts), words) }
+            let parts = ClaudeSharing.shared.parts
+            meetings = meetings.filter { hasAll(everything(of: $0, parts: parts), words) }
         }
         let limit = try args.limit(default: 20, max: 50)
         let offset = try args.offset()
@@ -426,10 +432,18 @@ enum ClaudeTools {
 
     private static func getMeeting(_ args: Args) throws -> ([String: Any], String, Int) {
         let m = try meeting(args)
-        let include = Set(try args.strings("include") ?? ["summary", "decisions", "tasks", "notes", "marks"])
-        for part in include where !["summary", "decisions", "tasks", "notes", "marks"].contains(part) {
+        let parts = ClaudeSharing.shared.parts
+        let fromSummary = ["summary", "decisions", "tasks"], yours = ["notes", "marks"]
+        let shared = (parts.contains(.summaries) ? fromSummary : []) + (parts.contains(.notes) ? yours : [])
+        let asked = try args.strings("include")
+        for part in asked ?? [] where !(fromSummary + yours).contains(part) {
             throw Failure(message: "Unknown include \"\(part)\": use summary, decisions, tasks, notes or marks.")
         }
+        // Asked for by name and not shared: said, never left out in silence.
+        for part in asked ?? [] where !shared.contains(part) {
+            throw refused(fromSummary.contains(part) ? .summaries : .notes)
+        }
+        let include = Set(asked ?? shared)
         let format = try args.string("response_format")?.lowercased() ?? "concise"
         guard ["concise", "detailed"].contains(format) else { throw Failure(message: "response_format must be concise or detailed.") }
         let detailed = format == "detailed"
@@ -539,18 +553,23 @@ enum ClaudeTools {
     private static func search(_ args: Args) throws -> ([String: Any], String, Int) {
         let words = words(try args.string("query"))
         guard !words.isEmpty else { throw Failure(message: "query is required: one or more words to look for.") }
-        let level = ClaudeSharing.shared.level
-        let allowed = ["thoughts"] + (level.includesMeetings ? ["summaries"] : []) + (level.includesTranscripts ? ["transcripts"] : [])
-        let kinds = try args.strings("kinds") ?? allowed
-        for kind in kinds {
-            guard ["thoughts", "summaries", "transcripts"].contains(kind) else {
-                throw Failure(message: "Unknown kind \"\(kind)\": use thoughts, summaries or transcripts.")
-            }
-            if !allowed.contains(kind) {
-                if kind == "transcripts" { try requireTranscripts() }
-                try requireMeetings()
-            }
+        let parts = ClaudeSharing.shared.parts
+        let kindParts: [(String, ClaudeSharing.Parts)] = [("thoughts", .thoughts), ("summaries", .summaries),
+                                                          ("notes", .notes), ("transcripts", .transcripts)]
+        let allowed = kindParts.filter { parts.contains($0.1) }.map(\.0)
+        guard let kinds = try args.strings("kinds") ?? (allowed.isEmpty ? nil : allowed) else {
+            throw Failure(message: "Nothing is shared: no box under \"May be read\" is ticked in Mindtalk. \(changeHere)",
+                          refusal: String(localized: "nekad: möten"))
         }
+        for kind in kinds {
+            guard let part = kindParts.first(where: { $0.0 == kind })?.1 else {
+                throw Failure(message: "Unknown kind \"\(kind)\": use thoughts, summaries, notes or transcripts.")
+            }
+            if part != .thoughts { try requireMeetings() }
+            try require(part)
+        }
+        // The meeting parts searched, as boxes.
+        let searched = ClaudeSharing.Parts(kindParts.filter { kinds.contains($0.0) && $0.1 != .thoughts }.map(\.1))
         let limit = try args.limit(default: 20, max: 50)
         let inMeetings = try args.string("meeting_id") != nil || args.string("folder_id") != nil
         var hits: [[String: Any]] = []
@@ -565,35 +584,40 @@ enum ClaudeTools {
                 hits.append(["kind": "thought", "id": t.id.uuidString, "text": excerpt(t.text, around: words),
                              "date": iso.string(from: t.date), "link": link(thought: t.id)])
             }
-            if !kinds.contains("summaries"), !kinds.contains("transcripts") { label = String(localized: "Tankar") }
+            if searched.isEmpty { label = String(localized: "Tankar") }
         }
 
-        if kinds.contains("summaries") || kinds.contains("transcripts"), level.includesMeetings {
+        if !searched.isEmpty {
             let scope = try scope(args)
             label = scope.label
-            let inText = kinds.contains("transcripts") && level.includesTranscripts
             for m in scope.meetings {
                 // As the app: every word somewhere in the meeting, asked of the whole
                 // first (cheap, cached), before any line is ranked.
-                guard hasAll(everything(of: m, transcripts: inText), words) else { continue }
+                guard hasAll(everything(of: m, parts: searched), words) else { continue }
                 struct Candidate { let rank: Int; let at: Double?; let hit: [String: Any] }
                 var found: [Candidate] = []
                 func rank(_ text: String) -> Int { words.filter { has(text, $0) }.count }
-                if kinds.contains("summaries") {
-                    var parts: [(part: String, text: String, at: Double?)] = [("title", title(of: m), nil)]
-                    parts += MeetingSearch.summaryLines(of: m).map { ($0.kind, $0.text, $0.at) }
-                    parts += m.notes.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }.map { ("note", $0.text, $0.at) }
-                    parts += m.marks.compactMap { mark in mark.text.map { ("mark", "\(mark.kind.rawValue): \($0)", mark.at) } }
-                    for p in parts {
-                        let r = rank(p.text)
-                        guard r > 0 else { continue }
-                        var hit: [String: Any] = ["kind": "summary", "part": p.part, "text": excerpt(p.text, around: words),
-                                                  "meeting": brief(m), "link": link(meeting: m.id, at: p.at)]
-                        if let at = p.at { hit["t_seconds"] = clampedInt(at) }
-                        found.append(Candidate(rank: r, at: p.at, hit: hit))
-                    }
+                // The title is shared with the meeting; it counts as the summary's when
+                // summaries are searched, else as the notes'.
+                var lines: [(kind: String, part: String, text: String, at: Double?)] = []
+                if searched.contains(.summaries) {
+                    lines.append(("summary", "title", title(of: m), nil))
+                    lines += MeetingSearch.summaryLines(of: m).map { ("summary", $0.kind, $0.text, $0.at) }
                 }
-                if inText {
+                if searched.contains(.notes) {
+                    if !searched.contains(.summaries) { lines.append(("note", "title", title(of: m), nil)) }
+                    lines += m.notes.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }.map { ("note", "note", $0.text, $0.at) }
+                    lines += m.marks.compactMap { mark in mark.text.map { ("note", "mark", "\(mark.kind.rawValue): \($0)", mark.at) } }
+                }
+                for p in lines {
+                    let r = rank(p.text)
+                    guard r > 0 else { continue }
+                    var hit: [String: Any] = ["kind": p.kind, "part": p.part, "text": excerpt(p.text, around: words),
+                                              "meeting": brief(m), "link": link(meeting: m.id, at: p.at)]
+                    if let at = p.at { hit["t_seconds"] = clampedInt(at) }
+                    found.append(Candidate(rank: r, at: p.at, hit: hit))
+                }
+                if searched.contains(.transcripts) {
                     for s in MeetingSearch.sentences(of: m) {
                         let r = rank(s.text)
                         guard r > 0 else { continue }
@@ -634,7 +658,8 @@ enum ClaudeTools {
             var tasks: [(text: String, owner: String?, done: Bool, at: Double?)] = []
             if let s = m.summary { tasks = s.tasks.map { ($0.text, $0.owner, $0.done == true, $0.at) } }
             let written = Set(tasks.map { $0.text.lowercased() })
-            for mark in m.marks where mark.kind == .task {
+            // A marked task is the owner's own mark: only with notes and marks shared.
+            for mark in m.marks where mark.kind == .task && ClaudeSharing.shared.parts.contains(.notes) {
                 guard let words = mark.text?.trimmingCharacters(in: .whitespaces), !words.isEmpty,
                       !written.contains(words.lowercased()) else { continue }
                 tasks.append((words, nil, false, mark.at))

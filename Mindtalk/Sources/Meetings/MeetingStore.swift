@@ -77,6 +77,9 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     var continuedAt: Double?
     /// Imported from a file rather than recorded here: which, and when.
     var source: Source?
+    /// "Dölj för AI-program": no program that reads through MCP sees it, whatever its
+    /// folder (ClaudeSharing.allows).
+    var hiddenFromAI = false
 
     struct Source: Codable, Equatable {
         /// The file's name, as it was.
@@ -245,6 +248,7 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         folderAsked = (try? c.decodeIfPresent(Bool.self, forKey: .folderAsked)) ?? false
         continuedAt = try? c.decodeIfPresent(Double.self, forKey: .continuedAt)
         source = try? c.decodeIfPresent(Source.self, forKey: .source)
+        hiddenFromAI = (try? c.decodeIfPresent(Bool.self, forKey: .hiddenFromAI)) ?? false
     }
 
     /// Speakers in the order they first spoke.
@@ -810,6 +814,9 @@ final class MeetingStore: ObservableObject {
         }
     }
     nonisolated private static let writer = DispatchQueue(label: "ai.mindact.mindtalk.meeting-writer", qos: .utility)
+
+    /// Waits until every quiet save on its way is on disk.
+    func flushQuietSaves() { Self.writer.sync {} }
 
     func rename(_ id: UUID, to title: String) {
         let title = title.trimmingCharacters(in: .whitespacesAndNewlines)

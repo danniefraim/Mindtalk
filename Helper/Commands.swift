@@ -82,12 +82,12 @@ enum Commands {
               --summary   Only the summary and the decisions.
               --tasks     Only the tasks.
               --notes     Only your notes and the moments you marked.
-              --text      What was said, as "[mm:ss] Speaker: text" (needs the Everything level).
+              --text      What was said, as "[mm:ss] Speaker: text" (needs "Meetings’ full text" ticked).
             """,
         "search": """
             mindtalk search <words> [--folder <name|id>] [--meeting <id>] [--from DATE] [--to DATE] [--limit N] [--json]
-              Where the words occur: thoughts, summaries, decisions, tasks, notes, and what was said
-              when transcripts are shared. Every word must occur in the same meeting or thought.
+              Where the words occur: thoughts, summaries, decisions, tasks, notes, marks and what
+              was said, as far as each is shared. Every word must occur in the same meeting or thought.
               --limit     At most this many hits (1 to 50; default 20).
             """,
         "thoughts": """

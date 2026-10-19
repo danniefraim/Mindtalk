@@ -65,7 +65,7 @@ enum ClaudeInstall {
             "display_name": "Mindtalk",
             "version": version,
             "description": "Your meetings and thoughts from Mindtalk, read only when you ask. Audio and voiceprints are never shared.",
-            "long_description": "Ask about one meeting, a folder or all your meetings: summaries, decisions, tasks and, if you allow it, the whole text. You decide in Mindtalk, under Settings → Integrations → MCP, what may be read and which folders stay private, and Mindtalk keeps a log of every call.",
+            "long_description": "Ask about one meeting, a folder or all your meetings: summaries, decisions, tasks and, if you allow it, the whole text. You decide in Mindtalk, under Settings → Integrations → MCP, what may be read and which folders and meetings stay private, and Mindtalk keeps a log of every call.",
             "author": ["name": "Mindact Solutions AB"],
             "homepage": "https://mindact.ai",
             "icon": "icon.png",

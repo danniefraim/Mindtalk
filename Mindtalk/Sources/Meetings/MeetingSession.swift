@@ -995,6 +995,13 @@ final class MeetingSession: ObservableObject {
         MeetingStore.shared.save(record)
     }
 
+    func setHiddenFromAI(_ hidden: Bool) {
+        guard var record, record.hiddenFromAI != hidden else { return }
+        record.hiddenFromAI = hidden
+        self.record = record
+        MeetingStore.shared.save(record)
+    }
+
     func rename(to title: String) {
         let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }

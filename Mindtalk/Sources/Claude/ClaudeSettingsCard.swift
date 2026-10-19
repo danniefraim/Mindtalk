@@ -7,9 +7,10 @@ import SwiftUI
 // the card fits one screen: a row of buttons for the four programs people ask for
 // (Claude, ChatGPT, Cursor, Gemini CLI), three steps for all other programs with the
 // standard setting to copy, and a "Läs mer" that opens the help page (MCPHelpView,
-// every program step by step). Then what may be read (everything is the default: the
-// owner chose that the connection, once on, reads it all), which folders, the Terminal
-// command, and what has been read so far. Switched off: the switch, the two lines on
+// every program step by step). Then what may be read, a box each for thoughts, the
+// summaries, your notes and marks, and the whole text (all four by default: the owner
+// chose that the connection, once on, reads it all), what is hidden from AI apps (set on
+// a folder or a meeting under Möten), the Terminal command, and what has been read so far. Switched off: the switch, the two lines on
 // top and a line saying so; nothing to set for something that isn't on.
 //
 // The first time the switch goes on, a dialog says where the text goes and what is
@@ -18,6 +19,7 @@ import SwiftUI
 struct ClaudeSettingsCard: View {
     @ObservedObject var sharing: ClaudeSharing
     @ObservedObject private var folders = MeetingFolders.shared
+    @ObservedObject private var store = MeetingStore.shared
     /// The button that reads "Kopierat" for a moment after a copy.
     @State private var copied: ClaudeInstall.Client?
     @State private var copiedTask: Task<Void, Never>?
@@ -35,7 +37,7 @@ struct ClaudeSettingsCard: View {
     @State private var showHelp = false
 
     private static let shown = 10
-    /// The column the small-caps labels sit in, left of the levels and the folders.
+    /// The column the small-caps labels sit in, left of the boxes and what is hidden.
     private static let labelColumn: CGFloat = 108
 
     private enum Notice: Equatable {
@@ -269,64 +271,67 @@ struct ClaudeSettingsCard: View {
         }
     }
 
-    // MARK: Får läsas, Mappar
+    // MARK: Får läsas, Dolt
 
     private var permissions: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
-                CapsLabel(String(localized: "Får läsas")).frame(width: Self.labelColumn, alignment: .leading)
-                // One row when the three fit, else one under the other.
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: 18) { levelRadios }
-                    VStack(alignment: .leading, spacing: 8) { levelRadios }
+                CapsLabel(String(localized: "Får läsas"))
+                    .frame(width: Self.labelColumn, alignment: .leading)
+                    .help("Titel, datum och vilka som pratade delas när någon av mötesrutorna är ibockad.")
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(ClaudeSharing.Parts.each, id: \.rawValue) { part in
+                        Toggle(isOn: Binding(
+                            get: { sharing.parts.contains(part) },
+                            set: { on in
+                                withAnimation(.snappy) {
+                                    if on { sharing.parts.insert(part) } else { sharing.parts.remove(part) }
+                                }
+                            })) {
+                            if part == .summaries {
+                                (Text(verbatim: part.title)
+                                 + Text(verbatim: "   ")
+                                 + Text("titel, översikt, beslut och uppgifter").foregroundStyle(DS.Colors.muted))
+                                    .font(.system(size: 13))
+                                    .fixedSize(horizontal: false, vertical: true)
+                            } else {
+                                Text(verbatim: part.title).font(.system(size: 13))
+                            }
+                        }
+                        .toggleStyle(InkCheckboxStyle())
+                    }
+                    if sharing.parts.isEmpty {
+                        Text("Inget får läsas. Det är samma sak som att stänga av MCP.")
+                            .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 2)
+                    }
                 }
             }
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                CapsLabel(String(localized: "Mappar"))
-                    .frame(width: Self.labelColumn, alignment: .leading)
-                    .help("Ett nytt möte kan läsas när det är klart, om du inte lägger det i en mapp som inte får läsas.")
-                folderRow
+            if let hidden = hiddenLine {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    CapsLabel(String(localized: "Dolt"))
+                        .frame(width: Self.labelColumn, alignment: .leading)
+                    Text(verbatim: hidden)
+                        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .help("Högerklicka på en mapp eller ett möte under Möten för att dölja det eller visa det igen.")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 22).padding(.vertical, 16)
     }
 
-    private var levelRadios: some View {
-        ForEach(ClaudeSharing.Level.allCases) { level in
-            InkRadio(title: level.title, on: sharing.level == level) {
-                withAnimation(.snappy) { sharing.level = level }
-            }
-        }
-    }
-
-    @ViewBuilder private var folderRow: some View {
-        if !sharing.level.includesMeetings {
-            Text("Med Bara tankar läses inga möten, oavsett mapp.")
-                .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-        } else {
-            VStack(alignment: .leading, spacing: 8) {
-            FlowLayout(spacing: 16) {
-                ForEach(folders.sorted) { folder in
-                    Toggle(isOn: Binding(
-                        get: { !sharing.excludedFolders.contains(folder.id) },
-                        set: { on in
-                            if on { sharing.excludedFolders.remove(folder.id) } else { sharing.excludedFolders.insert(folder.id) }
-                        })) {
-                        Text(verbatim: folder.name).font(.system(size: 13))
-                    }
-                    .toggleStyle(InkCheckboxStyle())
-                }
-                // Meetings in no folder: a choice like the folders, not a rule.
-                Toggle(isOn: $sharing.shareUnfiled) {
-                    Text("Utan mapp").font(.system(size: 13))
-                }
-                .toggleStyle(InkCheckboxStyle())
-            }
-            Text("Bocka ur det som ska stanna privat.")
-                .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-            }
-        }
+    /// "Styrelsen · 1 möte": the folders hidden from AI apps by name, then how many
+    /// meetings are hidden by themselves (outside those folders). Nil: nothing hidden.
+    private var hiddenLine: String? {
+        let names = folders.sorted.filter(\.hiddenFromAI).map(\.name)
+        let alone = store.meetings.filter { $0.hiddenFromAI && folders.hidingFolder(of: $0) == nil }.count
+        var parts = names
+        if alone == 1 { parts.append(String(localized: "1 möte")) }
+        if alone > 1 { parts.append(String(localized: "\(alone) möten")) }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     // MARK: Terminalen
@@ -457,30 +462,5 @@ enum ClaudeLogLine {
         default:
             return scope.isEmpty ? entry.tool : "\(entry.tool) · \(scope)"
         }
-    }
-}
-
-/// A radio button in ink: a ring, filled with a dot when chosen.
-private struct InkRadio: View {
-    let title: String
-    let on: Bool
-    let pick: () -> Void
-
-    var body: some View {
-        Button(action: pick) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                ZStack {
-                    Circle().strokeBorder(on ? DS.Colors.ink : DS.Colors.fieldStroke, lineWidth: on ? 1.5 : 1)
-                        .background(Circle().fill(on ? Color.clear : DS.Colors.control))
-                    if on { Circle().fill(DS.Colors.ink).frame(width: 8, height: 8) }
-                }
-                .frame(width: 16, height: 16)
-                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4.5 }
-                Text(verbatim: title).font(.system(size: 13))
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(on ? [.isSelected] : [])
     }
 }

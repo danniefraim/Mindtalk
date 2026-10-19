@@ -16,6 +16,9 @@ struct MeetingFolder: Codable, Identifiable, Equatable, Hashable {
     var id = UUID()
     var name: String
     var created = Date()
+    /// "Dölj för AI-program": no program that reads through MCP (or the command line)
+    /// sees this folder or any meeting in it (ClaudeSharing.allows).
+    var hiddenFromAI = false
 
     init(name: String) { self.name = name }
 
@@ -25,6 +28,7 @@ struct MeetingFolder: Codable, Identifiable, Equatable, Hashable {
         id = try c.decode(UUID.self, forKey: .id)
         name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? String(localized: "Mapp")
         created = (try? c.decodeIfPresent(Date.self, forKey: .created)) ?? Date()
+        hiddenFromAI = (try? c.decodeIfPresent(Bool.self, forKey: .hiddenFromAI)) ?? false
     }
 }
 
@@ -165,8 +169,34 @@ final class MeetingFolders: ObservableObject {
     /// The folder goes; its meetings stay — under "Alla" (they still name it, so a
     /// folder list put back brings them back too).
     func remove(_ id: UUID) {
-        guard folders.contains(where: { $0.id == id }), write(folders.filter { $0.id != id }) else { return }
+        guard let folder = folders.first(where: { $0.id == id }) else { return }
+        // A hidden folder hid its meetings. Once it is gone they would have no folder to
+        // hide them, and an AI app could suddenly read what the owner kept away: each is
+        // hidden by itself first, and saved, before the folder goes.
+        if folder.hiddenFromAI {
+            let store = MeetingStore.shared
+            var inside = store.meetings.filter { $0.folder == id }.map(\.id)
+            if let live = MeetingSession.shared.record, live.folder == id { inside.append(live.id) }
+            store.setHiddenFromAI(true, of: inside)
+            store.flushQuietSaves()
+        }
+        guard write(folders.filter { $0.id != id }) else { return }
         if selected == id { selected = nil }
+    }
+
+    /// "Dölj för AI-program" on a folder, or off again. False if it couldn't be saved.
+    @discardableResult
+    func setHiddenFromAI(_ hidden: Bool, folder id: UUID) -> Bool {
+        guard let i = folders.firstIndex(where: { $0.id == id }) else { return false }
+        guard folders[i].hiddenFromAI != hidden else { return true }
+        var new = folders
+        new[i].hiddenFromAI = hidden
+        return write(new)
+    }
+
+    /// The folder that hides this meeting from AI apps, if its folder is hidden.
+    func hidingFolder(of record: MeetingRecord) -> MeetingFolder? {
+        folder(of: record).flatMap { $0.hiddenFromAI ? $0 : nil }
     }
 
     /// The folders in the order you see them, A to Ö.
@@ -267,7 +297,9 @@ final class MeetingFolders: ObservableObject {
 
     #if DEBUG
     /// Screenshots: folders in memory only — nothing written.
-    func preview(_ names: [String]) { folders = names.map { MeetingFolder(name: $0) } }
+    func preview(_ names: [String], hidden: Set<String> = []) {
+        folders = names.map { var f = MeetingFolder(name: $0); f.hiddenFromAI = hidden.contains($0); return f }
+    }
     #endif
 }
 
@@ -292,6 +324,23 @@ extension MeetingStore {
     }
 
     func setFolder(_ folder: UUID?, of id: UUID) { setFolder(folder, of: [id]) }
+
+    /// "Dölj för AI-program" on meetings, or off again: as moving them, the one being
+    /// recorded changes in the session; the others are written off the main thread.
+    func setHiddenFromAI(_ hidden: Bool, of ids: [UUID]) {
+        let session = MeetingSession.shared
+        var changed = meetings
+        for id in ids {
+            if session.record?.id == id {
+                session.setHiddenFromAI(hidden)
+                continue
+            }
+            guard let i = changed.firstIndex(where: { $0.id == id }), changed[i].hiddenFromAI != hidden else { continue }
+            changed[i].hiddenFromAI = hidden
+            saveQuietly(changed[i])
+        }
+        replaceAll(changed)
+    }
 
     /// The suggestion put away: not asked again for this meeting.
     func dismissFolderSuggestion(for id: UUID) {

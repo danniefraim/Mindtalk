@@ -4,10 +4,11 @@ import Foundation
 // MARK: - `Mindtalk --bridge-test --models-dir <empty folder>/models`
 //
 // The seven tools, exercised through the socket as the helper would: a made-up store
-// (four meetings, two folders of which one is kept away, three thoughts) is written
+// (six meetings, two folders of which one is hidden from AI apps, three thoughts) is written
 // to the folder next to --models-dir, so your own meetings, thoughts and settings are
 // never touched (ClaudeSharing in preview: nothing saved). Asserts the scope rules,
-// the levels, the pages, the log, and that a sentence said in a meeting comes back as
+// the boxes (Parts), hiding a folder or a meeting, the move from the old settings
+// (in a defaults suite of its own), the pages, the log, and that a sentence said in a meeting comes back as
 // the data it is. `--serve` keeps the bridge up afterwards, so the helper can be run
 // against it: MINDTALK_SOCKET=<printed path> mindtalk mcp.
 //
@@ -59,8 +60,7 @@ enum BridgeTest {
         store.loadNow()
         await store.ready()
         let sharing = ClaudeSharing.shared
-        sharing.preview(enabled: true, level: .everything, entries: [])
-        sharing.excludedFolders = [fixture.folderB]
+        sharing.preview(enabled: true, parts: .all, entries: [])
         let socket = root.appendingPathComponent("mcp.sock")
         Bridge.shared.start(at: socket)
         return Setup(fixture: fixture, socket: socket, sharing: sharing)
@@ -103,7 +103,7 @@ enum BridgeTest {
             return "\(list.count) \(key): " + known.joined(separator: " ") + (unknown > 0 ? " och \(unknown) okända" : "")
         }
 
-        // Folders: B is kept away, never listed.
+        // Folders: B is hidden from AI apps, never listed.
         var r = await call("mindtalk_list_folders")
         let folderRows = rows(r.result, "folders")
         check("list_folders: bara A", ids(folderRows) == [a] && folderRows.first?["meeting_count"] as? Int == 2 && r.error == nil, said(r, "folders"))
@@ -263,7 +263,7 @@ enum BridgeTest {
               "\(answered.count) besvarade")
         check("loggen: den som frågar är namngiven (den här processen)", answered.allSatisfy { $0.client == "Mindtalk" },
               Set(answered.map { $0.client ?? "okänd" }).joined(separator: ", "))
-        let refusals = [String(localized: "nekad: okänt möte"), String(localized: "nekad: okänd mapp"), String(localized: "nekad: nivån"),
+        let refusals = [String(localized: "nekad: okänt möte"), String(localized: "nekad: okänd mapp"), String(localized: "nekad: möten"),
                         String(localized: "nekad: hela texten"), String(localized: "nekad: avstängt")]
         check("loggen: nekade anrop skrivs utan id, med 0 tecken", refused.count == 6 && refused.allSatisfy {
             $0.items == 0 && $0.characters == 0 && refusals.contains($0.scope)
@@ -275,42 +275,189 @@ enum BridgeTest {
         _ = await call("mindtalk_list_meetings", ["limit": "abc"])
         check("loggen: ett fel i argumenten skrivs inte", sharing.entries.count == before + 1)
 
-        // Levels.
-        sharing.level = .summaries
+        // The boxes. Without the whole text (the old "summaries" level).
+        sharing.parts = [.thoughts, .summaries, .notes]
         r = await call("mindtalk_get_transcript", ["meeting_id": m1])
-        check("nivå sammanfattningar: texten nekas med förklaring", r.error?.contains("Transcripts are not shared") == true)
+        check("utan hela texten: texten nekas med rutans namn", r.error?.contains("\"Meetings’ full text\" is not ticked") == true
+              && r.error?.hasSuffix(ClaudeTools.changeHere) == true, r.error ?? "inget fel")
         r = await call("mindtalk_search", ["query": "budget"])
-        check("nivå sammanfattningar: sök utan text", !rows(r.result, "hits").isEmpty && !rows(r.result, "hits").contains { $0["kind"] as? String == "transcript" })
+        check("utan hela texten: sök utan text", !rows(r.result, "hits").isEmpty && !rows(r.result, "hits").contains { $0["kind"] as? String == "transcript" })
         r = await call("mindtalk_search", ["query": "budget", "kinds": ["transcripts"]])
-        check("nivå sammanfattningar: sök i text nekas", r.error?.contains("Transcripts are not shared") == true)
-        check("nivå sammanfattningar: nekandet loggas som hela texten", sharing.entries.first?.scope == String(localized: "nekad: hela texten"))
+        check("utan hela texten: sök i text nekas", r.error?.contains("Transcripts are not shared") == true, r.error ?? "inget fel")
+        check("utan hela texten: nekandet loggas som hela texten", sharing.entries.first?.scope == String(localized: "nekad: hela texten"))
         r = await call("mindtalk_list_meetings", ["query": "styrelsen"])
-        check("nivå sammanfattningar: ett ord som bara sägs hittar inget möte", r.error == nil && rows(r.result, "meetings").isEmpty, said(r, "meetings"))
+        check("utan hela texten: ett ord som bara sägs hittar inget möte", r.error == nil && rows(r.result, "meetings").isEmpty, said(r, "meetings"))
         r = await call("mindtalk_search", ["query": "styrelsen"])
-        check("nivå sammanfattningar: ett ord som bara sägs ger inga träffar", r.error == nil && rows(r.result, "hits").isEmpty)
+        check("utan hela texten: ett ord som bara sägs ger inga träffar", r.error == nil && rows(r.result, "hits").isEmpty)
         r = await call("mindtalk_get_meeting", ["meeting_id": m1])
-        check("nivå sammanfattningar: mötet går att läsa", r.error == nil)
-        sharing.level = .thoughts
+        check("utan hela texten: mötet går att läsa", r.error == nil && r.result?["summary"] != nil && !rows(r.result, "notes").isEmpty)
+
+        // Without the summaries.
+        sharing.parts = [.thoughts, .notes, .transcripts]
+        r = await call("mindtalk_get_meeting", ["meeting_id": m1])
+        check("utan sammanfattningar: mötet utan sammanfattning, beslut och uppgifter, med anteckningar",
+              r.error == nil && r.result?["summary"] == nil && r.result?["decisions"] == nil && r.result?["tasks"] == nil
+                && rows(r.result, "notes").count == 2 && rows(r.result, "marks").count == 2 && r.result?["gist"] == nil, r.error ?? "")
+        r = await call("mindtalk_get_meeting", ["meeting_id": m1, "include": ["decisions"]])
+        check("utan sammanfattningar: beslut efterfrågade nekas", r.error?.contains("\"Meeting summaries\" is not ticked") == true, r.error ?? "inget fel")
+        check("utan sammanfattningar: loggas som sammanfattningar", sharing.entries.first?.scope == String(localized: "nekad: sammanfattningar"))
+        r = await call("mindtalk_list_meetings")
+        check("utan sammanfattningar: listan utan gist", r.error == nil && rows(r.result, "meetings").count == 3
+              && rows(r.result, "meetings").allSatisfy { $0["gist"] == nil }, said(r, "meetings"))
+        r = await call("mindtalk_list_tasks")
+        check("utan sammanfattningar: uppgifterna nekas", r.error?.contains("\"Meeting summaries\" is not ticked") == true, r.error ?? "inget fel")
+        r = await call("mindtalk_search", ["query": "budget", "kinds": ["summaries"]])
+        check("utan sammanfattningar: sök i sammanfattningar nekas", r.error?.contains("Meeting summaries") == true, r.error ?? "inget fel")
+        r = await call("mindtalk_search", ["query": "budget"])
+        check("utan sammanfattningar: sök ger text och tankar, inga sammanfattningar",
+              rows(r.result, "hits").contains { $0["kind"] as? String == "transcript" } && !rows(r.result, "hits").contains { $0["kind"] as? String == "summary" })
+        r = await call("mindtalk_search", ["query": "gicks", "kinds": ["notes"]])
+        check("utan sammanfattningar: översiktens ord hittas inte bland anteckningarna", r.error == nil && rows(r.result, "hits").isEmpty, r.error ?? "")
+
+        // Without your notes and marks.
+        sharing.parts = [.thoughts, .summaries, .transcripts]
+        r = await call("mindtalk_get_meeting", ["meeting_id": m1])
+        check("utan anteckningar: mötet utan anteckningar och markeringar", r.error == nil && r.result?["summary"] != nil
+              && r.result?["notes"] == nil && r.result?["marks"] == nil, r.error ?? "")
+        r = await call("mindtalk_get_meeting", ["meeting_id": m1, "include": ["marks"]])
+        check("utan anteckningar: markeringar efterfrågade nekas", r.error?.contains("\"Your notes and marks\" is not ticked") == true, r.error ?? "inget fel")
+        check("utan anteckningar: loggas som anteckningar", sharing.entries.first?.scope == String(localized: "nekad: anteckningar"))
+        r = await call("mindtalk_search", ["query": "rabatten"])
+        check("utan anteckningar: en anteckning hittas inte", r.error == nil && rows(r.result, "hits").isEmpty, r.error ?? "")
+        r = await call("mindtalk_search", ["query": "rabatten", "kinds": ["notes"]])
+        check("utan anteckningar: sök i anteckningar nekas", r.error?.contains("Your notes and marks") == true, r.error ?? "inget fel")
+        r = await call("mindtalk_list_meetings", ["query": "rabatten"])
+        check("utan anteckningar: list_meetings hittar inte på en anteckning", r.error == nil && rows(r.result, "meetings").isEmpty, said(r, "meetings"))
+        r = await call("mindtalk_list_tasks")
+        check("utan anteckningar: bara sammanfattningarnas uppgifter, inte den markerade",
+              rows(r.result, "tasks").count == 2 && !rows(r.result, "tasks").contains { $0["task"] as? String == "Boka möte med Klang" }, taskRows(r))
+
+        // Only your notes and marks.
+        sharing.parts = [.notes]
+        r = await call("mindtalk_search", ["query": "rabatten"])
+        check("bara anteckningar: träff av sorten note", rows(r.result, "hits").count == 1
+              && rows(r.result, "hits").first?["kind"] as? String == "note" && rows(r.result, "hits").first?["part"] as? String == "note", r.error ?? "")
+        r = await call("mindtalk_list_thoughts")
+        check("bara anteckningar: tankarna nekas", r.error?.contains("\"Thoughts\" is not ticked") == true, r.error ?? "inget fel")
+        check("bara anteckningar: loggas som tankar", sharing.entries.first?.scope == String(localized: "nekad: tankar"))
+        r = await call("mindtalk_search", ["query": "budget", "kinds": ["thoughts"]])
+        check("bara anteckningar: sök i tankar nekas", r.error?.contains("Thoughts are not shared") == true, r.error ?? "inget fel")
+        r = await call("mindtalk_list_folders")
+        check("bara anteckningar: mapparna listas", ids(rows(r.result, "folders")) == [a], said(r, "folders"))
+
+        // Thoughts only (the old "thoughts" level).
+        sharing.parts = [.thoughts]
         for tool in ["mindtalk_list_folders", "mindtalk_list_meetings", "mindtalk_get_meeting", "mindtalk_get_transcript", "mindtalk_list_tasks"] {
             r = await call(tool, ["meeting_id": m1])
-            check("nivå tankar: \(tool) nekas", r.error?.contains("Meetings are not shared") == true)
+            check("bara tankar: \(tool) nekas", r.error?.contains("Meetings are not shared") == true, r.error ?? "inget fel")
         }
-        check("nivå tankar: nekandet loggas som nivån", sharing.entries.first?.scope == String(localized: "nekad: nivån"))
+        check("bara tankar: nekandet loggas som möten", sharing.entries.first?.scope == String(localized: "nekad: möten"))
         r = await call("mindtalk_search", ["query": "budget"])
-        check("nivå tankar: sök ger bara tankar", rows(r.result, "hits").count == 1 && rows(r.result, "hits").first?["kind"] as? String == "thought")
+        check("bara tankar: sök ger bara tankar", rows(r.result, "hits").count == 1 && rows(r.result, "hits").first?["kind"] as? String == "thought")
+        r = await call("mindtalk_search", ["query": "budget", "kinds": ["summaries"]])
+        check("bara tankar: sök i sammanfattningar nekas som möten", r.error?.contains("Meetings are not shared") == true, r.error ?? "inget fel")
         r = await call("mindtalk_list_thoughts")
-        check("nivå tankar: tankarna går att läsa", rows(r.result, "thoughts").count == 3)
-        sharing.level = .everything
+        check("bara tankar: tankarna går att läsa", rows(r.result, "thoughts").count == 3)
 
-        // "Utan mapp" unticked: the loose meeting is gone, the folder's stay.
-        sharing.shareUnfiled = false
+        // Nothing ticked.
+        sharing.parts = []
+        r = await call("mindtalk_search", ["query": "budget"])
+        check("inget ibockat: sök nekas", r.error?.hasPrefix("Nothing is shared") == true, r.error ?? "inget fel")
+        r = await call("mindtalk_list_thoughts")
+        check("inget ibockat: tankarna nekas", r.error?.contains("Thoughts are not shared") == true, r.error ?? "inget fel")
+        sharing.parts = .all
+
+        // One meeting hidden by itself.
+        store.setHiddenFromAI(true, of: [fixture.meeting4])
         r = await call("mindtalk_list_meetings")
-        check("utan mapp avbockat: det lösa mötet syns inte", !ids(rows(r.result, "meetings")).contains(m4) && !rows(r.result, "meetings").isEmpty)
+        check("dolt möte: syns inte i listan", ids(rows(r.result, "meetings")) == [m1, m2], said(r, "meetings"))
         r = await call("mindtalk_get_meeting", ["meeting_id": m4])
-        check("utan mapp avbockat: det lösa mötet nekas", r.error?.hasPrefix("No such meeting") == true)
+        check("dolt möte: nekas med id", r.error?.hasPrefix("No such meeting") == true, r.error ?? "inget fel")
+        r = await call("mindtalk_get_transcript", ["meeting_id": m4])
+        check("dolt möte: texten nekas", r.error?.hasPrefix("No such meeting") == true, r.error ?? "inget fel")
+        r = await call("mindtalk_search", ["query": "utan mapp"])
+        check("dolt möte: sök hittar det inte", r.error == nil && rows(r.result, "hits").isEmpty, r.error ?? "")
         r = await call("mindtalk_list_folders")
-        check("utan mapp avbockat: inga möten utan mapp", r.result?["meetings_without_folder"] as? Int == 0)
-        sharing.shareUnfiled = true
+        check("dolt möte: inte räknat bland möten utan mapp", r.result?["meetings_without_folder"] as? Int == 0)
+        store.setHiddenFromAI(false, of: [fixture.meeting4])
+        r = await call("mindtalk_get_meeting", ["meeting_id": m4])
+        check("visat igen: mötet går att läsa", r.error == nil, r.error ?? "")
+
+        // A folder hidden: its meetings go with it, by id, list, search and tasks.
+        folders.setHiddenFromAI(true, folder: fixture.folderA)
+        r = await call("mindtalk_list_folders")
+        check("dold mapp: inte listad", r.error == nil && rows(r.result, "folders").isEmpty, said(r, "folders"))
+        r = await call("mindtalk_list_meetings")
+        check("dold mapp: bara mötet utan mapp", ids(rows(r.result, "meetings")) == [m4], said(r, "meetings"))
+        r = await call("mindtalk_list_meetings", ["folder_id": a])
+        check("dold mapp: folder_id nekas", r.error?.hasPrefix("No such folder.") == true, r.error ?? "inget fel")
+        r = await call("mindtalk_get_meeting", ["meeting_id": m1])
+        check("dold mapp: mötet nekas med id", r.error?.hasPrefix("No such meeting") == true, r.error ?? "inget fel")
+        r = await call("mindtalk_search", ["query": "budget"])
+        check("dold mapp: sök ger bara tanken", rows(r.result, "hits").count == 1 && rows(r.result, "hits").first?["kind"] as? String == "thought")
+        r = await call("mindtalk_list_tasks", ["status": "all"])
+        check("dold mapp: inga uppgifter", r.error == nil && rows(r.result, "tasks").isEmpty, taskRows(r))
+        folders.setHiddenFromAI(false, folder: fixture.folderA)
+        r = await call("mindtalk_list_meetings")
+        check("mappen visad igen: tre möten", ids(rows(r.result, "meetings")) == [m1, m2, m4], said(r, "meetings"))
+
+        // The old settings, moved over: in a defaults suite of this test's own.
+        func suite(_ fill: (UserDefaults) -> Void) -> (UserDefaults, String) {
+            let name = "ai.mindact.mindtalk.bridge-test-\(UUID().uuidString)"
+            let d = UserDefaults(suiteName: name)!
+            fill(d)
+            return (d, name)
+        }
+        var (d, name) = suite {
+            $0.set("summaries", forKey: "claude.level")
+            $0.set([fixture.folderA.uuidString, UUID().uuidString], forKey: "claude.excludedFolders")
+            $0.set(false, forKey: "claude.shareUnfiled")
+        }
+        var moved = await ClaudeSharing.migrate(d, folders: folders, store: store)
+        check("flytt: nivån sammanfattningar blir tankar, sammanfattningar och anteckningar",
+              moved && d.integer(forKey: "claude.parts") == ClaudeSharing.Parts([.thoughts, .summaries, .notes]).rawValue,
+              "\(moved) \(d.integer(forKey: "claude.parts"))")
+        check("flytt: en avbockad mapp blir dold", folders.folder(fixture.folderA)?.hiddenFromAI == true)
+        check("flytt: Utan mapp avbockat döljer mötet utan mapp, inte mappens", store.meetings.first { $0.id == fixture.meeting4 }?.hiddenFromAI == true
+              && store.meetings.first { $0.id == fixture.meeting1 }?.hiddenFromAI == false)
+        check("flytt: de gamla nycklarna är borta", d.object(forKey: "claude.level") == nil && d.object(forKey: "claude.excludedFolders") == nil
+              && d.object(forKey: "claude.shareUnfiled") == nil)
+        r = await call("mindtalk_list_meetings")
+        check("flytt: inget som var dolt syns", r.error == nil && rows(r.result, "meetings").isEmpty, said(r, "meetings"))
+        UserDefaults.standard.removePersistentDomain(forName: name)
+        folders.setHiddenFromAI(false, folder: fixture.folderA)
+        store.setHiddenFromAI(false, of: [fixture.meeting4, fixture.meeting5, fixture.meeting6])
+        (d, name) = suite { $0.set("thoughts", forKey: "claude.level") }
+        moved = await ClaudeSharing.migrate(d, folders: folders, store: store)
+        check("flytt: nivån tankar blir bara tankar", moved && d.integer(forKey: "claude.parts") == ClaudeSharing.Parts.thoughts.rawValue)
+        UserDefaults.standard.removePersistentDomain(forName: name)
+        (d, name) = suite { $0.set("everything", forKey: "claude.level"); $0.set(true, forKey: "claude.shareUnfiled") }
+        moved = await ClaudeSharing.migrate(d, folders: folders, store: store)
+        check("flytt: nivån allt blir alla fyra, och inget döljs", moved && d.integer(forKey: "claude.parts") == ClaudeSharing.Parts.all.rawValue
+              && !store.meetings.contains { $0.hiddenFromAI } && !folders.folders.contains { $0.id == fixture.folderA && $0.hiddenFromAI })
+        UserDefaults.standard.removePersistentDomain(forName: name)
+        (d, name) = suite { _ in }
+        moved = await ClaudeSharing.migrate(d, folders: folders, store: store)
+        check("flytt: inga gamla inställningar, inget skrivs", moved && d.object(forKey: "claude.parts") == nil)
+        UserDefaults.standard.removePersistentDomain(forName: name)
+        check("flytt: ingen nivå betyder alla fyra", ClaudeSharing.parts(fromLevel: nil) == .all)
+
+        // A hidden folder removed: its meeting stays hidden, in memory and on disk.
+        folders.remove(fixture.folderB)
+        let onDisk = (try? Data(contentsOf: MeetingStore.folder(for: fixture.meeting3).appendingPathComponent("meeting.json")))
+            .flatMap { data -> MeetingRecord? in
+                let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+                return try? decoder.decode(MeetingRecord.self, from: data)
+            }
+        check("dold mapp borttagen: mappen är borta, mötet dolt på disken", folders.folder(fixture.folderB) == nil
+              && store.meetings.first { $0.id == fixture.meeting3 }?.hiddenFromAI == true && onDisk?.hiddenFromAI == true,
+              "på disken: \(onDisk.map { String($0.hiddenFromAI) } ?? "oläst")")
+        r = await call("mindtalk_get_meeting", ["meeting_id": m3])
+        check("dold mapp borttagen: mötet nekas fortfarande", r.error?.hasPrefix("No such meeting") == true, r.error ?? "inget fel")
+        r = await call("mindtalk_search", ["query": "hemligt"])
+        check("dold mapp borttagen: dess ord hittas inte", r.error == nil && rows(r.result, "hits").isEmpty, r.error ?? "")
+        r = await call("mindtalk_list_folders")
+        check("dold mapp borttagen: inte bland möten utan mapp", r.result?["meetings_without_folder"] as? Int == 1)
 
         // Off: every tool says so.
         sharing.enabled = false
@@ -476,6 +623,18 @@ enum BridgeTest {
         check("loggen: anropen är där, med den som frågade", answered.count > 20 && answered.allSatisfy { $0.client == "Mindtalk" },
               "\(answered.count) besvarade, " + Set(answered.map { $0.client ?? "okänd" }).joined(separator: ", "))
 
+        // A box unticked, and a meeting hidden: the app's refusal, exit 1.
+        sharing.parts = [.thoughts, .summaries, .notes]
+        r = await mindtalk("meeting", m1, "--text")
+        check("utan hela texten: meeting --text 1, med rutans namn", r.status == 1 && r.err.contains("Meetings’ full text"), "\(r.status) \(r.err)")
+        sharing.parts = .all
+        MeetingStore.shared.setHiddenFromAI(true, of: [fixture.meeting1])
+        r = await mindtalk("meeting", m1)
+        check("dolt möte: meeting 1, No such meeting", r.status == 1 && r.err.contains("No such meeting"), "\(r.status) \(r.err)")
+        r = await mindtalk("meetings")
+        check("dolt möte: meetings utan det", r.status == 0 && !r.out.contains(m1) && r.out.split(separator: "\n").count == 2, "\(r.status) \(r.out)")
+        MeetingStore.shared.setHiddenFromAI(false, of: [fixture.meeting1])
+
         // Off: 3, with the app's own words. Unreachable: 3 too.
         sharing.enabled = false
         r = await mindtalk("meetings")
@@ -584,7 +743,7 @@ enum BridgeTest {
                 try! encoder.encode(r).write(to: folder.appendingPathComponent("meeting.json"))
             }
             var fa = MeetingFolder(name: "Kunder"); fa.id = f.folderA
-            var fb = MeetingFolder(name: "Privat"); fb.id = f.folderB
+            var fb = MeetingFolder(name: "Privat"); fb.id = f.folderB; fb.hiddenFromAI = true
             try! encoder.encode([fa, fb]).write(to: root.appendingPathComponent("Meetings/Folders.json"))
 
             var t1 = Thought(text: "Ring Klang om budgeten", date: day(2026, 10, 15, 8))
