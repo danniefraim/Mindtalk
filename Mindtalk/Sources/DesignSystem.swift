@@ -262,14 +262,14 @@ struct KeyChip: View {
     }
 }
 
-/// "✓ Tillåtet" — ink text, with green only in the check itself.
+/// "✓ Tillåtet" — ink text and an ink check: black and white, no green.
 struct GrantedLabel: View {
     var text = "Tillåtet"
     var body: some View {
         Label {
             Text(LocalizedStringKey(text))
         } icon: {
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(DS.Colors.good)
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(DS.Colors.ink)
         }
         .font(.system(size: 13, weight: .semibold))
         .foregroundStyle(.primary)

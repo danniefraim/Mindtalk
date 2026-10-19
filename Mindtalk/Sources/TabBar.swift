@@ -17,6 +17,8 @@ struct FloatingTabBar: View {
     @ObservedObject var dictation: Dictation
     @ObservedObject private var meeting = MeetingSession.shared
     @ObservedObject private var thoughts = Thoughts.shared
+    /// Nemotron 3: without it Möten gets the same dot as Språk without its speech model.
+    @ObservedObject private var voices = VoiceModels.shared
     /// The section of Inställningar on screen (SettingsPage reads the same).
     @AppStorage(SettingsSection.storageKey) private var sectionRaw = SettingsSection.general.rawValue
     @FocusState private var sectionsFocused: Bool
@@ -142,12 +144,22 @@ struct FloatingTabBar: View {
         .accessibilityHint(needsAttention(s) ? Text("Något behöver ordnas här.") : Text(verbatim: ""))
     }
 
-    /// The speech model isn't there, or wouldn't start: put right under Språk.
+    /// The speech model isn't there, or wouldn't start: put right under Språk. The voice
+    /// model the same: under Möten.
     private func needsAttention(_ s: SettingsSection) -> Bool {
-        guard s == .language else { return false }
-        switch dictation.model {
-        case .missing, .failed: return true
-        default: return false
+        switch s {
+        case .language:
+            switch dictation.model {
+            case .missing, .failed: return true
+            default: return false
+            }
+        case .meetings:
+            switch voices.state {
+            case .missing, .failed: return true
+            default: return false
+            }
+        default:
+            return false
         }
     }
 
@@ -213,7 +225,8 @@ struct FloatingTabBar: View {
     /// is left to set up, a click goes to Hem, where Kom igång asks for it.
     @ViewBuilder private var status: some View {
         let row = HStack(spacing: 12) {
-            Circle().fill(meeting.isRecording ? DS.Colors.recording : dictation.needsSetup ? DS.Colors.warning : DS.Colors.good)
+            // Red only while recording; otherwise ink while something is left, muted when ready.
+            Circle().fill(meeting.isRecording ? DS.Colors.recording : dictation.needsSetup ? DS.Colors.ink : DS.Colors.muted)
                 .frame(width: 7, height: 7)
                 .frame(width: 40, height: 22)
             Text(verbatim: statusText).font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
