@@ -243,23 +243,67 @@ struct ImportCard: View {
     }
 }
 
+// MARK: - Where it went
+
+/// Under the drop zone for ten seconds after a file is done: "Klar: ”Styrelsemöte”,
+/// inspelad 14 augusti. Visa →" — so you know where in the list to find it.
+struct ImportDoneLine: View {
+    @ObservedObject private var importer = MeetingImport.shared
+
+    var body: some View {
+        if let done = importer.lastDone {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 10, weight: .bold)).foregroundStyle(DS.Colors.good)
+                    .accessibilityHidden(true)
+                Text(done.text)
+                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                    .lineLimit(1).truncationMode(.middle)
+                Button {
+                    MeetingsPage.lastOpen = done.meeting
+                    NotificationCenter.default.post(name: .openMeeting, object: done.meeting)
+                } label: {
+                    Text("Visa →").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.muted).fixedSize()
+                }
+                .buttonStyle(.plain)
+                .help("Öppna mötet")
+                .accessibilityLabel("Visa mötet")
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 10)
+            .transition(.opacity)
+        }
+    }
+}
+
 // MARK: - A meeting's date
 
-/// "Ändra datum…": when it really was — for a file whose own date was wrong.
-struct MeetingDateSheet: View {
+/// "Ändra datum": when it really was — for a file whose own date was wrong, or that
+/// had none. The day on the calendar, the time beside it.
+struct MeetingDatePopover: View {
     let record: MeetingRecord
     let done: () -> Void
     @State private var date = Date()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
             Text("När var mötet?").font(.system(size: 15, weight: .semibold))
-            DatePicker("", selection: $date, in: ...Date())
+            DatePicker("", selection: $date, in: ...Date(), displayedComponents: .date)
                 .datePickerStyle(.graphical)
                 .labelsHidden()
+            HStack(spacing: 10) {
+                Text("Klockan").font(.system(size: 13))
+                DatePicker("", selection: $date, in: ...Date(), displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.stepperField)
+                    .labelsHidden()
+                    .accessibilityLabel("Klockan")
+            }
             if let source = record.source {
-                Text("Importerad \(MeetingRecord.when(source.importedAt).prefix(1).lowercased() + MeetingRecord.when(source.importedAt).dropFirst()) från \(source.file)")
+                Text(source.dateKnown
+                     ? String(localized: "Filen \(source.file) säger \(MeetingRecord.when(record.date).prefix(1).lowercased() + MeetingRecord.when(record.date).dropFirst()).")
+                     : String(localized: "Filen \(source.file) säger inte när den spelades in."))
                     .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             HStack {
                 Spacer()
@@ -271,17 +315,18 @@ struct MeetingDateSheet: View {
                 .keyboardShortcut(.defaultAction)
             }
         }
-        .padding(22)
-        .frame(width: 320)
+        .padding(20)
+        .frame(width: 300)
         .onAppear { date = record.date }
     }
 }
 
 // MARK: - Where it came from
 
-/// "importerad från Khraftpodden #197.mp3" beside a meeting's date — click to see the
-/// file in Finder: where it was saved, where it was moved to since, or — imported
-/// before the place was kept — wherever Spotlight finds a file of that name.
+/// "importerad från Khraftpodden #197.mp3" beside a meeting's date — "importerad i dag
+/// från …" while that's new — click to see the file in Finder: where it was saved,
+/// where it was moved to since, or — imported before the place was kept — wherever
+/// Spotlight finds a file of that name.
 struct SourceLink: View {
     let source: MeetingRecord.Source
     @State private var hovering = false
@@ -292,7 +337,12 @@ struct SourceLink: View {
             HStack(spacing: 4) {
                 Text(verbatim: "·")
                 // One sentence to translate, the file's name in it styled as the link.
-                Text("importerad från \(Text(verbatim: Self.shortened(source.file)).underline(hovering).foregroundStyle(hovering ? DS.Colors.ink : DS.Colors.muted))")
+                let name = Text(verbatim: Self.shortened(source.file)).underline(hovering).foregroundStyle(hovering ? DS.Colors.ink : DS.Colors.muted)
+                Group {
+                    if Calendar.current.isDateInToday(source.importedAt) { Text("importerad i dag från \(name)") }
+                    else if Calendar.current.isDateInYesterday(source.importedAt) { Text("importerad i går från \(name)") }
+                    else { Text("importerad från \(name)") }
+                }
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
                 Image(systemName: missing ? "questionmark.folder" : "arrow.up.forward.square")

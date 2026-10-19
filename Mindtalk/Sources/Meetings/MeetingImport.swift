@@ -118,6 +118,23 @@ final class MeetingImport: ObservableObject {
     }
     /// Files that weren't sound or video — said for a few seconds, then gone.
     @Published private(set) var refused: String?
+    /// The file last done — said under the drop zone for ten seconds, with the date
+    /// the meeting got, so you know where in the list it went.
+    @Published private(set) var lastDone: Done?
+
+    struct Done: Equatable {
+        let meeting: UUID
+        let title: String
+        let date: Date
+        let dateKnown: Bool
+        let at: Date
+
+        /// "Klar: ”Styrelsemöte”, inspelad 14 augusti."
+        var text: String {
+            dateKnown ? String(localized: "Klar: ”\(title)”, inspelad \(MeetingRecord.day(date, long: true)).")
+                      : String(localized: "Klar: ”\(title)”, datum okänt.")
+        }
+    }
     private var running: Task<Void, Never>?
 
     /// Sound and video — whatever macOS can read (mp3, m4a, wav, aiff, mp4, mov…).
@@ -311,13 +328,15 @@ final class MeetingImport: ObservableObject {
             return
         }
         Self.log.info("import: \(job.video ? "video" : "audio", privacy: .public), \(job.url.pathExtension, privacy: .public), \(language.rawValue, privacy: .public)")
-        let date = await Self.recordedDate(job.url)
+        let (date, dateKnown) = await Self.recordedDate(job.url)
         var record = MeetingRecord(title: job.name, date: date, language: language)   // readable meanwhile
         record.folder = job.folder
         record.folderAsked = job.folder != nil
         // A name someone gave the file stays; "IMG_1234" gives way to the notes' title.
         record.userTitled = Self.isHumanName(job.url.deletingPathExtension().lastPathComponent)
-        record.source = MeetingRecord.Source(file: job.url.lastPathComponent, video: job.video, importedAt: Date())
+        // (With no date in the file, the meeting is dated by its import: the same moment.)
+        record.source = MeetingRecord.Source(file: job.url.lastPathComponent, video: job.video,
+                                             importedAt: dateKnown ? Date() : date, dateKnown: dateKnown)
         // Where the file is, to show it in Finder later — not a copy in a temporary folder.
         if !job.url.path.hasPrefix(FileManager.default.temporaryDirectory.path) {
             record.source?.path = job.url.path
@@ -527,8 +546,9 @@ final class MeetingImport: ObservableObject {
     }
 
     /// When it was recorded: what the file itself says (a phone's video, a voice memo),
-    /// else when the file was made, else now — never in the future.
-    nonisolated static func recordedDate(_ url: URL) async -> Date {
+    /// else when the file was made, else now — never in the future. `known` is false
+    /// for that last case: the meeting is then dated by its import, and says so.
+    nonisolated static func recordedDate(_ url: URL) async -> (date: Date, known: Bool) {
         let now = Date()
         // Not before the year 2000 (a zero date in a file's header is 1904 or 1970).
         let plausible = { (d: Date) in d < now && d > Date(timeIntervalSince1970: 946_684_800) }
@@ -537,16 +557,16 @@ final class MeetingImport: ObservableObject {
         if let item = try? await asset.load(.creationDate), let date = try? await item.load(.dateValue), plausible(date) {
             // Stored as a date, or as text with at least a day in it.
             let text = (try? await item.load(.stringValue)) ?? nil
-            if text == nil || text!.count >= 10 { return date }
+            if text == nil || text!.count >= 10 { return (date, true) }
         }
         if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path) {
             let created = attributes[.creationDate] as? Date
             let modified = attributes[.modificationDate] as? Date
             // A copy is newer than what it copied: the older of the two.
             let candidates = [created, modified].compactMap { $0 }.filter(plausible)
-            if let date = candidates.min() { return date }
+            if let date = candidates.min() { return (date, true) }
         }
-        return now
+        return (now, false)
     }
 }
 

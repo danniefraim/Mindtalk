@@ -4716,6 +4716,22 @@
         }
       }
     },
+    "Datum okänt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date unknown"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datum okänt"
+          }
+        }
+      }
+    },
     "De 50 senaste sparas.": {
       "localizations": {
         "en": {
@@ -7215,6 +7231,38 @@
         }
       }
     },
+    "Filen %@ säger %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file %@ says %@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filen %@ säger %@."
+          }
+        }
+      }
+    },
+    "Filen %@ säger inte när den spelades in.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file %@ does not say when it was recorded."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filen %@ säger inte när den spelades in."
+          }
+        }
+      }
+    },
     "Filen har inget ljud.": {
       "localizations": {
         "en": {
@@ -7280,6 +7328,22 @@
         }
       }
     },
+    "Filen säger inte när den spelades in: ange när mötet var": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file does not say when it was recorded: set when the meeting was"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filen säger inte när den spelades in: ange när mötet var"
+          }
+        }
+      }
+    },
     "Filen är för kort, under en sekund.": {
       "localizations": {
         "en": {
@@ -7308,6 +7372,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Filen är kopieringsskyddad och kan inte läsas."
+          }
+        }
+      }
+    },
+    "Filens datum kan vara fel: ange när mötet var": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file's date may be wrong: set when the meeting was"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filens datum kan vara fel: ange när mötet var"
           }
         }
       }
@@ -11016,6 +11096,22 @@
         }
       }
     },
+    "Importen är klar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import finished"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importen är klar"
+          }
+        }
+      }
+    },
     "Importera": {
       "localizations": {
         "en": {
@@ -11082,7 +11178,24 @@
         }
       }
     },
+    "Importerad %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imported %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importerad %@"
+          }
+        }
+      }
+    },
     "Importerad %@ från %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11126,6 +11239,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Importerad från %@. Visa filen i Finder"
+          }
+        }
+      }
+    },
+    "Importerad i dag": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imported today"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importerad i dag"
+          }
+        }
+      }
+    },
+    "Importerad i går": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imported yesterday"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importerad i går"
           }
         }
       }
@@ -12371,6 +12516,7 @@
       }
     },
     "Klar att läsa": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12430,6 +12576,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klar: text, talare och sammanfattning"
+          }
+        }
+      }
+    },
+    "Klar: ”%@”, datum okänt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done: “%@”, date unknown."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klar: ”%@”, datum okänt."
+          }
+        }
+      }
+    },
+    "Klar: ”%@”, inspelad %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done: “%@”, recorded %@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klar: ”%@”, inspelad %@."
           }
         }
       }
@@ -12795,6 +12973,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klistra in senaste igen"
+          }
+        }
+      }
+    },
+    "Klockan": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klockan"
           }
         }
       }
@@ -19027,6 +19221,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ny tanke"
+          }
+        }
+      }
+    },
+    "Nyligen importerade": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recently imported"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nyligen importerade"
           }
         }
       }
@@ -28507,6 +28717,22 @@
         }
       }
     },
+    "Visa →": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show →"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa →"
+          }
+        }
+      }
+    },
     "Visar och spelar upp det som sades": {
       "localizations": {
         "en": {
@@ -29206,6 +29432,22 @@
         }
       }
     },
+    "datum okänt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "date unknown"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "datum okänt"
+          }
+        }
+      }
+    },
     "deltagarna informerades": {
       "localizations": {
         "en": {
@@ -29561,6 +29803,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "importerad från %@"
+          }
+        }
+      }
+    },
+    "importerad i dag från %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "imported today from %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "importerad i dag från %@"
+          }
+        }
+      }
+    },
+    "importerad i går från %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "imported yesterday from %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "importerad i går från %@"
+          }
+        }
+      }
+    },
+    "inspelad %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "recorded %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "inspelad %@"
           }
         }
       }
@@ -30855,6 +31145,22 @@
         }
       }
     },
+    "Ändra datum": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change Date"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ändra datum"
+          }
+        }
+      }
+    },
     "Ändra datum…": {
       "localizations": {
         "en": {
@@ -31362,6 +31668,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "”%@” finns redan som eget ord."
+          }
+        }
+      }
+    },
+    "”%@”, datum okänt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@”, date unknown."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "”%@”, datum okänt."
+          }
+        }
+      }
+    },
+    "”%@”, inspelad %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@”, recorded %@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "”%@”, inspelad %@."
           }
         }
       }

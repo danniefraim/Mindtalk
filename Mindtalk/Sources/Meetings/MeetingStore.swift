@@ -87,9 +87,57 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         /// renamed. (Not for a copy an app handed over: that was Mindtalk's own.)
         var path: String? = nil
         var bookmark: Data? = nil
+        /// The file said when it was recorded (or when it was made). False when
+        /// nothing plausible was found: the meeting's date is then when it was
+        /// imported, and said to be unknown — until you set it (then true again).
+        var dateKnown = true
+
+        init(file: String, video: Bool, importedAt: Date, dateKnown: Bool = true) {
+            self.file = file; self.video = video; self.importedAt = importedAt; self.dateKnown = dateKnown
+        }
+
+        // Meetings imported before the date was told apart: known, as they were shown.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            file = try c.decode(String.self, forKey: .file)
+            video = try c.decodeIfPresent(Bool.self, forKey: .video) ?? false
+            importedAt = try c.decodeIfPresent(Date.self, forKey: .importedAt) ?? Date()
+            path = try c.decodeIfPresent(String.self, forKey: .path)
+            bookmark = try c.decodeIfPresent(Data.self, forKey: .bookmark)
+            dateKnown = try c.decodeIfPresent(Bool.self, forKey: .dateKnown) ?? true
+        }
     }
 
     var hasAudio: Bool { audioRemoved == nil }
+
+    /// Imported within the last day: shown at the top of the list, whatever its
+    /// recording date (often months back), so a file you just dropped is found.
+    func recentlyImported(at now: Date = Date()) -> Bool {
+        guard let at = source?.importedAt else { return false }
+        let age = now.timeIntervalSince(at)
+        return age >= 0 && age < 86_400
+    }
+
+    /// For the list and Hem while it's new: "Importerad i dag · inspelad 14 aug.", or
+    /// "Importerad i dag · datum okänt" when the file didn't say.
+    func importMeta(at now: Date = Date()) -> String? {
+        guard let source, recentlyImported(at: now) else { return nil }
+        let calendar = Calendar.current
+        let imported: String
+        if calendar.isDate(source.importedAt, inSameDayAs: now) { imported = String(localized: "Importerad i dag") }
+        else if calendar.isDate(source.importedAt, inSameDayAs: now.addingTimeInterval(-86_400)) { imported = String(localized: "Importerad i går") }
+        else { imported = String(localized: "Importerad \(Self.day(source.importedAt, long: false))") }
+        let recorded = source.dateKnown ? String(localized: "inspelad \(Self.day(date, long: false))") : String(localized: "datum okänt")
+        return imported + " · " + recorded
+    }
+
+    /// "14 aug." or "14 augusti", with the year when it isn't this one.
+    static func day(_ date: Date, long: Bool) -> String {
+        let sameYear = Calendar.current.isDate(date, equalTo: Date(), toGranularity: .year)
+        var style = Date.FormatStyle().day().month(long ? .wide : .abbreviated)
+        if !sameYear { style = style.year() }
+        return date.formatted(style.locale(AppLanguage.locale))
+    }
 
     /// You name a speaker (or take the name away). A name Mindtalk had guessed and you
     /// changed is remembered as wrong for that voice. Returns the name it had, and
@@ -856,10 +904,12 @@ final class MeetingStore: ObservableObject {
         for id in recordingsPast(days: MeetingAudio.keepDays) { removeAudio(of: id) }
     }
 
-    /// When it really was (a file whose own date was wrong).
+    /// When it really was (a file whose own date was wrong, or that had none). The
+    /// length stays; the meeting takes its place in the list by the new date.
     func setDate(_ date: Date, of id: UUID) {
         guard var record = meetings.first(where: { $0.id == id }) else { return }
         record.date = date
+        record.source?.dateKnown = true
         save(record)
         meetings.sort { $0.date > $1.date }
     }

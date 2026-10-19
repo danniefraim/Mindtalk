@@ -2,8 +2,9 @@ import SwiftUI
 
 // MARK: - The meetings, grouped
 //
-// The recent ones as they've always been — "I dag", "I går", "Tidigare i veckan",
-// "Tidigare i oktober" — and last month open too. Older months fold into a line each
+// A file imported in the last day first ("Nyligen importerade"), then the recent ones
+// as they've always been — "I dag", "I går", "Tidigare i veckan", "Tidigare i oktober" —
+// and last month open too. Older months fold into a line each
 // ("September 2026 · 14 möten · Anna, Erik"), older years into one line that opens
 // to its months; opened, an old month shows its meetings a line each. What you open
 // or close is remembered.
@@ -37,7 +38,11 @@ struct ArchiveSection: Identifiable {
         }
         var years: [Int: [String: ArchiveSection]] = [:]
         var yearOrder: [Int] = []
-        for record in records {
+        // A file dropped in the last day, first — whatever it was recorded (often months
+        // back, where it would be lost in the archive). After a day it goes to its date.
+        let imported = records.filter { $0.recentlyImported(at: now) }.sorted { ($0.source?.importedAt ?? now) > ($1.source?.importedAt ?? now) }
+        for record in imported { append("imported", String(localized: "Nyligen importerade"), .recent, record, open: true, day: false) }
+        for record in records where !record.recentlyImported(at: now) {
             let parts = calendar.dateComponents([.year, .month], from: record.date)
             let monthID = String(format: "%04d-%02d", parts.year ?? 0, parts.month ?? 0)
             if calendar.isDateInToday(record.date) {

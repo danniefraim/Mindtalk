@@ -925,6 +925,8 @@ struct MeetingRow: View {
     var compact = false
     /// Under a day's heading ("I går"): the time, not the day again.
     var timeOnly = false
+    /// For "Importerad i dag" (a screenshot is drawn at a made-up moment).
+    var now = Date()
     let open: () -> Void
     @State private var hovering = false
 
@@ -1029,9 +1031,14 @@ struct MeetingRow: View {
         return first
     }
 
+    /// "I går 09:15 · 34 min · Anna, Erik" — or, just imported, "Importerad i dag ·
+    /// inspelad 14 aug. · 34 min"; a file with no date in it says "Datum okänt".
     private var meta: String {
-        let time = timeOnly ? record.date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale))
-                            : MeetingRecord.when(record.date)
+        let time: String
+        if let imported = record.importMeta(at: now) { time = imported }
+        else if record.source?.dateKnown == false { time = String(localized: "Datum okänt") }
+        else if timeOnly { time = record.date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale)) }
+        else { time = MeetingRecord.when(record.date) }
         return ([time, Stats.duration(record.duration)] + (people.map { [$0] } ?? [])).joined(separator: " · ")
     }
 
@@ -1374,7 +1381,6 @@ struct MeetingView: View {
         } message: {
             Text("Inspelningen, texten, dina anteckningar och sammanfattningen flyttas till papperskorgen.")
         }
-        .sheet(isPresented: $changingDate) { MeetingDateSheet(record: record) { changingDate = false } }
         .confirmationDialog("Ta bort inspelningen?", isPresented: $confirmRemoveAudio) {
             Button("Flytta till papperskorgen", role: .destructive) {
                 if case .saved(let store, let id) = edit { store.removeAudio(of: id) }
@@ -1426,9 +1432,17 @@ struct MeetingView: View {
                 FlowLayout(spacing: 8) {
                     Text(meta).font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
                         .padding(.trailing, 4)
-                    // Imported: the file it came from — a click shows it in Finder.
+                    // Imported: the file it came from — a click shows it in Finder — and
+                    // the date to change, since a file's date can be wrong or missing.
+                    // (A meeting recorded here keeps its real time.)
                     if !live, let source = record.source {
                         SourceLink(source: source).padding(.trailing, 4)
+                        Button("Ändra datum") { changingDate = true }
+                            .buttonStyle(SoftButtonStyle(small: true))
+                            .help(source.dateKnown ? "Filens datum kan vara fel: ange när mötet var" : "Filen säger inte när den spelades in: ange när mötet var")
+                            .popover(isPresented: $changingDate, arrowEdge: .bottom) {
+                                MeetingDatePopover(record: record) { changingDate = false }
+                            }
                     }
                     FolderTag(record: record)
                     ForEach(cast.order, id: \.self) { s in
@@ -1471,7 +1485,9 @@ struct MeetingView: View {
     }
 
     private var meta: String {
-        let when = MeetingRecord.when(record.date)
+        // A file that didn't say when it was recorded: "Datum okänt", and the import's
+        // day in the source link beside it ("importerad i dag från …").
+        let when = record.source?.dateKnown == false ? String(localized: "Datum okänt") : MeetingRecord.when(record.date)
         guard !live else { return when }
         var parts = [when, Self.duration(record.duration)]
         if record.informed != nil { parts.append(String(localized: "deltagarna informerades")) }
@@ -1580,7 +1596,7 @@ struct MeetingView: View {
                         }
                     }
                     .disabled(!MeetingNotes.isAvailable || notes.writing.contains(record.id))
-                    Button("Ändra datum…") { changingDate = true }
+                    if record.source != nil { Button("Ändra datum…") { changingDate = true } }
                     if record.hasAudio {
                         Button("Spela in mer") { AppDelegate.continueMeeting(record.id) }
                             .disabled(!record.finished || MeetingSession.shared.phase != .idle)
@@ -3002,7 +3018,7 @@ struct ArchivePreview: View {
                     VStack(alignment: .leading, spacing: 8) {
                         CapsLabel(section.title).padding(.top, 6)
                         VStack(spacing: 0) {
-                            ForEach(section.meetings) { MeetingRow(record: $0, writing: false, timeOnly: section.day) {} }
+                            ForEach(section.meetings) { MeetingRow(record: $0, writing: false, timeOnly: section.day, now: ArchivePreview.now) {} }
                         }.padding(4).card()
                     }
                 case .month:
@@ -3047,7 +3063,14 @@ struct ArchivePreview: View {
             r.duration = minutes * 60
             return r
         }
+        // Two files dropped this morning: one recorded in August, one that didn't say when.
+        var board = m("2026-08-14", "Styrelsemöte", ["Jag", "Kim", "Anna"], 71)
+        board.source = MeetingRecord.Source(file: "Styrelsemöte.mp4", video: true, importedAt: now.addingTimeInterval(-2 * 3600))
+        var memo = m("2026-10-15", "Röstmemo om offerten", ["Jag"], 6)
+        memo.date = now.addingTimeInterval(-5 * 3600)
+        memo.source = MeetingRecord.Source(file: "Nytt memo 3.m4a", video: false, importedAt: memo.date, dateKnown: false)
         return [
+            board, memo,
             m("2026-10-15", "Veckomöte", ["Jag", "Anna"], 34), m("2026-10-14", "Kund Nordljus, uppstart", ["Jag", "Eva"], 52),
             m("2026-10-02", "Planering Q4", ["Jag", "Anna", "Erik"], 41),
             m("2026-09-24", "Styrelsemöte", ["Jag", "Kim"], 88), m("2026-09-10", "Intervju", ["Jag", "Olle"], 25),
