@@ -78,6 +78,13 @@ enum AppMover {
         return isInApplications(source)
     }
 
+    /// The same, with no pass for a debug build: whether this copy may be opened at
+    /// login (/Applications or ~/Applications, or a folder in either).
+    static var runsFromApplications: Bool {
+        guard let source = originalBundleURL() else { return false }
+        return isInApplications(source)
+    }
+
     /// "Flytta" under Inställningar → Allmänt: moves Mindtalk into Applications and
     /// opens it from there; this instance quits. Says why if it couldn't.
     static func moveNow() {

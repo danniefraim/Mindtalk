@@ -1703,11 +1703,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         #endif
 
         if !Settings.didOnboard {
-            // Start at login from the first launch — installed in /Applications, that is.
+            // Start at login from the first launch — installed in Applications, that is.
             // Once: an item you removed in System Settings stays removed, also when the
             // introduction comes back because it was closed early.
             let registered = "loginItemRegistered"
-            if Bundle.main.bundlePath.hasPrefix("/Applications"), !UserDefaults.standard.bool(forKey: registered),
+            if AppMover.runsFromApplications, !UserDefaults.standard.bool(forKey: registered),
                (try? SMAppService.mainApp.register()) != nil {
                 UserDefaults.standard.set(true, forKey: registered)
             }
