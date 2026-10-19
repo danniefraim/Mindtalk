@@ -4761,6 +4761,7 @@
       }
     },
     "Det du kommer på mitt i något annat. Håll in %@ och säg det, så hamnar det här, inte i appen du är i.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6160,6 +6161,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Eller skriv en tanke och tryck på retur"
+          }
+        }
+      }
+    },
+    "Eller skriv en tanke och tryck ↩": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Or type a thought and press ↩"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eller skriv en tanke och tryck ↩"
           }
         }
       }
@@ -8079,6 +8096,22 @@
         }
       }
     },
+    "Genväg: %@. %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shortcut: %1$@. %2$@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genväg: %@. %@"
+          }
+        }
+      }
+    },
     "Genvägar": {
       "extractionState": "stale",
       "localizations": {
@@ -9073,7 +9106,24 @@
         }
       }
     },
+    "Håll in %@ och säg det": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold %@ and say it"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in %@ och säg det"
+          }
+        }
+      }
+    },
     "Håll in %@ och säg det du kommer på.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9437,6 +9487,22 @@
         }
       }
     },
+    "Håll in och prata.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold and talk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in och prata."
+          }
+        }
+      }
+    },
     "Håll in och säg det du kommer på": {
       "extractionState": "stale",
       "localizations": {
@@ -9466,6 +9532,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Håll in och säg det du kommer på, så hamnar det i Tankar. Tryck snabbt, så lyssnar Mindtalk tills du trycker igen."
+          }
+        }
+      }
+    },
+    "Håll in och säg det.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold and say it."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in och säg det."
           }
         }
       }
@@ -10426,6 +10508,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ingen genväg"
+          }
+        }
+      }
+    },
+    "Ingen genväg för tankar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No shortcut for thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ingen genväg för tankar"
           }
         }
       }
@@ -17226,6 +17324,7 @@
       }
     },
     "Ny tanke": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -18171,6 +18270,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Prova: håll in %@ och säg ”Ring Eva om offerten”."
+          }
+        }
+      }
+    },
+    "Prova: håll in tangenten och säg ”Ring tillbaka om offerten”.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try it: hold the key and say “Call back about the quote”."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prova: håll in tangenten och säg ”Ring tillbaka om offerten”."
           }
         }
       }
@@ -19665,6 +19780,7 @@
       }
     },
     "Skriv en tanke och tryck på retur": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -19681,6 +19797,7 @@
       }
     },
     "Skriv en tanke, eller håll in %@ och säg den": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -20285,6 +20402,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Släpp när du är klar, så skrivs texten där markören står. Utan textfält hamnar texten i urklipp. Esc avbryter."
+          }
+        }
+      }
+    },
+    "Släpp när du är klar, så sparas tanken här, inte där du står.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let go when you’re done, and the thought is saved here, not where you are."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Släpp när du är klar, så sparas tanken här, inte där du står."
           }
         }
       }
@@ -24511,6 +24644,22 @@
         }
       }
     },
+    "Tryck och prata.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press and talk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck och prata."
+          }
+        }
+      }
+    },
     "Tryck på": {
       "localizations": {
         "en": {
@@ -26165,6 +26314,22 @@
         }
       }
     },
+    "Välj en genväg": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a shortcut"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj en genväg"
+          }
+        }
+      }
+    },
     "Välj en ljud- eller videofil (⌘O)": {
       "localizations": {
         "en": {
@@ -26210,6 +26375,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Välj en ljud- eller videofil att skriva ut"
+          }
+        }
+      }
+    },
+    "Välj en tangent för att säga en tanke var du än är.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a key to say a thought wherever you are."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj en tangent för att säga en tanke var du än är."
           }
         }
       }
@@ -26817,6 +26998,7 @@
       }
     },
     "genvägen": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -27354,6 +27536,7 @@
       }
     },
     "och säg det du kommer på": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -27956,6 +28139,7 @@
       }
     },
     "t.ex. ”Ring tillbaka om offerten”": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -28181,6 +28365,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ändra datum…"
+          }
+        }
+      }
+    },
+    "Ändra genvägen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change the shortcut"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ändra genvägen"
           }
         }
       }

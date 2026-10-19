@@ -785,11 +785,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
-        // `Mindtalk --render-thoughts out.png [--dark]`: the Tankar page with made-up thoughts.
+        // `Mindtalk --render-thoughts out.png [--dark] [--empty] [--picking]`: the Tankar page with made-up thoughts.
         if let i = args.firstIndex(of: "--render-thoughts"), i + 1 < args.count {
             Task { @MainActor in
                 let dark = args.contains("--dark")
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                KeyCardPreview.picking = args.contains("--picking")      // the key card picking a key
                 func t(_ text: String, _ hoursAgo: Double, done: Bool = false, pinned: Bool = false) -> Thought {
                     var x = Thought(text: text, date: Date().addingTimeInterval(-hoursAgo * 3600)); x.done = done
                     x.pinned = pinned; x.pinOrder = pinned ? 1 : 0; return x
@@ -909,11 +910,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
-        // `Mindtalk --render-dictation out.png [--dark]`: the Diktering page with your history.
+        // `Mindtalk --render-dictation out.png [--dark] [--picking]`: the Diktering page with your history.
         if let i = args.firstIndex(of: "--render-dictation"), i + 1 < args.count {
             Task { @MainActor in
                 let dark = args.contains("--dark")
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                KeyCardPreview.picking = args.contains("--picking")      // the key card picking a key
                 let view = RecentPage(dictation: .shared, plain: true)
                     .padding(28).frame(width: 820).background(DS.Colors.paper)
                     .environment(\.colorScheme, dark ? .dark : .light)

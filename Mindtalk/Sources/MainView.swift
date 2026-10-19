@@ -733,7 +733,7 @@ struct MeetingShortcutField: View {
 /// The thought shortcut: a key held on its own (left ⌥), like the dictation key — or a
 /// chord like ⌃⌥T. Click, then hold the key alone and let go, or press the combination.
 /// Never the dictation key: that's refused, and said why. In Inställningar a white
-/// field (`.field`); on Tankar a soft button, Ändra (`.button`), beside the key.
+/// field (`.field`); on Tankar a soft button, Ändra (`.button`), in the key card.
 struct ThoughtShortcutField: View {
     enum Style { case field, button }
 
@@ -786,6 +786,7 @@ struct ThoughtShortcutField: View {
                 Button { tapped() } label: { picking ? Text("Avbryt") : shortcut == nil ? Text("Välj") : Text("Ändra") }
                     .buttonStyle(.soft)
                     .help(picking ? Text("Esc avbryter.") : Text("Klicka och håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination. Esc avbryter."))
+                    .accessibilityLabel(picking ? Text("Avbryt") : shortcut == nil ? Text("Välj en genväg") : Text("Ändra genvägen"))
             }
         }
         .onDisappear { if picking { stop(because: "field gone") } }
@@ -899,6 +900,7 @@ private struct DictationKeyCard: View {
     }
 
     private var key: String { dictation.hotkey.inlineName }
+    private var picking: Bool { dictation.pickingKey || KeyCardPreview.picking }
 
     private var title: String {
         dictation.mode == .toggle ? String(localized: "Tryck på \(key) och prata") : String(localized: "Håll in \(key) och prata")
@@ -912,48 +914,40 @@ private struct DictationKeyCard: View {
         }
     }
 
+    private var spoken: String {
+        if picking { return String(localized: "Tryck på en tangent…") }
+        let how = dictation.mode == .toggle ? String(localized: "Tryck och prata.") : String(localized: "Håll in och prata.")
+        return String(localized: "Genväg: \(dictation.hotkey.spokenName). \(how)")
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .center, spacing: 20) {
-                // A big KeyChip: the same raised control fill, edge and shadow.
-                let cap = RoundedRectangle(cornerRadius: DS.Radius.control + 2, style: .continuous)
-                Text(verbatim: dictation.hotkey.chip)
-                    .font(.system(size: 20, weight: .semibold))
-                    .padding(.horizontal, 16)
-                    .frame(minWidth: 64, minHeight: 56)
-                    .background(cap.fill(DS.Colors.control).shadow(color: .black.opacity(0.08), radius: 0, y: 2))
-                    .overlay(cap.strokeBorder(dictation.pickingKey ? DS.Colors.ink : DS.Colors.fieldStroke, lineWidth: 1))
-                    .fixedSize()
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(verbatim: dictation.pickingKey ? String(localized: "Tryck på en tangent…") : title)
-                        .font(.system(size: 17, weight: .semibold))
-                    Text(verbatim: dictation.pickingKey
-                         ? String(localized: "Håll in en eller flera tangenter som ⌥ och ⌘ och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
-                         : dictation.keyRefusal ?? how)
-                        .font(.system(size: 13)).foregroundStyle(dictation.keyRefusal == nil ? DS.Colors.muted : DS.Colors.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                    // Picked right here, as in Inställningar.
-                    Button {
-                        dictation.togglePickingKey()
-                    } label: {
-                        (dictation.pickingKey ? Text("Avbryt") : Text("Ändra"))
-                            .font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted).underline()
-                            .padding(.vertical, 4).contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!dictation.accessibilityGranted)
-                    .help(LocalizedStringKey(dictation.accessibilityGranted ? "Klicka och håll in tangenterna du vill använda. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter."
-                                                                            : "Slå på Hjälpmedel för Mindtalk först."))
-                }
-                Spacer(minLength: 12)
-                if !dictation.needsSetup {
-                    Button(trying ? "Stäng" : "Prova") {
-                        withAnimation(.spring(duration: 0.35, bounce: 0.1)) { trying.toggle() }
-                    }
-                    .buttonStyle(.soft)
-                }
+        KeyCard(keycap: dictation.hotkey.chip,
+                picking: picking,
+                title: picking ? String(localized: "Tryck på en tangent…") : title,
+                detail: dictation.keyRefusal ?? (picking
+                    ? String(localized: "Håll in en eller flera tangenter som ⌥ och ⌘ och släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter.")
+                    : how),
+                refused: dictation.keyRefusal != nil,
+                spoken: spoken) {
+            // Picked right here, as in Inställningar.
+            Button {
+                dictation.togglePickingKey()
+            } label: {
+                picking ? Text("Avbryt") : Text("Ändra")
             }
+            .buttonStyle(.soft)
+            .disabled(!dictation.accessibilityGranted)
+            .help(LocalizedStringKey(dictation.accessibilityGranted ? "Klicka och håll in tangenterna du vill använda. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter."
+                                                                    : "Slå på Hjälpmedel för Mindtalk först."))
+            .accessibilityLabel(picking ? Text("Avbryt") : Text("Ändra genvägen"))
+        } trailing: {
+            if !dictation.needsSetup {
+                Button(trying ? "Stäng" : "Prova") {
+                    withAnimation(.spring(duration: 0.35, bounce: 0.1)) { trying.toggle() }
+                }
+                .buttonStyle(.soft)
+            }
+        } below: {
             if trying && !dictation.needsSetup {
                 ZStack(alignment: .topLeading) {
                     TextEditor(text: $practice)
@@ -977,8 +971,6 @@ private struct DictationKeyCard: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .padding(22)
-        .card()
         .onDisappear { dictation.stopPickingKey(reason: "Diktering left") }
     }
 }
