@@ -586,7 +586,20 @@ struct ServerWriterRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if let test = servers.test { testView(test) }
-                DisclosureGroup(isExpanded: $advanced) {
+                // A plain disclosure group only opens on its chevron: here the word opens it too.
+                Button { withAnimation(.easeOut(duration: 0.2)) { advanced.toggle() } } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold))
+                            .rotationEffect(.degrees(advanced ? 90 : 0))
+                        Text("Avancerat").font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundStyle(DS.Colors.muted)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Avancerat"))
+                .accessibilityAddTraits(advanced ? [.isButton, .isSelected] : .isButton)
+                if advanced {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Portarna Mindtalk pratar med. Ändra bara om du ändrat dem i Ollama eller LM Studio. Tryck på retur för att prova.")
                             .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
@@ -613,11 +626,7 @@ struct ServerWriterRow: View {
                         }
                     }
                     .padding(.top, 8)
-                } label: {
-                    Text("Avancerat").font(.system(size: 12, weight: .medium)).foregroundStyle(DS.Colors.muted)
                 }
-                .disclosureGroupStyle(.automatic)
-                .font(.system(size: 12))
             }
         }
         .padding(.horizontal, 22)
@@ -664,6 +673,19 @@ struct ServerWriterRow: View {
                     }
                 }
                 Spacer(minLength: 8)
+                // Both can be ready: the one that writes is marked, the other offers to.
+                if state == .running, let model {
+                    if notes.server?.backend == backend {
+                        Text("Används").font(.system(size: 11, weight: .semibold))
+                            .lineLimit(1).fixedSize()
+                            .padding(.horizontal, 7).padding(.vertical, 2)
+                            .background(Capsule().fill(DS.Colors.chip))
+                            .accessibilityLabel(Text("\(backend.name) används"))
+                    } else if notes.server != nil {
+                        Button("Använd") { notes.choice = .server(backend, model) }.buttonStyle(.soft)
+                            .help("Låt \(model) i \(backend.name) skriva sammanfattningarna")
+                    }
+                }
                 switch state {
                 case .running:
                     if servers.testing == backend {

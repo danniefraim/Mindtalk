@@ -96,6 +96,22 @@
         }
       }
     },
+    "%@ används": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ in use"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ används"
+          }
+        }
+      }
+    },
     "%@ används redan för Tankar. Välj en annan tangent.": {
       "extractionState": "stale",
       "localizations": {
@@ -15144,6 +15160,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Läste de %lld senaste mötena"
+          }
+        }
+      }
+    },
+    "Låt %@ i %@ skriva sammanfattningarna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let %1$@ in %2$@ write the summaries"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Låt %@ i %@ skriva sammanfattningarna"
           }
         }
       }
