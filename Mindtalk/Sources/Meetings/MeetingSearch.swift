@@ -258,10 +258,13 @@ struct LibraryContext: Sendable {
     static let appleParts = 4
     static let applePart = 1_100
 
-    /// `local`: Gemma 4 answers (far more room than Apple's model). `folder`: its name,
-    /// which a question may say ("i Kund X") without being about something in particular.
-    @MainActor init(question: String, meetings all: [MeetingRecord], local: Bool, folder: String? = nil, now: Date = Date()) {
+    /// `local`: Gemma 4 or your own model answers (far more room than Apple's model), with
+    /// `budget` words at most. `folder`: its name, which a question may say ("i Kund X")
+    /// without being about something in particular.
+    @MainActor init(question: String, meetings all: [MeetingRecord], local: Bool, budget: Int = LibraryContext.localBudget,
+                    folder: String? = nil, now: Date = Date()) {
         let range = LibraryContext.days(in: question, now: now)
+        let localBudget = min(budget, LibraryContext.localBudget)
         let inRange = range.map { r in all.filter { r.contains($0.date) } } ?? all
         broad = QuestionKind.isBroad(question, ignoring: folder ?? "")
         let picked: [(record: MeetingRecord, lines: [(text: String, at: Double?)])]
@@ -275,13 +278,13 @@ struct LibraryContext: Sendable {
             // small model retells many parts poorly). Decisions and tasks, or named days: all
             // four parts.
             maxParts = focus == .all && range == nil ? 2 : LibraryContext.appleParts
-            let focused = LibraryContext.notes(of: newest, local: local, focus: focus, parts: maxParts)
-            picked = focused.isEmpty ? LibraryContext.notes(of: newest, local: local, focus: .all, parts: maxParts) : focused
+            let focused = LibraryContext.notes(of: newest, local: local, budget: localBudget, focus: focus, parts: maxParts)
+            picked = focused.isEmpty ? LibraryContext.notes(of: newest, local: local, budget: localBudget, focus: .all, parts: maxParts) : focused
         } else {
             let pool = inRange.isEmpty ? all : inRange
             total = pool.count
             picked = LibraryContext.matching(question, in: pool, nameless: range != nil, now: now,
-                                             budget: local ? LibraryContext.localBudget : Lines.appleBudget)
+                                             budget: local ? localBudget : Lines.appleBudget)
         }
 
         // A broad question with Apple's model: the meetings in parts that each fit, newest
@@ -348,7 +351,7 @@ struct LibraryContext: Sendable {
     /// notes gives a few of its sentences from start to end instead.
     /// Asked for the decisions or the tasks: only those, from the meetings that have
     /// any, each with a line on what the meeting was about (none anywhere: everything).
-    @MainActor private static func notes(of pool: [MeetingRecord], local: Bool,
+    @MainActor private static func notes(of pool: [MeetingRecord], local: Bool, budget localBudget: Int,
                                          focus: QuestionKind.Focus, parts: Int) -> [(record: MeetingRecord, lines: [(text: String, at: Double?)])] {
         let budget = local ? localBudget : parts * applePart
         let perMeeting = local ? 1_500 : 260
@@ -599,9 +602,9 @@ final class MeetingLibrary: ObservableObject {
             return
         }
         // Not the large model during a meeting: it would crowd the live transcription.
-        let local = BetterNotes.shared.isActive && !MeetingSession.shared.isRecording
+        let writer = MeetingSession.shared.isRecording ? nil : BetterNotes.shared.writer
         // Then only Apple's model answers: without it, say so plainly.
-        guard local || Polisher.status == .available else {
+        guard writer != nil || Polisher.status == .available else {
             failed = MeetingNotes.onlyAppleDuringMeeting
             return
         }
@@ -614,7 +617,7 @@ final class MeetingLibrary: ObservableObject {
             do {
                 let t0 = Date()
                 let answer = try await Self.answer(question, meetings: meetings, folder: folder, folderName: folderName,
-                                                   history: history, local: local)
+                                                   history: history, writer: writer)
                 answers.append(answer)
                 Self.log.info("answered across \(answer.read) meetings in \(Date().timeIntervalSince(t0), format: .fixed(precision: 1)) s")
             } catch {
@@ -626,8 +629,9 @@ final class MeetingLibrary: ObservableObject {
 
     /// A question about `meetings` (a folder's, or all), answered — saves nothing.
     static func answer(_ question: String, meetings: [MeetingRecord], folder: UUID?, folderName: String?,
-                       history: String, local: Bool, now: Date = Date()) async throws -> LibraryAnswer {
-        let context = LibraryContext(question: question, meetings: meetings, local: local, folder: folderName, now: now)
+                       history: String, writer: (any SummaryWriter)?, now: Date = Date()) async throws -> LibraryAnswer {
+        let context = LibraryContext(question: question, meetings: meetings, local: writer != nil,
+                                     budget: writer?.wordBudget ?? LibraryContext.localBudget, folder: folderName, now: now)
         // Nothing to read (no meetings on the days asked about, nothing that matches):
         // said plainly, not filled in by the model.
         guard context.meetings > 0 else {
@@ -636,7 +640,7 @@ final class MeetingLibrary: ObservableObject {
             return LibraryAnswer(question: question, answer: none, sources: [], read: 0, total: context.broad ? 0 : nil,
                                  folder: folderName, folderID: folder)
         }
-        let reply = try await MeetingNotes.answerAcross(question, context: context, history: history, local: local)
+        let reply = try await MeetingNotes.answerAcross(question, context: context, history: history, writer: writer)
         let titles = Dictionary(meetings.map { ($0.id, $0.title) }, uniquingKeysWith: { a, _ in a })
         var seen = Set<String>()
         let sources: [LibraryAnswer.Source] = reply.lines.compactMap { n in
@@ -660,12 +664,13 @@ final class MeetingLibrary: ObservableObject {
 #if DEBUG
 // MARK: - Self-test: questions at three levels, read-only
 
-/// `Mindtalk --ask-test [--store dir] [--model apple|gemma] [--now 2026-10-16T16:00:00Z]
-/// [--title "del av titel"] [--folder "namn"] [--one "fråga|fråga"] [--lib "fråga|fråga"]`:
-/// questions about one meeting, a folder's meetings and all meetings, with each model
-/// there is, printed with how many meetings were read and the sources. The meetings
-/// are read from their meeting.json files into memory only: nothing is saved, moved or
-/// trashed, and the app's own store is never loaded.
+/// `Mindtalk --ask-test [--store dir] [--model apple|gemma|server] [--server ollama:qwen3.5:9b]
+/// [--gemma e4b] [--now 2026-10-16T16:00:00Z] [--title "del av titel"] [--folder "namn"]
+/// [--one "fråga|fråga"] [--lib "fråga|fråga"]`: questions about one meeting, a folder's
+/// meetings and all meetings, with each writer there is (the one chosen, or those named
+/// with --server and --gemma, and Apple Intelligence), printed with how many meetings
+/// were read and the sources. The meetings are read from their meeting.json files into
+/// memory only: nothing is saved, moved or trashed, and the app's own store is never loaded.
 enum AskTest {
     @MainActor static func run() async {
         let args = CommandLine.arguments
@@ -674,10 +679,18 @@ enum AskTest {
         let meetings = read(root).filter { !$0.words.isEmpty }.sorted { $0.date > $1.date }
         let names = folderNames(root)
         let now = value("--now").flatMap { ISO8601DateFormatter().date(from: $0) } ?? Date()
-        var models: [Bool] = []
-        if BetterNotes.shared.isActive, value("--model") != "apple" { models.append(true) }
-        if Polisher.status == .available, value("--model") != "gemma" { models.append(false) }
-        print("\(meetings.count) möten i \(root.path) · Apple Intelligence: \(Polisher.status) · Gemma: \(BetterNotes.shared.writerName)")
+        var writers: [(any SummaryWriter)?] = []
+        if let s = value("--server") {
+            let parts = s.split(separator: ":", maxSplits: 1).map(String.init)
+            if parts.count == 2, let backend = ServerBackend(rawValue: parts[0]) {
+                await LocalServers.shared.probe(backend)
+                writers.append(LocalServerWriter(backend: backend, model: parts[1]))
+            }
+        }
+        if let g = value("--gemma"), let m = NotesModel(rawValue: g), m.isInstalled { writers.append(GemmaWriter(model: m)) }
+        if writers.isEmpty, let w = BetterNotes.shared.writer, value("--model") != "apple" { writers.append(w) }
+        if Polisher.status == .available, !["gemma", "server"].contains(value("--model") ?? "") { writers.append(nil) }
+        print("\(meetings.count) möten i \(root.path) · Apple Intelligence: \(Polisher.status) · vald: \(BetterNotes.shared.writerName)")
         // How questions are told apart (QuestionKind): broad reads the notes, particular the lines.
         let samples = ["Vad är läget?", "Sammanfatta mötet.", "Vad hände den här veckan?", "Vilka beslut har vi tagit?",
                        "Vad ska jag göra?", "Vem har lovat vad?", "Vilka uppgifter har jag?", "Vad pratade vi om i går?",
@@ -685,7 +698,7 @@ enum AskTest {
                        "Vad sa Anna om priset?", "Vilka risker togs upp?", "Vad sades om gratis AI-modeller?",
                        "När ska offerten skickas?", "Vad har vi sagt om presentationsverktyget?"]
         for q in samples { print("\(QuestionKind.isBroad(q) ? "bred     " : "särskild ") \(q)") }
-        guard !meetings.isEmpty, !models.isEmpty else { return print("Inget att fråga med.") }
+        guard !meetings.isEmpty, !writers.isEmpty else { return print("Inget att fråga med.") }
 
         // One meeting: the one named, or the longest with notes.
         let one = value("--title").flatMap { t in meetings.first { $0.title.localizedCaseInsensitiveContains(t) } }
@@ -699,13 +712,13 @@ enum AskTest {
         let libQuestions = value("--lib")?.split(separator: "|").map(String.init)
             ?? ["Vad hände i mötena den senaste veckan?", "Vilka beslut har vi tagit?", "Vad ska jag göra?", "Vem har lovat vad?"]
 
-        for local in models {
-            print("\n════ \(local ? BetterNotes.shared.writerName : "Apple Intelligence") ════")
+        for writer in writers {
+            print("\n════ \(writer?.name ?? "Apple Intelligence") ════")
             print("\n── Ett möte: \"\(one.title)\" (\(one.words.count) ord) ──")
             for q in oneQuestions {
                 let t0 = Date()
                 do {
-                    let a = try await MeetingNotes.answer(q, from: Lines(one), summary: one.summary, local: local)
+                    let a = try await MeetingNotes.answer(q, from: Lines(one), summary: one.summary, writer: writer)
                     print(String(format: "\n? %@  (%.1f s, %@)\n  %@\n  källor: %@", q, Date().timeIntervalSince(t0),
                                  QuestionKind.isBroad(q) ? "bred" : "särskild", a.answer,
                                  a.sources.map { MeetingView.duration($0) }.joined(separator: ", ")))
@@ -723,7 +736,7 @@ enum AskTest {
                     let t0 = Date()
                     do {
                         let a = try await MeetingLibrary.answer(q, meetings: scope, folder: id, folderName: name,
-                                                                history: "", local: local, now: now)
+                                                                history: "", writer: writer, now: now)
                         print(String(format: "\n? %@  (%.1f s, %@, läste %d möten%@)\n  %@", q, Date().timeIntervalSince(t0),
                                      a.total == nil ? "särskild" : "bred", a.read, a.total.map { " av \($0)" } ?? "", a.answer))
                         for s in a.sources { print("  källa: \(s.title) \(s.at.map { MeetingView.duration($0) } ?? "")") }

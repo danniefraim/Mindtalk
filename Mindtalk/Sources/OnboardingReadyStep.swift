@@ -181,9 +181,9 @@ struct ReadyStep: View {
     }
 
     @ViewBuilder private var summariesRow: some View {
-        if let active = notes.active {
+        if notes.isActive {
             ReadyRow(icon: "sparkle", state: .ready, title: "Sammanfattningar", keys: nil,
-                     detail: String(localized: "Skrivs av \(active.name) på din Mac."))
+                     detail: String(localized: "Skrivs av \(notes.writerName) på din Mac."))
         } else if let m = notes.downloading, case .downloading(let p) = notes.state(m) {
             ReadyRow(icon: "sparkle", state: .progress(p), title: "Sammanfattningar", keys: nil,
                      detail: String(localized: "\(m.name) laddas ned (\(Int(p * 100)) %). Till dess skriver Apple Intelligence."))

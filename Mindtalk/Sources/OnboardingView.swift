@@ -327,7 +327,7 @@ private struct LanguageStep: View {
     /// The Gemmas this Mac runs, largest first — none once one is in use, and none if
     /// not even the smallest fits.
     static var gemmaOptions: [NotesModel] {
-        guard BetterNotes.shared.active == nil else { return [] }
+        guard !BetterNotes.shared.isActive else { return [] }
         let options = NotesModel.allCases.reversed().filter(\.supported)
         return options.contains(where: \.hasRoom) ? Array(options) : []
     }

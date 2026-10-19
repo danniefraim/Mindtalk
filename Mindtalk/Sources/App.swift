@@ -243,14 +243,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             Task { @MainActor in
                 MeetingStore.shared.loadNow()
                 let question = args[i + 1]
-                let local = BetterNotes.shared.isActive
+                let writer = BetterNotes.shared.writer
                 let meetings = MeetingStore.shared.meetings.filter { !$0.words.isEmpty }
-                let context = LibraryContext(question: question, meetings: meetings, local: local)
-                print("Modell: \(local ? "Gemma 4" : "Apple Intelligence") · \(context.broad ? "bred" : "särskild") fråga · läser \(context.meetings) av \(context.total) möten, \(context.text.split(separator: " ").count) ord, \(context.parts.count) del(ar)")
+                let context = LibraryContext(question: question, meetings: meetings, local: writer != nil,
+                                             budget: writer?.wordBudget ?? LibraryContext.localBudget)
+                print("Modell: \(BetterNotes.shared.writerName) · \(context.broad ? "bred" : "särskild") fråga · läser \(context.meetings) av \(context.total) möten, \(context.text.split(separator: " ").count) ord, \(context.parts.count) del(ar)")
                 if args.contains("--show-context") { print(context.text) }
                 let t0 = Date()
                 do {
-                    let reply = try await MeetingNotes.answerAcross(question, context: context, history: "", local: local)
+                    let reply = try await MeetingNotes.answerAcross(question, context: context, history: "", writer: writer)
                     print(String(format: "Svar (%.1f s): %@", Date().timeIntervalSince(t0), reply.answer))
                     let titles = Dictionary(uniqueKeysWithValues: meetings.map { ($0.id, $0.title) })
                     for n in reply.lines {
@@ -263,6 +264,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
+        #if DEBUG
+        // `--server-demo running|stopped|missing`: Ollama and LM Studio as made up, for the
+        // renders. `--server-ctx 2048`: a far too small context, to see a cut meeting caught.
+        if let i = args.firstIndex(of: "--server-demo"), i + 1 < args.count { LocalServers.demo = args[i + 1] }
+        if let i = args.firstIndex(of: "--server-ctx"), i + 1 < args.count { LocalServerWriter.debugContext = Int(args[i + 1]) }
+        // `Mindtalk --server-test ollama:qwen3.5:9b`: what Testa under Modeller does, printed.
+        if let i = args.firstIndex(of: "--server-test"), i + 1 < args.count {
+            Task { @MainActor in
+                let parts = args[i + 1].split(separator: ":", maxSplits: 1).map(String.init)
+                guard parts.count == 2, let backend = ServerBackend(rawValue: parts[0]) else { print("ollama:modell eller lmStudio:modell"); exit(1) }
+                let servers = LocalServers.shared
+                await servers.probe(backend)
+                print("\(backend.name): \(servers.state(backend)) · \((servers.models[backend] ?? []).map(\.title).joined(separator: ", "))")
+                servers.runTest(backend, parts[1])
+                while servers.testing != nil { try? await Task.sleep(for: .milliseconds(200)) }
+                if let t = servers.test { print("Svar: \(t.answer ?? "–") · fel: \(t.error ?? "–") · \(String(format: "%.1f", t.seconds)) s · \(t.context) ord-delar") }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
+        #endif
         // `Mindtalk --ask-test`: questions about one meeting, a folder and all meetings,
         // read-only (MeetingSearch.swift, AskTest).
         if args.contains("--ask-test") {

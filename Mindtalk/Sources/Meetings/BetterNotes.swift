@@ -137,9 +137,24 @@ final class BetterNotes: ObservableObject {
     }
 
     @Published private(set) var states: [NotesModel: State] = [:]
-    /// Which writes the summaries: one of the models, or nil for Apple Intelligence.
-    @Published var chosen: NotesModel? {
-        didSet { UserDefaults.standard.set(chosen?.rawValue ?? "apple", forKey: "notesModel") }
+    /// Which writes the summaries: Apple Intelligence, one of the Gemmas, or your own
+    /// model in Ollama or LM Studio (SummaryWriter.swift).
+    @Published var choice: SummaryWriterChoice = .apple {
+        didSet {
+            let defaults = UserDefaults.standard
+            defaults.set(choice.stored, forKey: "summaryWriter")
+            // As the versions before kept it (a server model reads as Apple to them).
+            defaults.set(chosen?.rawValue ?? "apple", forKey: "notesModel")
+            if case .server(let backend, let model) = choice, choice != oldValue {
+                defaults.set(model, forKey: "serverModel.\(backend.rawValue)")
+                LocalServers.shared.prewarm(backend, model)
+            }
+        }
+    }
+    /// The Gemma chosen, or nil: Apple Intelligence or a server model.
+    var chosen: NotesModel? {
+        get { if case .gemma(let m) = choice { return m }; return nil }
+        set { choice = newValue.map { .gemma($0) } ?? .apple }
     }
     private(set) var downloadStarted: Date?
     /// Where this try began (0 unless an earlier one got part of the way).
@@ -149,14 +164,26 @@ final class BetterNotes: ObservableObject {
 
     func state(_ model: NotesModel) -> State { states[model] ?? .missing }
 
-    /// The model writing the next notes — nil: Apple Intelligence.
+    /// The Gemma writing the next notes — nil: Apple Intelligence or a server model.
     var active: NotesModel? {
         guard let chosen, state(chosen) == .ready else { return nil }
         return chosen
     }
-    var isActive: Bool { active != nil }
-    /// "Gemma 4 E4B", or "Apple Intelligence".
-    var writerName: String { active?.name ?? "Apple Intelligence" }
+    /// The server model chosen, if one is.
+    var server: (backend: ServerBackend, model: String)? {
+        if case .server(let b, let m) = choice { return (b, m) }
+        return nil
+    }
+    /// Who writes the next notes, unless it's Apple Intelligence (nil).
+    var writer: (any SummaryWriter)? {
+        if let active { return GemmaWriter(model: active) }
+        if let server { return LocalServerWriter(backend: server.backend, model: server.model) }
+        return nil
+    }
+    /// Something other than Apple Intelligence writes.
+    var isActive: Bool { active != nil || server != nil }
+    /// "Gemma 4 E4B", "Ollama · qwen3.5:9b", or "Apple Intelligence".
+    var writerName: String { writer?.name ?? "Apple Intelligence" }
 
     nonisolated static let credit = "Google DeepMind (Apache 2.0)"
     nonisolated static let completeMarker = ".complete"
@@ -182,7 +209,9 @@ final class BetterNotes: ObservableObject {
             states[model] = !model.supported ? .unsupported : model.isInstalled ? .ready : .missing
         }
         let defaults = UserDefaults.standard
-        if let saved = defaults.string(forKey: "notesModel") {
+        if let saved = defaults.string(forKey: "summaryWriter"), let c = SummaryWriterChoice(stored: saved) {
+            choice = c
+        } else if let saved = defaults.string(forKey: "notesModel") {
             chosen = NotesModel(rawValue: saved)
         } else {
             // From before there were two: the large one, on unless it was switched off.

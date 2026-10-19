@@ -116,7 +116,7 @@ final class MeetingNotes: ObservableObject {
     @Published private(set) var answering: Set<UUID> = []
     @Published private(set) var failed: [UUID: String] = [:]
 
-    /// Apple Intelligence — or "Bättre anteckningar" (Gemma 4), when installed.
+    /// Apple Intelligence — or Gemma 4, or your own model in Ollama or LM Studio, when chosen.
     static var isAvailable: Bool { Polisher.status == .available || BetterNotes.shared.isActive }
 
     /// Writes (or rewrites) the notes for a saved meeting.
@@ -130,7 +130,7 @@ final class MeetingNotes: ObservableObject {
         failed[id] = nil
         var lines = Lines(record)
         if let name = choice.name { lines.write(in: name) }
-        let local = BetterNotes.shared.isActive
+        let writer = BetterNotes.shared.writer
         let written = (words: record.words.count, duration: record.duration)
         let notesFrom = record.notesFingerprint
         Task {
@@ -142,7 +142,8 @@ final class MeetingNotes: ObservableObject {
             while MeetingSession.shared.isRecording { try? await Task.sleep(for: .seconds(2)) }
             do {
                 let t0 = Date()
-                var summary = try await Self.write(lines, local: local)
+                var summary = try await Self.write(lines, writer: writer)
+                await writer?.finished()
                 // The meeting went on meanwhile (continued, or listened through again):
                 // these notes are of what it was — written again once it's done.
                 if MeetingSession.shared.record?.id == id {
@@ -190,9 +191,9 @@ final class MeetingNotes: ObservableObject {
         let question = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard Self.isAvailable, !question.isEmpty, !answering.contains(id),
               let record = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
-        let local = BetterNotes.shared.isActive && !MeetingSession.shared.isRecording   // not during a meeting
+        let writer = MeetingSession.shared.isRecording ? nil : BetterNotes.shared.writer   // not during a meeting
         // During a meeting only Apple's model answers: without it, say so plainly.
-        guard local || Polisher.status == .available else {
+        guard writer != nil || Polisher.status == .available else {
             failed[id] = Self.onlyAppleDuringMeeting
             return
         }
@@ -205,7 +206,7 @@ final class MeetingNotes: ObservableObject {
         Task {
             defer { answering.remove(id) }
             do {
-                let answer = try await Self.answer(question, from: lines, summary: summary, history: history, local: local)
+                let answer = try await Self.answer(question, from: lines, summary: summary, history: history, writer: writer)
                 // Continued meanwhile: the answer goes with the meeting being recorded.
                 if MeetingSession.shared.record?.id == id {
                     MeetingSession.shared.addAnswer(answer)
@@ -250,9 +251,9 @@ final class MeetingNotes: ObservableObject {
         print("Språk: \(lines.language), \(lines.lines.count) rader, \(lines.parts().count) del(ar)")
         do {
             let t0 = Date()
-            let local = BetterNotes.shared.isActive
+            let writer = BetterNotes.shared.writer
             print("Modell: \(BetterNotes.shared.writerName)")
-            let s = try await write(lines, local: local)
+            let s = try await write(lines, writer: writer)
             print(String(format: "\n(%.1f s)\nTitel: %@\nÖversikt: %@", Date().timeIntervalSince(t0), s.title ?? "•", s.overview))
             let show = { (title: String, items: [MeetingSummary.Item]) in
                 print(title)
@@ -260,7 +261,7 @@ final class MeetingNotes: ObservableObject {
             }
             show("Beslut:", s.decisions); show("Att göra:", s.tasks); show("Viktigt:", s.points)
             let t1 = Date()
-            let a = try await answer(question, from: lines, summary: record.summary, local: BetterNotes.shared.isActive)
+            let a = try await answer(question, from: lines, summary: record.summary, writer: writer)
             print(String(format: "\nFråga: %@\nSvar (%.1f s): %@  %@", question, Date().timeIntervalSince(t1), a.answer,
                          a.sources.map { MeetingView.duration($0) }.joined(separator: ", ")))
         } catch {
@@ -280,6 +281,7 @@ final class MeetingNotes: ObservableObject {
     }
 
     private static func explain(_ error: Error) -> String {
+        if let e = error as? ServerError { return e.plainWords }
         if let e = error as? LanguageModelSession.GenerationError {
             switch e {
             case .exceededContextWindowSize: return String(localized: "Mötet blev för långt för Apple Intelligence.")
@@ -354,22 +356,23 @@ final class MeetingNotes: ObservableObject {
         LanguageModelSession(model: model, instructions: instructions)
     }
 
-    nonisolated private static func write(_ lines: Lines, local: Bool = false) async throws -> MeetingSummary {
+    nonisolated private static func write(_ lines: Lines, writer: (any SummaryWriter)? = nil) async throws -> MeetingSummary {
         var outcomes: [Outcomes] = []
         var overviews: [Overview] = []
         var lastError: Error?
-        // Gemma 4: the whole meeting at once (it reads a long one in a single go), in
-        // the same line format — and through the same checks below.
-        if local {
-            for part in lines.parts(budget: Lines.localBudget) {
-                let p = parsePlain(try await LocalWriter.shared.respond(
-                    plainPrompt(lines.language) + "\n\n" + lines.guidance + "Transcript:\n" + part))
+        // Gemma 4 or your own model: the whole meeting at once when it fits (a long one
+        // in as few parts as it can read), in the same line format — and through the
+        // same checks below.
+        if let writer {
+            for part in lines.parts(budget: writer.wordBudget) {
+                let p = parsePlain(try await writer.complete(
+                    system: plainPrompt(lines.language), user: lines.guidance + "Transcript:\n" + part, maxTokens: 800))
                 outcomes.append(Outcomes(decisions: p.decisions, tasks: p.tasks))
                 overviews.append(Overview(title: p.title, summary: p.summary, points: p.points))
             }
             if overviews.count > 1 {
                 let parts = overviews.enumerated().map { "Part \($0.offset + 1): \($0.element.summary)" }.joined(separator: "\n")
-                let merged = try await LocalWriter.shared.respond("""
+                let merged = try await writer.complete(system: "", user: """
                     These are summaries of consecutive parts of one meeting. Write one summary of the whole meeting \
                     in \(lines.language), in two or three sentences. Only use what is in the summaries.
 
@@ -378,8 +381,8 @@ final class MeetingNotes: ObservableObject {
                 overviews[0].summary = merged
                 overviews = [overviews[0]] + overviews.dropFirst().map { Overview(title: "", summary: "", points: $0.points) }
             }
-            var summary = await withMarks(finish(lines, outcomes: outcomes, overviews: overviews), lines, local: true)
-            summary.writer = "Gemma 4"
+            var summary = await withMarks(finish(lines, outcomes: outcomes, overviews: overviews), lines, writer: writer)
+            summary.writer = writer.name
             return summary
         }
         // Each pass on its own: if one is refused, the rest of the notes still come.
@@ -432,7 +435,7 @@ final class MeetingNotes: ObservableObject {
                 in \(lines.language), in two or three sentences. Only use what is in the summaries.
                 """).respond(to: parts, options: options).content) ?? overviews.map(\.summary).joined(separator: " ")
         }
-        return await withMarks(finish(lines, outcomes: outcomes, overviews: overviews), lines, local: false)
+        return await withMarks(finish(lines, outcomes: outcomes, overviews: overviews), lines, writer: nil)
     }
 
     /// The moments you marked: each one is in the notes — the item the model wrote
@@ -440,7 +443,7 @@ final class MeetingNotes: ObservableObject {
     /// lines around it. A mark is pressed just after something is said, so it
     /// covers the line it falls in and the one before. A mark you gave words is
     /// those words: the item that says the same, or one with them.
-    nonisolated private static func withMarks(_ summary: MeetingSummary, _ lines: Lines, local: Bool) async -> MeetingSummary {
+    nonisolated private static func withMarks(_ summary: MeetingSummary, _ lines: Lines, writer: (any SummaryWriter)?) async -> MeetingSummary {
         var summary = summary
         for mark in lines.marks {
             // The item the model already wrote about those seconds, flagged as yours —
@@ -478,7 +481,7 @@ final class MeetingNotes: ObservableObject {
             } else {
                 guard !said.isEmpty else { continue }
                 let shown = said.enumerated().map { k, line in "\(k == pressed ? "▶ " : "")\(line.speaker): \(line.text)" }
-                text = await phrase(mark.kind, shown.joined(separator: "\n"), lines.language, local: local)
+                text = await phrase(mark.kind, shown.joined(separator: "\n"), lines.language, writer: writer)
                     ?? firstSentences(said[pressed].text, 1)
             }
             // Where it was said: the sentence it was written from — the pressed one or
@@ -529,7 +532,7 @@ final class MeetingNotes: ObservableObject {
 
     /// One short sentence for a marked moment, from the sentences around it.
     nonisolated private static func phrase(_ kind: MeetingRecord.Mark.Kind, _ said: String, _ language: String,
-                                           local: Bool) async -> String? {
+                                           writer: (any SummaryWriter)?) async -> String? {
         let what = switch kind {
         case .decision: "a decision"
         case .task: "a task someone takes on"
@@ -548,8 +551,8 @@ final class MeetingNotes: ObservableObject {
             "Just the sentence."
         do {
             var line: String
-            if local {
-                line = try await LocalWriter.shared.respond(ask, maxTokens: 60)
+            if let writer {
+                line = try await writer.complete(system: "", user: ask, maxTokens: 60)
             } else {
                 line = try await LanguageModelSession(model: model,
                                                       instructions: "You write one short note about a moment in a meeting.")
@@ -609,11 +612,12 @@ final class MeetingNotes: ObservableObject {
     /// they were said; for a particular one the lines that say it first, then what the
     /// meeting was about and the notes that match.
     nonisolated static func answer(_ question: String, from lines: Lines, summary: MeetingSummary? = nil, history: String = "",
-                                   local: Bool = false) async throws -> MeetingAnswer {
+                                   writer: (any SummaryWriter)? = nil) async throws -> MeetingAnswer {
         // A short question ("vad?") is in the language of the meeting.
         let language = question.split(separator: " ").count >= 3 ? Lines.languageName(of: question) ?? lines.language : lines.language
         let broad = QuestionKind.isBroad(question)
-        let budget = local ? Lines.localBudget : Lines.appleBudget
+        let local = writer != nil
+        let budget = writer?.wordBudget ?? Lines.appleBudget
         // The notes, numbered after the transcript's lines: each leads to its moment.
         let keys = Lines.keys(history + " " + question)
         var notes: [(text: String, at: Double?)] = []
@@ -679,16 +683,14 @@ final class MeetingNotes: ObservableObject {
                 reply = try await session.respond(to: prompt, generating: Reply.self, options: answerOptions).content
             }
         } catch {
-            // Gemma 4, or Apple's model refusing structure: plain text, sources on a last line.
+            // Your own model, Gemma 4, or Apple's model refusing structure: plain text, sources on a last line.
             if !(error is LocalAnswer) { log.error("answer: \(String(describing: error), privacy: .public)") }
             let ask = instructions(language, """
                 Answer the question about the meeting in \(broad ? "two to five" : "one to three") full sentences, in your own \
                 words. Don't copy the transcript. If the transcript doesn't answer it, say so.\(about) \
                 On a last line write "SOURCES:" and the numbers of the lines the answer comes from.
                 """)
-            let text = local
-                ? try await LocalWriter.shared.respond(ask + "\n\n" + prompt, maxTokens: broad ? 450 : 300)
-                : try await session(ask).respond(to: prompt, options: answerOptions).content
+            let text = try await (writer ?? AppleWriter()).complete(system: ask, user: prompt, maxTokens: broad ? 450 : 300)
             reply = parseSources(text, keep: broad ? 6 : 4)
         }
         // Lines quoted as "[4] Anna: …" read as the answer's words, not its references.
@@ -697,6 +699,8 @@ final class MeetingNotes: ObservableObject {
         // An answer is often a name or a yes, sharing no words with its line: the
         // lines it names are its sources, as long as they exist.
         let sources = reply.lines.compactMap { lines.start(ofLine: $0) ?? extra[$0] }
+        // Your own model: an answer that names no line it came from isn't shown.
+        if let writer, writer.requiresSources, sources.isEmpty { throw ServerError.noSources }
         return MeetingAnswer(question: question, answer: Self.firstSentences(Self.tidy(Self.unnumbered(cleaned)), broad ? 5 : 3),
                              sources: Array(Set(sources)).sorted())
     }
@@ -707,8 +711,9 @@ final class MeetingNotes: ObservableObject {
     /// decisions, the tasks with who does them, the days and the line numbers), then
     /// answered from the condensed notes.
     nonisolated static func answerAcross(_ question: String, context: LibraryContext, history: String,
-                                         local: Bool) async throws -> (answer: String, lines: [Int]) {
+                                         writer: (any SummaryWriter)?) async throws -> (answer: String, lines: [Int]) {
         let language = context.language
+        let local = writer != nil
         let earlier = history.isEmpty ? "" : "\n\nEarlier questions and answers:\n\(history)"
         var meetings = context.text
         if context.broad, !local, context.parts.count > 1 {
@@ -765,9 +770,7 @@ final class MeetingNotes: ObservableObject {
         } catch {
             if !(error is LocalAnswer) { log.error("answer across: \(String(describing: error), privacy: .public)") }
             let ask = task + " On a last line write \"SOURCES:\" and the numbers of the lines the answer comes from."
-            let text = local
-                ? try await LocalWriter.shared.respond(ask + "\n\n" + prompt, maxTokens: context.broad ? 600 : 400)
-                : try await LanguageModelSession(model: model, instructions: ask).respond(to: prompt, options: answerOptions).content
+            let text = try await (writer ?? AppleWriter()).complete(system: ask, user: prompt, maxTokens: context.broad ? 600 : 400)
             reply = parseSources(text, keep: context.broad ? 6 : 4)
         }
         let cleaned = reply.answer.replacingOccurrences(of: #"\[\d+\]\s*([^:\n]{1,40}:\s*)?"#, with: "",
@@ -775,6 +778,8 @@ final class MeetingNotes: ObservableObject {
         let answer = Self.firstSentences(Self.tidy(Self.unnumbered(cleaned)), context.broad ? 6 : 4)
         // Nothing written (it happens): said as a failure, not shown as an empty answer.
         guard !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw EmptyAnswer() }
+        // Your own model: an answer that names no line it came from isn't shown.
+        if let writer, writer.requiresSources, !reply.lines.contains(where: { context.sources[$0] != nil }) { throw ServerError.noSources }
         return (answer, reply.lines)
     }
 
@@ -833,8 +838,12 @@ final class MeetingNotes: ObservableObject {
         var answer: [String] = []
         var sources: [Int] = []
         for line in text.components(separatedBy: .newlines) {
-            if line.uppercased().contains("SOURCES:") || line.uppercased().contains("KÄLLOR:") {
-                sources = line.split { !$0.isNumber }.compactMap { Int($0) }
+            let upper = line.uppercased()
+            if let r = upper.range(of: "SOURCES:") ?? upper.range(of: "KÄLLOR:") {
+                sources = line[r.upperBound...].split { !$0.isNumber }.compactMap { Int($0) }
+                // The sources on the answer's own last line: the words before them are the answer.
+                let before = line[..<r.lowerBound].trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "*(")))
+                if !before.isEmpty { answer.append(before) }
             } else if !line.trimmingCharacters(in: .whitespaces).isEmpty {
                 answer.append(line)
             }

@@ -40,7 +40,7 @@ struct RecommendedDownloads: View {
         // The best Gemma this Mac runs that also fits next to the rest — the large one
         // when there's room, the small one when there isn't. Not while one is on its way.
         let rest = all.reduce(Int64(0)) { $0 + $1.bytes }
-        if notes.active == nil, notes.downloading == nil,
+        if !notes.isActive, notes.downloading == nil,
            let m = NotesModel.allCases.reversed().first(where: { m in
                guard m.supported, case .missing = notes.state(m) else { return false }
                return m.remainingBytes + rest <= room
@@ -76,7 +76,7 @@ struct RecommendedDownloads: View {
                     }
                 }
                 // The larger Gemma, when this Mac runs it but it doesn't fit: said, not offered.
-                if let best = NotesModel.recommended, notes.active == nil, !best.hasRoom,
+                if let best = NotesModel.recommended, !notes.isActive, !best.hasRoom,
                    items.contains(where: { $0.id == "notes" }) {
                     Text("Den större \(best.name) (\(best.sizeText)) passar också din Mac och är ännu bättre. Frigör \(BetterNotes.gigabytes(max(100_000_000, best.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes))) till, så föreslås den här i stället.")
                         .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
