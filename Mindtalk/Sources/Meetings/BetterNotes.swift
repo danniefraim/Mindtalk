@@ -165,8 +165,9 @@ final class BetterNotes: ObservableObject {
     func state(_ model: NotesModel) -> State { states[model] ?? .missing }
 
     /// The Gemma writing the next notes — nil: Apple Intelligence or a server model.
+    /// Asked of the disk too: one moved to the Trash in Finder writes nothing.
     var active: NotesModel? {
-        guard let chosen, state(chosen) == .ready else { return nil }
+        guard let chosen, state(chosen) == .ready, chosen.isInstalled else { return nil }
         return chosen
     }
     /// The server model chosen, if one is.
@@ -219,6 +220,19 @@ final class BetterNotes: ObservableObject {
             // From before there were two: the large one, on unless it was switched off.
             let wasOn = defaults.object(forKey: "betterNotes") as? Bool ?? true
             chosen = wasOn && NotesModel.large.isInstalled ? .large : nil
+        }
+    }
+
+    /// The Gemmas as they are on disk: one moved to the Trash in Finder is no longer
+    /// ready, one put back is. Asked when the app comes to the front and when the card
+    /// appears; a download on its way is left as it is.
+    func refresh() {
+        for model in NotesModel.allCases where model.supported {
+            switch state(model) {
+            case .ready where !model.isInstalled: states[model] = .missing
+            case .missing where model.isInstalled, .failed where model.isInstalled: states[model] = .ready
+            default: break
+            }
         }
     }
 
