@@ -256,6 +256,22 @@ enum BridgeTest {
               && (r.result?["total"] as? Int ?? 0) > 3 && r.result?["note"] as? String == ClaudeTools.moreNote)
         r = await call("mindtalk_search", ["query": ""])
         check("search utan ord: fel", r.error?.hasPrefix("query is required") == true)
+        // A query of thousands of words is refused at once, never run against every meeting.
+        let flood = String(repeating: "budget ", count: 20_000)
+        let began = Date()
+        r = await call("mindtalk_search", ["query": flood])
+        check("search med 20 000 ord: nekas snabbt", r.error?.hasPrefix("query is too long") == true && Date().timeIntervalSince(began) < 2,
+              r.error ?? "inget fel")
+        r = await call("mindtalk_list_meetings", ["query": flood])
+        check("list_meetings med 20 000 ord: nekas", r.error?.hasPrefix("query is too long") == true, r.error ?? "inget fel")
+        r = await call("mindtalk_list_thoughts", ["query": flood])
+        check("list_thoughts med 20 000 ord: nekas", r.error?.hasPrefix("query is too long") == true, r.error ?? "inget fel")
+        r = await call("mindtalk_search", ["query": (1...33).map { "o\($0)" }.joined(separator: " ")])
+        check("search med 33 olika ord: nekas", r.error?.hasPrefix("query has too many words") == true, r.error ?? "inget fel")
+        r = await call("mindtalk_search", ["query": Array(repeating: "budget", count: 60).joined(separator: " ")])
+        let once = await call("mindtalk_search", ["query": "budget"])
+        check("search med samma ord 60 gånger: som ordet en gång", r.error == nil
+              && r.result?["total"] as? Int == once.result?["total"] as? Int && (r.result?["total"] as? Int ?? 0) > 0, r.error ?? "")
 
         // Tasks.
         func taskRows(_ r: (result: [String: Any]?, error: String?)) -> String {

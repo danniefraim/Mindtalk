@@ -6,8 +6,9 @@ import Foundation
 // text, search, tasks and thoughts. The helper exposes them to the assistant (Claude,
 // ChatGPT or any other MCP app; Helper/); the app answers them here, on the main
 // thread, from the same stores as its own pages (MeetingStore, MeetingFolders,
-// Thoughts) and with the same search engine (MeetingSearch). Nothing is written.
-// Audio and voiceprints are never given out.
+// Thoughts) and with the same search engine (MeetingSearch); the words of a query are
+// looked for off it, in copies of the text. Nothing is written. Audio and voiceprints
+// are never given out.
 //
 // Every request is checked against ClaudeSharing first: off answers nothing, on reads
 // everything Mindtalk has. For every meeting ClaudeSharing.allows decides whether it is
@@ -58,20 +59,22 @@ enum ClaudeTools {
             case "mindtalk_list_folders":
                 (result, scope, items) = listFolders()
             case "mindtalk_list_meetings":
-                (result, scope, items) = try listMeetings(args)
+                (result, scope, items) = try await listMeetings(args)
             case "mindtalk_get_meeting":
                 (result, scope, items) = try getMeeting(args)
             case "mindtalk_get_transcript":
                 (result, scope, items) = try getTranscript(args)
             case "mindtalk_search":
-                (result, scope, items) = try search(args)
+                (result, scope, items) = try await search(args)
             case "mindtalk_list_tasks":
                 (result, scope, items) = try listTasks(args)
             case "mindtalk_list_thoughts":
-                (result, scope, items) = try listThoughts(args)
+                (result, scope, items) = try await listThoughts(args)
             default:
                 throw Failure(message: "Unknown tool \"\(tool)\".")
             }
+            // Switched off while the words were looked for: nothing is answered.
+            guard sharing.enabled else { throw refusedOff() }
             sharing.record(tool: tool, scope: scope, items: items, characters: size(of: result), client: client)
             return result
         } catch let failure as Failure {
@@ -335,12 +338,36 @@ enum ClaudeTools {
         return cut
     }
 
-    /// The query as words, as the app's search splits them.
-    private static func words(_ query: String?) -> [String] {
-        (query ?? "").lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init).filter { !$0.isEmpty }
+    /// A query is asked of every meeting and every line: one of thousands of words is
+    /// refused, not run.
+    static let queryLimit = 500
+    static let wordLimit = 32
+
+    /// The query as words, as the app's search splits them, each once.
+    private static func words(_ query: String?) throws -> [String] {
+        let query = query ?? ""
+        guard query.count <= queryLimit else {
+            throw Failure(message: "query is too long: at most \(queryLimit) characters. Use a few specific words.")
+        }
+        var seen = Set<String>()
+        let words = query.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
+            .filter { !$0.isEmpty && seen.insert($0).inserted }
+        guard words.count <= wordLimit else {
+            throw Failure(message: "query has too many words: at most \(wordLimit). Use a few specific words.")
+        }
+        return words
     }
-    private static func has(_ text: String, _ word: String) -> Bool { text.range(of: word, options: .caseInsensitive) != nil }
-    private static func hasAll(_ text: String, _ words: [String]) -> Bool { words.allSatisfy { has(text, $0) } }
+    nonisolated private static func has(_ text: String, _ word: String) -> Bool { text.range(of: word, options: .caseInsensitive) != nil }
+    nonisolated private static func hasAll(_ text: String, _ words: [String]) -> Bool { words.allSatisfy { has(text, $0) } }
+
+    /// Which of `texts` hold every word, and how many of the words each holds: worked
+    /// out off the main thread, in copies of the text, so the app goes on meanwhile.
+    nonisolated private static func matches(_ texts: [String], _ words: [String]) async -> [Bool] {
+        await Task.detached(priority: .userInitiated) { texts.map { hasAll($0, words) } }.value
+    }
+    nonisolated private static func ranks(_ texts: [String], _ words: [String]) async -> [Int] {
+        await Task.detached(priority: .userInitiated) { texts.map { t in words.reduce(0) { has(t, $1) ? $0 + 1 : $0 } } }.value
+    }
 
     /// The meeting parts a search can look in, as `kinds` names them.
     private enum Part: String, CaseIterable { case summaries, notes, transcripts }
@@ -372,13 +399,14 @@ enum ClaudeTools {
 
     // MARK: mindtalk_list_meetings
 
-    private static func listMeetings(_ args: Args) throws -> ([String: Any], String, Int) {
+    private static func listMeetings(_ args: Args) async throws -> ([String: Any], String, Int) {
         let scope = try scope(args, meeting: false)
         var meetings = scope.meetings
         if let query = try args.string("query") {
             // As the app's own search: every word somewhere in the meeting.
-            let words = words(query)
-            meetings = meetings.filter { hasAll(everything(of: $0), words) }
+            let words = try words(query)
+            let keep = await matches(meetings.map { everything(of: $0) }, words)
+            meetings = zip(meetings, keep).filter(\.1).map(\.0)
         }
         let limit = try args.limit(default: 20, max: 50)
         let offset = try args.offset()
@@ -510,8 +538,20 @@ enum ClaudeTools {
 
     // MARK: mindtalk_search
 
-    private static func search(_ args: Args) throws -> ([String: Any], String, Int) {
-        let words = words(try args.string("query"))
+    /// A place a search found words: a thought, or a line of a meeting. Matched off
+    /// the main thread; made into a hit, with its excerpt, only when it goes back.
+    private struct Spot {
+        let kind: String
+        var part: String? = nil
+        let text: String
+        var at: Double? = nil
+        var speaker: String? = nil
+        /// The thought or the meeting it is in, by its place in the search's own list.
+        let owner: Int
+    }
+
+    private static func search(_ args: Args) async throws -> ([String: Any], String, Int) {
+        let words = try words(try args.string("query"))
         guard !words.isEmpty else { throw Failure(message: "query is required: one or more words to look for.") }
         // Everything by default; `kinds` narrows it, as the assistant chooses.
         let kinds = try args.strings("kinds") ?? ["thoughts"] + Part.allCases.map(\.rawValue)
@@ -522,17 +562,22 @@ enum ClaudeTools {
         let searched = Set(kinds.compactMap(Part.init(rawValue:)))
         let limit = try args.limit(default: 20, max: 50)
         let inMeetings = try args.string("meeting_id") != nil || args.string("folder_id") != nil
-        var hits: [[String: Any]] = []
+        var spots: [Spot] = []
+        var thoughts: [Thought] = []
+        var meetings: [MeetingRecord] = []
         var label = String(localized: "Alla möten")
 
         // Thoughts: every word in the thought. Not when a meeting or a folder is asked about.
         if kinds.contains("thoughts"), !inMeetings {
             let from = try args.date("from"), to = try args.date("to", end: true)
-            for t in liveThoughts() where hasAll(t.text, words) {
-                if let from, t.date < from { continue }
-                if let to, t.date > to { continue }
-                hits.append(["kind": "thought", "id": t.id.uuidString, "text": excerpt(t.text, around: words),
-                             "date": iso.string(from: t.date), "link": link(thought: t.id)])
+            let pool = liveThoughts().filter { t in
+                if let from, t.date < from { return false }
+                if let to, t.date > to { return false }
+                return true
+            }
+            for (t, ok) in zip(pool, await matches(pool.map(\.text), words)) where ok {
+                spots.append(Spot(kind: "thought", text: t.text, owner: thoughts.count))
+                thoughts.append(t)
             }
             if searched.isEmpty { label = String(localized: "Tankar") }
         }
@@ -540,51 +585,60 @@ enum ClaudeTools {
         if !searched.isEmpty {
             let scope = try scope(args)
             label = scope.label
-            for m in scope.meetings {
-                // As the app: every word somewhere in the meeting, asked of the whole
-                // first (cheap, cached), before any line is ranked.
-                guard hasAll(everything(of: m, parts: searched), words) else { continue }
-                struct Candidate { let rank: Int; let at: Double?; let hit: [String: Any] }
-                var found: [Candidate] = []
-                func rank(_ text: String) -> Int { words.filter { has(text, $0) }.count }
+            // As the app: every word somewhere in the meeting, asked of the whole
+            // first (cheap, cached), before any line is ranked.
+            let keep = await matches(scope.meetings.map { everything(of: $0, parts: searched) }, words)
+            var lines: [Spot] = []
+            for (m, ok) in zip(scope.meetings, keep) where ok {
+                let owner = meetings.count
+                meetings.append(m)
                 // The title is shared with the meeting; it counts as the summary's when
                 // summaries are searched, else as the notes'.
-                var lines: [(kind: String, part: String, text: String, at: Double?)] = []
                 if searched.contains(.summaries) {
-                    lines.append(("summary", "title", title(of: m), nil))
-                    lines += MeetingSearch.summaryLines(of: m).map { ("summary", $0.kind, $0.text, $0.at) }
+                    lines.append(Spot(kind: "summary", part: "title", text: title(of: m), owner: owner))
+                    lines += MeetingSearch.summaryLines(of: m).map { Spot(kind: "summary", part: $0.kind, text: $0.text, at: $0.at, owner: owner) }
                 }
                 if searched.contains(.notes) {
-                    if !searched.contains(.summaries) { lines.append(("note", "title", title(of: m), nil)) }
-                    lines += m.notes.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }.map { ("note", "note", $0.text, $0.at) }
-                    lines += m.marks.compactMap { mark in mark.text.map { ("note", "mark", "\(mark.kind.rawValue): \($0)", mark.at) } }
-                }
-                for p in lines {
-                    let r = rank(p.text)
-                    guard r > 0 else { continue }
-                    var hit: [String: Any] = ["kind": p.kind, "part": p.part, "text": excerpt(p.text, around: words),
-                                              "meeting": brief(m), "link": link(meeting: m.id, at: p.at)]
-                    if let at = p.at { hit["t_seconds"] = clampedInt(at) }
-                    found.append(Candidate(rank: r, at: p.at, hit: hit))
-                }
-                if searched.contains(.transcripts) {
-                    for s in MeetingSearch.sentences(of: m) {
-                        let r = rank(s.text)
-                        guard r > 0 else { continue }
-                        var hit: [String: Any] = ["kind": "transcript", "text": excerpt(s.text, around: words), "meeting": brief(m),
-                                                  "t_seconds": clampedInt(s.start), "link": link(meeting: m.id, at: s.start)]
-                        if !s.speaker.isEmpty { hit["speaker"] = s.speaker }
-                        found.append(Candidate(rank: r, at: s.start, hit: hit))
+                    if !searched.contains(.summaries) { lines.append(Spot(kind: "note", part: "title", text: title(of: m), owner: owner)) }
+                    lines += m.notes.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
+                        .map { Spot(kind: "note", part: "note", text: $0.text, at: $0.at, owner: owner) }
+                    lines += m.marks.compactMap { mark in
+                        mark.text.map { Spot(kind: "note", part: "mark", text: "\(mark.kind.rawValue): \($0)", at: mark.at, owner: owner) }
                     }
                 }
-                // The lines with the most of the words first, then in order.
-                found.sort { a, b in a.rank != b.rank ? a.rank > b.rank : (a.at ?? -1) < (b.at ?? -1) }
-                hits += found.map(\.hit)
+                if searched.contains(.transcripts) {
+                    lines += MeetingSearch.sentences(of: m).map { Spot(kind: "transcript", text: $0.text, at: $0.start, speaker: $0.speaker, owner: owner) }
+                }
+            }
+            let rank = await ranks(lines.map(\.text), words)
+            // Meeting by meeting: the lines with the most of the words first, then in order.
+            var first = 0
+            while first < lines.count {
+                var end = first
+                while end < lines.count, lines[end].owner == lines[first].owner { end += 1 }
+                let found = (first..<end).filter { rank[$0] > 0 }.sorted { a, b in
+                    rank[a] != rank[b] ? rank[a] > rank[b] : (lines[a].at ?? -1) < (lines[b].at ?? -1)
+                }
+                spots += found.map { lines[$0] }
+                first = end
             }
         }
 
-        let total = hits.count
-        var rows = Array(hits.prefix(limit))
+        let total = spots.count
+        var rows: [[String: Any]] = spots.prefix(limit).map { s in
+            if s.kind == "thought" {
+                let t = thoughts[s.owner]
+                return ["kind": "thought", "id": t.id.uuidString, "text": excerpt(t.text, around: words),
+                        "date": iso.string(from: t.date), "link": link(thought: t.id)]
+            }
+            let m = meetings[s.owner]
+            var hit: [String: Any] = ["kind": s.kind, "text": excerpt(s.text, around: words), "meeting": brief(m),
+                                      "link": link(meeting: m.id, at: s.at)]
+            if let part = s.part { hit["part"] = part }
+            if let at = s.at { hit["t_seconds"] = clampedInt(at) }
+            if let speaker = s.speaker, !speaker.isEmpty { hit["speaker"] = speaker }
+            return hit
+        }
         var result: [String: Any] = ["total": total]
         let cut = fit(&rows, in: result, key: "hits", budget: listBudget)
         result["hits"] = rows
@@ -637,12 +691,15 @@ enum ClaudeTools {
 
     // MARK: mindtalk_list_thoughts
 
-    private static func listThoughts(_ args: Args) throws -> ([String: Any], String, Int) {
+    private static func listThoughts(_ args: Args) async throws -> ([String: Any], String, Int) {
         var thoughts = liveThoughts()
         if let from = try args.date("from") { thoughts.removeAll { $0.date < from } }
         if let to = try args.date("to", end: true) { thoughts.removeAll { $0.date > to } }
-        let words = words(try args.string("query"))
-        if !words.isEmpty { thoughts.removeAll { !hasAll($0.text, words) } }
+        let words = try words(try args.string("query"))
+        if !words.isEmpty {
+            let keep = await matches(thoughts.map(\.text), words)
+            thoughts = zip(thoughts, keep).filter(\.1).map(\.0)
+        }
         let limit = try args.limit(default: 50, max: 200)
         let offset = try args.offset()
         var rows: [[String: Any]] = thoughts.dropFirst(offset).prefix(limit).map { t in
