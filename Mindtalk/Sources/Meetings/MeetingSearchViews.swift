@@ -213,7 +213,10 @@ private struct AnswerRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text(answer.question).font(.system(size: 13, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(verbatim: header).font(.system(size: 11.5)).foregroundStyle(DS.Colors.faint)
+                    Text(answer.question).font(.system(size: 13, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+                }
                 Spacer()
                 Button(action: forget) {
                     Image(systemName: "xmark").font(.system(size: 9.5, weight: .bold)).foregroundStyle(DS.Colors.faint)
@@ -244,12 +247,20 @@ private struct AnswerRow: View {
                     }
                 }
             }
-            Text(answer.folder.map { name in
-                    answer.read == 1 ? String(localized: "Läste 1 möte i \(name)") : String(localized: "Läste \(answer.read) möten i \(name)")
-                 } ?? (answer.read == 1 ? String(localized: "Läste 1 möte") : String(localized: "Läste \(answer.read) möten")))
-                .font(.system(size: 11.5)).foregroundStyle(DS.Colors.faint)
         }
         .padding(16)
+    }
+
+    /// "I Kund X · Läste 3 möten", "Alla möten · Läste de 12 senaste mötena".
+    private var header: String {
+        let scope = answer.folder.map { String(localized: "I \($0)") } ?? String(localized: "Alla möten")
+        let read: String? = switch answer.read {
+        case 0: nil
+        case 1: String(localized: "Läste 1 möte")
+        case let n where (answer.total ?? 0) > n: String(localized: "Läste de \(n) senaste mötena")
+        case let n: String(localized: "Läste \(n) möten")
+        }
+        return read.map { "\(scope) · \($0)" } ?? scope
     }
 }
 
@@ -265,8 +276,11 @@ struct LibraryAskBar: View {
 
     /// The pointer over the suggestions: they stay while you reach for one.
     @State private var overSuggestions = false
-    /// Which suggestion the empty field shows — a new one each time the page opens.
-    @State private var hint = Int.random(in: 0..<3)
+    /// What a question reads: the folder's meetings, or all of them.
+    private var scope: String {
+        folders.folder(folders.selected).map { String(localized: "Fråga om mötena i \($0.name)") }
+            ?? String(localized: "Fråga om alla möten")
+    }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -274,8 +288,7 @@ struct LibraryAskBar: View {
             // it's said what they ask: all your meetings, or the folder's.
             if focused || overSuggestions, library.answers.isEmpty, !library.asking, empty {
                 VStack(spacing: 8) {
-                Text(folders.folder(folders.selected).map { String(localized: "Fråga om mötena i \($0.name)") }
-                     ?? String(localized: "Fråga om alla dina möten"))
+                Text(scope)
                     .font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(DS.Colors.muted)
                 HStack(spacing: 8) {
@@ -297,14 +310,12 @@ struct LibraryAskBar: View {
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
             HStack(spacing: 10) {
-                TextField(folders.folder(folders.selected).map { String(localized: "Fråga något om mötena i \($0.name)…") }
-                          ?? String(localized: "Fråga: \(String(localized: Self.suggestions[hint % Self.suggestions.count]))"), text: $question)
+                TextField(scope, text: $question)
                     .textFieldStyle(.plain)
                     .font(.system(size: 14))
                     .focused($focused)
                     .onSubmit { ask(question) }
-                    .accessibilityLabel(folders.folder(folders.selected).map { String(localized: "Fråga om mötena i \($0.name)") }
-                                        ?? String(localized: "Fråga om alla dina möten"))
+                    .accessibilityLabel(scope)
                 if !focused, empty, !library.asking {
                     Text(verbatim: "⌘K").font(.system(size: 11, weight: .medium)).foregroundStyle(DS.Colors.faint)
                         .accessibilityHidden(true)

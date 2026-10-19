@@ -4927,6 +4927,22 @@
         }
       }
     },
+    "Det finns inga möten från den tiden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There are no meetings from that time."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det finns inga möten från den tiden."
+          }
+        }
+      }
+    },
     "Det finns inte plats på disken.": {
       "extractionState": "stale",
       "localizations": {
@@ -7241,6 +7257,7 @@
       }
     },
     "Fråga något om mötena i %@…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7257,6 +7274,7 @@
       }
     },
     "Fråga något om mötet…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7273,6 +7291,7 @@
       }
     },
     "Fråga om alla dina möten": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7284,6 +7303,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fråga om alla dina möten"
+          }
+        }
+      }
+    },
+    "Fråga om alla möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask about all meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fråga om alla möten"
+          }
+        }
+      }
+    },
+    "Fråga om det här mötet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask about this meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fråga om det här mötet"
           }
         }
       }
@@ -7322,6 +7373,7 @@
       }
     },
     "Fråga om mötet": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7338,6 +7390,7 @@
       }
     },
     "Fråga: %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10142,6 +10195,22 @@
         }
       }
     },
+    "I %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I %@"
+          }
+        }
+      }
+    },
     "I dag": {
       "localizations": {
         "en": {
@@ -11426,6 +11495,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Jag har berättat"
+          }
+        }
+      }
+    },
+    "Jag hittar inget om det i mötena.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I can't find anything about that in the meetings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jag hittar inget om det i mötena."
           }
         }
       }
@@ -14609,6 +14694,7 @@
       }
     },
     "Läste %lld möten i %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -14641,6 +14727,7 @@
       }
     },
     "Läste 1 möte i %@": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -14652,6 +14739,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Läste 1 möte i %@"
+          }
+        }
+      }
+    },
+    "Läste de %lld senaste mötena": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read the %lld most recent meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läste de %lld senaste mötena"
           }
         }
       }
@@ -19536,6 +19639,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sammanfatta veckan"
+          }
+        }
+      }
+    },
+    "Sammanfatta veckan i %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summarise the week in %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfatta veckan i %@"
           }
         }
       }
@@ -25536,6 +25655,7 @@
       }
     },
     "Vad hände i mina möten den här veckan?": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -25547,6 +25667,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vad hände i mina möten den här veckan?"
+          }
+        }
+      }
+    },
+    "Vad hände i mina möten den senaste veckan?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What happened in my meetings over the past week?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vad hände i mina möten den senaste veckan?"
+          }
+        }
+      }
+    },
+    "Vad hände i mötena i %@ den senaste veckan?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What happened in the meetings in %@ over the past week?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vad hände i mötena i %@ den senaste veckan?"
           }
         }
       }

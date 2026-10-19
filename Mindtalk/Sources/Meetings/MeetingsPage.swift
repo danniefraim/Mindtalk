@@ -175,8 +175,10 @@ private struct MeetingList: View {
             SaveProblemLine()
             StartCard(session: session, voices: voices, dictation: dictation).staggered(1)
             ImportCards { id in open(id, nil) }
-            if !searching, folders.selected == nil {
-                WeekRecap(meetings: store.meetings.filter { $0.id != session.record?.id }, all: store.meetings)
+            if !searching {
+                // In a folder: its week, summed up from its meetings.
+                WeekRecap(meetings: shown.filter { $0.id != session.record?.id }, all: store.meetings,
+                          folder: folders.folder(folders.selected)?.name)
                     .staggered(2)
             }
             if store.meetings.isEmpty {
@@ -828,10 +830,12 @@ struct StartCard: View {
 }
 
 /// The last seven days in one card: how many meetings, how long, with whom most often —
-/// and a way to have them summed up. Only with two or more.
+/// and a way to have them summed up. Only with two or more. In a folder, its meetings.
 private struct WeekRecap: View {
     let meetings: [MeetingRecord]
     let all: [MeetingRecord]
+    /// The folder chosen, by name: the card and the summary are its meetings.
+    var folder: String? = nil
     @ObservedObject private var library = MeetingLibrary.shared
 
     var body: some View {
@@ -856,11 +860,14 @@ private struct WeekRecap: View {
                 Spacer(minLength: 12)
                 if MeetingNotes.isAvailable {
                     Button {
+                        // "den senaste veckan": the same seven days as the card counts.
                         withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
-                            library.ask(String(localized: "Vad hände i mina möten den här veckan?"))
+                            library.ask(folder.map { String(localized: "Vad hände i mötena i \($0) den senaste veckan?") }
+                                        ?? String(localized: "Vad hände i mina möten den senaste veckan?"))
                         }
                     } label: {
-                        Label("Sammanfatta veckan", systemImage: "text.alignleft")
+                        Label(folder.map { String(localized: "Sammanfatta veckan i \($0)") } ?? String(localized: "Sammanfatta veckan"),
+                              systemImage: "text.alignleft")
                     }
                     .buttonStyle(.soft)
                     .disabled(library.asking)
@@ -2749,12 +2756,12 @@ private struct ReviewBar: View {
 
     private var field: some View {
         HStack(spacing: 10) {
-            TextField("Fråga något om mötet…", text: $question)
+            TextField("Fråga om det här mötet", text: $question)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
                 .focused($focused)
                 .onSubmit { ask(question) }
-                .accessibilityLabel("Fråga om mötet")
+                .accessibilityLabel("Fråga om det här mötet")
             if busy {
                 SettlingLine(color: DS.Colors.ink).scaleEffect(0.7).frame(width: 40)
             } else {
