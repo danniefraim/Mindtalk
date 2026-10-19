@@ -2950,6 +2950,7 @@
       }
     },
     "Allt, även texten från mötena": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4134,6 +4135,7 @@
       }
     },
     "Bara tankar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4399,6 +4401,7 @@
       }
     },
     "Bocka ur det som ska stanna privat.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6251,6 +6254,22 @@
         }
       }
     },
+    "Dina anteckningar och markeringar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your notes and marks"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dina anteckningar och markeringar"
+          }
+        }
+      }
+    },
     "Dina möten hamnar här.": {
       "extractionState": "stale",
       "localizations": {
@@ -6425,6 +6444,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ditt ord hamnar här"
+          }
+        }
+      }
+    },
+    "Dold för AI-program": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hidden from AI apps"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dold för AI-program"
+          }
+        }
+      }
+    },
+    "Dold genom mappen %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hidden by Folder %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dold genom mappen %@"
+          }
+        }
+      }
+    },
+    "Dolt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hidden"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dolt"
           }
         }
       }
@@ -6642,6 +6709,7 @@
       }
     },
     "Du har inga mappar än. Alla möten får läsas.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6864,6 +6932,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dölj"
+          }
+        }
+      }
+    },
+    "Dölj för AI-program": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide From AI Apps"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dölj för AI-program"
           }
         }
       }
@@ -7265,6 +7349,7 @@
       }
     },
     "Ett nytt möte kan läsas när det är klart, om du inte lägger det i en mapp som inte får läsas.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10997,6 +11082,22 @@
         }
       }
     },
+    "Högerklicka på en mapp eller ett möte under Möten för att dölja det eller visa det igen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right-click a folder or a meeting under Meetings to hide it or show it again."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Högerklicka på en mapp eller ett möte under Möten för att dölja det eller visa det igen."
+          }
+        }
+      }
+    },
     "Hör dig bara när du dikterar eller spelar in ett möte.": {
       "extractionState": "stale",
       "localizations": {
@@ -11953,6 +12054,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inget dikterat än"
+          }
+        }
+      }
+    },
+    "Inget får läsas. Det är samma sak som att stänga av MCP.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing may be read. That is the same as switching MCP off."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inget får läsas. Det är samma sak som att stänga av MCP."
           }
         }
       }
@@ -17034,6 +17151,7 @@
       }
     },
     "Mappar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -17459,6 +17577,7 @@
       }
     },
     "Med Bara tankar läses inga möten, oavsett mapp.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -19040,6 +19159,7 @@
       }
     },
     "Möten utan mapp får alltid läsas.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -19072,6 +19192,22 @@
         }
       }
     },
+    "Mötena tas inte bort. De finns kvar under Alla och är fortfarande dolda för AI-program.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meetings aren’t deleted. They stay under All and are still hidden from AI apps."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötena tas inte bort. De finns kvar under Alla och är fortfarande dolda för AI-program."
+          }
+        }
+      }
+    },
     "Mötena tas inte bort. De finns kvar under Alla.": {
       "localizations": {
         "en": {
@@ -19084,6 +19220,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mötena tas inte bort. De finns kvar under Alla."
+          }
+        }
+      }
+    },
+    "Mötenas hela text": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meetings’ full text"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötenas hela text"
+          }
+        }
+      }
+    },
+    "Mötenas sammanfattningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meeting summaries"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötenas sammanfattningar"
           }
         }
       }
@@ -27113,6 +27281,7 @@
       }
     },
     "Tankar, sammanfattningar och anteckningar": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -27879,6 +28048,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tips: dubbeltryck på tangenten för att prata fritt, tryck igen när du är klar."
+          }
+        }
+      }
+    },
+    "Titel, datum och vilka som pratade delas när någon av mötesrutorna är ibockad.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The title, date and who spoke are shared when any of the meeting boxes is ticked."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titel, datum och vilka som pratade delas när någon av mötesrutorna är ibockad."
           }
         }
       }
@@ -28708,6 +28893,7 @@
       }
     },
     "Utan mapp": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -29455,6 +29641,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa färre"
+          }
+        }
+      }
+    },
+    "Visa för AI-program": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show to AI Apps"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa för AI-program"
           }
         }
       }
@@ -31297,6 +31499,22 @@
         }
       }
     },
+    "nekad: anteckningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "refused: notes and marks"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nekad: anteckningar"
+          }
+        }
+      }
+    },
     "nekad: avstängt": {
       "localizations": {
         "en": {
@@ -31329,7 +31547,24 @@
         }
       }
     },
+    "nekad: möten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "refused: meetings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nekad: möten"
+          }
+        }
+      }
+    },
     "nekad: nivån": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -31373,6 +31608,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "nekad: okänt möte"
+          }
+        }
+      }
+    },
+    "nekad: sammanfattningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "refused: summaries"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nekad: sammanfattningar"
+          }
+        }
+      }
+    },
+    "nekad: tankar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "refused: thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nekad: tankar"
           }
         }
       }
@@ -32155,6 +32422,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "tims"
+          }
+        }
+      }
+    },
+    "titel, översikt, beslut och uppgifter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "title, overview, decisions and tasks"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "titel, översikt, beslut och uppgifter"
           }
         }
       }

@@ -85,6 +85,7 @@ struct SearchResults: View {
                     .contextMenu {
                         Button("Öppna") { open(match.record.id, nil) }
                         MoveToFolderMenu(ids: [match.record.id], current: match.record.folder)
+                        HideFromAIItem(record: match.record)
                     }
                     ForEach(match.hits.filter { $0.kind != .title }) { hit in
                         CardDivider()
