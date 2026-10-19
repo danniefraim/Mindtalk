@@ -2,10 +2,11 @@ import AppKit
 import Foundation
 import os
 
-// MARK: - Integrationer → MCP: getting the connection into the program the user picks
+// MARK: - Integrationer → MCP: getting the connection into the user's program
 //
-// The settings card has a picker of programs (ClaudeInstall.Client) and one button
-// whose action depends on the pick:
+// The settings card has a row of buttons for the four most asked for (Claude, ChatGPT,
+// Cursor, Gemini CLI) and the standard setting for all other programs; the help page
+// (MCPHelpView) has one section per program (ClaudeInstall.Client). What each does:
 //
 //   • Claude: a .mcpb bundle (a zip with manifest.json at its root, the Claude desktop
 //     app's extension format) that Mindtalk writes and opens. The Claude app registers
@@ -148,6 +149,15 @@ enum ClaudeInstall {
         case noClaudeApp
         /// Writing or opening failed, said in words.
         case failed(String)
+
+        /// What the card says after the button: nothing, or why it didn't work.
+        var trouble: String? {
+            switch self {
+            case .opened: return nil
+            case .noClaudeApp: return String(localized: "Claude-appen hittades inte.")
+            case .failed(let why): return String(localized: "Tillägget kunde inte skapas: \(why)")
+            }
+        }
     }
 
     /// Builds the bundle and hands it to the Claude app.
@@ -175,8 +185,7 @@ enum ClaudeInstall {
 
     // MARK: The programs
 
-    /// The programs the card offers, in the order of the picker. `rawValue` is saved
-    /// as the pick and matched against the log's client names (Bridge.peerName).
+    /// The programs, in the order of the help page.
     enum Client: String, CaseIterable, Identifiable {
         case claude = "Claude"
         case claudeCode = "Claude Code"
@@ -194,27 +203,7 @@ enum ClaudeInstall {
             self == .other ? String(localized: "Annat program") : rawValue
         }
 
-        /// The program as the log names it, when the bridge could tell: the app's name
-        /// from its bundle, or the executable's.
-        static func matching(logName: String) -> Client? {
-            // The Claude app is "Claude" (from Claude.app); Claude Code runs as a bare
-            // executable, "claude".
-            if logName == "claude" { return .claudeCode }
-            switch logName.lowercased() {
-            case "claude": return .claude
-            case "claude code", "claude-code": return .claudeCode
-            case "chatgpt", "codex": return .codex
-            case "cursor": return .cursor
-            case "code", "visual studio code", "visual studio code - insiders": return .vscode
-            case "zed": return .zed
-            case "gemini": return .gemini
-            case "lm studio", "lmstudio": return .lmStudio
-            case "raycast": return .raycast
-            default: return nil
-            }
-        }
-
-        /// What the one button does.
+        /// What the program's button or copy field does.
         enum Action: Equatable {
             /// The .mcpb bundle, opened in the Claude app.
             case addToClaude
@@ -246,22 +235,6 @@ enum ClaudeInstall {
                 return .open(title: String(localized: "Öppna i LM Studio"), url: ClaudeInstall.lmStudioURL())
             case .raycast:
                 return .open(title: String(localized: "Öppna i Raycast"), url: ClaudeInstall.raycastURL())
-            }
-        }
-
-        /// One muted line under the button: what happens next.
-        var hint: String {
-            switch self {
-            case .claude: return String(localized: "Claude-appen öppnas och frågar om du vill lägga till Mindtalk.")
-            case .claudeCode: return String(localized: "Klistra in i Terminalen.")
-            case .codex: return String(localized: "Klistra in i Terminalen, så kan ChatGPT:s Codex använda Mindtalk. Eller i ChatGPT-appen: Inställningar → MCP servers → Add server, välj STDIO. Inte under Pluginer, där går bara servrar på internet.")
-            case .gemini: return String(localized: "Klistra in i Terminalen.")
-            case .zed: return String(localized: "Klistra in i Zeds settings.json.")
-            case .other: return String(localized: "Klistra in i programmets MCP-inställningar.")
-            case .cursor: return String(localized: "Cursor öppnas och frågar om du vill lägga till Mindtalk.")
-            case .vscode: return String(localized: "VS Code öppnas och frågar om du vill lägga till Mindtalk.")
-            case .lmStudio: return String(localized: "LM Studio öppnas och frågar om du vill lägga till Mindtalk.")
-            case .raycast: return String(localized: "Raycast öppnas och frågar om du vill lägga till Mindtalk.")
             }
         }
 
