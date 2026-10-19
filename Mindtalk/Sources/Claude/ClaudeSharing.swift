@@ -89,13 +89,17 @@ final class ClaudeSharing: ObservableObject {
            let saved = try? JSONDecoder().decode([Entry].self, from: data) {
             entries = saved
         }
+        // A self-test or a screenshot (any "--" flag) runs with your own settings and
+        // must leave them, and the marker, as they are.
+        let selfTest = CommandLine.arguments.dropFirst().contains(where: { $0.hasPrefix("--") })
         // The marker as the setting is, also after an update that introduced it.
-        let on = enabled
-        Self.io.async { Self.setMarker(on) }
+        if !selfTest {
+            let on = enabled
+            Self.io.async { Self.setMarker(on) }
+        }
         // Keys from the settings that came and went before 2.0 (levels, boxes, folder
-        // ticks), dropped once. Not in a self-test or a screenshot (any "--" flag): those
-        // run with your own settings and must leave them as they are.
-        if !CommandLine.arguments.dropFirst().contains(where: { $0.hasPrefix("--") }) {
+        // ticks), dropped once.
+        if !selfTest {
             for key in ["claude.parts", "claude.level", "claude.excludedFolders", "claude.shareUnfiled"]
             where defaults.object(forKey: key) != nil {
                 defaults.removeObject(forKey: key)
