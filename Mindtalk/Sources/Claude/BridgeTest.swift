@@ -84,6 +84,16 @@ enum BridgeTest {
         check("butiken läst: sex möten, två mappar, tre tankar",
               store.loaded && store.meetings.count == 6 && folders.folders.count == 2 && thoughts.all.filter { $0.deleted == nil }.count == 3,
               "\(store.meetings.count) möten, \(folders.folders.count) mappar, \(thoughts.all.count) tankar varav \(thoughts.all.filter { $0.deleted != nil }.count) borttagna")
+        // A summary item points at the sentence where it was said, not at the start of
+        // the turn: one person talking for 24 seconds is one line from 0:00, the
+        // decision in it at 0:07 (search answers it with ?t=7).
+        var talk = MeetingRecord(title: "Kort", date: Date(), language: .swedish)
+        for (text, at) in [("Hej", 0.0), ("allihop", 0.5), ("och", 1.0), ("välkomna.", 1.5), ("Vi", 7.0), ("bestämmer", 7.5),
+                                  ("att", 8.0), ("appen", 8.5), ("släpps", 9.0), ("på", 9.5), ("fredag.", 10.0), ("Tack", 20.0), ("så", 20.5), ("mycket.", 21.0)] {
+            talk.words.append(MeetingWord(text: text, start: at, end: at + 0.4, speaker: 0))
+        }
+        let item = Lines(talk).checked("Appen släpps på fredag.", line: 1, strict: true)
+        check("sammanfattningen pekar på meningen, inte turens början", item?.at == 7.0, "\(String(describing: item?.at))")
         // Off the main thread: the bridge answers on it. Counted, for the log: an answer
         // is one entry, a "No such …" one refusal, an error in the arguments none.
         let path = socket.path

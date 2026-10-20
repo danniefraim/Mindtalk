@@ -1302,13 +1302,32 @@ struct Lines: Sendable {
         let named = line - 1
         var best: (index: Int, score: Double)?
         for i in lines.indices {
+            // The line the model named wins a tie: an item in its own words often shares
+            // as much with the line before it (and the first one would win otherwise).
             let score = Self.overlap(words, Self.keys(lines[i].text)) - (abs(i - named) <= 2 ? 0 : 0.35)
+                + (i == named ? 0.01 : 0)
             if best == nil || score > best!.score { best = (i, score) }
         }
         guard let best, best.score >= 0.2 else {
             return strict || text.isEmpty ? nil : MeetingSummary.Item(text: text)
         }
-        return MeetingSummary.Item(text: text, at: lines[best.index].start)
+        return MeetingSummary.Item(text: text, at: moment(of: words, inLine: best.index))
+    }
+
+    /// Where in line `i` the item is said: the start of the sentence in it that shares
+    /// the most words with the item. A line is a whole turn (up to 60 words), so one
+    /// person talking for half a minute is one line from 0:00, while the transcript
+    /// shows the paragraph, at 0:07, where it was really said.
+    func moment(of words: Set<String>, inLine i: Int) -> Double {
+        let start = lines[i].start
+        let end = i + 1 < lines.count ? lines[i + 1].start : .infinity
+        var best: (start: Double, score: Double)?
+        for sentence in sentences where sentence.start >= start - 0.05 && sentence.start < end {
+            let score = Self.overlap(words, Self.keys(sentence.text))
+            if best == nil || score > best!.score { best = (sentence.start, score) }
+        }
+        guard let best, best.score > 0 else { return start }
+        return best.start
     }
 
     /// A name the model gave as owner, if it's someone in the meeting or mentioned in it.
