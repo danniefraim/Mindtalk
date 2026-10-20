@@ -549,17 +549,15 @@ struct MenuPicker<Value: Hashable>: View {
 
     var body: some View {
         Menu {
-            ForEach(options, id: \.value) { option in
-                Button {
-                    selection = option.value
-                } label: {
-                    if option.value == selection {
-                        Label(LocalizedStringKey(option.title), systemImage: "checkmark")
-                    } else {
-                        Text(LocalizedStringKey(option.title))
-                    }
+            // A picker inside: the menu's own checkmark, in the column macOS keeps for it,
+            // so the longest choice ("Samma som Macen") is measured whole and never cut.
+            Picker(selection: $selection) {
+                ForEach(options, id: \.value) { option in
+                    Text(LocalizedStringKey(option.title)).tag(option.value)
                 }
-            }
+            } label: { EmptyView() }
+            .pickerStyle(.inline)
+            .labelsHidden()
         } label: {
             HStack(spacing: 7) {
                 Text(LocalizedStringKey(options.first { $0.value == selection }?.title ?? ""))
