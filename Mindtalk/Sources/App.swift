@@ -1353,6 +1353,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             // The word itself stops being a variant of another entry.
             (out, _) = Vocabulary.adding(word: "Matilda", heardAs: "", to: [VocabularyEntry(word: "Mathilda", heardAs: ["matilda"])])
             check(out.count == 2 && out[0].word == "Matilda" && out[1].heardAs.isEmpty, "ordet självt är inte längre en variant av något annat")
+            // A variant only once, also when typed twice or in another case.
+            (out, _) = Vocabulary.adding(word: "Claude", heardAs: "Klåd, Claud, claud, Claud", to: list)
+            check(out[0].word == "Claude" && out[0].heardAs == ["Klåd", "Claud"], "en variant bara en gång (\(out[0].heardAs))")
+            check(Vocabulary.deduplicated(["Klåd", "Claud", "Claud", "KLÅD"]) == ["Klåd", "Claud"], "dubbletter tas bort i ordning")
             // Import counts only lines that changed something.
             let imported = Vocabulary.importing("Mindtalk; mind talk\nMindact\nKlang; clang\n\nMindact; min dakt\n", into: list)
             check(imported.changed == 2 && imported.entries.count == 3 && imported.entries.first?.word == "Klang", "import räknar bara verkliga ändringar (\(imported.changed))")

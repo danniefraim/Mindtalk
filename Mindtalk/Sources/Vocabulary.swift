@@ -119,6 +119,9 @@ final class Vocabulary: ObservableObject {
         } else {
             loaded = [VocabularyEntry(word: "Mindtalk")]
         }
+        // A variant twice on a word ("Claud", "Claud"), from before adding checked it: once.
+        let tidied = loaded.map { e in var e = e; e.heardAs = Self.deduplicated(e.heardAs); return e }
+        if tidied != loaded { loaded = tidied; differsFromDisk = true }
         matcher = Self.matcher(for: loaded)
         entries = loaded
         if differsFromDisk, !Self.readOnly { save() }
@@ -178,9 +181,9 @@ final class Vocabulary: ObservableObject {
         var entries = entries
         let word = tidy(word)
         guard isValidWord(word) else { return (entries, nil) }
-        let variants = heardAs.split(separator: ",")
+        let variants = deduplicated(heardAs.split(separator: ",")
             .map { tidy(String($0)) }
-            .filter { isValidWord($0) && key($0) != key(word) && !isOtherWord($0, than: word, in: entries) }
+            .filter { isValidWord($0) && key($0) != key(word) && !isOtherWord($0, than: word, in: entries) })
         // The word itself is no longer a mishearing of another entry ("Mathilda" heard as
         // "Matilda", then the other way round, would swap the two in every text).
         for i in entries.indices where key(entries[i].word) != key(word)
@@ -196,6 +199,13 @@ final class Vocabulary: ObservableObject {
         let entry = VocabularyEntry(word: word, heardAs: variants)
         entries.insert(entry, at: 0)
         return (entries, entry.id)
+    }
+
+    /// Each variant once, whatever its case or spacing ("Claud", "claud"): the first
+    /// one kept, in the order they came.
+    static func deduplicated(_ heardAs: [String]) -> [String] {
+        var seen = Set<String>()
+        return heardAs.filter { seen.insert(key($0)).inserted }
     }
 
     /// `variant` is the word of some other entry than `word`'s.
