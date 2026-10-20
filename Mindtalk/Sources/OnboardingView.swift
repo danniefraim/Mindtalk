@@ -330,7 +330,7 @@ private struct WelcomeStep: View {
                               String(localized: "Prata. Vi skriver.")],
                        repeats: true,
                        cursorHeight: 44)
-            Text("Diktera i alla appar, spara tankar och spela in möten. Allt stannar på din Mac, om du inte själv slår på MCP under Integrationer.")
+            Text("Diktera i alla appar, spara tankar och spela in möten. Allt stannar på din Mac.")
                 .font(.system(size: 15.5)).foregroundStyle(DS.Colors.muted)
                 .multilineTextAlignment(.center)
                 .staggered(2)
