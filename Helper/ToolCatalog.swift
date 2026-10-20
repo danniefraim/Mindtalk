@@ -60,7 +60,7 @@ enum ToolCatalog {
                 {"type": "object", "properties": {
                   \(folderID), \(from), \(to),
                   "query": {"type": "string", "description": "Words that must all occur in the meeting: in the title, the summary, the notes or the transcript."},
-                  "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20},
+                  "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20, "description": "How many at most. Above 50 counts as 50."},
                   \(cursor)}, "additionalProperties": false}
                 """,
             output: """
@@ -140,7 +140,7 @@ enum ToolCatalog {
                   "kinds": {"type": "array", "items": {"type": "string", "enum": ["thoughts", "summaries", "notes", "transcripts"]},
                     "description": "Where to look. Default: everywhere."},
                   \(from), \(to),
-                  "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20}},
+                  "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20, "description": "How many at most. Above 50 counts as 50."}},
                   "required": ["query"], "additionalProperties": false}
                 """,
             output: """
@@ -162,7 +162,7 @@ enum ToolCatalog {
                   "status": {"type": "string", "enum": ["open", "done", "all"], "default": "open"},
                   \(folderID), \(from), \(to),
                   "owner": {"type": "string", "description": "Only tasks whose owner contains this name."},
-                  "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50},
+                  "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50, "description": "How many at most. Above 200 counts as 200."},
                   \(cursor)}, "additionalProperties": false}
                 """,
             output: """
@@ -180,7 +180,7 @@ enum ToolCatalog {
                 {"type": "object", "properties": {
                   \(from), \(to),
                   "query": {"type": "string", "description": "Words that must all occur in the thought."},
-                  "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50},
+                  "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50, "description": "How many at most. Above 200 counts as 200."},
                   \(cursor)}, "additionalProperties": false}
                 """,
             output: """

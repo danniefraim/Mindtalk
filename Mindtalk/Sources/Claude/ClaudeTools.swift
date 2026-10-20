@@ -35,6 +35,11 @@ enum ClaudeTools {
     /// A meeting's notes that didn't fit.
     static let moreNotesNote = "Not all notes fit; use mindtalk_search with meeting_id to find a specific one."
 
+    /// The most `limit` gives: meetings and search hits, tasks and thoughts (the
+    /// schemas' `maximum` in Helper/ToolCatalog.swift). More is held here and said.
+    static let maxLimit = 50
+    static let maxLongLimit = 200
+
     /// About 6 000 tokens for a list, 25 000 characters for a page of text.
     static let listBudget = 24_000
     static let transcriptPage = 25_000
@@ -149,11 +154,30 @@ enum ClaudeTools {
             if let one = v as? String { return [one.lowercased()] }
             throw Failure(message: "\(key) must be a list of strings.")
         }
-        /// 1...max, or the default. Out of range is said, not silently moved.
+        /// 1...max, or the default. Above the max is held at the max (`cappedNote` says
+        /// so in the answer); below 1, text or true is an error.
         func limit(_ key: String = "limit", default fallback: Int, max top: Int) throws -> Int {
+            if try asked(key, above: top) { return top }
             guard let n = try int(key) else { return fallback }
-            guard (1...top).contains(n) else { throw Failure(message: "\(key) must be between 1 and \(top).") }
+            guard n >= 1 else { throw Failure(message: "\(key) must be a whole number from 1 to \(top).") }
             return n
+        }
+        /// A number above `top`, however large (1e300 too): held at the max, not refused.
+        private func asked(_ key: String, above top: Int) throws -> Bool {
+            guard let v = given(key), !isBool(v) else { return false }
+            if let n = v as? Int { return n > top }
+            let d: Double?
+            if let x = v as? Double { d = x } else if let t = v as? String { d = Double(t) } else { d = nil }
+            guard let d, d.isFinite, d > Double(top) else { return false }
+            return d >= 1e15 || d == d.rounded()
+        }
+        /// What the answer says when `limit` was above the max: how many at most, and
+        /// how to get the rest (`paged`: there is a nextCursor to follow).
+        func cappedNote(_ key: String = "limit", max top: Int, paged: Bool) throws -> String? {
+            guard try asked(key, above: top) else { return nil }
+            return "\(key) is at most \(top), so at most \(top) are shown. "
+                + (paged ? "Follow nextCursor, when there is one, for the next page."
+                         : "For other hits, narrow with meeting_id, folder_id, from/to or more specific words.")
         }
         func uuid(_ key: String) throws -> UUID? { try string(key).flatMap(UUID.init) }
         /// An offset from an opaque cursor. `stamp`: what the pages are cut from (the
@@ -322,6 +346,12 @@ enum ClaudeTools {
         return piece
     }
 
+    /// The cap's note first, then the note already there (moreNote), as one line.
+    private static func note(_ result: inout [String: Any], _ capped: String?) {
+        guard let capped else { return }
+        result["note"] = [capped, result["note"] as? String].compactMap { $0 }.joined(separator: " ")
+    }
+
     static func size(of object: [String: Any]) -> Int {
         (try? JSONSerialization.data(withJSONObject: object)).map(\.count) ?? 0
     }
@@ -409,7 +439,7 @@ enum ClaudeTools {
             let keep = await matches(meetings.map { everything(of: $0) }, words)
             meetings = zip(meetings, keep).filter(\.1).map(\.0)
         }
-        let limit = try args.limit(default: 20, max: 50)
+        let limit = try args.limit(default: 20, max: maxLimit)
         let offset = try args.offset()
         let page = Array(meetings.dropFirst(offset).prefix(limit))
         var rows = page.map(item)
@@ -420,6 +450,7 @@ enum ClaudeTools {
             result["nextCursor"] = cursor(offset: offset + rows.count)
             result["note"] = moreNote
         }
+        note(&result, try args.cappedNote(max: maxLimit, paged: true))
         return (result, scope.label, rows.count)
     }
 
@@ -561,7 +592,7 @@ enum ClaudeTools {
         }
         // The meeting parts searched.
         let searched = Set(kinds.compactMap(Part.init(rawValue:)))
-        let limit = try args.limit(default: 20, max: 50)
+        let limit = try args.limit(default: 20, max: maxLimit)
         let inMeetings = try args.string("meeting_id") != nil || args.string("folder_id") != nil
         var spots: [Spot] = []
         var thoughts: [Thought] = []
@@ -644,6 +675,7 @@ enum ClaudeTools {
         let cut = fit(&rows, in: result, key: "hits", budget: listBudget)
         result["hits"] = rows
         if cut || rows.count < total { result["note"] = moreNote }
+        note(&result, try args.cappedNote(max: maxLimit, paged: false))
         return (result, label, rows.count)
     }
 
@@ -654,7 +686,7 @@ enum ClaudeTools {
         let status = try args.string("status")?.lowercased() ?? "open"
         guard ["open", "done", "all"].contains(status) else { throw Failure(message: "status must be open, done or all.") }
         let owner = try args.string("owner")
-        let limit = try args.limit(default: 50, max: 200)
+        let limit = try args.limit(default: 50, max: maxLongLimit)
         let offset = try args.offset()
         var rows: [[String: Any]] = []
         for m in scope.meetings {
@@ -687,6 +719,7 @@ enum ClaudeTools {
             result["nextCursor"] = cursor(offset: offset + rows.count)
             result["note"] = moreNote
         }
+        note(&result, try args.cappedNote(max: maxLongLimit, paged: true))
         return (result, scope.label, rows.count)
     }
 
@@ -701,7 +734,7 @@ enum ClaudeTools {
             let keep = await matches(thoughts.map(\.text), words)
             thoughts = zip(thoughts, keep).filter(\.1).map(\.0)
         }
-        let limit = try args.limit(default: 50, max: 200)
+        let limit = try args.limit(default: 50, max: maxLongLimit)
         let offset = try args.offset()
         var rows: [[String: Any]] = thoughts.dropFirst(offset).prefix(limit).map { t in
             ["id": t.id.uuidString, "text": t.text, "date": iso.string(from: t.date), "done": t.done, "pinned": t.pinned,
@@ -714,6 +747,7 @@ enum ClaudeTools {
             result["nextCursor"] = cursor(offset: offset + rows.count)
             result["note"] = moreNote
         }
+        note(&result, try args.cappedNote(max: maxLongLimit, paged: true))
         return (result, LogScope.thoughts, rows.count)
     }
 }

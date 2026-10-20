@@ -181,9 +181,27 @@ enum BridgeTest {
         r = await call("mindtalk_list_meetings", ["query": "rabatten"])
         check("list_meetings med ett ord ur anteckningarna: hittas", ids(rows(r.result, "meetings")) == [m1], said(r, "meetings"))
 
-        // Numbers that would trap: an error, never a crash.
+        // Above the max: held there and said in the note, not refused. Numbers that
+        // would trap too, never a crash.
+        r = await call("mindtalk_list_meetings", ["limit": 100])
+        check("limit 100: alla fyra, en not om att högst 50 visas", r.error == nil && rows(r.result, "meetings").count == 4
+              && (r.result?["note"] as? String)?.hasPrefix("limit is at most 50") == true && r.result?["nextCursor"] == nil,
+              r.error ?? "\(r.result?["note"] ?? "ingen not")")
         r = await call("mindtalk_list_meetings", ["limit": 1e300])
-        check("limit 1e300: fel", r.error?.contains("limit") == true, r.error ?? "inget fel")
+        check("limit 1e300: som 50, ingen krasch", r.error == nil && rows(r.result, "meetings").count == 4
+              && (r.result?["note"] as? String)?.contains("at most 50") == true, r.error ?? "")
+        r = await call("mindtalk_list_meetings", ["limit": "100"])
+        check("limit \"100\": som 50", r.error == nil && (r.result?["note"] as? String)?.contains("at most 50") == true, r.error ?? "")
+        r = await call("mindtalk_list_meetings", ["limit": 50])
+        check("limit 50: ingen not", r.error == nil && r.result?["note"] == nil, r.error ?? "\(r.result?["note"] ?? "")")
+        r = await call("mindtalk_search", ["query": "budget", "limit": 100])
+        check("search limit 100: not om att smalna av", r.error == nil && (r.result?["note"] as? String)?.contains("narrow") == true,
+              r.error ?? "\(r.result?["note"] ?? "ingen not")")
+        r = await call("mindtalk_list_thoughts", ["limit": 500])
+        check("list_thoughts limit 500: högst 200", r.error == nil && (r.result?["note"] as? String)?.hasPrefix("limit is at most 200") == true,
+              r.error ?? "")
+        r = await call("mindtalk_list_meetings", ["limit": 0])
+        check("limit 0: fel", r.error?.contains("limit") == true, r.error ?? "inget fel")
         r = await call("mindtalk_list_meetings", ["limit": "abc"])
         check("limit abc: fel", r.error?.contains("limit") == true, r.error ?? "inget fel")
         r = await call("mindtalk_list_meetings", ["limit": -5])
@@ -467,6 +485,8 @@ enum BridgeTest {
         check("meetings --from --to: Kort avstämning", r.status == 0 && r.out.split(separator: "\n").count == 1 && r.out.contains("Kort avstämning"), "\(r.status) \(r.out)")
         r = await mindtalk("meetings", "--from", "igår")
         check("meetings med fel datum: 1", r.status == 1 && r.err.contains("Invalid from"), "\(r.status) \(r.err)")
+        r = await mindtalk("meetings", "--limit", "100")
+        check("meetings --limit 100: som 50, inget fel", r.status == 0 && !r.out.isEmpty, "\(r.status) \(r.err)")
         r = await mindtalk("meetings", "--limit", "x")
         check("meetings --limit x: 2", r.status == 2, "\(r.status)")
 

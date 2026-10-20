@@ -74,7 +74,7 @@ enum Commands {
               Meetings, newest first: date, length, title, folder and id.
               --from, --to   ISO 8601 dates (2026-10-01) or moments (2026-10-01T09:00:00+02:00).
               --query        Words that must all occur in the meeting.
-              --limit        At most this many (1 to 50; default 20).
+              --limit        At most this many (default 20, up to 50).
             """,
         "meeting": """
             mindtalk meeting <id> [--summary | --tasks | --notes | --text] [--json]
@@ -88,19 +88,19 @@ enum Commands {
             mindtalk search <words> [--folder <name|id>] [--meeting <id>] [--from DATE] [--to DATE] [--limit N] [--json]
               Where the words occur: thoughts, summaries, decisions, tasks, notes, marks and what
               was said. Every word must occur in the same meeting or thought.
-              --limit     At most this many hits (1 to 50; default 20).
+              --limit     At most this many hits (default 20, up to 50).
             """,
         "thoughts": """
             mindtalk thoughts [--today] [--from DATE] [--to DATE] [--query WORDS] [--limit N] [--json]
               Your thoughts, newest first. [x] marks one done; "pinned" one you pinned.
               --today     Only today's.
-              --limit     At most this many (1 to 200; default 50).
+              --limit     At most this many (default 50, up to 200).
             """,
         "tasks": """
             mindtalk tasks [--open | --done | --all] [--folder <name|id>] [--from DATE] [--to DATE] [--owner NAME] [--limit N] [--json]
               Tasks from the meetings' summaries and the moments marked as tasks, as
               "[ ] text (owner) · meeting · time". Open ones by default.
-              --limit     At most this many (1 to 200; default 50).
+              --limit     At most this many (default 50, up to 200).
             """,
     ]
 
