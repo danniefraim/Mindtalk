@@ -999,7 +999,11 @@ final class Dictation: ObservableObject {
                 else { $0.openingWindow(String(localized: "Talmodellen är inte redo. Öppnar Mindtalk.")) }
             }
         }
-        guard micGranted else {
+        // Asked afresh: the microphone can be taken away in System Settings while
+        // Mindtalk runs, and then the message is about the permission, not the mic.
+        let mic = Recorder.micAuthorized
+        if mic != micGranted { micGranted = mic }
+        guard mic else {
             return report {
                 if AppDelegate.isOnboarding { $0.fail(String(localized: "Mindtalk behöver tillgång till mikrofonen.")) }
                 else { $0.openingWindow(String(localized: "Mindtalk behöver mikrofonen. Öppnar Mindtalk.")) }
