@@ -83,11 +83,14 @@ enum PolishGuard {
 
     /// One is the other plus an ending of at most three letters, the shorter at least
     /// four letters long — a corrected form ("tryck"/"trycker", "hund"/"hunden"),
-    /// never another word. Never for numbers ("tjugo"/"tjugofem") or a negation.
+    /// never another word. Never for numbers ("tjugo"/"tjugofem", "1000"/"10000") or a
+    /// negation, nor a past tense made passive ("skickade"/"skickades": who did it changes).
     static func sameWordOtherForm(_ a: String, _ b: String) -> Bool {
+        if a.contains(where: \.isNumber) || b.contains(where: \.isNumber) { return false }
         let (short, long) = a.count <= b.count ? (a, b) : (b, a)
         guard short.count >= 4, long.count - short.count <= 3, long.hasPrefix(short) else { return false }
         if negations.contains(short) || negations.contains(long) { return false }
+        if long == short + "s", short.hasSuffix("de") || short.hasSuffix("te") { return false }
         return !numberWords.contains { short.hasPrefix($0) || long.hasPrefix($0) }
     }
 
@@ -153,6 +156,9 @@ enum PolishGuard {
     private static func endsCorrection(_ dropped: [String], _ cue: [String], _ before: [String], _ run: Range<Int>) -> Bool {
         guard dropped.count >= cue.count else { return false }
         for start in 0...(dropped.count - cue.count) where Array(dropped[start..<start + cue.count]) == cue {
+            // Something said before the cue is what it replaces: "Ursäkta, kan du…" or
+            // "Nej, jag menar att…" at the start replaces nothing.
+            guard dropped[..<start].contains(where: { !softNo.contains($0) && !fillers.contains($0) }) else { continue }
             let after = Array(dropped[(start + cue.count)...])
             if after.isEmpty { return true }
             // What follows the cue repeats the words right before the run.

@@ -1391,6 +1391,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 ("Skicka det till Per, förlåt, till Anna", "Skicka det till Anna", true),
                 ("Ring mamma och säg förlåt", "Ring mamma.", false),
                 ("Ring mamma och säg sorry", "Ring mamma och säg", false),
+                // A correction cue replaces what was said before it, never nothing.
+                ("Ursäkta, kan du flytta på dig", "Kan du flytta på dig?", false),
+                ("Nej, jag menar att vi borde vänta", "Att vi borde vänta.", false),
+                // Numbers are never another form of themselves.
+                ("Det kostar 1000 kronor", "Det kostar 10000 kronor", false),
+                ("Ring mig på 0701234", "Ring mig på 0701234567", false),
+                ("Det hände 2025", "Det hände 2025123", false),
+                ("Det kostar 1000 kronor", "Det kostar 1000 kronor.", true),
+                // Who did it stays who did it.
+                ("Hon skickade paketet i går", "Hon skickades paketet i går", false),
             ]
             let ruleCases: [(String, String)] = [
                 ("Erik vill bygga med kubeh.", "Erik vill bygga med kub."),
