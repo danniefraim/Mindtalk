@@ -245,18 +245,24 @@ enum ClaudeInstall {
 
     // MARK: The programs
 
-    /// The programs, in the order of the help page.
+    /// The programs, in the order of the help page: Claude and ChatGPT, then the
+    /// developer tools (`forDevelopers`).
     enum Client: String, CaseIterable, Identifiable {
         case claude = "Claude"
+        case chatGPT = "ChatGPT"
         case claudeCode = "Claude Code"
-        case codex = "ChatGPT (Codex)"
         case cursor = "Cursor"
         case vscode = "VS Code"
         case zed = "Zed"
         case lmStudio = "LM Studio"
         case raycast = "Raycast"
+        case antigravity = "Antigravity"
+        case geminiCLI = "Gemini CLI"
         case other = "Annat program"
         var id: String { rawValue }
+
+        /// Under "För utvecklare" on the help page.
+        var forDevelopers: Bool { self != .claude && self != .chatGPT }
 
         var title: String {
             self == .other ? String(localized: "Annat program") : rawValue
@@ -266,6 +272,8 @@ enum ClaudeInstall {
         enum Action: Equatable {
             /// The .mcpb bundle, opened in the Claude app.
             case addToClaude
+            /// The helper's path copied, and the ChatGPT app opened.
+            case addToChatGPT
             /// Text to the clipboard: the button's title and what is copied.
             case copy(title: String, text: String)
             /// A link in the program's scheme: the button's title and the link.
@@ -278,8 +286,12 @@ enum ClaudeInstall {
                 return .addToClaude
             case .claudeCode:
                 return .copy(title: String(localized: "Kopiera kommandot"), text: ClaudeInstall.claudeCodeCommand())
-            case .codex:
-                return .copy(title: String(localized: "Kopiera kommandot"), text: ClaudeInstall.codexCommand())
+            case .chatGPT:
+                return .addToChatGPT
+            case .geminiCLI:
+                return .copy(title: String(localized: "Kopiera kommandot"), text: ClaudeInstall.geminiCommand())
+            case .antigravity:
+                return .copy(title: String(localized: "Kopiera inställningen"), text: ClaudeInstall.serverConfig())
             case .zed:
                 return .copy(title: String(localized: "Kopiera inställningen"), text: ClaudeInstall.zedConfig())
             case .other:
@@ -307,9 +319,16 @@ enum ClaudeInstall {
         "claude mcp add --scope user mindtalk -- \"\(helperPath)\" mcp"
     }
 
-    /// For ChatGPT's Codex side (the Codex CLI and the app's MCP settings share one list).
+    /// For ChatGPT's Codex in the Terminal (the Codex CLI and the app's MCP settings
+    /// share one list).
     static func codexCommand(helperPath: String = helperLinkURL.path) -> String {
         "codex mcp add mindtalk -- \"\(helperPath)\" mcp"
+    }
+
+    /// Gemini CLI, for those on Gemini Code Assist: user scope, so it is there in
+    /// every folder.
+    static func geminiCommand(helperPath: String = helperLinkURL.path) -> String {
+        "gemini mcp add -s user mindtalk \"\(helperPath)\" mcp"
     }
 
     @MainActor

@@ -890,6 +890,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     for client in ClaudeInstall.Client.allCases {
                         switch client.action {
                         case .addToClaude: print("\(client.rawValue): Lägg till i Claude (\(ClaudeInstall.bundleURL.path))")
+                        case .addToChatGPT: print("\(client.rawValue): \(ClaudeInstall.chatGPTBundleID)\n\(ClaudeInstall.helperLinkURL.path)")
                         case .copy(let title, let text): print("\(client.rawValue): \(title)\n\(text)")
                         case .open(let title, let url): print("\(client.rawValue): \(title)\n\(url.absoluteString)")
                         }

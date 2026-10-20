@@ -3373,6 +3373,22 @@
         }
       }
     },
+    "Använder du Codex i Terminalen? Kopiera kommandot och klistra in där.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Using Codex in Terminal? Copy the command and paste it there."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Använder du Codex i Terminalen? Kopiera kommandot och klistra in där."
+          }
+        }
+      }
+    },
     "Används": {
       "localizations": {
         "en": {
@@ -5058,6 +5074,22 @@
         }
       }
     },
+    "Claude och ChatGPT": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude and ChatGPT"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude och ChatGPT"
+          }
+        }
+      }
+    },
     "Claude öppnas och frågar om du vill lägga till Mindtalk. Svara ja.": {
       "localizations": {
         "en": {
@@ -6071,6 +6103,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Det finns redan en mapp som heter så. Den nya får en siffra efter namnet."
+          }
+        }
+      }
+    },
+    "Det fungerar både i Codex och i den vanliga chatten, i ChatGPT-appen för Mac. Inte på webben eller i mobilen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It works in both Codex and the regular chat, in the ChatGPT app for Mac. Not on the web or on mobile."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det fungerar både i Codex och i den vanliga chatten, i ChatGPT-appen för Mac. Inte på webben eller i mobilen."
           }
         }
       }
@@ -9576,6 +9624,38 @@
         }
       }
     },
+    "För dig som använder Gemini Code Assist.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For Gemini Code Assist users."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "För dig som använder Gemini Code Assist."
+          }
+        }
+      }
+    },
+    "För dig som vill skriva kommandon eller bygga egna skript. AI-apparna ovan behöver inte detta.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For anyone who wants to type commands or write their own scripts. The AI apps above don’t need this."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "För dig som vill skriva kommandon eller bygga egna skript. AI-apparna ovan behöver inte detta."
+          }
+        }
+      }
+    },
     "För dig som vill skriva kommandon eller bygga egna skript. AI-programmen ovan behöver inte detta.": {
       "localizations": {
         "en": {
@@ -9588,6 +9668,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "För dig som vill skriva kommandon eller bygga egna skript. AI-programmen ovan behöver inte detta."
+          }
+        }
+      }
+    },
+    "För utvecklare": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For developers"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "För utvecklare"
           }
         }
       }
@@ -18503,6 +18599,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "MCP"
+          }
+        }
+      }
+    },
+    "MCP är ett öppet sätt för AI-appar att läsa dina möten och tankar. Mindtalk kör en liten server på din Mac som appen startar själv. Det fungerar i appar på Macen, inte på webben eller i mobilen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP is an open way for AI apps to read your meetings and thoughts. Mindtalk runs a small server on your Mac that the app starts by itself. It works in apps on your Mac, not on the web or on your phone."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP är ett öppet sätt för AI-appar att läsa dina möten och tankar. Mindtalk kör en liten server på din Mac som appen startar själv. Det fungerar i appar på Macen, inte på webben eller i mobilen."
           }
         }
       }
@@ -34838,6 +34950,22 @@
         }
       }
     },
+    "steg|Kopiera sökvägen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy the path"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopiera sökvägen"
+          }
+        }
+      }
+    },
     "step|Säg en tanke": {
       "localizations": {
         "en": {
@@ -35667,6 +35795,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna"
+          }
+        }
+      }
+    },
+    "Öppna ChatGPT": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open ChatGPT"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna ChatGPT"
           }
         }
       }

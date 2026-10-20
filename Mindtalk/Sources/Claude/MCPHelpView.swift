@@ -3,10 +3,12 @@ import SwiftUI
 
 // MARK: - Integrationer → MCP → Läs mer
 //
-// The help page, a sheet from the card's "Läs mer": one section per program with one to
-// three numbered steps, a copy field with the exact command or setting where there is
-// one, and the program's own button where it has a link. Then the Terminal command, for
-// those who write commands or scripts of their own, and Felsökning last.
+// The help page, a sheet from the card's "Läs mer", in two parts. First Claude and
+// ChatGPT, the two most people use. Then "För utvecklare": one section per developer
+// tool with one to three numbered steps, a copy field with the exact command or setting
+// where there is one, and the program's own button where it has a link; all other
+// programs; and the Terminal command, for those who write commands or scripts of their
+// own. Felsökning last.
 //
 // Every command, setting and link comes from ClaudeInstall; nothing is written twice.
 
@@ -47,13 +49,19 @@ struct MCPHelpView: View {
             Text("Koppla Mindtalk till din AI-assistent")
                 .font(.system(size: 30, weight: .regular, design: .serif))
                 .fixedSize(horizontal: false, vertical: true)
-            Text("MCP är ett öppet sätt för AI-program att läsa dina möten och tankar. Mindtalk kör en liten server på din Mac som programmet startar själv. Det fungerar i program på Macen, inte på webben eller i mobilen.")
+            Text("MCP är ett öppet sätt för AI-appar att läsa dina möten och tankar. Mindtalk kör en liten server på din Mac som appen startar själv. Det fungerar i appar på Macen, inte på webben eller i mobilen.")
                 .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12)
-            ForEach(Self.programs) { section in
-                Rectangle().fill(DS.Colors.divider).frame(height: 1).padding(.vertical, 22)
+            part("Claude och ChatGPT")
+            ForEach(Array(Self.programs(forDevelopers: false).enumerated()), id: \.element.id) { index, section in
+                if index > 0 { Rectangle().fill(DS.Colors.divider).frame(height: 1).padding(.vertical, 22) }
+                sectionView(section)
+            }
+            part("För utvecklare")
+            ForEach(Array(Self.programs(forDevelopers: true).enumerated()), id: \.element.id) { index, section in
+                if index > 0 { Rectangle().fill(DS.Colors.divider).frame(height: 1).padding(.vertical, 22) }
                 sectionView(section)
             }
             Rectangle().fill(DS.Colors.divider).frame(height: 1).padding(.vertical, 22)
@@ -66,6 +74,15 @@ struct MCPHelpView: View {
         .onAppear { commandInstalled = ClaudeInstall.commandInstalled }
     }
 
+    /// "Claude och ChatGPT", "För utvecklare": a part of the page, over its sections.
+    private func part(_ title: LocalizedStringKey) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Rectangle().fill(DS.Colors.ink).frame(height: 1).padding(.top, 30)
+            Text(title).font(.system(size: 20, weight: .regular, design: .serif))
+                .padding(.top, 16).padding(.bottom, 18)
+        }
+    }
+
     // MARK: Terminalen
 
     /// The command in /usr/local/bin, for those who type commands or write scripts. The
@@ -73,7 +90,7 @@ struct MCPHelpView: View {
     private var terminal: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Använd Mindtalk i Terminalen").font(.system(size: 14, weight: .semibold))
-            Text("För dig som vill skriva kommandon eller bygga egna skript. AI-programmen ovan behöver inte detta.")
+            Text("För dig som vill skriva kommandon eller bygga egna skript. AI-apparna ovan behöver inte detta.")
                 .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(alignment: .center, spacing: 12) {
@@ -141,6 +158,11 @@ struct MCPHelpView: View {
                             Text("Hämta Claude").font(.system(size: 12.5, weight: .medium)).underline()
                         }
                         .buttonStyle(.plain)
+                    } else if client == .chatGPT {
+                        Button { NSWorkspace.shared.open(ClaudeInstall.chatGPTDownloadURL) } label: {
+                            Text("Hämta ChatGPT").font(.system(size: 12.5, weight: .medium)).underline()
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -161,6 +183,13 @@ struct MCPHelpView: View {
                 withAnimation(.snappy) { trouble[client] = outcome.trouble }
             }
             .buttonStyle(.ink)
+        case .addToChatGPT:
+            Button("Öppna ChatGPT") {
+                let outcome = ClaudeInstall.addToChatGPT()
+                if outcome == .opened { sharing.connectedOnce = true }
+                withAnimation(.snappy) { trouble[client] = outcome == .opened ? nil : String(localized: "ChatGPT-appen hittades inte.") }
+            }
+            .buttonStyle(.soft)
         case .open(let title, let url):
             Button(title) {
                 let outcome = ClaudeInstall.open(url)
@@ -246,7 +275,9 @@ struct MCPHelpView: View {
         }
     }
 
-    private static var programs: [Section] { ClaudeInstall.Client.allCases.map(section(for:)) }
+    private static func programs(forDevelopers: Bool) -> [Section] {
+        ClaudeInstall.Client.allCases.filter { $0.forDevelopers == forDevelopers }.map(section(for:))
+    }
 
     private static var troubleshooting: Section {
         Section(title: String(localized: "Felsökning"), lines: [
@@ -283,15 +314,14 @@ struct MCPHelpView: View {
                 .step(paste),
                 .step(String(localized: "Skriv /mcp i Claude Code för att se att Mindtalk är kopplat.")),
             ])
-        case .codex:
-            return Section(title: client.title, lines: [
-                .copy(copyCommand, text: copied(client), what: "the Codex command"),
-                .step(paste),
-                .note(String(localized: "Eller i ChatGPT-appen: Inställningar → MCP servers → Add server. Välj STDIO, klistra in sökvägen som kommando och skriv mcp som argument.")),
-                .field(ClaudeInstall.helperLinkURL.path, what: "the helper path for ChatGPT"),
-                .note(String(localized: "Spara och tryck Restart.")),
+        case .chatGPT:
+            return Section(title: "ChatGPT", client: client, lines: [
+                .copy(String(localized: "steg|Kopiera sökvägen"), text: ClaudeInstall.helperLinkURL.path, what: "the helper path for ChatGPT"),
+            ] + ClaudeInstall.chatGPTSteps.map { .step($0) } + [
+                .note(String(localized: "Det fungerar både i Codex och i den vanliga chatten, i ChatGPT-appen för Mac. Inte på webben eller i mobilen.")),
                 .note(String(localized: "Inte under Plugins. Där fungerar bara servrar på internet.")),
-                .note(String(localized: "Det fungerar i Codex-delen av ChatGPT, inte i den vanliga chatten.")),
+                .note(String(localized: "Använder du Codex i Terminalen? Kopiera kommandot och klistra in där.")),
+                .field(ClaudeInstall.codexCommand(), what: "the Codex command"),
             ])
         case .cursor:
             return Section(title: client.title, client: client, lines: [
@@ -317,17 +347,25 @@ struct MCPHelpView: View {
             return Section(title: client.title, client: client, lines: [
                 .note(String(localized: "Raycast öppnas och frågar om du vill lägga till Mindtalk.")),
             ])
+        case .antigravity:
+            // The standard setting, in its own file.
+            return Section(title: client.title, lines: [
+                .copy(copySetting, text: copied(client), what: "the MCP server config for Antigravity"),
+                .step(String(localized: "Lägg in den i ~/.gemini/config/mcp_config.json. I Antigravity: ⋯ → MCP Servers → Manage MCP Servers → View raw config.")),
+                .step(String(localized: "Starta om Antigravity.")),
+            ])
+        case .geminiCLI:
+            return Section(title: client.title, lines: [
+                .copy(copyCommand, text: copied(client), what: "the Gemini CLI command"),
+                .step(paste),
+                .note(String(localized: "För dig som använder Gemini Code Assist.")),
+            ])
         case .other:
             return Section(title: String(localized: "Alla andra program"), lines: [
                 .copy(copySetting, text: copied(client), what: "the MCP server config"),
                 .step(ClaudeInstall.pasteSettingStep),
                 .step(String(localized: "Starta om programmet och fråga om dina möten.")),
                 .note(String(localized: "Frågar programmet efter typ, välj en lokal server (STDIO).")),
-                // Antigravity reads the same setting from its own file.
-                .heading("Antigravity"),
-                .copy(copySetting, text: copied(client), what: "the MCP server config for Antigravity"),
-                .step(String(localized: "Lägg in den i ~/.gemini/config/mcp_config.json. I Antigravity: ⋯ → MCP Servers → Manage MCP Servers → View raw config.")),
-                .step(String(localized: "Starta om Antigravity.")),
             ])
         }
     }
