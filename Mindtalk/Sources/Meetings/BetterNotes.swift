@@ -118,8 +118,11 @@ enum NotesModel: String, CaseIterable, Identifiable, Sendable {
     nonisolated var remainingBytes: Int64 { max(0, bytes - ModelDownload.allocatedBytes(in: staging)) }
     /// Room for what's left and 2 GB to spare.
     nonisolated var hasRoom: Bool { BetterNotes.freeBytes > remainingBytes + 2_000_000_000 }
-    /// The largest this Mac runs well.
-    nonisolated static var recommended: NotesModel? { allCases.last { $0.supported } }
+    /// The largest this Mac runs well that is here or has room on the disk; when none
+    /// has room, the largest it runs. Nil only on a Mac with too little memory for any.
+    nonisolated static var recommended: NotesModel? {
+        allCases.last { $0.supported && ($0.isInstalled || $0.hasRoom) } ?? allCases.last { $0.supported }
+    }
 }
 
 @MainActor
