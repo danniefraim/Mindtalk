@@ -353,7 +353,7 @@ struct StatusPanelView: View {
                                 AppDelegate.showWindow(page: .dictation)
                             } label: {
                                 HStack(spacing: 5) {
-                                    Circle().fill(DS.Colors.warning).frame(width: 6, height: 6)
+                                    Circle().fill(DS.Colors.ink).frame(width: 6, height: 6)
                                     Text(verbatim: FloatingTabBar.stepsText(left)).foregroundStyle(.primary)
                                     Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold))
                                 }
