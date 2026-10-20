@@ -277,8 +277,13 @@ struct VocabularyPage: View {
                 HStack(spacing: 12) {
                     Image(systemName: "sparkles").font(.system(size: 13)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Lägg till ”\(suggestion.word)”?").font(.system(size: 14, weight: .semibold))
-                        Text(verbatim: [suggestion.heardAs.first.map { String(localized: "hördes som ”\($0)”") },
+                        // A word already on the list: only how it was heard is new.
+                        if let entry = vocabulary.existing(suggestion), let heard = suggestion.heardAs.first {
+                            Text("Rätta ”\(heard)” till ”\(entry.word)”?").font(.system(size: 14, weight: .semibold))
+                        } else {
+                            Text("Lägg till ”\(suggestion.word)”?").font(.system(size: 14, weight: .semibold))
+                        }
+                        Text(verbatim: [vocabulary.existing(suggestion) != nil ? nil : suggestion.heardAs.first.map { String(localized: "hördes som ”\($0)”") },
                                         suggestion.source.map { String(localized: "från mötet \($0)") }]
                                 .compactMap { $0 }.joined(separator: " · "))
                             .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted).lineLimit(1)

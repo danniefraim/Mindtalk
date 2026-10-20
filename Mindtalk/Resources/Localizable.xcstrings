@@ -23596,6 +23596,22 @@
         }
       }
     },
+    "Rätta ”%@” till ”%@”?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Correct “%1$@” to “%2$@”?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rätta ”%@” till ”%@”?"
+          }
+        }
+      }
+    },
     "Rättar skiljetecken och självrättelser med Apple Intelligence.": {
       "localizations": {
         "en": {

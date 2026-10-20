@@ -60,6 +60,9 @@ final class Vocabulary: ObservableObject {
                 MeetingText.forget()
             }
             if !Self.hasOwnWords(oldValue), Self.hasOwnWords(entries) { prepareListener() }
+            // A word added by hand meanwhile isn't suggested any more.
+            let pruned = Self.pruned(suggestions, against: entries)
+            if pruned != suggestions { suggestions = pruned }
         }
     }
     /// Built once per change of the list, not per dictation.
@@ -125,6 +128,12 @@ final class Vocabulary: ObservableObject {
         matcher = Self.matcher(for: loaded)
         entries = loaded
         if differsFromDisk, !Self.readOnly { save() }
+        // Suggestions kept from before a word was added by hand: only what's still new.
+        let pruned = Self.pruned(suggestions, against: loaded)
+        if pruned != suggestions {
+            suggestions = pruned
+            if !Self.readOnly { UserDefaults.standard.set(try? JSONEncoder().encode(pruned), forKey: "vocabularySuggestions") }
+        }
     }
 
     /// An entry, or nothing if it can't be read.
@@ -273,17 +282,44 @@ final class Vocabulary: ObservableObject {
     // MARK: Suggestions
 
     /// A word worth suggesting: not on the list, not said no to, not an ordinary word.
+    /// A word already on the list only with a new way it was heard: just that is offered.
     func suggest(_ word: String, heardAs: String? = nil, from source: String?) {
         let word = Self.tidy(word)
         guard Self.isValidWord(word), word.filter(\.isLetter).count >= 3,
               !word.contains(where: \.isNumber),
-              !entries.contains(where: { Self.key($0.word) == Self.key(word) }),
               !suggestions.contains(where: { Self.key($0.word) == Self.key(word) }),
               !declined.contains(Self.key(word)),
               !Self.isDictionaryWord(word.lowercased()) || heardAs != nil else { return }
-        let variants = heardAs.map { [Self.tidy($0)] }?.filter { Self.key($0) != Self.key(word) } ?? []
-        suggestions.insert(VocabularySuggestion(word: word, heardAs: variants, source: source), at: 0)
+        let variants = heardAs.map { [Self.tidy($0)] }?.filter { Self.isValidWord($0) && Self.key($0) != Self.key(word) } ?? []
+        let suggestion = VocabularySuggestion(word: word, heardAs: variants, source: source)
+        // Nothing new for a word on the list: no suggestion.
+        guard let kept = Self.pruned([suggestion], against: entries).first else { return }
+        suggestions.insert(kept, at: 0)
         if suggestions.count > 20 { suggestions.removeLast(suggestions.count - 20) }
+    }
+
+    /// The word of the list a suggestion is about, when it's on the list already.
+    func existing(_ suggestion: VocabularySuggestion) -> VocabularyEntry? {
+        entries.first { Self.key($0.word) == Self.key(suggestion.word) }
+    }
+
+    /// Suggestions without what the list already has: a word on it is kept only for a
+    /// way it was heard that it doesn't have yet (in its spelling on the list), and
+    /// otherwise dropped. Pure, for the self-test.
+    static func pruned(_ suggestions: [VocabularySuggestion], against entries: [VocabularyEntry]) -> [VocabularySuggestion] {
+        var seen = Set<String>()
+        return suggestions.compactMap { s in
+            guard seen.insert(key(s.word)).inserted else { return nil }
+            guard let entry = entries.first(where: { key($0.word) == key(s.word) }) else { return s }
+            let new = deduplicated(s.heardAs.filter { v in
+                key(v) != key(entry.word) && !entry.heardAs.contains { key($0) == key(v) }
+                    && !isOtherWord(v, than: entry.word, in: entries)
+            })
+            guard !new.isEmpty else { return nil }
+            var kept = s
+            kept.heardAs = new
+            return kept
+        }
     }
 
     func accept(_ suggestion: VocabularySuggestion) {

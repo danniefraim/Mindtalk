@@ -1357,6 +1357,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             (out, _) = Vocabulary.adding(word: "Claude", heardAs: "Klåd, Claud, claud, Claud", to: list)
             check(out[0].word == "Claude" && out[0].heardAs == ["Klåd", "Claud"], "en variant bara en gång (\(out[0].heardAs))")
             check(Vocabulary.deduplicated(["Klåd", "Claud", "Claud", "KLÅD"]) == ["Klåd", "Claud"], "dubbletter tas bort i ordning")
+            // A suggestion for a word already on the list: gone, or only its new way of being heard.
+            let have = [VocabularyEntry(word: "Mathias", heardAs: ["Mattias"]), VocabularyEntry(word: "Klang")]
+            let pruned = Vocabulary.pruned([VocabularySuggestion(word: "mathias", heardAs: ["mattias"], source: nil),
+                                            VocabularySuggestion(word: "Klang", heardAs: ["Klong", "klang"], source: nil),
+                                            VocabularySuggestion(word: "Anna", heardAs: [], source: nil),
+                                            VocabularySuggestion(word: "anna", heardAs: ["Ana"], source: nil)], against: have)
+            check(pruned.map(\.word) == ["Klang", "Anna"] && pruned[0].heardAs == ["Klong"], "förslag som redan finns i ordlistan visas inte (\(pruned.map(\.word)))")
             // Import counts only lines that changed something.
             let imported = Vocabulary.importing("Mindtalk; mind talk\nMindact\nKlang; clang\n\nMindact; min dakt\n", into: list)
             check(imported.changed == 2 && imported.entries.count == 3 && imported.entries.first?.word == "Klang", "import räknar bara verkliga ändringar (\(imported.changed))")
