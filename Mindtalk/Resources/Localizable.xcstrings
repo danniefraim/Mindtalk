@@ -7297,6 +7297,22 @@
         }
       }
     },
+    "Du har %@ ledigt. Hämtas i bakgrunden medan du fortsätter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have %@ free. Downloads in the background while you continue."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du har %@ ledigt. Hämtas i bakgrunden medan du fortsätter."
+          }
+        }
+      }
+    },
     "Du har dikterat %lld dagar i rad.": {
       "localizations": {
         "en": {
@@ -8873,6 +8889,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fortsätt spela in"
+          }
+        }
+      }
+    },
+    "Fortsätt utan att ladda ned": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue without downloading"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsätt utan att ladda ned"
           }
         }
       }
@@ -29404,6 +29436,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Talmodellen hör dina ord"
+          }
+        }
+      }
+    },
+    "Talmodellen kan laddas ned senare, på Hem": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The speech model can be downloaded later, on Home"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellen kan laddas ned senare, på Hem"
           }
         }
       }

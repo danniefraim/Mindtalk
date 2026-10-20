@@ -111,7 +111,8 @@ struct OnboardingView: View {
     @ViewBuilder private var stepView: some View {
         switch step {
         case .welcome: WelcomeStep()
-        case .language: LanguageStep(chosen: $chosen, listener: $listener, voices: $voices, gemma: $gemma, gemmaPick: $gemmaPick)
+        case .language: LanguageStep(chosen: $chosen, listener: $listener, voices: $voices, gemma: $gemma, gemmaPick: $gemmaPick,
+                                     fetching: languageBytes > 0)
         case .permissions: PermissionsStep(dictation: dictation)
         case .tryIt: TryStep(dictation: dictation)
         case .thoughts: ThoughtsStep(dictation: dictation, done: tried(.thoughts))
@@ -163,6 +164,19 @@ struct OnboardingView: View {
             // One line on every step while anything is on its way: how much, how long.
             DownloadStatus(dictation: dictation)
             Spacer(minLength: 8)
+            // On without the speech model: it can be fetched later, from Hem.
+            if step == .language, languageBytes > 0 {
+                Button { go(1) } label: {
+                    Text("Fortsätt utan att ladda ned")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(DS.Colors.muted)
+                        .padding(8)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Talmodellen kan laddas ned senare, på Hem")
+                .transition(.opacity)
+            }
             if step.rawValue >= Step.thoughts.rawValue, step != .ready {
                 Button { done() } label: {
                     Text("Avsluta introduktionen")
@@ -210,14 +224,19 @@ struct OnboardingView: View {
         case .welcome: return String(localized: "Kom igång")
         case .language:
             // Already on its way (the introduction shown again): nothing more to fetch.
-            let missing = SpeechModel.allCases.filter { chosen.contains($0) && !$0.isInstalled && dictation.downloads[$0] == nil }
-            let extra = Self.extras(listener: listener, voices: voices, gemma: gemma ? gemmaPick : nil)
-            if missing.isEmpty, extra == 0 { return String(localized: "Fortsätt") }
-            let bytes = missing.reduce(Int64(0)) { $0 + $1.downloadBytes } + extra
+            let bytes = languageBytes
+            if bytes == 0 { return String(localized: "Fortsätt") }
             return String(localized: "Ladda ned \(DiskSize.text(bytes)) och fortsätt")
         case .ready: return String(localized: "Sätt igång")
         default: return String(localized: "Fortsätt")
         }
+    }
+
+    /// What the language step would fetch, in bytes: the speech models ticked and not
+    /// here or on their way, and the extras. 0: nothing more to fetch.
+    private var languageBytes: Int64 {
+        let missing = SpeechModel.allCases.filter { chosen.contains($0) && !$0.isInstalled && dictation.downloads[$0] == nil }
+        return missing.reduce(Int64(0)) { $0 + $1.downloadBytes } + Self.extras(listener: listener, voices: voices, gemma: gemma ? gemmaPick : nil)
     }
 
     /// What the ticked extras still have to fetch, in bytes.
@@ -328,6 +347,8 @@ private struct LanguageStep: View {
     @Binding var voices: Bool
     @Binding var gemma: Bool
     @Binding var gemmaPick: NotesModel?
+    /// Something would be fetched: the line about the room for it.
+    var fetching = false
     @ObservedObject private var notes = BetterNotes.shared
 
     /// The Gemmas this Mac runs, largest first — none once one is in use, and none if
@@ -360,7 +381,7 @@ private struct LanguageStep: View {
     private var others: Int64 { Self.others(chosen: chosen, listener: listener, voices: voices) }
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 18) {
             StepHeader(title: "Vilket språk pratar du?",
                        subtitle: "Välj ett eller båda. Du byter med ett klick i menyraden. Allt hämtas en gång och körs på din Mac.")
                 .staggered(0)
@@ -377,6 +398,13 @@ private struct LanguageStep: View {
             // Everything else worth having, fetched in the same go — so it's there by the
             // time the steps about meetings and the word list come.
             recommended.staggered(3)
+            // Room for it, and that waiting isn't asked for (the way on without it is in the footer).
+            if fetching {
+                Text("Du har \(BetterNotes.gigabytes(BetterNotes.freeBytes)) ledigt. Hämtas i bakgrunden medan du fortsätter.")
+                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                    .lineLimit(1)
+                    .staggered(4)
+            }
         }
         // More ticked, less room: a Gemma that no longer fits next to the rest is unticked.
         .onChange(of: others) { _, now in
@@ -413,7 +441,7 @@ extension LanguageStep {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(20)
+            .padding(.horizontal, 20).padding(.vertical, 16)
             .raised(cornerRadius: DS.Radius.panel)
         }
     }
