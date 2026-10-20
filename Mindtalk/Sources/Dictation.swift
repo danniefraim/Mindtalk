@@ -144,9 +144,18 @@ final class Dictation: ObservableObject {
         #if DEBUG
         if Demo.on { return Demo.recent }
         #endif
-        guard let data = try? Data(contentsOf: recentFile),
-              let entries = try? JSONDecoder().decode([Entry].self, from: data) else { return [] }
-        return Array(entries.prefix(recentLimit))
+        guard let data = try? Data(contentsOf: recentFile) else { return [] }
+        do {
+            return Array(try JSONDecoder().decode([Entry].self, from: data).prefix(recentLimit))
+        } catch {
+            // Unreadable: put aside, not written over by the next dictation — so what
+            // was in it can still be looked at.
+            let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+            let aside = recentFile.deletingLastPathComponent().appendingPathComponent("Recent.unreadable-\(stamp).json")
+            let moved = (try? FileManager.default.moveItem(at: recentFile, to: aside)) != nil
+            log.error("Recent.json unreadable (\(error.localizedDescription, privacy: .public)), \(moved ? "moved aside" : "could not be moved", privacy: .public)")
+            return []
+        }
     }
 
     private func saveRecent() {
