@@ -10841,6 +10841,38 @@
         }
       }
     },
+    "Hjälpmedel är inte på för Mindtalk, så tangenten hörs inte.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accessibility is off for Mindtalk, so the key isn't heard."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hjälpmedel är inte på för Mindtalk, så tangenten hörs inte."
+          }
+        }
+      }
+    },
+    "Hjälpmedel är inte på för Mindtalk, så tangenten hörs inte. Öppnar Mindtalk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accessibility is off for Mindtalk, so the key isn't heard. Opening Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hjälpmedel är inte på för Mindtalk, så tangenten hörs inte. Öppnar Mindtalk."
+          }
+        }
+      }
+    },
     "Hoppa över": {
       "localizations": {
         "en": {

@@ -114,9 +114,11 @@ final class Dictation: ObservableObject {
     /// Another program has Secure Input on (a password prompt, a terminal's secure
     /// keyboard entry): a dictation key that isn't a modifier never reaches Mindtalk.
     @Published private(set) var keyboardBlocked = false
-    /// Tillåt for Hjälpmedel was pressed this session: if it's still off, Kom igång
-    /// says how to switch it off and on again.
-    @Published private(set) var accessibilityAsked = false
+    /// Tillåt for Hjälpmedel has been pressed: if it's still off, Kom igång says how to
+    /// switch it off and on again. Kept, so the tip is there at the next launch too.
+    @Published private(set) var accessibilityAsked = UserDefaults.standard.bool(forKey: "accessibilityAsked") {
+        didSet { UserDefaults.standard.set(accessibilityAsked, forKey: "accessibilityAsked") }
+    }
     /// The last dictations, kept on this Mac (Application Support, readable only by you)
     /// so a paste that landed nowhere can be copied — never a password field's.
     @Published private(set) var recent: [Entry] = Dictation.loadRecent() {
@@ -464,6 +466,9 @@ final class Dictation: ObservableObject {
         // Accessibility taken away and given back while running: the old tap is deaf
         // for good, so a new one. Otherwise one that macOS switched off is switched on.
         if accessibilityGranted { KeyListener.shared.ensureTap(recreate: !hadAccessibility) }
+        // Without it the tap can't hear the key: the modifiers are watched instead, so a
+        // press gets an answer.
+        if accessibilityGranted { stopWatchingKeysWithoutAccessibility() } else { watchKeysWithoutAccessibility() }
         if accessibilityGranted, KeyListener.shared.start(), micGranted {
             permissionPoll?.invalidate(); permissionPoll = nil; return
         }
@@ -495,6 +500,67 @@ final class Dictation: ObservableObject {
 
     /// Mindtalk has been trusted under Hjälpmedel at some point on this Mac.
     private static let everTrustedKey = "accessibilityEverTrusted"
+
+    // MARK: The key without Hjälpmedel
+    //
+    // Without Hjälpmedel the tap can't be made, and a press of the key does nothing at
+    // all, which looks like a broken app. macOS still tells about the modifier keys
+    // (flagsChanged) without it: the dictation key, or the thought key, held alone for
+    // a moment gets the orange pill, and the window opens on Hem, where Kom igång asks
+    // for it. At most once every half minute. A regular key (F5) can't be heard this way.
+
+    private var fallbackMonitor: Any?
+    private var fallbackHeld: DispatchWorkItem?
+    private var lastFallbackReport: Date?
+
+    private func watchKeysWithoutAccessibility() {
+        guard fallbackMonitor == nil else { return }
+        fallbackMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { event in
+            let flags = CGEventFlags(rawValue: UInt64(event.modifierFlags.rawValue))
+            MainActor.assumeIsolated { Dictation.shared.flagsChangedWithoutAccessibility(flags) }
+        }
+    }
+
+    private func stopWatchingKeysWithoutAccessibility() {
+        if let fallbackMonitor { NSEvent.removeMonitor(fallbackMonitor) }
+        fallbackMonitor = nil
+        fallbackHeld?.cancel()
+        fallbackHeld = nil
+    }
+
+    /// The keys held alone: the dictation key, and the thought key when it's one.
+    private var keysToWatch: [Hotkey] {
+        var keys = [hotkey]
+        if let key = KeyListener.shared.thoughtShortcut?.key { keys.append(key) }
+        return keys.filter(\.isModifier)
+    }
+
+    private func flagsChangedWithoutAccessibility(_ flags: CGEventFlags) {
+        fallbackHeld?.cancel()
+        fallbackHeld = nil
+        guard keysToWatch.contains(where: { $0.modifiersPhysicallyDown(in: flags) }) else { return }
+        let work = DispatchWorkItem { [weak self] in self?.keyHeldWithoutAccessibility() }
+        fallbackHeld = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + tapThreshold, execute: work)
+    }
+
+    private func keyHeldWithoutAccessibility() {
+        fallbackHeld = nil
+        // Still held, and nothing typed with it (⌥2 for @ is a shortcut, not a press).
+        let now = CGEventSource.flagsState(.combinedSessionState)
+        guard let key = keysToWatch.first(where: { $0.modifiersPhysicallyDown(in: now) }) else { return }
+        if KeyListener.keyWentDown(since: Date().addingTimeInterval(-tapThreshold)) { return }
+        if let last = lastFallbackReport, Date().timeIntervalSince(last) < 30 { return }
+        refreshPermissions()                       // given meanwhile: the tap takes over
+        guard !accessibilityGranted, phase == .idle else { return }
+        lastFallbackReport = Date()
+        Self.log.notice("\(key.name, privacy: .public) held without accessibility: said so")
+        if AppDelegate.isOnboarding {
+            fail(String(localized: "Hjälpmedel är inte på för Mindtalk, så tangenten hörs inte."))
+        } else {
+            openingWindow(String(localized: "Hjälpmedel är inte på för Mindtalk, så tangenten hörs inte. Öppnar Mindtalk."))
+        }
+    }
 
     func requestMicrophone() {
         Task {
@@ -1159,10 +1225,10 @@ final class Dictation: ObservableObject {
     }
 
     /// After the introduction, a problem that needs the window: said first, then the
-    /// window opens.
+    /// window opens on Hem, where Kom igång asks for what's missing.
     private func openingWindow(_ message: String) {
         fail(message)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { AppDelegate.showWindow() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { AppDelegate.showWindow(page: .dictation) }
     }
 
     /// Reports a problem only if the press is held a moment (or in toggle mode, on
