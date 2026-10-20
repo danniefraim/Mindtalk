@@ -7183,6 +7183,22 @@
         }
       }
     },
+    "Du behöver bara ge dem en gång.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You only need to give them once."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du behöver bara ge dem en gång."
+          }
+        }
+      }
+    },
     "Du byter språk med ett klick i menyraden.": {
       "extractionState": "stale",
       "localizations": {
@@ -10809,6 +10825,22 @@
         }
       }
     },
+    "Hjälpmedel heter det i macOS. Det låter Mindtalk känna när du trycker på tangenten och skriva in texten åt dig. Utan det händer ingenting när du trycker.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS calls it Accessibility. It lets Mindtalk notice when you press the key and type the text for you. Without it, nothing happens when you press."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hjälpmedel heter det i macOS. Det låter Mindtalk känna när du trycker på tangenten och skriva in texten åt dig. Utan det händer ingenting när du trycker."
+          }
+        }
+      }
+    },
     "Hjälpmedel är avstängt för Mindtalk, så texten skrevs inte in.": {
       "localizations": {
         "en": {
@@ -10935,6 +10967,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hoppa över, börja mötet"
+          }
+        }
+      }
+    },
+    "Hoppa över, tangenten fungerar inte än": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip, the key won't work yet"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hoppa över, tangenten fungerar inte än"
           }
         }
       }
@@ -31619,6 +31667,22 @@
         }
       }
     },
+    "Utan Hjälpmedel händer inget när du trycker på tangenten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Without Accessibility, nothing happens when you press the key."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utan Hjälpmedel händer inget när du trycker på tangenten."
+          }
+        }
+      }
+    },
     "Utan det fungerar inga genvägar. Står Mindtalk redan under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen. Det kräver macOS ibland efter en uppdatering.": {
       "extractionState": "manual",
       "localizations": {
@@ -35973,6 +36037,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna Möten →"
+          }
+        }
+      }
+    },
+    "Öppna Systeminställningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open System Settings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna Systeminställningar"
           }
         }
       }

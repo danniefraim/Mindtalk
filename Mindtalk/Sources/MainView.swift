@@ -271,9 +271,9 @@ private struct DictationPage: View {
                 // The one place Hjälpmedel is asked for. The tip once Tillåt has been
                 // pressed and it's still off: macOS sometimes needs it switched off and on.
                 CardRow(title: "Hjälpmedel", detail: dictation.accessibilityAsked && !dictation.accessibilityGranted
-                        ? String(localized: "Utan Hjälpmedel fungerar inga genvägar.") + " "
+                        ? String(localized: "Utan Hjälpmedel händer inget när du trycker på tangenten.") + " "
                             + String(localized: "Står Mindtalk redan på under Integritet och säkerhet → Hjälpmedel? Slå av och på den igen.")
-                        : String(localized: "Utan Hjälpmedel fungerar inga genvägar.")) {
+                        : String(localized: "Utan Hjälpmedel händer inget när du trycker på tangenten.")) {
                     if dictation.accessibilityGranted { GrantedLabel() }
                     else { Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.ink) }
                 }

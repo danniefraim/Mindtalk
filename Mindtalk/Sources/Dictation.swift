@@ -585,6 +585,18 @@ final class Dictation: ObservableObject {
         }
     }
 
+    /// Asked once already: the prompt if macOS still has one to show, and otherwise
+    /// straight to the list under Integritet och säkerhet.
+    func openAccessibilitySettings() {
+        accessibilityAsked = true
+        _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
+        refreshPermissions()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            guard let self, !self.accessibilityGranted else { return }
+            self.openPrivacySettings("Privacy_Accessibility")
+        }
+    }
+
     func openPrivacySettings(_ pane: String) {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
             NSWorkspace.shared.open(url)

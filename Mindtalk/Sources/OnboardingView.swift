@@ -132,6 +132,11 @@ struct OnboardingView: View {
         (step == .thoughts || step == .meetings) && !completed.contains(step)
     }
 
+    /// Hjälpmedel not given: going on is allowed, but it's said what that means.
+    private var skippingAccessibility: Bool {
+        step == .permissions && !dictation.accessibilityGranted
+    }
+
     /// "Prova" while the speech model gets ready: going on is possible, but waiting is
     /// what's asked for — the next steps need it too.
     private var waitingForModel: Bool {
@@ -172,10 +177,10 @@ struct OnboardingView: View {
                 .help("Du hittar allt i appen sen")
                 .transition(.opacity)
             }
-            if skipping || waitingForModel {
+            if skipping || waitingForModel || skippingAccessibility {
                 // The same shape as the ink button, in chip grey: a quiet way past.
                 Button(action: primary) {
-                    Text(waitingForModel ? "Fortsätt ändå" : "Hoppa över")
+                    Text(skippingAccessibility ? "Hoppa över, tangenten fungerar inte än" : "Hoppa över")
                         .contentTransition(.opacity)
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.primary)
@@ -198,6 +203,7 @@ struct OnboardingView: View {
         .animation(.snappy(duration: 0.25), value: step)
         .animation(.snappy(duration: 0.3), value: skipping)
         .animation(.snappy(duration: 0.3), value: waitingForModel)
+        .animation(.snappy(duration: 0.3), value: skippingAccessibility)
     }
 
     private var primaryTitle: String {
@@ -546,12 +552,13 @@ private struct PermissionsStep: View {
     var body: some View {
         VStack(spacing: 24) {
             StepHeader(title: "Två behörigheter",
-                       subtitle: "Samma tillåtelse gäller diktering, tankar och möten.")
+                       subtitle: "Du behöver bara ge dem en gång.")
                 .staggered(0)
             HStack(spacing: 16) {
+                // What macOS calls it, and what happens without it: nothing at all.
                 PermissionCard(icon: "hand.point.up.left.fill", title: "Hjälpmedel",
-                               text: "Så att Mindtalk märker dina genvägar och skriver där markören står.",
-                               granted: dictation.accessibilityGranted, button: "Öppna") { dictation.requestAccessibility() }
+                               text: "Hjälpmedel heter det i macOS. Det låter Mindtalk känna när du trycker på tangenten och skriva in texten åt dig. Utan det händer ingenting när du trycker.",
+                               granted: dictation.accessibilityGranted, button: "Tillåt") { dictation.requestAccessibility() }
                     .staggered(1)
                 PermissionCard(icon: "mic.fill", title: "Mikrofon",
                                text: "Hör dig bara när du dikterar, sparar en tanke eller spelar in ett möte. Ljudet lämnar aldrig din Mac.",
@@ -623,7 +630,7 @@ private struct PermissionCard: View {
         }
         .padding(22)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .frame(height: 236)
+        .frame(height: 256)
         .raised()
     }
 }
@@ -733,8 +740,9 @@ private struct TryStep: View {
                 .overlay {
                     // What stands in the way first: a permission, then the model.
                     if !dictation.accessibilityGranted {
-                        Blocker(title: String(localized: "Slå på Hjälpmedel först"), button: String(localized: "Öppna")) {
-                            dictation.requestAccessibility()
+                        // Asked once already on the step before: straight to the list this time.
+                        Blocker(title: String(localized: "Slå på Hjälpmedel först"), button: String(localized: "Öppna Systeminställningar")) {
+                            dictation.openAccessibilitySettings()
                         }
                         .transition(.opacity)
                     } else if !dictation.micGranted {
