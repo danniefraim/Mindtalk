@@ -420,14 +420,18 @@ extension LanguageStep {
         let options = Self.gemmaOptions
         if showsVoices || showsListener || !options.isEmpty {
             VStack(alignment: .leading, spacing: 9) {
-                Text("Rekommenderas också. Laddas ned medan du går vidare.")
-                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(DS.Colors.muted)
-                // What each gives, in the same words as under Modeller.
+                HStack(spacing: 8) {
+                    Text("Rekommenderas också. Laddas ned medan du går vidare.")
+                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(DS.Colors.muted)
+                    Spacer(minLength: 8)
+                    ModelNamesInfo(gemma: !options.isEmpty)
+                }
+                // What each gives, not what it's called: the names are behind the ⓘ.
                 if showsVoices {
-                    extra($voices, name: "Röstmodellen", gives: "hör vem som säger vad i möten", size: VoiceModels.sizeText)
+                    extra($voices, gives: "Vem som säger vad i möten (\(VoiceModels.sizeText))")
                 }
                 if showsListener {
-                    extra($listener, name: "Lyssnaren", gives: "stavar dina ord rätt redan när du pratar", size: VocabularyBoost.sizeText)
+                    extra($listener, gives: "Namn stavas rätt när du pratar (\(VocabularyBoost.sizeText))")
                 }
                 if options.count == 1, let m = options.first {
                     extra($gemma, name: m.name, gives: "ger mer träffsäkra sammanfattningar", size: m.sizeText)
@@ -444,6 +448,15 @@ extension LanguageStep {
             .padding(.horizontal, 20).padding(.vertical, 16)
             .raised(cornerRadius: DS.Radius.panel)
         }
+    }
+
+    /// One extra, said by what it gives, the size in the same breath.
+    private func extra(_ on: Binding<Bool>, gives: LocalizedStringKey) -> some View {
+        Toggle(isOn: on) {
+            Text(gives).font(.system(size: 13, weight: .semibold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .toggleStyle(InkCheckboxStyle())
     }
 
     private func extra(_ on: Binding<Bool>, name: String, gives: LocalizedStringKey, size: String?) -> some View {
@@ -502,6 +515,55 @@ extension LanguageStep {
     }
 }
 
+/// ⓘ "Vilka modeller är det?": the engines behind the choices, with who made them,
+/// as under Tack till (CC BY asks that they're named).
+private struct ModelNamesInfo: View {
+    /// Gemma is on offer: named too.
+    let gemma: Bool
+    @State private var open = false
+
+    var body: some View {
+        Button { open.toggle() } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "info.circle").font(.system(size: 11.5))
+                Text("Vilka modeller är det?").font(.system(size: 12, weight: .medium))
+            }
+            .foregroundStyle(DS.Colors.muted)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $open, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(SpeechModel.allCases) { m in
+                    line(m.title, m.modelName, String(localized: "Av \(m.credit), byggd på NVIDIA Parakeet. CC BY 4.0."))
+                }
+                line(String(localized: "Vem som säger vad i möten"), "Nemotron 3", String(localized: "Av NVIDIA, Core ML av FluidInference. OpenMDW 1.1."))
+                line(String(localized: "Namn stavas rätt när du pratar"), "Parakeet CTC", String(localized: "Lyssnaren. Av NVIDIA, Core ML av FluidInference. CC BY 4.0."))
+                if gemma {
+                    line(String(localized: "Sammanfattningar"), "Gemma 4", String(localized: "Av Google DeepMind. Apache 2.0."))
+                }
+                Text("Alla står också under Tack till i Inställningar.")
+                    .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
+                    .padding(.top, 2)
+            }
+            .padding(16)
+            .frame(width: 340, alignment: .leading)
+        }
+        .accessibilityLabel("Vilka modeller är det?")
+    }
+
+    private func line(_ what: String, _ name: String, _ credit: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 6) {
+                Text(verbatim: what).font(.system(size: 12.5, weight: .semibold))
+                Text(verbatim: name).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+            }
+            Text(verbatim: credit).font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
 private struct LanguageCard: View {
     let model: SpeechModel
     let selected: Bool
@@ -545,10 +607,11 @@ private struct LanguageCard: View {
                     .foregroundStyle(DS.Colors.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 5)
+                // How big, not which engine: that's behind "Vilka modeller är det?".
                 HStack(spacing: 6) {
                     Image(systemName: model.isInstalled ? "checkmark.seal.fill" : "arrow.down.circle")
-                    Text(model.isInstalled ? String(localized: "\(model.modelName) · redan installerad")
-                                           : String(localized: "\(model.modelName) · \(model.sizeText)"))
+                    Text(model.isInstalled ? String(localized: "Redan installerad")
+                                           : String(localized: "\(model.sizeText), laddas ned en gång"))
                 }
                 .font(.system(size: 11.5))
                 .foregroundStyle(DS.Colors.muted)

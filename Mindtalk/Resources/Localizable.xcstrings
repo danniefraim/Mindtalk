@@ -2797,6 +2797,22 @@
         }
       }
     },
+    "Alla står också under Tack till i Inställningar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All of them are also listed under Credits in Settings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alla står också under Tack till i Inställningar."
+          }
+        }
+      }
+    },
     "Alla säger hej och sitt namn. En halv minut.": {
       "localizations": {
         "en": {
@@ -3734,6 +3750,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Av %@, byggd på NVIDIA Parakeet. CC BY 4.0."
+          }
+        }
+      }
+    },
+    "Av Google DeepMind. Apache 2.0.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By Google DeepMind. Apache 2.0."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Av Google DeepMind. Apache 2.0."
+          }
+        }
+      }
+    },
+    "Av NVIDIA, Core ML av FluidInference. OpenMDW 1.1.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By NVIDIA, Core ML by FluidInference. OpenMDW 1.1."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Av NVIDIA, Core ML av FluidInference. OpenMDW 1.1."
           }
         }
       }
@@ -17879,6 +17927,22 @@
         }
       }
     },
+    "Lyssnaren. Av NVIDIA, Core ML av FluidInference. CC BY 4.0.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The listener. By NVIDIA, Core ML by FluidInference. CC BY 4.0."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssnaren. Av NVIDIA, Core ML av FluidInference. CC BY 4.0."
+          }
+        }
+      }
+    },
     "Lyssnar…": {
       "extractionState": "manual",
       "localizations": {
@@ -21768,6 +21832,38 @@
         }
       }
     },
+    "Namn stavas rätt när du pratar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Names spelled right when you speak"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namn stavas rätt när du pratar"
+          }
+        }
+      }
+    },
+    "Namn stavas rätt när du pratar (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Names spelled right when you speak (%@)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namn stavas rätt när du pratar (%@)"
+          }
+        }
+      }
+    },
     "Namnet i gamla möten ändras inte.": {
       "localizations": {
         "en": {
@@ -23779,6 +23875,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Raycast öppnas och frågar om du vill lägga till Mindtalk."
+          }
+        }
+      }
+    },
+    "Redan installerad": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Already installed"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redan installerad"
           }
         }
       }
@@ -32224,6 +32336,22 @@
         }
       }
     },
+    "Vem som säger vad i möten (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Who says what in meetings (%@)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vem som säger vad i möten (%@)"
+          }
+        }
+      }
+    },
     "Vem vill börja?": {
       "extractionState": "stale",
       "localizations": {
@@ -32383,6 +32511,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Viktigt"
+          }
+        }
+      }
+    },
+    "Vilka modeller är det?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Which models are these?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vilka modeller är det?"
           }
         }
       }
