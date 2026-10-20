@@ -168,6 +168,13 @@ private struct MeetingList: View {
     private var searching: Bool { !query.trimmingCharacters(in: .whitespaces).isEmpty }
     private var canAsk: Bool { MeetingNotes.isAvailable && shown.contains { !$0.words.isEmpty } }
 
+    /// Every count the folder chips show, as one key.
+    private var folderCounts: String {
+        var counts: [String: Int] = [:]
+        for m in store.meetings where m.id != session.record?.id { counts[m.folder?.uuidString ?? "", default: 0] += 1 }
+        return counts.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+    }
+
     var body: some View {
         let sections = ArchiveSection.sections(shown.filter { $0.id != session.record?.id })
         // Lazy, so the search field and the folders can stay pinned at the top as the
@@ -214,6 +221,9 @@ private struct MeetingList: View {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     FolderBar(folders: folders, store: store, live: session.record?.id, oneRow: true)
                                         .padding(.vertical, 2)
+                                        // The pinned row kept an old count after a delete until the
+                                        // page was opened again: drawn anew whenever a count changes.
+                                        .id(folderCounts)
                                 }
                             }
                         }
