@@ -175,6 +175,8 @@ extension Notification.Name {
     static let importAdded = Notification.Name("ai.mindact.mindtalk.importAdded")
     /// Switch the main window to a page (object: Page).
     static let showPage = Notification.Name("MindtalkShowPage")
+    /// "Lägg till i Ordlista…": how a word was heard, for Ordlista's form (object: String).
+    static let addToVocabulary = Notification.Name("MindtalkAddToVocabulary")
     /// Play the introduction inside the main window.
     static let showIntroduction = Notification.Name("MindtalkShowIntroduction")
 }
@@ -1405,39 +1407,29 @@ private struct RecentRow: View {
 
     /// The same, for a right-click on the text itself (AppKit's menu there), with what's
     /// marked at that moment.
-    private func menuItems(_ marked: String) -> [NSMenuItem] {
-        var items: [NSMenuItem] = []
+    private func menuItems(_ marked: String) -> [EntryText.Item] {
+        var items: [EntryText.Item] = []
         if let word = Self.addable(marked) {
-            items.append(MenuAction(String(localized: "Lägg till ”\(word)” i Ordlista…")) { Self.addToVocabulary(word) })
-            items.append(.separator())
+            items.append(.action(String(localized: "Lägg till ”\(word)” i Ordlista…")) { Self.addToVocabulary(word) })
+            items.append(.separator)
         }
-        items.append(MenuAction(String(localized: "Klistra in"), paste))
-        items.append(MenuAction(String(localized: "Kopiera"), copy))
-        items.append(.separator())
-        items.append(MenuAction(String(localized: "Ta bort"), remove))
+        items.append(.action(String(localized: "Klistra in"), paste))
+        items.append(.action(String(localized: "Kopiera"), copy))
+        items.append(.separator)
+        items.append(.action(String(localized: "Ta bort"), remove))
         return items
     }
 
     /// To Ordlista, the marked words as how it was heard: you write how it's spelled.
+    /// After the menu has closed, so the page change isn't made while it still tracks.
     private static func addToVocabulary(_ heard: String) {
-        VocabularyPage.pendingHeard = heard
-        NotificationCenter.default.post(name: .showPage, object: Page.vocabulary)
+        DispatchQueue.main.async {
+            VocabularyPage.pendingHeard = heard
+            NotificationCenter.default.post(name: .showPage, object: Page.vocabulary)
+            // Already on screen (no onAppear): it takes the words from here.
+            NotificationCenter.default.post(name: .addToVocabulary, object: heard)
+        }
     }
-}
-
-/// A menu item that runs a closure.
-private final class MenuAction: NSMenuItem {
-    private let handler: () -> Void
-
-    init(_ title: String, _ handler: @escaping () -> Void) {
-        self.handler = handler
-        super.init(title: title, action: #selector(fire), keyEquivalent: "")
-        target = self
-    }
-
-    required init(coder: NSCoder) { fatalError("init(coder:) is not used") }
-
-    @objc private func fire() { handler() }
 }
 
 /// A dictation's words in a text view of AppKit's: selectable as anywhere, and a
@@ -1447,7 +1439,13 @@ private struct EntryText: NSViewRepresentable {
     let text: String
     let lineLimit: Int?
     @Binding var selection: String
-    let menu: (_ marked: String) -> [NSMenuItem]
+    let menu: (_ marked: String) -> [Item]
+
+    /// A line in the right-click menu.
+    enum Item {
+        case action(String, () -> Void)
+        case separator
+    }
 
     static let font = NSFont.systemFont(ofSize: 14)
     static let baseline = NSLayoutManager().defaultBaselineOffset(for: font)
@@ -1510,7 +1508,13 @@ private struct EntryText: NSViewRepresentable {
 }
 
 private final class EntryTextView: NSTextView {
-    var menuItems: ((String) -> [NSMenuItem])?
+    var menuItems: ((String) -> [EntryText.Item])?
+
+    /// What a menu line does, kept on the line itself.
+    private final class Handler: NSObject {
+        let run: () -> Void
+        init(_ run: @escaping () -> Void) { self.run = run }
+    }
 
     override func menu(for event: NSEvent) -> NSMenu? {
         // A right-click outside the selection marks the word under it.
@@ -1519,11 +1523,27 @@ private final class EntryTextView: NSTextView {
         if index < (string as NSString).length, current.length == 0 || !NSLocationInRange(index, current) {
             setSelectedRange(selectionRange(forProposedRange: NSRange(location: index, length: 0), granularity: .selectByWord))
         }
+        // Plain lines aimed at this view, which is in the window as long as the row is,
+        // with what they do kept on the line: not lines that are their own target, which
+        // AppKit holds only weakly.
         let menu = NSMenu()
-        for item in menuItems?(EntryText.marked(in: self)) ?? [] { menu.addItem(item) }
+        for item in menuItems?(EntryText.marked(in: self)) ?? [] {
+            switch item {
+            case .separator:
+                menu.addItem(.separator())
+            case let .action(title, run):
+                let line = NSMenuItem(title: title, action: #selector(runMenuLine(_:)), keyEquivalent: "")
+                line.target = self
+                line.representedObject = Handler(run)
+                menu.addItem(line)
+            }
+        }
         return menu
     }
 
+    @objc private func runMenuLine(_ sender: NSMenuItem) {
+        (sender.representedObject as? Handler)?.run()
+    }
 }
 
 // MARK: - Text

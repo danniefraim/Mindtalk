@@ -190,13 +190,10 @@ struct VocabularyPage: View {
         .modifier(PageScroll(on: !plain))
         .onAppear {
             VocabularyBoostStatus.shared.refresh()      // deleted in Finder, or put back
-            if let heard = Self.pendingHeard {
-                Self.pendingHeard = nil
-                word = ""
-                heardAs = heard
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { wordFocused = true }
-            }
+            takePendingHeard()
         }
+        // Already on screen when "Lägg till i Ordlista…" was chosen.
+        .onReceive(NotificationCenter.default.publisher(for: .addToVocabulary)) { _ in takePendingHeard() }
         .overlay(alignment: .bottom) {
             if let toast = vocabulary.toast {
                 HStack(spacing: 12) {
@@ -331,6 +328,16 @@ struct VocabularyPage: View {
                     .strokeBorder(DS.Colors.fieldStroke, lineWidth: 1))
                 .onSubmit(add)
         }
+    }
+
+    /// How a word was heard, from Diktering: in "Hörs ofta som", the cursor in "Ord".
+    private func takePendingHeard() {
+        guard let heard = Self.pendingHeard else { return }
+        Self.pendingHeard = nil
+        word = ""
+        heardAs = heard
+        search = ""
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { wordFocused = true }
     }
 
     private func add() {
