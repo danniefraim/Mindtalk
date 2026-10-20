@@ -18828,6 +18828,22 @@
         }
       }
     },
+    "Mikrofonen byttes, så dikteringen stannade. Det du hann säga är kvar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The microphone changed, so dictation stopped. What you said is kept."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofonen byttes, så dikteringen stannade. Det du hann säga är kvar."
+          }
+        }
+      }
+    },
     "Mikrofonen ger inget ljud. Är den avstängd?": {
       "localizations": {
         "en": {

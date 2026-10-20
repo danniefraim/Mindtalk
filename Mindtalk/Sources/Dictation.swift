@@ -306,7 +306,7 @@ final class Dictation: ObservableObject {
     /// When that press went down: the new recording counts from it.
     private var heldSince: Date?
     /// Said in the HUD once the text is in: why the recording ended by itself.
-    private enum ClosingNote { case micWentQuiet, timeUp }
+    private enum ClosingNote { case micWentQuiet, micChanged, timeUp }
     private var closingNote: ClosingNote?
     /// The transcription going on; one let go of (Esc, too slow) has its result dropped.
     private var transcription = 0
@@ -342,8 +342,13 @@ final class Dictation: ObservableObject {
             self.cancel()
         }
         recorder.onInterrupted = { [weak self] in
-            // The mic went away (AirPods off, device switched): keep what was said.
-            Task { @MainActor in if self?.phase == .recording { self?.finish() } }
+            // The mic went away (AirPods off or connecting, device switched): keep what
+            // was said, and the HUD says why it ended.
+            Task { @MainActor in
+                guard let self, self.phase == .recording else { return }
+                self.closingNote = .micChanged
+                self.finish()
+            }
         }
         recorder.onSignalLost = { [weak self] in
             // A headset whose link was taken by another device sends nothing but
@@ -1293,6 +1298,7 @@ final class Dictation: ObservableObject {
             guard current else { return }
             Cue.done()
             if take.note == .micWentQuiet { return fail(Self.micWentQuiet) }
+            if take.note == .micChanged { return fail(Self.micChanged) }
             return saved()
         }
         if !selfTest && !secret && !onlyBreak && (current || lateJob == take.job) {
@@ -1347,6 +1353,7 @@ final class Dictation: ObservableObject {
         Cue.done()
         switch take.note {
         case .micWentQuiet: fail(Self.micWentQuiet)
+        case .micChanged: fail(Self.micChanged)
         case .timeUp: fail(String(localized: "Stannade efter tio minuter. Texten är inskriven."))
         case nil: reset()
         }
@@ -1359,6 +1366,7 @@ final class Dictation: ObservableObject {
         String(localized: "Hjälpmedel är avstängt för Mindtalk, så texten skrevs inte in.")
     }
     private static var micWentQuiet: String { String(localized: "Mikrofonen tystnade. Det du hann säga är kvar.") }
+    private static var micChanged: String { String(localized: "Mikrofonen byttes, så dikteringen stannade. Det du hann säga är kvar.") }
     static var couldNotWrite: String { String(localized: "Det gick inte att göra text av det. Försök igen.") }
     /// Said when the sound is kept: a click on the HUD tries again.
     static var clickToRetry: String { String(localized: "Det gick inte att göra text av det. Klicka för att försöka igen.") }
