@@ -55,7 +55,8 @@ final class MediaControl {
     /// A restore still fading back up — a new dictation ducks from its target.
     private var restoringTo: (device: AudioObjectID, volume: Float32)?
 
-    private static let duckLevel: Float32 = 0.0
+    /// How far down the sound is faded: a call is still heard, just quieter.
+    private static let duckLevel: Float32 = 0.25
     private static let savedKey = "duckedVolume"
 
     /// Recording started.
@@ -130,12 +131,13 @@ final class MediaControl {
         guard ducked == nil, let device = Self.defaultOutput(), let current = Self.volume(of: device) else { return }
         let volume = restoringTo.flatMap { $0.device == device ? $0.volume : nil } ?? current
         restoringTo = nil
-        guard volume > Self.duckLevel + 0.01 else { return }
-        ducked = (device, volume, Self.duckLevel)
+        let level = volume * Self.duckLevel
+        guard volume - level > 0.01 else { return }
+        ducked = (device, volume, level)
         if let uid = Self.uid(of: device) {
             UserDefaults.standard.set(["device": uid, "volume": Double(volume)], forKey: Self.savedKey)
         }
-        fade(device, from: volume, to: Self.duckLevel, over: .milliseconds(250))
+        fade(device, from: volume, to: level, over: .milliseconds(250))
     }
 
     private func restoreVolume() {

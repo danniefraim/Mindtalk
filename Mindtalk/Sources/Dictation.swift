@@ -953,16 +953,20 @@ final class Dictation: ObservableObject {
             showsLanguage = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in self?.showsLanguage = false }
         }
-        if !startCuePlayed {
-            lastLanguage = engine
-            // Only now — a quick tap or a shortcut like ⌥2 → @ never touches your music.
-            if !TextInserter.dryRun { MediaControl.shared.begin() }
-        }
         hud.show()
-        if !startCuePlayed {
-            startCuePlayed = true
-            // Not into a Bluetooth headset (MeetingSession.start says why).
-            if !(headsetInUse || Recorder.outputIsBluetooth) { Cue.start() }
+        guard !startCuePlayed else { return }
+        startCuePlayed = true
+        lastLanguage = engine
+        // Not into a Bluetooth headset (MeetingSession.start says why).
+        let cue = Settings.sounds && !(headsetInUse || Recorder.outputIsBluetooth)
+        if cue { Cue.start() }
+        // Only now — a quick tap or a shortcut like ⌥2 → @ never touches your music.
+        // After the cue has sounded: faded down first, it would hardly be heard.
+        guard !TextInserter.dryRun else { return }
+        let press = pressGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + (cue ? 0.3 : 0)) { [weak self] in
+            guard let self, press == self.pressGeneration, self.phase == .recording else { return }
+            MediaControl.shared.begin()
         }
     }
 
