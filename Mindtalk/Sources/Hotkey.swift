@@ -160,6 +160,18 @@ struct Hotkey: Codable, Equatable {
         return p.right ? String(localized: "höger \(p.symbol)") : String(localized: "vänster \(p.symbol)")
     }
 
+    /// Where the key is, for someone who has never looked for it: "Höger Alt (⌥) är
+    /// tangenten till höger om mellanslag." The Option keys only (the chip "⌥ Opt →"
+    /// says little to a new user); nil for the rest.
+    var whereabouts: String? {
+        guard modifierKeys.count <= 1 else { return nil }
+        switch Int(keyCode) {
+        case kVK_RightOption: return String(localized: "Höger Alt (⌥) är tangenten till höger om mellanslag.")
+        case kVK_Option: return String(localized: "Vänster Alt (⌥) är tangenten till vänster om mellanslag.")
+        default: return nil
+        }
+    }
+
     /// On a big keycap: the symbol, and below it what's printed on the key ("höger command").
     var keycap: (symbol: String, caption: String) {
         guard let p = printed else { return (Int(keyCode) == kVK_Function ? "fn" : name, "") }

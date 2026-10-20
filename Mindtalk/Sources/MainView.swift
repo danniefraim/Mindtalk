@@ -1007,12 +1007,16 @@ private struct DictationKeyCard: View {
         dictation.mode == .toggle ? String(localized: "Tryck på \(key) och prata") : String(localized: "Håll in \(key) och prata")
     }
 
+    /// How the key works — and, for the Option keys, where it is: the chip alone says
+    /// little to someone who has never looked for it.
     private var how: String {
+        let how: String
         switch dictation.mode {
-        case .hold: return String(localized: "Släpp när du är klar, så hamnar texten där markören står. Esc avbryter.")
-        case .toggle: return String(localized: "Tryck igen när du är klar, så hamnar texten där markören står. Esc avbryter.")
-        case .holdOrDoubleTap: return String(localized: "Släpp när du är klar, så hamnar texten där markören står. Dubbeltryck så slipper du hålla in. Esc avbryter.")
+        case .hold: how = String(localized: "Släpp när du är klar, så hamnar texten där markören står. Esc avbryter.")
+        case .toggle: how = String(localized: "Tryck igen när du är klar, så hamnar texten där markören står. Esc avbryter.")
+        case .holdOrDoubleTap: how = String(localized: "Släpp när du är klar, så hamnar texten där markören står. Dubbeltryck eller tryck mellanslag så slipper du hålla in. Esc avbryter.")
         }
+        return [dictation.hotkey.whereabouts, how].compactMap { $0 }.joined(separator: " ")
     }
 
     private var spoken: String {

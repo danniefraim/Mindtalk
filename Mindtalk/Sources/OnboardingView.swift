@@ -780,6 +780,13 @@ private struct TryStep: View {
                            isCombination: !dictation.pickingKey && dictation.hotkey.modifierKeys.count > 1)
                         .scaleEffect(0.8)
                         .frame(height: 84)
+                    // Which key that is, in words, for someone who has never looked for it.
+                    if !dictation.pickingKey, let whereabouts = dictation.hotkey.whereabouts {
+                        Text(verbatim: whereabouts)
+                            .font(.system(size: 12.5, weight: .medium))
+                            .foregroundStyle(.primary)
+                            .multilineTextAlignment(.center)
+                    }
                     Group {
                         if dictation.pickingKey {
                             Text("Håll in tangenterna du vill ha (⌃ ⌥ ⇧ ⌘) och släpp. Esc avbryter.")

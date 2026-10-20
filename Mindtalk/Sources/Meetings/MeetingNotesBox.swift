@@ -432,7 +432,7 @@ private struct MarkIcons: View {
                     }
                 }
                 .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: [.command, .option])
-                .help(kind.markHelp)
+                .help(Text(verbatim: kind.markHelp + "  ⌥⌘\(i + 1)"))
                 .accessibilityLabel(kind.markLabel)
                 .accessibilityHint("Markerar det som sägs just nu (⌥⌘\(i + 1)). Har du skrivit något följer det med.")
             }

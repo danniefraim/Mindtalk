@@ -12273,6 +12273,22 @@
         }
       }
     },
+    "Höger Alt (⌥) är tangenten till höger om mellanslag.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right Option (⌥) is the key to the right of the space bar."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Höger Alt (⌥) är tangenten till höger om mellanslag."
+          }
+        }
+      }
+    },
     "Höger ⇧ Shift": {
       "localizations": {
         "en": {
@@ -25923,6 +25939,22 @@
         }
       }
     },
+    "Släpp när du är klar, så hamnar texten där markören står. Dubbeltryck eller tryck mellanslag så slipper du hålla in. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let go when you’re done and the text lands at your cursor. Double-tap or press space so you don’t have to hold. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Släpp när du är klar, så hamnar texten där markören står. Dubbeltryck eller tryck mellanslag så slipper du hålla in. Esc avbryter."
+          }
+        }
+      }
+    },
     "Släpp när du är klar, så hamnar texten där markören står. Dubbeltryck så slipper du hålla in. Esc avbryter.": {
       "localizations": {
         "en": {
@@ -33586,6 +33618,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Välkommen tillbaka."
+          }
+        }
+      }
+    },
+    "Vänster Alt (⌥) är tangenten till vänster om mellanslag.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left Option (⌥) is the key to the left of the space bar."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vänster Alt (⌥) är tangenten till vänster om mellanslag."
           }
         }
       }
