@@ -168,39 +168,34 @@ struct ReadyStep: View {
 
     // MARK: Sammanfattningar
 
-    /// The best Gemma this Mac runs that also fits on the disk.
-    private var gemma: NotesModel? {
-        NotesModel.allCases.reversed().first { $0.supported && $0.hasRoom }
-    }
-
-    /// A larger Gemma this Mac runs, but that doesn't fit on the disk now — said, so you
-    /// know it's there (Inställningar → Modeller).
-    private var larger: NotesModel? {
-        guard let best = NotesModel.recommended, best != gemma, !best.hasRoom else { return nil }
-        return best
-    }
-
     @ViewBuilder private var summariesRow: some View {
         if notes.isActive {
             ReadyRow(icon: "sparkle", state: .ready, title: "Sammanfattningar", keys: nil,
-                     detail: String(localized: "Skrivs av \(notes.writerName) på din Mac."))
+                     detail: String(localized: "Skrivs av \(notes.writerName) på din Mac.")) { EmptyView() }
         } else if let m = notes.downloading, case .downloading(let p) = notes.state(m) {
             ReadyRow(icon: "sparkle", state: .progress(p), title: "Sammanfattningar", keys: nil,
-                     detail: String(localized: "\(m.name) laddas ned (\(Int(p * 100)) %). Till dess skriver Apple Intelligence."))
+                     detail: String(localized: "\(m.name) laddas ned (\(Int(p * 100)) %). Till dess skriver Apple Intelligence.")) { EmptyView() }
         } else {
-            let apple = MeetingNotes.isAvailable
-            ReadyRow(icon: "sparkle", state: apple ? .ready : .optional, title: "Sammanfattningar", keys: nil,
-                     detail: (gemma.map { m in
-                         apple ? String(localized: "Skrivs av Apple Intelligence. \(m.name) från Google hittar fler beslut och uppgifter (\(m.sizeText)).")
-                               : String(localized: "\(m.name) från Google skriver dem på din Mac (\(m.sizeText)).")
-                     } ?? (apple ? String(localized: "Skrivs av Apple Intelligence.")
-                                 : String(localized: "Kräver Apple Intelligence, eller Gemma när det finns plats på disken.")))
-                     + (larger.map { " " + String(localized: "Den större \($0.name) (\($0.sizeText)) passar också om du frigör \(BetterNotes.gigabytes(max(100_000_000, $0.remainingBytes + 2_000_000_000 - BetterNotes.freeBytes))) till.") } ?? "")) {
-                if let m = gemma {
-                    Button("Ladda ned") { notes.download(m) }
+            // Apple Intelligence writes them; what a Gemma adds is said on the Möten page and in
+            // Settings, not here. Off: the one button that mends it.
+            switch Polisher.status {
+            case .available:
+                ReadyRow(icon: "sparkle", state: .ready, title: "Sammanfattningar", keys: nil,
+                         detail: String(localized: "Sammanfattningar skrivs på din Mac av Apple Intelligence.")) { EmptyView() }
+            case .notEnabled:
+                ReadyRow(icon: "sparkle", state: .optional, title: "Sammanfattningar", keys: nil,
+                         detail: String(localized: "Slå på Apple Intelligence, så skrivs de på din Mac.")) {
+                    Button("Slå på") { SummaryWritersCard.openAppleIntelligenceSettings() }
                         .buttonStyle(SoftButtonStyle(small: true))
-                        .disabled(notes.downloading != nil)
                 }
+            case .notReady:
+                ReadyRow(icon: "sparkle", state: .waiting, title: "Sammanfattningar", keys: nil,
+                         detail: String(localized: "macOS laddar fortfarande ned Apple Intelligence. Det brukar ta några minuter.")) { EmptyView() }
+            case .unsupported:
+                ReadyRow(icon: "sparkle", state: .optional, title: "Sammanfattningar", keys: nil,
+                         detail: NotesModel.recommended != nil
+                             ? String(localized: "Den här Macen kan inte köra Apple Intelligence. Du kan ladda ned Gemma 4 under Inställningar → Möten.")
+                             : String(localized: "Den här Macen kan inte köra Apple Intelligence.")) { EmptyView() }
             }
         }
     }
