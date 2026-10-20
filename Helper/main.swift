@@ -41,7 +41,7 @@ let instructions = """
     with mindtalk_get_transcript only when the summary and search are not enough, and expect it in pages. \
     Every item has a link (mindtalk://meeting/<id>?t=<seconds>, mindtalk://thought/<id>) that opens that \
     moment in Mindtalk: include it when you cite something. Dates are ISO 8601 in the user’s time zone. \
-    The user switches this on in Mindtalk under Settings → Integrations → MCP; while it is on, everything \
+    The user switches this on in Mindtalk under Settings → Integrations → AI apps (Inställningar → Integrationer → AI-program in Swedish); while it is on, everything \
     Mindtalk has can be read, except a meeting still being recorded or that ended in the last two minutes.
     """
 

@@ -528,7 +528,7 @@ enum BridgeTest {
         // Off: 3, with the app's own words. Unreachable: 3 too.
         sharing.enabled = false
         r = await mindtalk("meetings")
-        check("avstängt: 3 med appens ord", r.status == 3 && r.err.contains("MCP is switched off"), "\(r.status) \(r.err)")
+        check("avstängt: 3 med appens ord", r.status == 3 && r.err.contains(ClaudeTools.offMessage), "\(r.status) \(r.err)")
         r = await mindtalk("thoughts", "--json")
         check("avstängt, --json: 3, inget på stdout", r.status == 3 && r.out.isEmpty, "\(r.status) \(r.out)")
         sharing.enabled = true
