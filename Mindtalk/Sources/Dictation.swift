@@ -30,6 +30,8 @@ final class Dictation: ObservableObject {
         case saved
         /// The text is in where you are: a ✓ for a moment.
         case typed
+        /// The speech model is still on its way: how far, live, and a click opens Hem.
+        case waitingForModel
         /// Something worth knowing that isn't a problem: a text that came late, nothing
         /// heard, the speech model starting. Said in white, without the warning sign.
         case notice(String)
@@ -870,7 +872,7 @@ final class Dictation: ObservableObject {
             doubleTapTimer?.cancel()
             awaitingSecondTap = false
             secondTapDown = true
-        case .idle, .failed, .copied, .saved, .notice, .typed:
+        case .idle, .failed, .copied, .saved, .notice, .waitingForModel, .typed:
             freshStart()
             begin()
         case .transcribing:
@@ -945,7 +947,7 @@ final class Dictation: ObservableObject {
             }
             ignoreNextRelease = true
             finish()
-        case .idle, .failed, .copied, .saved, .notice, .typed:
+        case .idle, .failed, .copied, .saved, .notice, .waitingForModel, .typed:
             freshStart()
             forThought = true
             thoughtByKey = KeyListener.shared.thoughtShortcut?.isModifier == true
@@ -1000,7 +1002,7 @@ final class Dictation: ObservableObject {
     /// "Säg en tanke" (the Tankar page, the menu bar): listening hands-free until ✓.
     func startThought() {
         switch phase {
-        case .idle, .failed, .copied, .saved, .notice, .typed:
+        case .idle, .failed, .copied, .saved, .notice, .waitingForModel, .typed:
             freshStart()
             forThought = true
             // A click is clearly meant: a problem (the model starting, no mic) is said
@@ -1126,7 +1128,7 @@ final class Dictation: ObservableObject {
                 $0.notice(long ? String(localized: "Talmodellen görs redo för din Mac, bara första gången.")
                                : String(localized: "Talmodellen startar…"))
             }
-        case .downloading: return report { $0.notice(String(localized: "Talmodellen laddas fortfarande ned.")) }
+        case .downloading: return report { $0.waitingForModel() }
         case .missing, .failed:
             return report {
                 if AppDelegate.isOnboarding {
@@ -1466,7 +1468,7 @@ final class Dictation: ObservableObject {
             guard !selfTest, !secret, !onlyBreak, !keptBefore else { return }
             waiting = true
             switch phase {
-            case .idle, .failed, .copied, .notice, .typed: notice(String(localized: "Klar. Klistra in med ⌃⌥V."))
+            case .idle, .failed, .copied, .notice, .waitingForModel, .typed: notice(String(localized: "Klar. Klistra in med ⌃⌥V."))
             default: break
             }
             return
@@ -1550,7 +1552,7 @@ final class Dictation: ObservableObject {
     func retryLast() {
         guard var take = failedTake else { return }
         switch phase {
-        case .idle, .failed, .copied, .saved, .notice, .typed: break
+        case .idle, .failed, .copied, .saved, .notice, .waitingForModel, .typed: break
         default: return
         }
         guard model == .ready else { return beep() }
@@ -1676,6 +1678,19 @@ final class Dictation: ObservableObject {
         showUntilReset(after: seconds ?? (message.count > 34 ? 4.5 : 3)) { if case .failed = $0 { return true }; return false }
     }
 
+    /// The speech model still on its way: the pill says how far, live (HUDView reads
+    /// the download), and a click on it opens Hem, where the download can be seen.
+    private func waitingForModel() {
+        phase = .waitingForModel
+        showUntilReset(after: 4.5) { $0 == .waitingForModel }
+    }
+
+    /// A click on the pill while the speech model downloads: Hem, where it's shown.
+    func openHomeFromHUD() {
+        reset()
+        AppDelegate.showWindow(page: .dictation)
+    }
+
     /// Not a problem, just worth knowing: said for a moment, two lines a little longer.
     private func notice(_ message: String) {
         phase = .notice(message)
@@ -1718,7 +1733,7 @@ final class Dictation: ObservableObject {
             return beep()
         case .recording:
             cancel()               // the key held as part of ⌃⌥V: not a dictation
-        case .failed, .copied, .saved, .notice, .typed:
+        case .failed, .copied, .saved, .notice, .waitingForModel, .typed:
             reset()
         case .idle:
             break
@@ -1743,7 +1758,7 @@ final class Dictation: ObservableObject {
         switch phase {
         case .recording, .transcribing:
             return beep()
-        case .failed, .copied, .saved, .notice, .typed:
+        case .failed, .copied, .saved, .notice, .waitingForModel, .typed:
             reset()
         case .idle:
             break

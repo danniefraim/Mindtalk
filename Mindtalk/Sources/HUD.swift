@@ -37,6 +37,7 @@ final class HUD {
         // is up (a click opens Tankar); otherwise it never gets in the way.
         let dictation = Dictation.shared
         panel.ignoresMouseEvents = !((dictation.handsFree && dictation.phase == .recording) || dictation.phase == .saved
+                                     || dictation.phase == .waitingForModel
                                      || dictation.phase == .failed(Dictation.clickToRetry))
         place(panel)
         panel.orderFrontRegardless()
@@ -73,9 +74,21 @@ private struct HUDView: View {
     /// A message's widest line: the stage, less the pill's padding, the icon and the shadow.
     static let textWidth: CGFloat = 250
 
+    /// The speech model's download as it stands this moment; preparing is its last tenth.
+    private var waitingText: String {
+        switch dictation.model {
+        case .downloading(let p) where SpeechModel.isPreparing(p):
+            return String(localized: "Talmodellen görs redo för din Mac, bara första gången.")
+        case .downloading(let p):
+            return String(localized: "Talmodellen laddas ned, \(Int(min(1, p / 0.9) * 100)) %. Öppna Mindtalk för att se.")
+        default:
+            return String(localized: "Talmodellen startar…")
+        }
+    }
+
     private var showsMessage: Bool {
         switch dictation.phase {
-        case .failed, .copied, .notice: return true
+        case .failed, .copied, .notice, .waitingForModel: return true
         default: return false
         }
     }
@@ -165,6 +178,23 @@ private struct HUDView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: Self.textWidth, alignment: .leading)
+            case .waitingForModel:
+                // How far the speech model has come, live; a click opens Hem to see it.
+                Button { dictation.openHomeFromHUD() } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "arrow.down.circle").foregroundStyle(.white.opacity(0.85))
+                        Text(verbatim: waitingText)
+                            .font(.system(size: 12, weight: .medium)).monospacedDigit()
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: Self.textWidth, alignment: .leading)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Öppna Mindtalk")
+                .accessibilityHint(Text("Öppnar Mindtalk"))
             case .copied:
                 Image(systemName: "doc.on.clipboard").foregroundStyle(.white.opacity(0.85))
                 Text("Inget textfält här. Texten är kopierad, klistra in med ⌘V.")

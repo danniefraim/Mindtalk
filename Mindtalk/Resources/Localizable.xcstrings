@@ -2959,6 +2959,22 @@
         }
       }
     },
+    "Allt Mindtalk sparar ligger i den här mappen. Ta bort den om du avinstallerar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everything Mindtalk keeps is in this folder. Delete it if you uninstall."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allt Mindtalk sparar ligger i den här mappen. Ta bort den om du avinstallerar."
+          }
+        }
+      }
+    },
     "Allt du säger blir text, direkt på din Mac.": {
       "localizations": {
         "en": {
@@ -16516,6 +16532,22 @@
         }
       }
     },
+    "Ladda ned talmodellen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download the speech model"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda ned talmodellen"
+          }
+        }
+      }
+    },
     "Ladda ned talmodellen (%@)": {
       "localizations": {
         "en": {
@@ -23066,6 +23098,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Om Mindtalk %@"
+          }
+        }
+      }
+    },
+    "Om du avinstallerar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you uninstall"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Om du avinstallerar"
           }
         }
       }
@@ -29837,6 +29885,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Talmodellen laddas ned (%lld %%)."
+          }
+        }
+      }
+    },
+    "Talmodellen laddas ned, %lld %%. Öppna Mindtalk för att se.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading the speech model, %lld%%. Open Mindtalk to see."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellen laddas ned, %lld %%. Öppna Mindtalk för att se."
           }
         }
       }
@@ -36647,6 +36711,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppnar Cursor, som frågar om du vill lägga till Mindtalk."
+          }
+        }
+      }
+    },
+    "Öppnar Mindtalk": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens Mindtalk"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppnar Mindtalk"
           }
         }
       }
