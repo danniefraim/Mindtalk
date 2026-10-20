@@ -22,7 +22,9 @@ enum TextInserter {
         // from before the first one, not our own text — as long as the clipboard
         // still holds that paste. Copied over meanwhile, what's there now is yours.
         let saved: [NSPasteboardItem]?
-        if let pending = pendingRestore, pb.changeCount == pending.change { saved = pending.items } else { saved = snapshot(pb) }
+        var tooLarge = false
+        if let pending = pendingRestore, pb.changeCount == pending.change { saved = pending.items; tooLarge = pending.tooLarge }
+        else { saved = snapshot(pb, tooLarge: &tooLarge) }
         pendingRestore?.work.cancel()
         pb.clearContents()
         pb.setString(text, forType: .string)
@@ -46,16 +48,45 @@ enum TextInserter {
         // Give the target app time to read the paste, then put your clipboard back —
         // unless something else has written to it meanwhile. A password copied from
         // a password manager (marked concealed) is never put back: it had its moment.
-        let work = DispatchWorkItem {
+        let work = DispatchWorkItem { [tooLarge] in
             pendingRestore = nil
             guard pb.changeCount == ourChange else { return }
             if let kept { return copy(kept) }
+            // Too much to have kept a copy of: the text stays, rather than nothing.
+            if tooLarge { return }
             pb.clearContents()
             if let saved, !saved.isEmpty { pb.writeObjects(saved) }
         }
-        pendingRestore = (saved, ourChange, work)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: work)
+        pendingRestore = (saved, tooLarge, ourChange, work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay(for: NSWorkspace.shared.frontmostApplication), execute: work)
     }
+
+    /// How long the target app gets to read the paste. Most take it at once; Office,
+    /// apps built on Electron and remote desktops (which send it on to another
+    /// computer) can take seconds — put back sooner, they'd paste your old clipboard.
+    @MainActor static func restoreDelay(for app: NSRunningApplication?) -> TimeInterval {
+        guard let app, let id = app.bundleIdentifier else { return 1.0 }
+        if remoteDesktops.contains(id) { return 4.0 }
+        if id.hasPrefix("com.microsoft.") || isElectron(app) { return 2.5 }
+        return 1.0
+    }
+
+    private static let remoteDesktops: Set<String> = [
+        "com.microsoft.rdc.macos", "com.microsoft.rdc.mac", "com.microsoft.rdc.osx.beta", "com.apple.ScreenSharing",
+        "com.citrix.receiver.nomas", "com.citrix.receiver.icaviewer.mac", "com.vmware.horizon", "com.vmware.fusion",
+        "com.parallels.desktop.console", "com.teamviewer.TeamViewer", "com.realvnc.vncviewer", "com.utmapp.UTM",
+        "com.anydesk.anydeskmacos", "com.philandro.anydesk", "com.jumpdesktop.jump",
+    ]
+
+    /// Built on Electron (Slack, Teams, VS Code, Notion…): the framework is in the app.
+    @MainActor private static func isElectron(_ app: NSRunningApplication) -> Bool {
+        guard let url = app.bundleURL else { return false }
+        if let known = electron[url] { return known }
+        let found = FileManager.default.fileExists(atPath: url.appendingPathComponent("Contents/Frameworks/Electron Framework.framework").path)
+        electron[url] = found
+        return found
+    }
+    @MainActor private static var electron: [URL: Bool] = [:]
 
     /// Puts `text` in the clipboard, as if you had copied it.
     @MainActor static func copy(_ text: String) {
@@ -67,21 +98,32 @@ enum TextInserter {
         pb.setString(text, forType: .string)
     }
 
-    @MainActor private static var pendingRestore: (items: [NSPasteboardItem]?, change: Int, work: DispatchWorkItem)?
+    @MainActor private static var pendingRestore: (items: [NSPasteboardItem]?, tooLarge: Bool, change: Int, work: DispatchWorkItem)?
+
+    /// More than this in the clipboard (a large image, a video) isn't kept to put back:
+    /// reading it all would hold up the paste, and every key with it.
+    private static let snapshotLimit = 10_000_000
 
     /// A copy of the clipboard to restore — nil (restore nothing) when it holds
-    /// something secret or short-lived.
-    @MainActor private static func snapshot(_ pb: NSPasteboard) -> [NSPasteboardItem]? {
+    /// something secret or short-lived, or too much.
+    @MainActor private static func snapshot(_ pb: NSPasteboard, tooLarge: inout Bool) -> [NSPasteboardItem]? {
         let secret = ["org.nspasteboard.ConcealedType", "org.nspasteboard.TransientType",
                       "com.agilebits.onepassword"].map { NSPasteboard.PasteboardType(rawValue: $0) }
         let items = pb.pasteboardItems ?? []
         if items.contains(where: { item in item.types.contains(where: secret.contains) }) { return nil }
-        return items.map { item in
+        var copies: [NSPasteboardItem] = []
+        var size = 0
+        for item in items {
             let copy = NSPasteboardItem()
             for type in item.types {
-                if let data = item.data(forType: type) { copy.setData(data, forType: type) }
+                guard let data = item.data(forType: type) else { continue }
+                // Too much: stop reading at once, and leave the clipboard to the paste.
+                size += data.count
+                if size > snapshotLimit { tooLarge = true; return nil }
+                copy.setData(data, forType: type)
             }
-            return copy
+            copies.append(copy)
         }
+        return copies
     }
 }
