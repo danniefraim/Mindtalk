@@ -1065,8 +1065,8 @@ private struct DictationKeyCard: View {
     }
 }
 
-/// What it has added up to — the figures Hem doesn't show: everything so far, how
-/// fast you talk, your best day, and days in a row.
+/// What it has added up to — the figures Hem doesn't show: everything so far and the
+/// time it saved, how fast you talk, your best day, and days in a row. Hem keeps today.
 private struct DictationFigures: View {
     @ObservedObject var stats: Stats
 
@@ -1075,10 +1075,10 @@ private struct DictationFigures: View {
         // The numbers on one baseline, each with its label right under it.
         HStack(alignment: .firstTextBaseline, spacing: 0) {
             figure(Stats.number(stats.totalWords), stats.totalWords == 1 ? "one|ord totalt" : "ord totalt",
-                   detail: stats.totalSaved >= 60 ? String(localized: "Du har sluppit skriva i ungefär \(Stats.prose(stats.totalSaved, round: true)).") : nil)
+                   detail: stats.totalSaved >= 60 ? Stats.saved(stats.totalSaved, .total) : nil)
             if let wpm = stats.wordsPerMinute {
                 figure(Stats.number(wpm), "ord i minuten",
-                       detail: String(localized: "När du skriver: runt \(Int(Stats.typingWordsPerMinute))"))
+                       detail: String(localized: "Du skriver runt \(Int(Stats.typingWordsPerMinute))"))
             }
             if let best {
                 figure(Stats.number(best.words), "bästa dagen",

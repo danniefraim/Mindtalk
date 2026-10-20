@@ -160,15 +160,33 @@ final class Stats: ObservableObject {
         return minutes % 60 == 0 ? "\(minutes / 60) h" : "\(minutes / 60) h \(minutes % 60) min"
     }
 
-    /// The same, written out for a sentence: "53 minuter", "1 timme", "2 timmar 5 minuter".
-    /// `round`: whole hours from three hours up — "10 timmar", not "10 timmar 26 minuter".
-    static func prose(_ seconds: Double, round: Bool = false) -> String {
+    enum Period { case today, week, total }
+
+    /// "Ungefär 9 timmars skrivande sparat." — one unit, rounded, as "ungefär" says. Hem
+    /// says today's (or the week's), Diktering everything so far.
+    static func saved(_ seconds: Double, _ period: Period) -> String {
         let minutes = max(1, Int((seconds / 60).rounded()))
-        func m(_ n: Int) -> String { n == 1 ? String(localized: "1 minut") : String(localized: "\(n) minuter") }
-        func h(_ n: Int) -> String { n == 1 ? String(localized: "1 timme") : String(localized: "\(n) timmar") }
-        if minutes < 60 { return m(minutes) }
-        if round, minutes >= 180 { return h(Int((Double(minutes) / 60).rounded())) }
-        return minutes % 60 == 0 ? h(minutes / 60) : h(minutes / 60) + " " + m(minutes % 60)
+        let hours = Int((Double(minutes) / 60).rounded())
+        switch (period, minutes < 60) {
+        case (.today, true):
+            return minutes == 1 ? String(localized: "Ungefär en minuts skrivande sparat i dag.")
+                                : String(localized: "Ungefär \(minutes) minuters skrivande sparat i dag.")
+        case (.today, false):
+            return hours == 1 ? String(localized: "Ungefär en timmes skrivande sparat i dag.")
+                              : String(localized: "Ungefär \(hours) timmars skrivande sparat i dag.")
+        case (.week, true):
+            return minutes == 1 ? String(localized: "Ungefär en minuts skrivande sparat i veckan.")
+                                : String(localized: "Ungefär \(minutes) minuters skrivande sparat i veckan.")
+        case (.week, false):
+            return hours == 1 ? String(localized: "Ungefär en timmes skrivande sparat i veckan.")
+                              : String(localized: "Ungefär \(hours) timmars skrivande sparat i veckan.")
+        case (.total, true):
+            return minutes == 1 ? String(localized: "Ungefär en minuts skrivande sparat.")
+                                : String(localized: "Ungefär \(minutes) minuters skrivande sparat.")
+        case (.total, false):
+            return hours == 1 ? String(localized: "Ungefär en timmes skrivande sparat.")
+                              : String(localized: "Ungefär \(hours) timmars skrivande sparat.")
+        }
     }
 
     static func number(_ n: Int) -> String {

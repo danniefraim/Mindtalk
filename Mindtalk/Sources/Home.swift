@@ -251,26 +251,25 @@ struct HomeHero: View {
         let today = stats.today.words
         if today > 0 { return today == 1 ? String(localized: "1 ord i dag") : String(localized: "\(Stats.number(today)) ord i dag") }
         if weekWords > 0 { return weekWords == 1 ? String(localized: "1 ord i veckan") : String(localized: "\(Stats.number(weekWords)) ord i veckan") }
-        if !fresh { return String(localized: "Inget sagt i dag än") }
+        if !fresh { return String(localized: "Inget dikterat i dag än") }
         return dictation.mode == .toggle ? String(localized: "Tryck på \(dictation.hotkey.shortName) och prata")
                                          : String(localized: "Håll in \(dictation.hotkey.shortName) och prata")
     }
 
+    /// Hem is about today (and this week, before today has words); the totals and the
+    /// days in a row are on Diktering.
     private func subline(week: [Stats.WeekDay], weekWords: Int, fresh: Bool) -> String {
         let today = stats.today
-        let streak = stats.streak
         var parts: [String] = []
         if today.words > 0 {
-            if today.savedSeconds >= 60 { parts.append(String(localized: "Du har sluppit skriva i ungefär \(Stats.prose(today.savedSeconds)).")) }
-            if streak > 1 { parts.append(String(localized: "Du har dikterat \(streak) dagar i rad.")) }
+            if today.savedSeconds >= 60 { parts.append(Stats.saved(today.savedSeconds, .today)) }
         } else if weekWords > 0 {
             let saved = week.reduce(0) { $0 + $1.stat.savedSeconds }
-            parts.append(String(localized: "Inget sagt i dag än."))
-            if saved >= 60 { parts.append(String(localized: "I veckan har du sluppit skriva i ungefär \(Stats.prose(saved)).")) }
+            parts.append(String(localized: "Inget dikterat i dag än."))
+            if saved >= 60 { parts.append(Stats.saved(saved, .week)) }
         } else if !fresh {
             // A new week (a Monday morning) — not a new user.
-            parts.append(streak > 1 ? String(localized: "Du har dikterat \(streak) dagar i rad.")
-                                    : String(localized: "Texten skrivs där markören står, i vilken app som helst."))
+            parts.append(String(localized: "Texten skrivs där markören står, i vilken app som helst."))
         } else {
             parts.append(String(localized: "Texten skrivs där markören står, i vilken app som helst."))
         }

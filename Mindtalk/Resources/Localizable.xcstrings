@@ -7299,6 +7299,22 @@
         }
       }
     },
+    "Du skriver runt %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You type about %lld"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du skriver runt %lld"
+          }
+        }
+      }
+    },
     "Du slapp skriva i ungefär %@.": {
       "extractionState": "stale",
       "localizations": {
@@ -12928,6 +12944,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inget dikterat i dag än"
+          }
+        }
+      }
+    },
+    "Inget dikterat i dag än.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing dictated today."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inget dikterat i dag än."
           }
         }
       }
@@ -30781,6 +30813,198 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ungefär %@ som du slapp skriva."
+          }
+        }
+      }
+    },
+    "Ungefär %lld minuters skrivande sparat i dag.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About %lld minutes of typing saved today."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungefär %lld minuters skrivande sparat i dag."
+          }
+        }
+      }
+    },
+    "Ungefär %lld minuters skrivande sparat i veckan.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About %lld minutes of typing saved this week."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungefär %lld minuters skrivande sparat i veckan."
+          }
+        }
+      }
+    },
+    "Ungefär %lld minuters skrivande sparat.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About %lld minutes of typing saved."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungefär %lld minuters skrivande sparat."
+          }
+        }
+      }
+    },
+    "Ungefär %lld timmars skrivande sparat i dag.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About %lld hours of typing saved today."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungefär %lld timmars skrivande sparat i dag."
+          }
+        }
+      }
+    },
+    "Ungefär %lld timmars skrivande sparat i veckan.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About %lld hours of typing saved this week."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungefär %lld timmars skrivande sparat i veckan."
+          }
+        }
+      }
+    },
+    "Ungefär %lld timmars skrivande sparat.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About %lld hours of typing saved."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungefär %lld timmars skrivande sparat."
+          }
+        }
+      }
+    },
+    "Ungefär en minuts skrivande sparat i dag.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About a minute of typing saved today."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungefär en minuts skrivande sparat i dag."
+          }
+        }
+      }
+    },
+    "Ungefär en minuts skrivande sparat i veckan.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About a minute of typing saved this week."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungefär en minuts skrivande sparat i veckan."
+          }
+        }
+      }
+    },
+    "Ungefär en minuts skrivande sparat.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About a minute of typing saved."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungefär en minuts skrivande sparat."
+          }
+        }
+      }
+    },
+    "Ungefär en timmes skrivande sparat i dag.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About an hour of typing saved today."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungefär en timmes skrivande sparat i dag."
+          }
+        }
+      }
+    },
+    "Ungefär en timmes skrivande sparat i veckan.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About an hour of typing saved this week."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungefär en timmes skrivande sparat i veckan."
+          }
+        }
+      }
+    },
+    "Ungefär en timmes skrivande sparat.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About an hour of typing saved."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungefär en timmes skrivande sparat."
           }
         }
       }
