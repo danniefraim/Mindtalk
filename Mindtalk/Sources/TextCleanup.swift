@@ -258,33 +258,54 @@ actor Polisher {
         let lines = text.components(separatedBy: "\n")
         let todo = lines.indices.filter { Self.words(lines[$0]).count >= 3 }
         guard !todo.isEmpty else { return nil }
-        var sessions = [self.session].compactMap { $0 }
+        // At most a few lines at once, each in a fresh session (one that has seen other
+        // lines would read them as the conversation so far): a long dictation in many
+        // lines mustn't start a session for each all at the same time.
+        let width = min(todo.count, Self.maxSessions)
+        let warmed = self.session
         self.session = nil
-        while sessions.count < todo.count { sessions.append(LanguageModelSession(instructions: Self.instructions)) }
 
         let started = ContinuousClock.now
         var polished = lines
-        await withTaskGroup(of: (Int, String?).self) { group in
-            for (n, i) in todo.enumerated() {
-                let line = lines[i], session = sessions[n]
-                group.addTask { (i, await Self.polish(line: line, in: session)) }
+        // The answers arrive as they're done. When time is up the waiting stops there
+        // and then, with what's in — the sessions still busy are cancelled, not waited for.
+        let (answers, delivery) = AsyncStream.makeStream(of: (Int, String?).self)
+        let work = Task {
+            await withTaskGroup(of: Void.self) { group in
+                for k in 0..<width {
+                    let share = stride(from: k, to: todo.count, by: width).map { todo[$0] }
+                    group.addTask {
+                        for (n, i) in share.enumerated() {
+                            guard !Task.isCancelled else { return }
+                            // The session warmed while you spoke takes the first line.
+                            let session = k == 0 && n == 0 ? warmed ?? LanguageModelSession(instructions: Self.instructions)
+                                                           : LanguageModelSession(instructions: Self.instructions)
+                            delivery.yield((i, await Self.polish(line: lines[i], in: session)))
+                        }
+                    }
+                }
             }
-            group.addTask {
-                try? await Task.sleep(for: timeout)
-                return (-1, nil)
-            }
-            var remaining = todo.count
-            while remaining > 0, let (i, answer) = await group.next() {
-                if i < 0 { log.info("polish: timed out"); break }
-                remaining -= 1
-                if let answer { polished[i] = answer }
-            }
-            group.cancelAll()
+            delivery.finish()
         }
-        log.info("polish: \(todo.count) lines in \(ContinuousClock.now - started)")
+        let timer = Task {
+            try? await Task.sleep(for: timeout)
+            delivery.finish()
+        }
+        var received = 0
+        for await (i, answer) in answers {
+            received += 1
+            if let answer { polished[i] = answer }
+        }
+        work.cancel()
+        timer.cancel()
+        if received < todo.count { log.info("polish: timed out") }
+        log.info("polish: \(received)/\(todo.count) lines in \(ContinuousClock.now - started)")
         let result = polished.joined(separator: "\n")
         return result == text ? nil : result
     }
+
+    /// Sessions running at once for one dictation.
+    private static let maxSessions = 4
 
     private static func polish(line: String, in session: LanguageModelSession) async -> String? {
         do {
