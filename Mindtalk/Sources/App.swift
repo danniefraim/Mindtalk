@@ -712,6 +712,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // `Mindtalk --render-round-intro out.png [--armed]`: the start card ("Nytt möte"), waiting
         // for a press when opened from the menu bar, over the offer to save the voices.
         if let i = args.firstIndex(of: "--render-round-intro"), i + 1 < args.count {
+            // The start card asks NSApp about the main window: it must be there.
+            NSApplication.shared.setActivationPolicy(.accessory)
             Task { @MainActor in
                 var demo = MeetingRecord(title: "Veckomöte", date: Date(), language: .swedish)
                 demo.names = ["0": "Anna", "1": "Erik"]
