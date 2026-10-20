@@ -22,7 +22,7 @@ enum FocusedField {
     @MainActor static func kind(in pid: pid_t) -> Kind {
         let (kind, role) = decide(pid)
         let app = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier ?? "?"
-        log.info("\(app, privacy: .public): \(role, privacy: .public) → \(kind.rawValue, privacy: .public)")
+        log.notice("\(app, privacy: .public): \(role, privacy: .public) → \(kind.rawValue, privacy: .public)")
         return kind
     }
 

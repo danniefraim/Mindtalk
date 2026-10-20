@@ -18,11 +18,18 @@ import Foundation
 
 enum PolishGuard {
     static func accepts(_ polished: String, as original: String) -> Bool {
-        guard onlyOrdinaryCharacters(polished), !gluesWords(polished, original) else { return false }
+        rejection(of: polished, as: original) == nil
+    }
+
+    /// Why the answer isn't accepted, in a few words (never the text itself) — nil
+    /// when it is.
+    static func rejection(of polished: String, as original: String) -> String? {
+        guard onlyOrdinaryCharacters(polished) else { return "unusual characters" }
+        guard !gluesWords(polished, original) else { return "punctuation glued between words" }
         // A question stays a question: "Blir det fel? Eller är det jag?" can't become one statement.
-        guard polished.filter({ $0 == "?" }).count >= original.filter({ $0 == "?" }).count else { return false }
+        guard polished.filter({ $0 == "?" }).count >= original.filter({ $0 == "?" }).count else { return "question mark dropped" }
         let before = words(original), (after, gaps) = wordsAndGaps(polished)
-        guard !after.isEmpty, Double(after.count) >= Double(before.count) * 0.5 else { return false }
+        guard !after.isEmpty, Double(after.count) >= Double(before.count) * 0.5 else { return "more than half the words gone" }
 
         var i = 0, j = 0
         while j < after.count {
@@ -32,11 +39,16 @@ enum PolishGuard {
             }
             // Not the next original word: the words up to its next occurrence were dropped
             // — right where the polished text has `gaps[j]` between its words.
-            guard let k = (i..<min(before.count, i + 9)).first(where: { match(before, $0, after, j) != nil }),
-                  deletable(before, i..<k, gap: gaps[j]) else { return false }
+            guard let k = (i..<min(before.count, i + 9)).first(where: { match(before, $0, after, j) != nil }) else {
+                return "a word changed or added"
+            }
+            guard deletable(before, i..<k, gap: gaps[j]) else { return "words dropped that may not go" }
             i = k
         }
-        return i == before.count || deletable(before, i..<before.count, gap: gaps[after.count])
+        guard i == before.count || deletable(before, i..<before.count, gap: gaps[after.count]) else {
+            return "words dropped at the end"
+        }
+        return nil
     }
 
     // MARK: Words

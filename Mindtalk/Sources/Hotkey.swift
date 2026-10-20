@@ -549,7 +549,7 @@ final class KeyListener {
             CGEvent.tapEnable(tap: tap, enable: true)
             if CGEvent.tapIsEnabled(tap: tap) { return resync() }
         }
-        os_log("event tap made anew", log: Self.diagnostics, type: .info)
+        os_log("event tap made anew", log: Self.diagnostics, type: .default)
         stop()
         if start() { resync() }
     }
@@ -622,6 +622,8 @@ final class KeyListener {
     private func handle(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
         let pass = Unmanaged.passUnretained(event)
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            os_log("event tap disabled by %{public}@, enabled again", log: Self.diagnostics, type: .default,
+                   type == .tapDisabledByTimeout ? "timeout" : "user input")
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             // Events went missing while the tap was off — maybe the release.
             resync()
@@ -789,7 +791,7 @@ final class KeyListener {
             let flags = CGEventSource.flagsState(.combinedSessionState).rawValue
             let hid = CGEventSource.flagsState(.hidSystemState).rawValue
             os_log("resync: key reported up (combined %{public}llx, hid %{public}llx, mask %{public}llx)",
-                   log: Self.diagnostics, type: .info, flags, hid, UInt64(hotkey.modifierMask))
+                   log: Self.diagnostics, type: .default, flags, hid, UInt64(hotkey.modifierMask))
             setDown(false)
         }
         // A release that went missing (the tap was off) must not leave a combination

@@ -43,10 +43,10 @@ final class Dictation: ObservableObject {
     private static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "Dictation")
 
     @Published private(set) var phase: Phase = .idle {
-        didSet { if phase != oldValue { Self.log.info("phase \(String(describing: self.phase), privacy: .public)") } }
+        didSet { if phase != oldValue { Self.log.notice("phase \(String(describing: self.phase), privacy: .public)") } }
     }
     @Published private(set) var handsFree = false {
-        didSet { if handsFree && !oldValue { Self.log.info("locked (hands-free)") } }
+        didSet { if handsFree && !oldValue { Self.log.notice("locked (hands-free)") } }
     }
     /// This recording is a thought (Tankar): kept there, not typed where you are.
     @Published private(set) var forThought = false
@@ -563,7 +563,7 @@ final class Dictation: ObservableObject {
         Task {
             do {
                 try await SpeechEngine.shared.load(target)
-                Self.log.info("speech model ready in \(Int(Date().timeIntervalSince(self.loadingSince))) s")
+                Self.log.notice("speech model ready in \(Int(Date().timeIntervalSince(self.loadingSince)), privacy: .public) s")
                 UserDefaults.standard.set(true, forKey: "modelPrepared.\(target.rawValue)")
                 if generation == loadGeneration { model = .ready }
             } catch {
@@ -998,6 +998,7 @@ final class Dictation: ObservableObject {
     private func begin() {
         // One microphone, one model: a meeting being recorded has both.
         if MeetingSession.shared.isRecording {
+            Self.log.notice("begin refused: a meeting is recording")
             return report {
                 $0.fail($0.forThought ? String(localized: "Ett möte spelas in, så tankar får vänta.")
                                       : String(localized: "Ett möte spelas in, så dikteringen är pausad."))
@@ -1005,8 +1006,10 @@ final class Dictation: ObservableObject {
         }
         // One speech model at a time: an import writing in the other language has it.
         if MeetingImport.shared.jobs.contains(where: { ($0.stage == .reading || $0.stage == .writing) && $0.language != engine }) {
+            Self.log.notice("begin refused: an import has the speech model")
             return report { $0.fail(String(localized: "Vänta tills importen är klar.")) }
         }
+        if model != .ready { Self.log.notice("begin refused: speech model \(String(describing: self.model), privacy: .public)") }
         switch model {
         case .ready: break
         case .loading:
@@ -1032,6 +1035,7 @@ final class Dictation: ObservableObject {
         let mic = Recorder.micAuthorized
         if mic != micGranted { micGranted = mic }
         guard mic else {
+            Self.log.notice("begin refused: no microphone permission")
             return report {
                 if AppDelegate.isOnboarding { $0.fail(String(localized: "Mindtalk behöver tillgång till mikrofonen.")) }
                 else { $0.openingWindow(String(localized: "Mindtalk behöver mikrofonen. Öppnar Mindtalk.")) }
@@ -1277,8 +1281,11 @@ final class Dictation: ObservableObject {
         do {
             // A password field gets what was said, not your Ordlista's words.
             let terms = take.secret && !take.thought ? [] : VocabularyBoost.terms(from: Vocabulary.shared.entries.map(\.word))
+            let began = ContinuousClock.now
             let result = try await SpeechEngine.shared.transcribe(samples: take.samples, with: take.language, listeningFor: terms)
             raw = result.text
+            let onEngine = await SpeechEngine.shared.onNeuralEngine
+            Self.log.notice("transcribed \(String(format: "%.1f", Double(take.samples.count) / 16_000), privacy: .public) s of audio in \(ContinuousClock.now - began, privacy: .public) (\(take.language.rawValue, privacy: .public), \(onEngine ? "Neural Engine" : "GPU", privacy: .public))")
             // The debug self-test leaves your vocabulary counts, stats and history alone.
             if !selfTest { Vocabulary.shared.noteHeard(result.fixed) }
         } catch {

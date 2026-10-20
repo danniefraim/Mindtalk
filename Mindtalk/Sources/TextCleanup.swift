@@ -203,6 +203,8 @@ enum TextCleanup {
 actor Polisher {
     static let shared = Polisher()
     private let log = Logger(subsystem: "ai.mindact.mindtalk", category: "polish")
+    /// For the static line polish, which isn't on the actor.
+    private static let guardLog = Logger(subsystem: "ai.mindact.mindtalk", category: "polish")
     private var session: LanguageModelSession?
 
     enum Status: Equatable {
@@ -298,8 +300,8 @@ actor Polisher {
         }
         work.cancel()
         timer.cancel()
-        if received < todo.count { log.info("polish: timed out") }
-        log.info("polish: \(received)/\(todo.count) lines in \(ContinuousClock.now - started)")
+        if received < todo.count { log.notice("polish: timed out") }
+        log.notice("polish: \(received, privacy: .public)/\(todo.count, privacy: .public) lines in \(ContinuousClock.now - started, privacy: .public)")
         let result = polished.joined(separator: "\n")
         return result == text ? nil : result
     }
@@ -313,7 +315,9 @@ actor Polisher {
             let cleaned = answer.components(separatedBy: .newlines).joined(separator: " ")
                 .trimmingCharacters(in: .whitespaces)
                 .trimmingCharacters(in: CharacterSet(charactersIn: "\"“”«»"))
-            guard isSameText(cleaned, as: line) else {
+            if let why = PolishGuard.rejection(of: cleaned, as: line) {
+                // The reason only, never the text.
+                guardLog.notice("polish: answer refused (\(why, privacy: .public))")
                 #if DEBUG
                 print("Avvisat svar: \(cleaned.debugDescription)")
                 #endif

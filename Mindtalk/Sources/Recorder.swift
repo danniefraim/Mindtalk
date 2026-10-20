@@ -159,6 +159,7 @@ final class Recorder: @unchecked Sendable {
         }
         try Self.check(status, "start")
         started = true
+        Self.log.notice("started: device \(input.map { String($0) } ?? "none", privacy: .public) (\(device == nil ? "system input" : "chosen", privacy: .public)), bluetooth \(bluetooth, privacy: .public)")
     }
 
     /// Stops the mic and hands back everything recorded since `start()`.
@@ -178,7 +179,7 @@ final class Recorder: @unchecked Sendable {
                 while Self.isRunning(stoppedQueue), Date() < deadline { Thread.sleep(forTimeInterval: 0.005) }
             }
             callbackQueue.sync {}     // let delivered buffers land
-            Self.log.info("stop: drained in \(Int(Date().timeIntervalSince(began) * 1000), privacy: .public) ms")
+            Self.log.notice("stop: drained in \(Int(Date().timeIntervalSince(began) * 1000), privacy: .public) ms")
         }
         lock.lock()
         let stoppedContext = context

@@ -76,7 +76,7 @@ final class MediaControl {
             MediaRemote.send(.pause)
             let ids = Set(media.map(\.id)).union(carried?.processes ?? [])
             paused = (ids, carried?.at ?? .now)
-            log.info("paused \(media.map(\.bundleID), privacy: .public)")
+            log.notice("paused \(media.map(\.bundleID), privacy: .public)")
         }
         if !other.isEmpty { duck() }
     }
@@ -93,11 +93,11 @@ final class MediaControl {
                 let stillPlaying = Set(Self.playingProcesses().map(\.id))
                 if paused.processes.isDisjoint(with: stillPlaying) {
                     MediaRemote.send(.play)
-                    self?.log.info("resumed")
+                    self?.log.notice("resumed")
                     break
                 }
                 if ContinuousClock.now >= deadline {
-                    self?.log.info("not resumed: the sound never stopped")
+                    self?.log.notice("not resumed: the sound never stopped")
                     break
                 }
                 try? await Task.sleep(for: .milliseconds(200))
@@ -137,6 +137,7 @@ final class MediaControl {
         if let uid = Self.uid(of: device) {
             UserDefaults.standard.set(["device": uid, "volume": Double(volume)], forKey: Self.savedKey)
         }
+        log.notice("ducked to \(Int(Self.duckLevel * 100), privacy: .public) %")
         fade(device, from: volume, to: level, over: .milliseconds(250))
     }
 

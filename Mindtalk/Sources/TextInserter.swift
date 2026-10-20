@@ -1,7 +1,11 @@
 import AppKit
 import Carbon.HIToolbox
+import os
 
 enum TextInserter {
+    /// What happened to a paste, never what was pasted.
+    private static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "Paste")
+
     /// Debug self-test: log instead of pasting.
     nonisolated(unsafe) static var dryRun = false
 
@@ -15,6 +19,7 @@ enum TextInserter {
         // posted ⌘V would come back to us and depends on the Edit menu.
         if NSApp.isActive, let textView = NSApp.keyWindow?.firstResponder as? NSTextView, textView.isEditable {
             textView.insertText(text, replacementRange: textView.selectedRange())
+            log.notice("typed into Mindtalk's own field")
             return
         }
         let pb = NSPasteboard.general
@@ -44,21 +49,26 @@ enum TextInserter {
         up?.flags = .maskCommand
         down?.post(tap: .cghidEventTap)
         up?.post(tap: .cghidEventTap)
+        let target = NSWorkspace.shared.frontmostApplication
+        let delay = restoreDelay(for: target)
+        let clipboard = kept != nil ? "keeping the text" : tooLarge ? "too large to keep" : saved == nil ? "not kept (secret)" : "kept"
+        log.notice("⌘V \(down != nil && up != nil ? "posted" : "not posted", privacy: .public) to \(target?.bundleIdentifier ?? "?", privacy: .public), accessibility trusted \(AXIsProcessTrusted(), privacy: .public), clipboard \(clipboard, privacy: .public), back in \(delay, privacy: .public) s")
 
         // Give the target app time to read the paste, then put your clipboard back —
         // unless something else has written to it meanwhile. A password copied from
         // a password manager (marked concealed) is never put back: it had its moment.
         let work = DispatchWorkItem { [tooLarge] in
             pendingRestore = nil
-            guard pb.changeCount == ourChange else { return }
+            guard pb.changeCount == ourChange else { return log.notice("clipboard not restored: changed meanwhile") }
             if let kept { return copy(kept) }
             // Too much to have kept a copy of: the text stays, rather than nothing.
-            if tooLarge { return }
+            if tooLarge { return log.notice("clipboard not restored: it was too large") }
             pb.clearContents()
             if let saved, !saved.isEmpty { pb.writeObjects(saved) }
+            log.notice("clipboard restored")
         }
         pendingRestore = (saved, tooLarge, ourChange, work)
-        DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay(for: NSWorkspace.shared.frontmostApplication), execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     /// How long the target app gets to read the paste. Most take it at once; Office,
