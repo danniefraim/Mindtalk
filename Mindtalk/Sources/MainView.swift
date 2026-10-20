@@ -1351,10 +1351,19 @@ private struct RecentRow: View {
                 withAnimation(.easeOut(duration: 0.15)) { copied = true }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { withAnimation(.easeOut(duration: 0.2)) { copied = false } }
             } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                        .contentTransition(.symbolEffect(.replace))
-                    if copied { Text("Kopierad").font(.system(size: 12, weight: .medium)).transition(.opacity) }
+                // The icon alone, or the check and "Kopierad" as one piece that fades in:
+                // no symbol morphing in front of the word, where a stray dot was seen.
+                ZStack {
+                    if copied {
+                        HStack(spacing: 5) {
+                            Image(systemName: "checkmark")
+                            Text("Kopierad").font(.system(size: 12, weight: .medium))
+                        }
+                        .fixedSize()
+                        .transition(.opacity)
+                    } else {
+                        Image(systemName: "doc.on.doc").transition(.opacity)
+                    }
                 }
                 .frame(minWidth: 18, minHeight: 24)
                 .contentShape(Rectangle())
