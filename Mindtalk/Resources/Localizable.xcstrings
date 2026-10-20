@@ -6011,6 +6011,22 @@
         }
       }
     },
+    "Det gick inte att göra text av det. Klicka för att försöka igen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t turn that into text. Click to try again."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det gick inte att göra text av det. Klicka för att försöka igen."
+          }
+        }
+      }
+    },
     "Det gick inte just nu: %@": {
       "localizations": {
         "en": {
@@ -9543,6 +9559,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Försök igen"
+          }
+        }
+      }
+    },
+    "Försöker igen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tries again"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Försöker igen"
           }
         }
       }
@@ -13669,6 +13701,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klar att läsa"
+          }
+        }
+      }
+    },
+    "Klar. Klistra in med ⌃⌥V.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done. Paste with ⌃⌥V."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klar. Klistra in med ⌃⌥V."
           }
         }
       }

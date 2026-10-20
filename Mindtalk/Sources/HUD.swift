@@ -35,7 +35,8 @@ final class HUD {
         // Clickable only while locked, when it has buttons, and while "Sparad i Tankar."
         // is up (a click opens Tankar); otherwise it never gets in the way.
         let dictation = Dictation.shared
-        panel.ignoresMouseEvents = !((dictation.handsFree && dictation.phase == .recording) || dictation.phase == .saved)
+        panel.ignoresMouseEvents = !((dictation.handsFree && dictation.phase == .recording) || dictation.phase == .saved
+                                     || dictation.phase == .failed(Dictation.clickToRetry))
         place(panel)
         panel.orderFrontRegardless()
     }
@@ -73,7 +74,7 @@ private struct HUDView: View {
 
     private var showsMessage: Bool {
         switch dictation.phase {
-        case .failed, .copied: return true
+        case .failed, .copied, .notice: return true
         default: return false
         }
     }
@@ -128,8 +129,33 @@ private struct HUDView: View {
             case .transcribing:
                 SettlingLine()
                     .frame(width: 60, height: 16)
+            case .failed(let message) where message == Dictation.clickToRetry && dictation.canRetry:
+                // The sound is kept: a click writes it once more.
+                Button { dictation.retryLast() } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warning)
+                        Text(message)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: Self.textWidth, alignment: .leading)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Försök igen")
+                .accessibilityHint(Text("Försöker igen"))
             case .failed(let message):
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warning)
+                Text(message)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: Self.textWidth, alignment: .leading)
+            case .notice(let message):
+                Image(systemName: "checkmark.circle").foregroundStyle(.white.opacity(0.85))
                 Text(message)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white)

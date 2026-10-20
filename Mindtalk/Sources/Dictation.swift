@@ -28,6 +28,8 @@ final class Dictation: ObservableObject {
         case copied
         /// A thought, kept in Tankar.
         case saved
+        /// Something worth knowing that isn't a problem (a text that came late).
+        case notice(String)
     }
 
     enum ModelState: Equatable {
@@ -279,8 +281,19 @@ final class Dictation: ObservableObject {
     /// second to switch to their headset mode, so not sooner.
     private static let deadMic: TimeInterval = 2.5
     /// Writing never takes this long: the speech model is stuck (busy with another
-    /// language, say). The HUD and the key are let go of.
-    private static let maxWriting: TimeInterval = 90
+    /// language, say). The HUD and the key are let go of. A long recording takes
+    /// longer to write, so it gets more time.
+    private static func maxWriting(for samples: Int) -> TimeInterval {
+        90 + 0.3 * Double(samples) / 16_000
+    }
+    /// The dictation let go of for taking too long: its text, if it comes, is kept
+    /// on Diktering all the same.
+    private var lateJob: Int?
+    /// The sound of the last dictation that couldn't be written, kept in memory (never
+    /// on disk) for one more try — never a password field's.
+    private var failedTake: Take?
+    /// "Försök igen" is there for the last dictation.
+    @Published private(set) var canRetry = false
 
     /// Which press the delayed confirm belongs to — a stale one never confirms the next.
     private var pressGeneration = 0
@@ -712,7 +725,7 @@ final class Dictation: ObservableObject {
             doubleTapTimer?.cancel()
             awaitingSecondTap = false
             secondTapDown = true
-        case .idle, .failed, .copied, .saved:
+        case .idle, .failed, .copied, .saved, .notice:
             freshStart()
             begin()
         case .transcribing:
@@ -787,7 +800,7 @@ final class Dictation: ObservableObject {
             }
             ignoreNextRelease = true
             finish()
-        case .idle, .failed, .copied, .saved:
+        case .idle, .failed, .copied, .saved, .notice:
             freshStart()
             forThought = true
             thoughtByKey = KeyListener.shared.thoughtShortcut?.isModifier == true
@@ -842,7 +855,7 @@ final class Dictation: ObservableObject {
     /// "Säg en tanke" (the Tankar page, the menu bar): listening hands-free until ✓.
     func startThought() {
         switch phase {
-        case .idle, .failed, .copied, .saved:
+        case .idle, .failed, .copied, .saved, .notice:
             freshStart()
             forThought = true
             // A click is clearly meant: a problem (the model starting, no mic) is said
@@ -1167,19 +1180,24 @@ final class Dictation: ObservableObject {
     }
 
     /// The recording's sound is in: on its way to text.
-    private func transcribe(_ heard: Take) {
+    private func transcribe(_ recorded: Take) {
         hud.show()
-        let job = heard.job
-        var take = heard
+        let job = recorded.job
+        var held = recorded
         // A thought is on the page at once, its sound kept until the text is there —
         // a failed transcription is "Försök igen", not a lost thought.
-        take.pending = take.thought && !TextInserter.dryRun ? Thoughts.shared.hold(take.samples, language: take.language) : nil
-        writingThought = take.pending
-        // Writing never takes a minute and a half: the model is stuck. Let go of it.
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.maxWriting) { [weak self] in
+        held.pending = held.thought && !TextInserter.dryRun ? Thoughts.shared.hold(held.samples, language: held.language) : nil
+        writingThought = held.pending
+        let take = held
+        // Writing never takes this long: the model is stuck. Let go of it — the text
+        // is still kept if it comes, and the sound for one more try.
+        let limit = Self.maxWriting(for: take.samples.count)
+        DispatchQueue.main.asyncAfter(deadline: .now() + limit) { [weak self] in
             guard let self, self.phase == .transcribing, self.transcription == job else { return }
-            Self.log.error("transcription still going after \(Int(Self.maxWriting)) s: let go of")
-            self.abandonTranscription(saying: String(localized: "Det gick inte att göra text av det. Försök igen."))
+            Self.log.error("transcription still going after \(Int(limit)) s: let go of")
+            self.lateJob = job
+            self.keepForRetry(take)
+            self.abandonTranscription(saying: Self.couldNotWrite)
         }
         Task {
             await write(take)
@@ -1190,7 +1208,7 @@ final class Dictation: ObservableObject {
     /// One recording on its way to text.
     private struct Take {
         let samples: [Float]
-        let job: Int
+        var job: Int
         let language: SpeechModel
         let heard: Float
         let thought: Bool
@@ -1199,9 +1217,9 @@ final class Dictation: ObservableObject {
         /// word heard is worth saying.
         let locked: Bool
         var pending: UUID?
-        let target: pid_t?
-        let secret: Bool
-        let note: ClosingNote?
+        var target: pid_t?
+        var secret: Bool
+        var note: ClosingNote?
     }
 
     /// The thought being written right now, in Tankar.
@@ -1220,8 +1238,9 @@ final class Dictation: ObservableObject {
             Self.log.error("transcription failed: \(String(describing: error), privacy: .public)")
             if let pending = take.pending { Thoughts.shared.failWriting(pending) }
             guard take.job == transcription else { return }
-            return fail(take.pending != nil ? Self.thoughtWithoutText
-                                            : String(localized: "Det gick inte att göra text av det. Försök igen."))
+            if take.pending != nil { return fail(Self.thoughtWithoutText) }
+            keepForRetry(take)
+            return canRetry ? fail(Self.clickToRetry, for: 8) : fail(Self.couldNotWrite)
         }
         // A password field: typed, never kept or polished.
         let secret = !selfTest && (take.secret || SecureInput.isActive)
@@ -1256,14 +1275,27 @@ final class Dictation: ObservableObject {
             if take.note == .micWentQuiet { return fail(Self.micWentQuiet) }
             return saved()
         }
-        guard current else { return }
-        if !selfTest, !onlyBreak { dictatedOnce = true }
-        if !selfTest && !secret && !onlyBreak {
+        if !selfTest && !secret && !onlyBreak && (current || lateJob == take.job) {
             Stats.shared.record(text: text, seconds: Double(take.samples.count) / 16_000)
             var updated = recent
             updated.insert(Entry(text: text, date: Date()), at: 0)
             recent = Array(updated.prefix(Self.recentLimit))
         }
+        // Written at last: no need to try again.
+        if current || lateJob == take.job { forgetRetry() }
+        // Let go of for taking too long, and here after all: on Diktering, one ⌃⌥V away
+        // — said only if nothing else has started since.
+        if !current, lateJob == take.job {
+            lateJob = nil
+            guard !selfTest, !secret, !onlyBreak else { return }
+            switch phase {
+            case .idle, .failed, .copied, .notice: notice(String(localized: "Klar. Klistra in med ⌃⌥V."))
+            default: break
+            }
+            return
+        }
+        guard current else { return }
+        if !selfTest, !onlyBreak { dictatedOnce = true }
         // The screen locked or another user took over meanwhile: typed nowhere. It's
         // on Diktering, one ⌃⌥V away.
         if !selfTest, away { return reset() }
@@ -1293,6 +1325,42 @@ final class Dictation: ObservableObject {
     }
 
     private static var micWentQuiet: String { String(localized: "Mikrofonen tystnade. Det du hann säga är kvar.") }
+    static var couldNotWrite: String { String(localized: "Det gick inte att göra text av det. Försök igen.") }
+    /// Said when the sound is kept: a click on the HUD tries again.
+    static var clickToRetry: String { String(localized: "Det gick inte att göra text av det. Klicka för att försöka igen.") }
+
+    /// A dictation that couldn't be written: its sound is kept for "Försök igen" —
+    /// not a thought's (Tankar keeps those) and never a password field's.
+    private func keepForRetry(_ take: Take) {
+        guard !take.thought, !take.secret, !TextInserter.dryRun else { return }
+        failedTake = take
+        canRetry = true
+    }
+
+    private func forgetRetry() {
+        failedTake = nil
+        canRetry = false
+    }
+
+    /// "Försök igen" on the HUD: the last dictation that couldn't be written, once
+    /// more, typed where you are now.
+    func retryLast() {
+        guard var take = failedTake else { return }
+        switch phase {
+        case .idle, .failed, .copied, .saved, .notice: break
+        default: return
+        }
+        guard model == .ready else { return beep() }
+        forgetRetry()
+        reset()
+        phase = .transcribing
+        transcription += 1
+        take.job = transcription
+        take.target = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        take.secret = SecureInput.isActive
+        take.note = nil
+        transcribe(take)
+    }
     private static var thoughtWithoutText: String { String(localized: "Tanken kunde inte skrivas ned. Försök igen i Tankar.") }
 
     /// Esc while writing, or writing that never ends: the HUD and the key are free
@@ -1304,7 +1372,7 @@ final class Dictation: ObservableObject {
             Thoughts.shared.failWriting(pending)
             fail(Self.thoughtWithoutText)
         } else if let message {
-            fail(message)
+            fail(canRetry ? Self.clickToRetry : message, for: canRetry ? 8 : nil)
         } else {
             reset()
         }
@@ -1402,10 +1470,16 @@ final class Dictation: ObservableObject {
         }
     }
 
-    private func fail(_ message: String) {
+    private func fail(_ message: String, for seconds: Double? = nil) {
         phase = .failed(message)
         // Two lines take longer to read.
-        showUntilReset(after: message.count > 34 ? 4.5 : 3) { if case .failed = $0 { return true }; return false }
+        showUntilReset(after: seconds ?? (message.count > 34 ? 4.5 : 3)) { if case .failed = $0 { return true }; return false }
+    }
+
+    /// Not a problem, just worth knowing: said for a moment.
+    private func notice(_ message: String) {
+        phase = .notice(message)
+        showUntilReset(after: 3.5) { if case .notice = $0 { return true }; return false }
     }
 
     /// A thought kept: the bubble says where it went, for a moment.
@@ -1435,7 +1509,7 @@ final class Dictation: ObservableObject {
             return beep()
         case .recording:
             cancel()               // the key held as part of ⌃⌥V: not a dictation
-        case .failed, .copied, .saved:
+        case .failed, .copied, .saved, .notice:
             reset()
         case .idle:
             break
