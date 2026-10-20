@@ -474,6 +474,12 @@ struct SettingsPage: View {
             }
             CardDivider()
             ModelsFootprintRow()
+            CardDivider()
+            // Everything in one folder, so an uninstall leaves nothing behind.
+            CardRow(title: "Om du avinstallerar",
+                    detail: "Allt Mindtalk sparar ligger i den här mappen. Ta bort den om du avinstallerar.") {
+                Button("Visa i Finder") { DiskSize.reveal(SpeechModel.rootDirectory.deletingLastPathComponent()) }.buttonStyle(.soft)
+            }
         }
         .card()
     }
