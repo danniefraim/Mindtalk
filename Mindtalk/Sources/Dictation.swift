@@ -516,6 +516,14 @@ final class Dictation: ObservableObject {
         if newEngine.isInstalled { loadModel() } else { refreshModels() }
     }
 
+    /// A language picked while the speech model was busy takes over — but not while
+    /// a meeting still writes out with it: its end does it (meetingEnded).
+    private func switchIfPending() {
+        guard engineSwitchPending, !MeetingSession.shared.isBusy else { return }
+        engineSwitchPending = false
+        if engine.isInstalled { loadModel() } else { refreshModels() }
+    }
+
     /// A meeting has let go of the speech model: a language picked meanwhile takes over.
     func meetingEnded() {
         guard engineSwitchPending, phase == .idle else { return }
@@ -963,10 +971,7 @@ final class Dictation: ObservableObject {
     /// its cue was played (which is also when the music is paused). The HUD stays up
     /// for the new one.
     private func freshStart() {
-        if engineSwitchPending {
-            engineSwitchPending = false
-            if engine.isInstalled { loadModel() } else { refreshModels() }
-        }
+        switchIfPending()
         recordingEngine = nil
         handsFree = false
         forThought = false
@@ -1031,7 +1036,9 @@ final class Dictation: ObservableObject {
         phase = .recording
         // A key heard means you're at the Mac, unlocked (in case a notice went missing).
         away = false
-        recordingEngine = engine
+        // A language picked while a meeting still writes out waits for it: until then
+        // this is written with the meeting's model, never one loaded in its place.
+        recordingEngine = engineSwitchPending && MeetingSession.shared.isBusy ? MeetingSession.shared.language : engine
         peakLevel = 0
         micChoice = chosen
         // The built-in mic opens at once, so the first word isn't clipped. A Bluetooth
@@ -1485,10 +1492,7 @@ final class Dictation: ObservableObject {
         watchdog?.invalidate(); watchdog = nil
         recordingEngine = nil
         phase = .idle
-        if engineSwitchPending {
-            engineSwitchPending = false
-            if engine.isInstalled { loadModel() } else { refreshModels() }
-        }
+        switchIfPending()
         handsFree = false
         forThought = false
         thoughtByKey = false
