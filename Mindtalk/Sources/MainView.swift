@@ -1262,12 +1262,25 @@ private struct RecentRow: View {
 
     private var long: Bool { entry.text.count > 280 || entry.text.filter { $0 == "\n" }.count > 3 }
 
+    private static func time(_ date: Date) -> String {
+        date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale))
+    }
+
+    /// 12:58: two digits for the hour on a 12-hour clock as on a 24-hour one.
+    private static let widest = Calendar.current.date(bySettingHour: 12, minute: 58, second: 0, of: Date()) ?? Date()
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {
-            Text(verbatim: min(entry.date, Date()).formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale)))
-                .font(.system(size: 12.5)).monospacedDigit()
-                .foregroundStyle(DS.Colors.muted)
-                .frame(width: 44, alignment: .leading)
+            // On one line, "7:15 AM" too: as wide as the widest time this clock writes,
+            // so every row's words start in one line.
+            ZStack(alignment: .leading) {
+                Text(verbatim: Self.time(Self.widest)).hidden()
+                Text(verbatim: Self.time(min(entry.date, Date())))
+            }
+            .font(.system(size: 12.5)).monospacedDigit()
+            .foregroundStyle(DS.Colors.muted)
+            .lineLimit(1)
+            .fixedSize()
             VStack(alignment: .leading, spacing: 5) {
                 Text(entry.text)
                     .font(.system(size: 14))
