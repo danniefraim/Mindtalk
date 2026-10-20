@@ -108,6 +108,9 @@ final class Dictation: ObservableObject {
     @Published private(set) var pickingKey = false
     @Published private(set) var accessibilityGranted = AXIsProcessTrusted()
     @Published private(set) var micGranted = Recorder.micAuthorized
+    /// Another program has Secure Input on (a password prompt, a terminal's secure
+    /// keyboard entry): a dictation key that isn't a modifier never reaches Mindtalk.
+    @Published private(set) var keyboardBlocked = false
     /// Tillåt for Hjälpmedel was pressed this session: if it's still off, Kom igång
     /// says how to switch it off and on again.
     @Published private(set) var accessibilityAsked = false
@@ -432,6 +435,8 @@ final class Dictation: ObservableObject {
     private var permissionCheck: Timer?
 
     func refreshPermissions() {
+        let blocked = SecureInput.blocksKey(hotkey)
+        if blocked != keyboardBlocked { keyboardBlocked = blocked }
         let hadAccessibility = accessibilityGranted
         micGranted = Recorder.micAuthorized
         accessibilityGranted = AXIsProcessTrusted()

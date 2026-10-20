@@ -7665,6 +7665,22 @@
         }
       }
     },
+    "Ett annat program spärrar tangentbordet just nu, så tangenten för diktering fungerar inte.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another app is blocking the keyboard right now, so your dictation key doesn’t work."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ett annat program spärrar tangentbordet just nu, så tangenten för diktering fungerar inte."
+          }
+        }
+      }
+    },
     "Ett diskret ljud när Mindtalk börjar lyssna och när texten klistras in.": {
       "extractionState": "stale",
       "localizations": {

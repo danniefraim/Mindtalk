@@ -24,4 +24,10 @@ enum SecureInput {
         // then go unsaved.)
         return IsSecureEventInputEnabled()
     }
+
+    /// Secure Input is on and the key isn't a modifier: macOS keeps its presses from
+    /// every other app, Mindtalk too (a modifier still comes through).
+    @MainActor static func blocksKey(_ key: Hotkey) -> Bool {
+        !key.isModifier && IsSecureEventInputEnabled()
+    }
 }

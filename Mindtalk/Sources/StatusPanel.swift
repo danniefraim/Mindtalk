@@ -326,7 +326,12 @@ struct StatusPanelView: View {
                 case .loading:
                     Text("Startar…")
                 default:
-                    if dictation.isReady {
+                    if dictation.isReady, dictation.keyboardBlocked {
+                        // The key can't be heard: said, as a warning, instead of how to use it.
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warning)
+                        Text("Ett annat program spärrar tangentbordet just nu, så tangenten för diktering fungerar inte.")
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    } else if dictation.isReady {
                         if dictation.hotkey.modifierKeys.count > 1 {
                             // The chip on a line of its own: "Diktera med", then the keys.
                             VStack(alignment: .leading, spacing: 4) {
