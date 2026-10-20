@@ -1290,7 +1290,13 @@ final class Dictation: ObservableObject {
         var target: pid_t?
         var secret: Bool
         var note: ClosingNote?
+        /// The recording itself, the same on a second try: written twice, it's kept once.
+        var recording = UUID()
     }
+
+    /// The last recording kept on Diktering. A try again while the first, let go of, is
+    /// still writing can bring the same words twice: the second isn't kept again.
+    private var lastKept: UUID?
 
     /// The thought being written right now, in Tankar.
     private var writingThought: UUID?
@@ -1353,11 +1359,13 @@ final class Dictation: ObservableObject {
             if take.note == .micChanged { return notice(Self.micChanged) }
             return saved()
         }
-        if !selfTest && !secret && !onlyBreak && (current || lateJob == take.job) {
+        let keptBefore = lastKept == take.recording
+        if !selfTest && !secret && !onlyBreak && !keptBefore && (current || lateJob == take.job) {
             Stats.shared.record(text: text, seconds: Double(take.samples.count) / 16_000)
             var updated = recent
             updated.insert(Entry(text: text, date: Date()), at: 0)
             recent = Array(updated.prefix(Self.recentLimit))
+            lastKept = take.recording
         }
         // Written at last: no need to try again.
         if current || lateJob == take.job { forgetRetry() }
@@ -1365,7 +1373,8 @@ final class Dictation: ObservableObject {
         // — said only if nothing else has started since.
         if !current, lateJob == take.job {
             lateJob = nil
-            guard !selfTest, !secret, !onlyBreak else { return }
+            // Already typed in by the second try: nothing to say.
+            guard !selfTest, !secret, !onlyBreak, !keptBefore else { return }
             waiting = true
             switch phase {
             case .idle, .failed, .copied, .notice, .typed: notice(String(localized: "Klar. Klistra in med ⌃⌥V."))
@@ -1407,6 +1416,8 @@ final class Dictation: ObservableObject {
         // Never a password in the clipboard, whatever the setting, nor a bare break.
         TextInserter.insert(verbatim || text.hasSuffix("\n") ? text : text + " ",
                             keeping: Settings.keepInClipboard && !secret && !onlyBreak ? text : nil)
+        // The late first try left it waiting on Diktering; this one typed it in.
+        if keptBefore { waiting = false }
         Cue.done()
         switch take.note {
         // How it ended, said calmly: the text is in.
