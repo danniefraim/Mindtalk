@@ -192,6 +192,13 @@ struct StatusPanelView: View {
                     Dictation.shared.startThought()
                 }
             }
+            // The last dictation, typed into the app you were in, as ⌃⌥V does.
+            if !dictation.recent.isEmpty {
+                PanelRow(title: "Klistra in senaste", icon: "doc.on.clipboard", shortcut: "⌃⌥V") {
+                    (NSApp.delegate as? AppDelegate)?.closeStatusPanel(immediately: true)
+                    dictation.paste()
+                }
+            }
             PanelRow(title: "Öppna Mindtalk", icon: "house") { go(.dictation) }
             PanelSeparator()
             language

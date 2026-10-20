@@ -480,7 +480,7 @@ struct SettingsPage: View {
 
     /// All three keys heard in every app, in one place: the same fields as on Diktering,
     /// Tankar and Möten, so two can never share keys. Without Hjälpmedel none of them
-    /// work, and the card says so where you read it.
+    /// work, and the card says so where you read it. ⌃⌥V and Esc last, to know, not change.
     private var shortcutsCard: some View {
         VStack(spacing: 0) {
             CardRow(title: "Genvägar",
@@ -499,6 +499,17 @@ struct SettingsPage: View {
             }
             CardDivider()
             meetingKeyRow(title: "Möte")
+            CardDivider()
+            // Not to be changed, only known: the chip where the others have their field.
+            CardRow(title: "Klistra in senaste",
+                    detail: "Klistrar in den senaste dikteringen där markören står. Esc avbryter en diktering.") {
+                HStack(spacing: 8) {
+                    KeyChip(text: "⌃⌥V")
+                        .padding(.leading, 8)
+                        .frame(width: 244, alignment: .leading)
+                    Color.clear.frame(width: 28, height: 1).accessibilityHidden(true)
+                }
+            }
         }
         .card()
         .onDisappear { dictation.stopPickingKey(reason: "Allmänt left") }

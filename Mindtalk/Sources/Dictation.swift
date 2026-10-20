@@ -125,6 +125,9 @@ final class Dictation: ObservableObject {
     /// A dictation kept on Diktering that never got typed (you switched app, the screen
     /// locked, it came late): the tab gets a dot until it's pasted or looked at.
     @Published private(set) var waiting = false
+    /// The app you were in before Mindtalk came to the front: where "Klistra in" on
+    /// Diktering and in the menu bar puts the text.
+    private var lastOtherApp: pid_t?
     /// When the current recording started (for the HUD's timer).
     @Published private(set) var recordingStarted: Date?
     /// A dictation has been typed or copied at least once (a thought isn't one): the
@@ -378,6 +381,17 @@ final class Dictation: ObservableObject {
             }
         }
         let workspace = NSWorkspace.shared.notificationCenter
+        // Every app but Mindtalk that comes to the front: the last one is where "Klistra in"
+        // goes back to.
+        let ours = ProcessInfo.processInfo.processIdentifier
+        if let front = NSWorkspace.shared.frontmostApplication?.processIdentifier, front != ours { lastOtherApp = front }
+        workspace.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { note in
+            let pid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
+            MainActor.assumeIsolated {
+                guard let pid, pid != ours else { return }
+                Dictation.shared.lastOtherApp = pid
+            }
+        }
         workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { Dictation.shared.leaving() }
         }
@@ -1617,16 +1631,67 @@ final class Dictation: ObservableObject {
                 if held.isEmpty { break }
                 try? await Task.sleep(for: .milliseconds(25))
             }
-            if !AXIsProcessTrusted() {
-                refreshPermissions()
-                return copied(last.text, because: Self.accessibilityOffCopied)
-            }
-            if let app = NSWorkspace.shared.frontmostApplication, FocusedField.kind(in: app.processIdentifier) == .none {
-                return copied(last.text)
-            }
-            TextInserter.insert(last.text.hasSuffix("\n") ? last.text : last.text + " ", keeping: Settings.keepInClipboard ? last.text : nil)
-            if phase == .idle { typed() }
+            typeIn(last.text)
         }
+    }
+
+    /// "Klistra in" on Diktering and in the menu bar: back to the app you were in before
+    /// Mindtalk came to the front, and the text typed there, as ⌃⌥V would. That app is
+    /// asked to come forward (Mindtalk gives way to it) and the text waits until it has;
+    /// if it never does, the text is in the clipboard instead.
+    func paste(_ entry: Entry? = nil) {
+        switch phase {
+        case .recording, .transcribing:
+            return beep()
+        case .failed, .copied, .saved, .notice, .typed:
+            reset()
+        case .idle:
+            break
+        }
+        guard let text = (entry ?? recent.first)?.text else { return notice(String(localized: "Inget att klistra in än.")) }
+        waiting = false
+        let ours = ProcessInfo.processInfo.processIdentifier
+        let front = NSWorkspace.shared.frontmostApplication
+        let target = front.flatMap { $0.processIdentifier == ours ? nil : $0 }
+            ?? lastOtherApp.flatMap { NSRunningApplication(processIdentifier: $0) }
+        guard let target, !target.isTerminated else { return copiedQuietly(text) }
+        Task { @MainActor in
+            if NSWorkspace.shared.frontmostApplication?.processIdentifier != target.processIdentifier {
+                NSApp.yieldActivation(to: target)
+                target.activate()
+                for _ in 0..<60 where NSWorkspace.shared.frontmostApplication?.processIdentifier != target.processIdentifier {
+                    try? await Task.sleep(for: .milliseconds(25))
+                }
+                guard NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier else {
+                    Self.log.notice("paste: the app before Mindtalk didn't come forward, copied instead")
+                    return copiedQuietly(text)
+                }
+                // A moment for its window to take the keyboard again.
+                try? await Task.sleep(for: .milliseconds(150))
+            }
+            guard phase == .idle else { return }
+            typeIn(text)
+        }
+    }
+
+    /// Types `text` where the cursor is now, as ⌃⌥V does: into the clipboard instead when
+    /// there's no text field, or Hjälpmedel is off.
+    private func typeIn(_ text: String) {
+        if !AXIsProcessTrusted() {
+            refreshPermissions()
+            return copied(text, because: Self.accessibilityOffCopied)
+        }
+        if let app = NSWorkspace.shared.frontmostApplication, FocusedField.kind(in: app.processIdentifier) == .none {
+            return copied(text)
+        }
+        TextInserter.insert(text.hasSuffix("\n") ? text : text + " ", keeping: Settings.keepInClipboard ? text : nil)
+        if phase == .idle { typed() }
+    }
+
+    /// Nowhere to type it (the app before Mindtalk is gone): in the clipboard, said calmly.
+    private func copiedQuietly(_ text: String) {
+        TextInserter.copy(text)
+        notice(String(localized: "Texten är kopierad. Klistra in med ⌘V."))
     }
 
     /// Diktering was looked at: what waits there has been seen.

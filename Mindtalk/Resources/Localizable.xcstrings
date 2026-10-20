@@ -14536,6 +14536,22 @@
         }
       }
     },
+    "Klistra in senaste": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste last"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klistra in senaste"
+          }
+        }
+      }
+    },
     "Klistra in senaste igen": {
       "extractionState": "stale",
       "localizations": {
@@ -14549,6 +14565,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klistra in senaste igen"
+          }
+        }
+      }
+    },
+    "Klistrar in den senaste dikteringen där markören står. Esc avbryter en diktering.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pastes your last dictation at the cursor. Esc cancels a dictation."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klistrar in den senaste dikteringen där markören står. Esc avbryter en diktering."
           }
         }
       }
@@ -29712,6 +29744,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Texten är där på ett par tiondels sekunder."
+          }
+        }
+      }
+    },
+    "Texten är kopierad. Klistra in med ⌘V.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text is copied. Paste with ⌘V."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten är kopierad. Klistra in med ⌘V."
           }
         }
       }
