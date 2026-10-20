@@ -1128,6 +1128,16 @@ struct RecentPage: View {
     /// A dictation just removed, and where it was — "Ångra" for a few seconds.
     @State private var removed: (entry: Dictation.Entry, index: Int)?
     @State private var removedTask: Task<Void, Never>?
+    /// Searched for on this Mac only, in the list as it is.
+    @State private var query = ""
+
+    /// A search field once the list is longer than a glance.
+    private var searchable: Bool { dictation.recent.count > 10 || !query.isEmpty }
+
+    private var shown: [Dictation.Entry] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        return q.isEmpty ? dictation.recent : dictation.recent.filter { $0.text.localizedCaseInsensitiveContains(q) }
+    }
 
     var body: some View {
         if plain { content } else {
@@ -1192,9 +1202,22 @@ struct RecentPage: View {
             }
             if !dictation.recent.isEmpty {
                 // As Hem's shelves: the title 12 points over what it names.
-                SectionTitle("Det du dikterat").staggered(2)
-                    .padding(.bottom, -8)
-                ForEach(Self.days(dictation.recent), id: \.title) { day in
+                HStack(alignment: .lastTextBaseline, spacing: 12) {
+                    SectionTitle("Det du dikterat")
+                    Spacer(minLength: 12)
+                    if searchable {
+                        TextField("Sök i dikteringarna", text: $query)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 200)
+                            .onExitCommand { query = "" }
+                    }
+                }
+                .staggered(2)
+                .padding(.bottom, -8)
+                if shown.isEmpty {
+                    Text("Inga träffar.").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                }
+                ForEach(Self.days(shown), id: \.title) { day in
                     VStack(alignment: .leading, spacing: 8) {
                         // In small capitals, as the days in the meeting archive.
                         CapsLabel(day.title)

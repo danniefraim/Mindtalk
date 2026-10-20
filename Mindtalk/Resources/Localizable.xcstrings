@@ -27807,6 +27807,22 @@
         }
       }
     },
+    "Sök i dikteringarna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search your dictations"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sök i dikteringarna"
+          }
+        }
+      }
+    },
     "Sök i mötena": {
       "localizations": {
         "en": {
