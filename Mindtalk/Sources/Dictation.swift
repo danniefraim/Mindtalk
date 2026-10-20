@@ -117,8 +117,10 @@ final class Dictation: ObservableObject {
     /// Tillåt for Hjälpmedel has been pressed: if it's still off, Kom igång says how to
     /// switch it off and on again. Kept, so the tip is there at the next launch too.
     @Published private(set) var accessibilityAsked = UserDefaults.standard.bool(forKey: "accessibilityAsked") {
-        didSet { UserDefaults.standard.set(accessibilityAsked, forKey: "accessibilityAsked") }
+        didSet { if !previewing { UserDefaults.standard.set(accessibilityAsked, forKey: "accessibilityAsked") } }
     }
+    /// A render (--render-window): shown as given, nothing written down.
+    private var previewing = false
     /// The last dictations, kept on this Mac (Application Support, readable only by you)
     /// so a paste that landed nowhere can be copied — never a password field's.
     @Published private(set) var recent: [Entry] = Dictation.loadRecent() {
@@ -492,6 +494,7 @@ final class Dictation: ObservableObject {
     /// Renders (--render-window, --render-onboarding): permissions and the model as
     /// given, nothing asked of macOS. A download given as progress is shown as on its way.
     func preview(mic: Bool, accessibility: Bool, asked: Bool, model: ModelState? = nil) {
+        previewing = true
         micGranted = mic
         accessibilityGranted = accessibility
         accessibilityAsked = asked
