@@ -129,6 +129,8 @@ private struct HUDView: View {
             case .transcribing:
                 SettlingLine()
                     .frame(width: 60, height: 16)
+            // Orange only for what's really wrong: no mic, Hjälpmedel off, a speech model
+            // that failed. Everything else is a .notice.
             case .failed(let message) where message == Dictation.clickToRetry && dictation.canRetry:
                 // The sound is kept: a click writes it once more.
                 Button { dictation.retryLast() } label: {
@@ -155,7 +157,7 @@ private struct HUDView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: Self.textWidth, alignment: .leading)
             case .notice(let message):
-                Image(systemName: "checkmark.circle").foregroundStyle(.white.opacity(0.85))
+                // Nothing wrong: the words alone, no sign.
                 Text(message)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white)

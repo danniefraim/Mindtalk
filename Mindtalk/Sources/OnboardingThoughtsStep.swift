@@ -571,7 +571,8 @@ struct ThoughtsStep: View {
             attempt = true
             note = nil
             withAnimation(.snappy(duration: 0.3)) { progress = 1 }
-        case .failed(let message) where attempt || dictation.forThought:
+        case .failed(let message) where attempt || dictation.forThought,
+             .notice(let message) where attempt || dictation.forThought:
             attempt = false
             note = .failed(message)
             withAnimation(.smooth(duration: 0.4)) { progress = 0 }

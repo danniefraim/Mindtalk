@@ -28,7 +28,8 @@ final class Dictation: ObservableObject {
         case copied
         /// A thought, kept in Tankar.
         case saved
-        /// Something worth knowing that isn't a problem (a text that came late).
+        /// Something worth knowing that isn't a problem: a text that came late, nothing
+        /// heard, the speech model starting. Said in white, without the warning sign.
         case notice(String)
     }
 
@@ -1000,14 +1001,14 @@ final class Dictation: ObservableObject {
         if MeetingSession.shared.isRecording {
             Self.log.notice("begin refused: a meeting is recording")
             return report {
-                $0.fail($0.forThought ? String(localized: "Ett möte spelas in, så tankar får vänta.")
-                                      : String(localized: "Ett möte spelas in, så dikteringen är pausad."))
+                $0.notice($0.forThought ? String(localized: "Ett möte spelas in, så tankar får vänta.")
+                                        : String(localized: "Ett möte spelas in, så dikteringen är pausad."))
             }
         }
         // One speech model at a time: an import writing in the other language has it.
         if MeetingImport.shared.jobs.contains(where: { ($0.stage == .reading || $0.stage == .writing) && $0.language != engine }) {
             Self.log.notice("begin refused: an import has the speech model")
-            return report { $0.fail(String(localized: "Vänta tills importen är klar.")) }
+            return report { $0.notice(String(localized: "Vänta tills importen är klar.")) }
         }
         if model != .ready { Self.log.notice("begin refused: speech model \(String(describing: self.model), privacy: .public)") }
         switch model {
@@ -1017,10 +1018,10 @@ final class Dictation: ObservableObject {
             // minutes — said the same way as in the introduction.
             let long = firstPreparation && Date().timeIntervalSince(loadingSince) > 5
             return report {
-                $0.fail(long ? String(localized: "Talmodellen görs redo för din Mac, bara första gången.")
-                             : String(localized: "Talmodellen startar…"))
+                $0.notice(long ? String(localized: "Talmodellen görs redo för din Mac, bara första gången.")
+                               : String(localized: "Talmodellen startar…"))
             }
-        case .downloading: return report { $0.fail(String(localized: "Talmodellen laddas fortfarande ned.")) }
+        case .downloading: return report { $0.notice(String(localized: "Talmodellen laddas fortfarande ned.")) }
         case .missing, .failed:
             return report {
                 if AppDelegate.isOnboarding {
@@ -1320,8 +1321,8 @@ final class Dictation: ObservableObject {
             guard current else { return }
             // The thought key held alone and not a word: ⌘ held for something else.
             if take.thought && take.byKey && !take.locked { return reset() }
-            return fail(take.heard < 0.03 ? String(localized: "Hörde inget. Är rätt mikrofon vald?")
-                                          : String(localized: "Hörde inga ord. Försök igen."))
+            return notice(take.heard < 0.03 ? String(localized: "Hörde inget. Är rätt mikrofon vald?")
+                                            : String(localized: "Hörde inga ord. Försök igen."))
         }
         // A thought: kept in Tankar — nothing typed anywhere.
         if take.thought {
@@ -1329,8 +1330,8 @@ final class Dictation: ObservableObject {
             if let pending = take.pending { Thoughts.shared.fill(pending, text: text) } else { Thoughts.shared.add(text) }
             guard current else { return }
             Cue.done()
-            if take.note == .micWentQuiet { return fail(Self.micWentQuietKept) }
-            if take.note == .micChanged { return fail(Self.micChanged) }
+            if take.note == .micWentQuiet { return notice(Self.micWentQuietKept) }
+            if take.note == .micChanged { return notice(Self.micChanged) }
             return saved()
         }
         if !selfTest && !secret && !onlyBreak && (current || lateJob == take.job) {
@@ -1362,8 +1363,8 @@ final class Dictation: ObservableObject {
         // worth a word.
         if !selfTest, let target = take.target, NSWorkspace.shared.frontmostApplication?.processIdentifier != target {
             if onlyBreak { return reset() }
-            return fail(secret ? String(localized: "Du bytte app, så texten skrevs inte in.")
-                               : String(localized: "Du bytte app, så texten väntar. Klistra in med ⌃⌥V."))
+            return notice(secret ? String(localized: "Du bytte app, så texten skrevs inte in.")
+                                 : String(localized: "Du bytte app, så texten väntar. Klistra in med ⌃⌥V."))
         }
         // Hjälpmedel switched off meanwhile: nothing can be typed. The text goes to the
         // clipboard instead (never a password), and Kom igång asks for Hjälpmedel again.
@@ -1384,9 +1385,10 @@ final class Dictation: ObservableObject {
                             keeping: Settings.keepInClipboard && !secret && !onlyBreak ? text : nil)
         Cue.done()
         switch take.note {
-        case .micWentQuiet: fail(Self.micWentQuiet)
-        case .micChanged: fail(Self.micChanged)
-        case .timeUp: fail(String(localized: "En diktering kan vara tio minuter. Det du sa är inskrivet."))
+        // How it ended, said calmly: the text is in.
+        case .micWentQuiet: notice(Self.micWentQuiet)
+        case .micChanged: notice(Self.micChanged)
+        case .timeUp: notice(String(localized: "En diktering kan vara tio minuter. Det du sa är inskrivet."))
         case nil: reset()
         }
     }
@@ -1550,10 +1552,10 @@ final class Dictation: ObservableObject {
         showUntilReset(after: seconds ?? (message.count > 34 ? 4.5 : 3)) { if case .failed = $0 { return true }; return false }
     }
 
-    /// Not a problem, just worth knowing: said for a moment.
+    /// Not a problem, just worth knowing: said for a moment, two lines a little longer.
     private func notice(_ message: String) {
         phase = .notice(message)
-        showUntilReset(after: 3.5) { if case .notice = $0 { return true }; return false }
+        showUntilReset(after: message.count > 34 ? 4.5 : 3.5) { if case .notice = $0 { return true }; return false }
     }
 
     /// A thought kept: the bubble says where it went, for a moment.
@@ -1590,7 +1592,7 @@ final class Dictation: ObservableObject {
         case .idle:
             break
         }
-        guard let last = recent.first else { return fail(String(localized: "Inget att klistra in än.")) }
+        guard let last = recent.first else { return notice(String(localized: "Inget att klistra in än.")) }
         Task { @MainActor in
             for _ in 0..<40 {
                 let held = CGEventSource.flagsState(.combinedSessionState).intersection([.maskControl, .maskAlternate])

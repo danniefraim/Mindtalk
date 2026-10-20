@@ -1837,9 +1837,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         case .transcribing: symbol = "ellipsis.circle"
         case .failed: symbol = "exclamationmark.circle"
         case .copied: symbol = "doc.on.clipboard"
-        case .notice: symbol = "checkmark.circle"
         case .saved: symbol = "lightbulb"
-        case .idle:
+        case .idle, .notice:
             if case .downloading = dictation.model { symbol = "arrow.down.circle" }
             else { statusItem.button?.image = Mark.menuBarImage; return }
         }
