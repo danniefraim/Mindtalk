@@ -154,9 +154,10 @@ extension Settings {
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "appearance") }
     }
 
-    /// Keep the Dock icon even when the window is closed.
+    /// Keep the Dock icon even when the window is closed. On until you choose otherwise:
+    /// a new user who closes the window would otherwise think Mindtalk quit.
     static var showInDock: Bool {
-        get { UserDefaults.standard.bool(forKey: "showInDock") }
+        get { (UserDefaults.standard.object(forKey: "showInDock") as? Bool) ?? true }
         set { UserDefaults.standard.set(newValue, forKey: "showInDock") }
     }
 
