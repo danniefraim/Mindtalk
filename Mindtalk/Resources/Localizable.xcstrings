@@ -14357,6 +14357,22 @@
         }
       }
     },
+    "Jag hör inget just nu. Är rätt mikrofon vald?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I can't hear anything right now. Is the right mic selected?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jag hör inget just nu. Är rätt mikrofon vald?"
+          }
+        }
+      }
+    },
     "Jag hör nästan ingenting. Är rätt mikrofon vald?": {
       "localizations": {
         "en": {
@@ -20533,6 +20549,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mindtalk känner igen rösten utan att spara den som ljud. Fråga de andra i rummet först."
+          }
+        }
+      }
+    },
+    "Mindtalk känner igen rösten utan att spara den som ljud. Fråga kollegorna först.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk recognizes the voice without keeping it as audio. Ask your colleagues first."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk känner igen rösten utan att spara den som ljud. Fråga kollegorna först."
           }
         }
       }

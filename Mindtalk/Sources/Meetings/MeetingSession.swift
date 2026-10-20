@@ -752,7 +752,7 @@ final class MeetingSession: ObservableObject {
         pausedAt = Date()
         settledForPause = false
         LiveMeter.shared.reset()
-        if warning == String(localized: "Jag hör nästan ingenting. Är rätt mikrofon vald?") { warning = nil }
+        if warning == Self.quietWarning { warning = nil }
         // Nothing to keep the Mac awake for until it goes on.
         if let activity { ProcessInfo.processInfo.endActivity(activity) }
         activity = nil
@@ -1221,13 +1221,17 @@ final class MeetingSession: ObservableObject {
         String(localized: "Texten kan inte skrivas just nu. Ljudet spelas in och skrivs ned efter mötet.")
     }
 
+    /// Nothing heard for three quarters of a minute: a pause in the talk is longer than
+    /// one would think, so not sooner — and said softly.
+    private static var quietWarning: String { String(localized: "Jag hör inget just nu. Är rätt mikrofon vald?") }
+
     /// Says so when the recording can't be trusted.
     private func checkInput() {
         if intake?.writeFailed == true {
             warning = String(localized: "Inspelningen kan inte sparas. Är disken full? Texten skrivs ändå.")
-        } else if !isPaused, Date().timeIntervalSince(lastHeard) > 20 {
-            warning = String(localized: "Jag hör nästan ingenting. Är rätt mikrofon vald?")
-        } else if warning == String(localized: "Jag hör nästan ingenting. Är rätt mikrofon vald?") {
+        } else if !isPaused, Date().timeIntervalSince(lastHeard) > 45 {
+            warning = Self.quietWarning
+        } else if warning == Self.quietWarning {
             warning = nil
         }
     }
