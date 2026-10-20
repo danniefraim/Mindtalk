@@ -830,19 +830,35 @@ struct StartCard: View {
                 .buttonStyle(.soft)
             }
         case .downloading(let p):
-            VStack(alignment: .trailing, spacing: 6) {
+            VStack(alignment: .trailing, spacing: 8) {
                 ProgressView(value: p).tint(DS.Colors.ink).frame(width: 140)
                     .accessibilityLabel("Laddar ned Nemotron 3")
                 Text(p, format: .percent.precision(.fractionLength(0)))
                     .font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.Colors.muted)
+                speechModelButton
             }
         case .missing:
-            Button("Ladda ned \(VoiceModels.sizeText)") { voices.download() }.buttonStyle(.ink)
+            VStack(alignment: .trailing, spacing: 8) {
+                Button("Ladda ned \(VoiceModels.sizeText)") { voices.download() }.buttonStyle(.ink)
+                speechModelButton
+            }
         case .failed(let message):
             VStack(alignment: .trailing, spacing: 6) {
                 Button("Försök igen") { voices.download() }.buttonStyle(.soft)
                 Text(message).font(.system(size: 11)).foregroundStyle(DS.Colors.warning)
                     .lineLimit(2).frame(maxWidth: 200, alignment: .trailing)
+                speechModelButton
+            }
+        }
+    }
+
+    /// The speech model missing as well: a way to it right here, so the card is no
+    /// dead end. Nothing while it's on its way or starting (the detail says so).
+    @ViewBuilder private var speechModelButton: some View {
+        if !dictation.engine.isInstalled, dictation.micGranted {
+            switch dictation.model {
+            case .downloading, .loading: EmptyView()
+            default: Button("Ladda ned talmodellen") { dictation.downloadModel() }.buttonStyle(.soft)
             }
         }
     }
