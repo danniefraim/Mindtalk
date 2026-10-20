@@ -17756,6 +17756,22 @@
         }
       }
     },
+    "Lägg till ”%@” i Ordlista…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add “%@” to Vocabulary…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg till ”%@” i Ordlista…"
+          }
+        }
+      }
+    },
     "Lägg till ”%@”?": {
       "localizations": {
         "en": {

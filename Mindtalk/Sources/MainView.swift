@@ -1276,6 +1276,15 @@ private struct RecentRow: View {
     @State private var expanded = false
     @State private var hovering = false
     @FocusState private var menuFocused: Bool
+    /// The words marked in the text, for "Lägg till i Ordlista…".
+    @State private var selection = ""
+
+    private var addable: String? { Self.addable(selection) }
+
+    /// Marked words short enough to be a word in Ordlista.
+    private static func addable(_ marked: String) -> String? {
+        marked.isEmpty || marked.count > 60 || !marked.contains(where: { $0.isLetter || $0.isNumber }) ? nil : marked
+    }
 
     private var long: Bool { entry.text.count > 280 || entry.text.filter { $0 == "\n" }.count > 3 }
 
@@ -1299,10 +1308,11 @@ private struct RecentRow: View {
             .lineLimit(1)
             .fixedSize()
             VStack(alignment: .leading, spacing: 5) {
-                Text(entry.text)
-                    .font(.system(size: 14))
-                    .lineLimit(expanded ? nil : 4)
-                    .textSelection(.enabled)
+                // Selectable, and a right-click on a word marks it: "Lägg till i Ordlista…".
+                EntryText(text: entry.text, lineLimit: expanded ? nil : 4, selection: $selection) { menuItems($0) }
+                    // SwiftUI doesn't see an AppKit view's baseline: the first line's, so
+                    // the time beside it lines up with the words.
+                    .alignmentGuide(.firstTextBaseline) { _ in EntryText.baseline }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if long {
                     Button(expanded ? "Visa mindre" : "Visa hela") { withAnimation(.snappy) { expanded.toggle() } }
@@ -1360,11 +1370,137 @@ private struct RecentRow: View {
 
     /// The row's actions, the same behind ⋯ and a right-click.
     @ViewBuilder private var actions: some View {
+        if let word = addable {
+            Button(String(localized: "Lägg till ”\(word)” i Ordlista…")) { Self.addToVocabulary(word) }
+            Divider()
+        }
         Button("Klistra in", action: paste)
         Button("Kopiera", action: copy)
         Divider()
         Button("Ta bort", role: .destructive, action: remove)
     }
+
+    /// The same, for a right-click on the text itself (AppKit's menu there), with what's
+    /// marked at that moment.
+    private func menuItems(_ marked: String) -> [NSMenuItem] {
+        var items: [NSMenuItem] = []
+        if let word = Self.addable(marked) {
+            items.append(MenuAction(String(localized: "Lägg till ”\(word)” i Ordlista…")) { Self.addToVocabulary(word) })
+            items.append(.separator())
+        }
+        items.append(MenuAction(String(localized: "Klistra in"), paste))
+        items.append(MenuAction(String(localized: "Kopiera"), copy))
+        items.append(.separator())
+        items.append(MenuAction(String(localized: "Ta bort"), remove))
+        return items
+    }
+
+    /// To Ordlista, the marked words as how it was heard: you write how it's spelled.
+    private static func addToVocabulary(_ heard: String) {
+        VocabularyPage.pendingHeard = heard
+        NotificationCenter.default.post(name: .showPage, object: Page.vocabulary)
+    }
+}
+
+/// A menu item that runs a closure.
+private final class MenuAction: NSMenuItem {
+    private let handler: () -> Void
+
+    init(_ title: String, _ handler: @escaping () -> Void) {
+        self.handler = handler
+        super.init(title: title, action: #selector(fire), keyEquivalent: "")
+        target = self
+    }
+
+    required init(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    @objc private func fire() { handler() }
+}
+
+/// A dictation's words in a text view of AppKit's: selectable as anywhere, and a
+/// right-click on a word outside the selection marks that word — so a word that came
+/// out wrong is one click from Ordlista. Four lines until "Visa hela".
+private struct EntryText: NSViewRepresentable {
+    let text: String
+    let lineLimit: Int?
+    @Binding var selection: String
+    let menu: (_ marked: String) -> [NSMenuItem]
+
+    static let font = NSFont.systemFont(ofSize: 14)
+    static let baseline = NSLayoutManager().defaultBaselineOffset(for: font)
+
+    /// What's marked, without the spaces and punctuation around it.
+    static func marked(in view: NSTextView) -> String {
+        (view.string as NSString).substring(with: view.selectedRange())
+            .trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+    }
+
+    func makeNSView(context: Context) -> EntryTextView {
+        let view = EntryTextView()
+        view.isEditable = false
+        view.isSelectable = true
+        view.drawsBackground = false
+        view.isRichText = false
+        view.textContainerInset = .zero
+        view.textContainer?.lineFragmentPadding = 0
+        view.textContainer?.widthTracksTextView = true
+        view.isVerticallyResizable = false
+        view.isHorizontallyResizable = false
+        view.delegate = context.coordinator
+        return view
+    }
+
+    func updateNSView(_ view: EntryTextView, context: Context) {
+        context.coordinator.selection = $selection
+        view.menuItems = menu
+        if view.string != text { view.string = text }
+        view.font = Self.font
+        view.textColor = .labelColor
+        view.textContainer?.maximumNumberOfLines = lineLimit ?? 0
+        view.textContainer?.lineBreakMode = lineLimit == nil ? .byWordWrapping : .byTruncatingTail
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView view: EntryTextView, context: Context) -> CGSize? {
+        guard let container = view.textContainer, let layout = view.layoutManager else { return nil }
+        let width = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? 10_000
+        container.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
+        layout.ensureLayout(for: container)
+        let used = layout.usedRect(for: container)
+        return CGSize(width: proposal.width == nil ? ceil(used.width) : width, height: ceil(used.height))
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(selection: $selection) }
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var selection: Binding<String>
+        init(selection: Binding<String>) { self.selection = selection }
+
+        func textViewDidChangeSelection(_ note: Notification) {
+            guard let view = note.object as? NSTextView else { return }
+            let marked = EntryText.marked(in: view)
+            // Not while SwiftUI draws: the next turn of the run loop.
+            DispatchQueue.main.async { [selection] in
+                if selection.wrappedValue != marked { selection.wrappedValue = marked }
+            }
+        }
+    }
+}
+
+private final class EntryTextView: NSTextView {
+    var menuItems: ((String) -> [NSMenuItem])?
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        // A right-click outside the selection marks the word under it.
+        let index = characterIndexForInsertion(at: convert(event.locationInWindow, from: nil))
+        let current = selectedRange()
+        if index < (string as NSString).length, current.length == 0 || !NSLocationInRange(index, current) {
+            setSelectedRange(selectionRange(forProposedRange: NSRange(location: index, length: 0), granularity: .selectByWord))
+        }
+        let menu = NSMenu()
+        for item in menuItems?(EntryText.marked(in: self)) ?? [] { menu.addItem(item) }
+        return menu
+    }
+
 }
 
 // MARK: - Text

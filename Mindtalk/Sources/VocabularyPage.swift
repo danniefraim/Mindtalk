@@ -6,6 +6,9 @@ struct VocabularyPage: View {
     @ObservedObject var vocabulary: Vocabulary
     /// Screenshots: without the scroll view.
     var plain = false
+    /// "Lägg till i Ordlista…" on Diktering: how a word was heard, put in "Hörs ofta som"
+    /// when the page opens, with the cursor in "Ord" for the right spelling.
+    static var pendingHeard: String?
     @Environment(\.undoManager) private var undo
     @State private var word = ""
     @State private var heardAs = ""
@@ -185,7 +188,15 @@ struct VocabularyPage: View {
                 .padding(.top, 4)
         }
         .modifier(PageScroll(on: !plain))
-        .onAppear { VocabularyBoostStatus.shared.refresh() }      // deleted in Finder, or put back
+        .onAppear {
+            VocabularyBoostStatus.shared.refresh()      // deleted in Finder, or put back
+            if let heard = Self.pendingHeard {
+                Self.pendingHeard = nil
+                word = ""
+                heardAs = heard
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { wordFocused = true }
+            }
+        }
         .overlay(alignment: .bottom) {
             if let toast = vocabulary.toast {
                 HStack(spacing: 12) {
