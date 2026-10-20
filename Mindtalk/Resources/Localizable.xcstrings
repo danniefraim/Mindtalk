@@ -3619,6 +3619,22 @@
         }
       }
     },
+    "Apple Intelligence är redan på. Vill du ha fylligare sammanfattningar kan du ladda ned Gemma 4 från Google, som också körs på din Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence is already on. If you want richer summaries, you can download Gemma 4 from Google, which also runs on your Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence är redan på. Vill du ha fylligare sammanfattningar kan du ladda ned Gemma 4 från Google, som också körs på din Mac."
+          }
+        }
+      }
+    },
     "Apple Intelligence.": {
       "extractionState": "stale",
       "localizations": {
@@ -7933,6 +7949,22 @@
         }
       }
     },
+    "En mindre Gemma, eller en modell du redan kör i Ollama eller LM Studio.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A smaller Gemma, or a model you already run in Ollama or LM Studio."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En mindre Gemma, eller en modell du redan kör i Ollama eller LM Studio."
+          }
+        }
+      }
+    },
     "En ny röst": {
       "extractionState": "stale",
       "localizations": {
@@ -7946,6 +7978,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "En ny röst"
+          }
+        }
+      }
+    },
+    "En större Gemma, eller en modell du redan kör i Ollama eller LM Studio.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A larger Gemma, or a model you already run in Ollama or LM Studio."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En större Gemma, eller en modell du redan kör i Ollama eller LM Studio."
           }
         }
       }
@@ -8611,6 +8659,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Finns redan"
+          }
+        }
+      }
+    },
+    "Fler alternativ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More options"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fler alternativ"
           }
         }
       }
@@ -10883,6 +10947,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hem"
+          }
+        }
+      }
+    },
+    "Hittar fler beslut och uppgifter. %@, laddas ned en gång, kräver %lld GB minne.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finds more decisions and tasks. %1$@, downloaded once, needs %2$lld GB of memory."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hittar fler beslut och uppgifter. %@, laddas ned en gång, kräver %lld GB minne."
           }
         }
       }
@@ -26358,6 +26438,22 @@
         }
       }
     },
+    "Slå på Apple Intelligence under Systeminställningar → Apple Intelligence och Siri.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn on Apple Intelligence under System Settings → Apple Intelligence & Siri."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slå på Apple Intelligence under Systeminställningar → Apple Intelligence och Siri."
+          }
+        }
+      }
+    },
     "Slå på Hjälpmedel för Mindtalk": {
       "localizations": {
         "en": {
@@ -34816,6 +34912,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "macOS laddar fortfarande ned den."
+          }
+        }
+      }
+    },
+    "macOS laddar fortfarande ned den. Det brukar ta några minuter. Du kan spela in under tiden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS is still downloading it. That usually takes a few minutes. You can record in the meantime."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS laddar fortfarande ned den. Det brukar ta några minuter. Du kan spela in under tiden."
           }
         }
       }

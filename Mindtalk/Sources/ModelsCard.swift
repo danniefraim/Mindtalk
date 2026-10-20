@@ -209,23 +209,49 @@ struct SummaryWritersCard: View {
     static func appleDetail(_ status: Polisher.Status) -> String {
         switch status {
         case .available: return String(localized: "Inbyggd i macOS. Inget att ladda ned.")
-        case .notEnabled: return String(localized: "Slå på Apple Intelligence i Systeminställningar för att använda den.")
-        case .notReady: return String(localized: "macOS laddar fortfarande ned den.")
+        case .notEnabled: return String(localized: "Slå på Apple Intelligence under Systeminställningar → Apple Intelligence och Siri.")
+        case .notReady: return String(localized: "macOS laddar fortfarande ned den. Det brukar ta några minuter. Du kan spela in under tiden.")
         case .unsupported: return String(localized: "Finns inte på den här Macen.")
         }
     }
 
+    /// System Settings on Apple Intelligence & Siri, where it is switched on: the "Slå på"
+    /// here, on a meeting without a summary and on the introduction's last step.
+    static func openAppleIntelligenceSettings() {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!)
+    }
+
+    /// What the card says on top: Apple Intelligence is on, and what a Gemma adds; or,
+    /// while it isn't, only that the writer is chosen here.
+    static func headline(_ status: Polisher.Status) -> String {
+        status == .available
+            ? String(localized: "Apple Intelligence är redan på. Vill du ha fylligare sammanfattningar kan du ladda ned Gemma 4 från Google, som också körs på din Mac.")
+            : String(localized: "Välj vem som skriver dem.")
+    }
+
+    /// The one Gemma shown with Apple Intelligence: the one that suits this Mac, or the
+    /// smaller when neither runs here (its row says why).
+    static var primaryGemma: NotesModel { NotesModel.recommended ?? .small }
+    /// The rest, under "Fler alternativ".
+    static var otherGemmas: [NotesModel] { NotesModel.allCases.filter { $0 != primaryGemma } }
+
     @State private var summaryLanguage = SummaryLanguage.chosen
+    /// "Fler alternativ": the other Gemma and the writers in other programs, folded unless
+    /// one of them writes now.
+    @State private var more: Bool
+
+    init() {
+        let notes = BetterNotes.shared
+        _more = State(initialValue: notes.server != nil || Self.otherGemmas.contains { notes.chosen == $0 })
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            CardRow(title: "Sammanfattningar", detail: "Välj vem som skriver dem.") { EmptyView() }
+            CardRow(title: "Sammanfattningar", detail: Self.headline(appleStatus)) { EmptyView() }
             CardDivider()
             appleRow
-            ForEach(NotesModel.allCases) { m in
-                CardDivider()
-                notesRow(m)
-            }
+            CardDivider()
+            notesRow(Self.primaryGemma, primary: true)
             CardDivider()
             // The language they're written in, whoever writes them.
             CardRow(title: "Språk", detail: "Sammanfattningen skrivs på mötets språk om du inte väljer ett annat.") {
@@ -233,9 +259,25 @@ struct SummaryWritersCard: View {
                     .onChange(of: summaryLanguage) { _, new in SummaryLanguage.chosen = new }
             }
             CardDivider()
-            ServerWriterRows()
+            FoldRow(title: String(localized: "Fler alternativ"),
+                    detail: Self.primaryGemma == .small
+                        ? String(localized: "En större Gemma, eller en modell du redan kör i Ollama eller LM Studio.")
+                        : String(localized: "En mindre Gemma, eller en modell du redan kör i Ollama eller LM Studio."),
+                    open: $more)
+            if more {
+                ForEach(Self.otherGemmas) { m in
+                    CardDivider()
+                    notesRow(m, primary: false)
+                }
+                CardDivider()
+                ServerWriterRows(folded: false)
+            }
         }
         .card()
+        // Chosen elsewhere meanwhile (the menu bar, a test): shown where it is.
+        .onChange(of: notes.choice) { _, now in
+            if notes.server != nil || Self.otherGemmas.contains(where: { now == .gemma($0) }) { more = true }
+        }
         .task(id: NotesModel.allCases.map { "\($0.isInstalled)" }.joined()) {
             onDisk = await DiskSize.measure(NotesModel.allCases.map(\.directory))
         }
@@ -281,10 +323,14 @@ struct SummaryWritersCard: View {
     private var appleRow: some View {
         let status = appleStatus
         // Not here or not on: never shown as the one chosen, greyed out.
-        return ModelRow(name: "Apple Intelligence", chooser: (!notes.isActive && status == .available, status == .available, { notes.choice = .apple })) {
+        return ModelRow(name: "Apple Intelligence", chooser: (!notes.isActive && status == .available, status == .available, { notes.choice = .apple }),
+                        whenDisabled: Self.appleDetail(status)) {
             ModelParts.detail(Self.appleDetail(status))
         } trailing: {
-            EmptyView()
+            // Off: the one button that mends it, straight into System Settings.
+            if status == .notEnabled {
+                Button("Slå på") { Self.openAppleIntelligenceSettings() }.buttonStyle(.soft)
+            }
         }
     }
 
@@ -293,7 +339,9 @@ struct SummaryWritersCard: View {
         return DiskSize.text(bytes)
     }
 
-    private func notesRow(_ m: NotesModel) -> some View {
+    /// A Gemma's row. The primary one (shown with Apple Intelligence) says what it gives
+    /// before what it costs; the other, under Fler alternativ, only what it costs.
+    private func notesRow(_ m: NotesModel, primary: Bool) -> some View {
         let state = notes.state(m)
         let recommended = NotesModel.recommended == m
         let detail: String = {
@@ -305,7 +353,9 @@ struct SummaryWritersCard: View {
             case .failed(let message):
                 return message
             case .missing, .downloading:
-                var text = String(localized: "\(m.sizeText). Kräver minst \(m.minimumMemoryGB) GB minne.")
+                var text = primary
+                    ? String(localized: "Hittar fler beslut och uppgifter. \(m.sizeText), laddas ned en gång, kräver \(m.minimumMemoryGB) GB minne.")
+                    : String(localized: "\(m.sizeText). Kräver minst \(m.minimumMemoryGB) GB minne.")
                 // Not room for it: say how much more, so you can tell whether emptying
                 // the Trash will do.
                 if !m.hasRoom {
@@ -315,9 +365,8 @@ struct SummaryWritersCard: View {
                 return text
             }
         }()
-        // Recommended, but not while it wouldn't fit: a badge next to "Får inte plats" would argue with it.
-        let fits = state == .ready || m.hasRoom
-        return ModelRow(name: m.name, badge: recommended && state != .unsupported && fits ? String(localized: "Rekommenderas för din Mac") : nil,
+        // The one that suits this Mac (NotesModel.recommended weighs the memory and the disk).
+        return ModelRow(name: m.name, badge: recommended ? String(localized: "Rekommenderas för din Mac") : nil,
                         chooser: (notes.active == m, state == .ready, { notes.chosen = m })) {
             ModelParts.detail(detail)
         } trailing: {
@@ -485,6 +534,37 @@ private struct RowInset<Content: View>: View {
     }
 }
 
+/// A row that folds what's under it: the title and a line, a chevron that turns. The
+/// whole row opens it, not only the chevron.
+struct FoldRow: View {
+    let title: String
+    let detail: String
+    @Binding var open: Bool
+
+    var body: some View {
+        Button { withAnimation(.easeOut(duration: 0.2)) { open.toggle() } } label: {
+            HStack(alignment: .center, spacing: 20) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(verbatim: title).font(.system(size: 14, weight: .semibold))
+                    Text(verbatim: detail)
+                        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 12)
+                Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(DS.Colors.muted)
+                    .rotationEffect(.degrees(open ? 90 : 0))
+            }
+            .padding(.horizontal, 22)
+            .padding(.vertical, 18)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(verbatim: title))
+        .accessibilityAddTraits(open ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
 // MARK: - Ollama and LM Studio
 
 /// The writers in other apps on this Mac, folded under "Använd Ollama eller LM Studio":
@@ -493,13 +573,17 @@ private struct RowInset<Content: View>: View {
 struct ServerWriterRows: View {
     @ObservedObject private var notes = BetterNotes.shared
     @ObservedObject private var servers = LocalServers.shared
+    /// Behind its own fold; or, inside "Fler alternativ" on the Sammanfattningar card,
+    /// always open under a plain heading.
+    private let folded: Bool
     @State private var open: Bool
     @State private var ports = false
     /// The ports as typed: taken on Return, not at every keystroke.
     @State private var portText: [ServerBackend: String] = [:]
 
-    init() {
-        _open = State(initialValue: BetterNotes.shared.server != nil)
+    init(folded: Bool = true) {
+        self.folded = folded
+        _open = State(initialValue: !folded || BetterNotes.shared.server != nil)
     }
 
     /// The model this backend's picker shows: the chosen one, or the one picked last time.
@@ -515,29 +599,15 @@ struct ServerWriterRows: View {
     }
 
     var body: some View {
-        // The whole row opens it, not only the chevron.
-        Button { withAnimation(.easeOut(duration: 0.2)) { open.toggle() } } label: {
-            HStack(alignment: .center, spacing: 20) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Använd Ollama eller LM Studio").font(.system(size: 14, weight: .semibold))
-                    Text("Kör du redan Ollama eller LM Studio? De kan skriva sammanfattningarna.")
-                        .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 12)
-                Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(DS.Colors.muted)
-                    .rotationEffect(.degrees(open ? 90 : 0))
-            }
-            .padding(.horizontal, 22)
-            .padding(.vertical, 18)
-            .contentShape(Rectangle())
+        if folded {
+            FoldRow(title: String(localized: "Använd Ollama eller LM Studio"),
+                    detail: String(localized: "Kör du redan Ollama eller LM Studio? De kan skriva sammanfattningarna."),
+                    open: $open)
+                // Chosen elsewhere meanwhile (the menu bar, a test): shown.
+                .onChange(of: notes.server?.backend) { _, now in if now != nil { open = true } }
+        } else {
+            CardRow(title: "Använd Ollama eller LM Studio", detail: "Kör du redan Ollama eller LM Studio? De kan skriva sammanfattningarna.") { EmptyView() }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text("Använd Ollama eller LM Studio"))
-        .accessibilityAddTraits(open ? [.isButton, .isSelected] : .isButton)
-        // Chosen elsewhere meanwhile (the menu bar, a test): shown.
-        .onChange(of: notes.server?.backend) { _, now in if now != nil { open = true } }
         if open {
             ForEach(ServerBackend.allCases) { backend in
                 CardDivider()
