@@ -22,6 +22,9 @@ enum HomeGreeting {
 
     /// The first name the Mac knows you by; nil if it knows none.
     static let firstName: String? = {
+        #if DEBUG
+        if Demo.on { return "Johan" }   // screenshots: a made-up name, never the Mac's own
+        #endif
         let first = NSFullUserName().split(separator: " ").first.map(String.init) ?? ""
         return first.isEmpty ? nil : first
     }()
