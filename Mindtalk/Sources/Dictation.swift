@@ -403,7 +403,19 @@ final class Dictation: ObservableObject {
     func start() {
         refreshPermissions()
         loadModel()
+        // Hjälpmedel can be switched off while Mindtalk runs, and macOS doesn't say:
+        // looked at again whenever Mindtalk comes to the front, and every half minute,
+        // so Kom igång and the menu bar ask for it in time.
+        NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { Dictation.shared.refreshPermissions() }
+        }
+        permissionCheck?.invalidate()
+        permissionCheck = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
+            MainActor.assumeIsolated { Dictation.shared.refreshPermissions() }
+        }
     }
+
+    private var permissionCheck: Timer?
 
     func refreshPermissions() {
         let hadAccessibility = accessibilityGranted
@@ -1311,6 +1323,14 @@ final class Dictation: ObservableObject {
             return fail(secret ? String(localized: "Du bytte app, så texten skrevs inte in.")
                                : String(localized: "Du bytte app. Klistra in med ⌃⌥V."))
         }
+        // Hjälpmedel switched off meanwhile: nothing can be typed. The text goes to the
+        // clipboard instead (never a password), and Kom igång asks for Hjälpmedel again.
+        if !selfTest, !AXIsProcessTrusted() {
+            refreshPermissions()
+            if onlyBreak { return reset() }
+            if secret { return fail(Self.accessibilityOffNotTyped) }
+            return copied(text, because: Self.accessibilityOffCopied)
+        }
         if !selfTest, !secret, let target = take.target, FocusedField.kind(in: target) == .none {
             // A line break in the clipboard is no use to anyone.
             if onlyBreak { return reset() }
@@ -1328,6 +1348,12 @@ final class Dictation: ObservableObject {
         }
     }
 
+    private static var accessibilityOffCopied: String {
+        String(localized: "Hjälpmedel är avstängt för Mindtalk. Texten är kopierad, klistra in med ⌘V.")
+    }
+    private static var accessibilityOffNotTyped: String {
+        String(localized: "Hjälpmedel är avstängt för Mindtalk, så texten skrevs inte in.")
+    }
     private static var micWentQuiet: String { String(localized: "Mikrofonen tystnade. Det du hann säga är kvar.") }
     static var couldNotWrite: String { String(localized: "Det gick inte att göra text av det. Försök igen.") }
     /// Said when the sound is kept: a click on the HUD tries again.
@@ -1494,9 +1520,11 @@ final class Dictation: ObservableObject {
 
     /// No text field where you are (the desktop, a web page): the text goes to the
     /// clipboard, and the HUD says so.
-    private func copied(_ text: String) {
+    /// With `why`, it's said why instead (Hjälpmedel switched off).
+    private func copied(_ text: String, because why: String? = nil) {
         TextInserter.copy(text)
         Cue.done()
+        if let why { return fail(why) }
         phase = .copied
         showUntilReset(after: 3.5) { $0 == .copied }
     }
@@ -1524,6 +1552,10 @@ final class Dictation: ObservableObject {
                 let held = CGEventSource.flagsState(.combinedSessionState).intersection([.maskControl, .maskAlternate])
                 if held.isEmpty { break }
                 try? await Task.sleep(for: .milliseconds(25))
+            }
+            if !AXIsProcessTrusted() {
+                refreshPermissions()
+                return copied(last.text, because: Self.accessibilityOffCopied)
             }
             if let app = NSWorkspace.shared.frontmostApplication, FocusedField.kind(in: app.processIdentifier) == .none {
                 return copied(last.text)

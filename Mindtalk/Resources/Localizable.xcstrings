@@ -10457,6 +10457,38 @@
         }
       }
     },
+    "Hjälpmedel är avstängt för Mindtalk, så texten skrevs inte in.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accessibility is off for Mindtalk, so the text wasn’t typed."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hjälpmedel är avstängt för Mindtalk, så texten skrevs inte in."
+          }
+        }
+      }
+    },
+    "Hjälpmedel är avstängt för Mindtalk. Texten är kopierad, klistra in med ⌘V.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accessibility is off for Mindtalk. The text is copied, paste with ⌘V."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hjälpmedel är avstängt för Mindtalk. Texten är kopierad, klistra in med ⌘V."
+          }
+        }
+      }
+    },
     "Hoppa över": {
       "localizations": {
         "en": {
