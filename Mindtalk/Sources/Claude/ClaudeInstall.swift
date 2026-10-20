@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import os
 
-// MARK: - Integrationer → MCP: getting the connection into the user's program
+// MARK: - AI-appar → MCP: getting the connection into the user's program
 //
 // The settings card has two buttons, Claude and ChatGPT, a link that copies the Claude
 // Code command, and the standard setting for all other programs; the help page
@@ -71,7 +71,7 @@ enum ClaudeInstall {
             "display_name": "Mindtalk",
             "version": version,
             "description": "Your meetings and thoughts from Mindtalk, read only when you ask. Audio and voiceprints are never shared.",
-            "long_description": "Ask about one meeting, a folder or all your meetings: summaries, decisions, tasks, your notes and the whole text. You switch it on in Mindtalk, under Settings → Integrations → MCP, and Mindtalk keeps a log of every call.",
+            "long_description": "Ask about one meeting, a folder or all your meetings: summaries, decisions, tasks, your notes and the whole text. You switch it on in Mindtalk, under Settings → AI apps → MCP, and Mindtalk keeps a log of every call.",
             "author": ["name": "Mindact Solutions AB"],
             "homepage": "https://mindact.ai",
             "icon": "icon.png",

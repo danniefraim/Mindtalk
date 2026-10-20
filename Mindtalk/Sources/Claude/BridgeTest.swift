@@ -629,8 +629,8 @@ enum BridgeTest {
         // and both say where the switch is now.
         let binary = (try? Data(contentsOf: helper)) ?? Data()
         check("avstängt: hjälparen har appens ord", binary.range(of: Data(ClaudeTools.offMessage.utf8)) != nil)
-        check("avstängt: orden pekar på Integrationer → MCP", ClaudeTools.offMessage.contains("Settings → Integrations → MCP")
-              && ClaudeTools.offMessage.contains("Inställningar → Integrationer → MCP"))
+        check("avstängt: orden pekar på AI-appar → MCP", ClaudeTools.offMessage.contains("Settings → AI apps → MCP")
+              && ClaudeTools.offMessage.contains("Inställningar → AI-appar → MCP"))
 
         // Off: 3, with the app's own words. Unreachable: 3 too.
         sharing.enabled = false

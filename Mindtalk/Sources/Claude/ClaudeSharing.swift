@@ -2,7 +2,7 @@ import Foundation
 import Combine
 import os
 
-// MARK: - Integrationer → MCP: what may be read, and what was
+// MARK: - AI-appar → MCP: what may be read, and what was
 //
 // The program the user picks (Claude, ChatGPT on Mac or any other that speaks MCP)
 // reads meetings and thoughts through the helper `mindtalk` in the app bundle. The helper
@@ -61,7 +61,7 @@ enum LogScope {
     }
 }
 
-/// The owner's choices under Inställningar → Integrationer → MCP.
+/// The owner's choices under Inställningar → AI-appar → MCP.
 @MainActor
 final class ClaudeSharing: ObservableObject {
     static let shared = ClaudeSharing()

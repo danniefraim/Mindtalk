@@ -12,7 +12,7 @@ enum BridgeClient {
 
     static let notRunning = "Mindtalk could not be reached: it is not running or did not start in time. Ask the user to open Mindtalk, then try again."
     /// Word for word what the app answers when MCP is off (ClaudeTools.offMessage).
-    static let off = "MCP is switched off in Mindtalk, so nothing can be read. Ask the user to switch it on in Mindtalk under Settings → Integrations → MCP (Inställningar → Integrationer → MCP in Swedish)."
+    static let off = "MCP is switched off in Mindtalk, so nothing can be read. Ask the user to switch it on in Mindtalk under Settings → AI apps → MCP (Inställningar → AI-appar → MCP in Swedish)."
     static let bundleID = "ai.mindact.mindtalk"
 
     static var supportFolder: URL {

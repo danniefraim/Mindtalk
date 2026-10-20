@@ -2635,6 +2635,22 @@
         }
       }
     },
+    "AI-appar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI apps"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI-appar"
+          }
+        }
+      }
+    },
     "AI-apparna du kopplar kan då läsa dina tankar, mötenas sammanfattningar, dina anteckningar och mötenas hela text. När du frågar en AI-app skickas texten till appens leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud, röstavtryck och dikteringar delas aldrig. Alla program som körs som du på den här Macen kan fråga, och loggen visar varje läsning.": {
       "localizations": {
         "en": {

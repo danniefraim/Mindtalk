@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Integrationer → MCP → Läs mer
+// MARK: - AI-appar → MCP → Läs mer
 //
 // The help page, a sheet from the card's "Läs mer", in two parts. First Claude and
 // ChatGPT, the two most people use. Then "För utvecklare": one section per developer

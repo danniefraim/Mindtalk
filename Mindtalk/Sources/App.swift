@@ -907,6 +907,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                         (MindtalkLink.url(thought: id), .thought(id)),
                         (MindtalkLink.mcpSettingsURL, .mcpSettings),
                         (URL(string: "mindtalk://settings/claude")!, .mcpSettings),
+                        (URL(string: "mindtalk://settings/integrations")!, .mcpSettings),
+                        (URL(string: "mindtalk://settings/ai-apps")!, .mcpSettings),
                         (URL(string: "mindtalk://meeting/not-an-id")!, nil),
                         (URL(string: "mindtalk://settings/other")!, nil),
                         (URL(string: "mindtalk://settings/meetings")!, .settings(.meetings)),
@@ -928,7 +930,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             RunLoop.main.run()
         }
         // `Mindtalk --render-mcp out.png [--dark] [--on] [--client <name>] [--help-page]`: Settings →
-        // Integrationer → MCP, off or on, with made-up folders and a made-up log (nothing
+        // AI-appar → MCP, off or on, with made-up folders and a made-up log (nothing
         // saved). `--client chatgpt` (claude, claude-missing, chatgpt-missing, claude-code):
         // as right after that press (ClaudeSettingsCard.Preview).
         // `--help-page`: the help page from "Läs mer" instead. `--render-claude` is the old
@@ -1599,7 +1601,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         MediaControl.shared.restoreAfterCrash()
         SpeechModel.removeLeftoverDownloads()
         Updates.shared.start()
-        // Integrationer → MCP: the socket the helper asks over, and the fixed path to the helper.
+        // AI-appar → MCP: the socket the helper asks over, and the fixed path to the helper.
         Bridge.launch()
         // The voice models, ready before the first meeting (after an update macOS can
         // take a minute to prepare them — better now, quietly, than when you press start).

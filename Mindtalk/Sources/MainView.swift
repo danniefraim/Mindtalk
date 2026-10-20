@@ -12,7 +12,7 @@ import Carbon.HIToolbox
 //   • Tankar — what you said with the thought key (Thoughts.swift)
 //   • Ordlista — names and words spelled your way (VocabularyPage.swift)
 //   • Inställningar — one section at a time: Allmänt, Mikrofon och språk, Diktering,
-//     Tankar, Möten, Modeller, Integrationer, Om Mindtalk
+//     Tankar, Möten, Modeller, AI-appar (MCP), Om Mindtalk
 
 enum Page: String, CaseIterable, Identifiable {
     case dictation, recent, meetings, thoughts, vocabulary, settings
@@ -70,7 +70,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .language: return String(localized: "Språk")
         case .dictation: return String(localized: "Diktering")
         case .meetings: return String(localized: "Möten")
-        case .integrations: return String(localized: "Integrationer")
+        case .integrations: return String(localized: "AI-appar")
         }
     }
 
@@ -397,7 +397,7 @@ struct SettingsPage: View {
         }
     }
 
-    /// Settings → Integrationer, where MCP is (mindtalk://settings/mcp).
+    /// Settings → AI-appar, where MCP is (mindtalk://settings/mcp).
     static func openMCP() { open(.integrations) }
 
     /// Om Mindtalk: the popover from the version line in the tab bar.

@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Inställningar → Integrationer → MCP
+// MARK: - Inställningar → AI-appar → MCP
 //
 // Off by default. One row on top, MCP and the switch, with a line that says what it does
 // and that dictations are never shared. Switched on, the card fits one screen: two

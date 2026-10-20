@@ -59,7 +59,7 @@ enum Commands {
 
     static let intro = """
         Your meetings and thoughts from Mindtalk, on the command line. Same rules as MCP: \
-        Mindtalk must be running with MCP switched on (Settings → Integrations → MCP), and every \
+        Mindtalk must be running with MCP switched on (Settings → AI apps → MCP), and every \
         call shows in Mindtalk's log.
         """
 

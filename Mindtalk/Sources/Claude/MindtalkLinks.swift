@@ -7,8 +7,9 @@ import Foundation
 //
 //   mindtalk://meeting/<uuid>?t=<seconds>     Möten, the meeting, its text at t (and played from there)
 //   mindtalk://thought/<uuid>                 Tankar, scrolled to the thought
-//   mindtalk://settings/mcp                   Inställningar, on Integrationer (MCP)
-//                                             (mindtalk://settings/claude still works, the old name)
+//   mindtalk://settings/mcp                   Inställningar, on AI-appar (MCP)
+//                                             (settings/ai-apps, and the old names settings/claude
+//                                             and settings/integrations, still work)
 //   mindtalk://settings/<section>             Inställningar on general, language, dictation or meetings
 //   mindtalk://settings/meetings#summaries    … scrolled to the Sammanfattningar card
 //
@@ -18,7 +19,7 @@ import Foundation
 enum MindtalkLink: Equatable {
     case meeting(UUID, at: Double?)
     case thought(UUID)
-    /// Inställningar → Integrationer → MCP.
+    /// Inställningar → AI-appar → MCP.
     case mcpSettings
     /// Another section of Inställningar, and a card on it to scroll to.
     case settings(SettingsSection, SettingsAnchor? = nil)
@@ -43,7 +44,7 @@ enum MindtalkLink: Equatable {
             return .thought(id)
         case "settings":
             switch rest.first?.lowercased() {
-            case "mcp", "claude", "integrations": return .mcpSettings
+            case "mcp", "claude", "integrations", "ai-apps": return .mcpSettings
             case let name?:
                 let anchor = url.fragment.flatMap { SettingsAnchor(rawValue: $0.lowercased()) }
                 return SettingsSection(rawValue: name).map { .settings($0, anchor) }
