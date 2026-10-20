@@ -41,7 +41,7 @@ enum Demo {
 
     static var vocabulary: [VocabularyEntry] {
         [VocabularyEntry(word: "Mindtalk", heardAs: ["mind talk"], fixes: 42),
-         VocabularyEntry(word: "Klang", heardAs: ["klangen", "clang"], fixes: 9),
+         VocabularyEntry(word: "Mindact", heardAs: ["mind akt", "mindakt"], fixes: 9),
          VocabularyEntry(word: "Parakeet", fixes: 3),
          VocabularyEntry(word: "Linnéa", heardAs: ["linnea", "lin nea"], fixes: 14)]
     }

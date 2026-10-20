@@ -939,10 +939,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             Task { @MainActor in
                 let dark = args.contains("--dark")
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-                MeetingFolders.shared.preview(["Klang", "Kunder", "Styrelsen"])
+                MeetingFolders.shared.preview(["Leverantörer", "Kunder", "Styrelsen"])
                 let now = Date()
                 ClaudeSharing.shared.preview(enabled: args.contains("--on"), entries: [
-                    .init(date: now.addingTimeInterval(-120), tool: "mindtalk_search", scope: "Klang", items: 4, characters: 3000, client: "Claude"),
+                    .init(date: now.addingTimeInterval(-120), tool: "mindtalk_search", scope: "Leverantörer", items: 4, characters: 3000, client: "Claude"),
                     .init(date: now.addingTimeInterval(-150), tool: "mindtalk_get_transcript", scope: LogScope.unknownMeeting,
                           items: 0, characters: 0, client: "Claude", refused: true),
                     .init(date: now.addingTimeInterval(-180), tool: "mindtalk_get_meeting", scope: "Styrelsemöte 14 okt", items: 1, characters: 1850, client: "Claude"),
