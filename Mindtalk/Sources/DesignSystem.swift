@@ -78,6 +78,9 @@ enum DS {
         static let night = Color(red: 0.008, green: 0.008, blue: 0.012)
         /// Something needs attention (not an error you caused): readable on paper and cards.
         static let warning = dynamic(light: 0xA34A00, dark: 0xFF9F0A)
+        /// The same warning on the black dictation pill, in both modes: the paper orange
+        /// is too dark to see there.
+        static let warningOnNight = dynamic(light: 0xFF9F0A, dark: 0xFF9F0A)
         static let good = Color(red: 0.20, green: 0.62, blue: 0.36)
         /// What you marked in a meeting, each kind its own quiet colour — only on icons
         /// and small labels, so the app stays black and white.

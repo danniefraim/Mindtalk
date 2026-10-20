@@ -136,7 +136,7 @@ private struct HUDView: View {
                 // The sound is kept: a click writes it once more.
                 Button { dictation.retryLast() } label: {
                     HStack(spacing: 10) {
-                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warning)
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warningOnNight)
                         Text(message)
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(.white)
@@ -150,7 +150,7 @@ private struct HUDView: View {
                 .help("Försök igen")
                 .accessibilityHint(Text("Försöker igen"))
             case .failed(let message):
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warning)
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warningOnNight)
                 Text(message)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white)
