@@ -102,9 +102,13 @@ private struct FolderChip: View {
                     .frame(maxWidth: 170, alignment: .leading)
                     .fixedSize(horizontal: true, vertical: false)
                 if count > 0 {
-                    Text("\(count)").font(.system(size: 11.5, weight: .medium)).monospacedDigit()
+                    // A new number is a new text, drawn afresh: with a numeric transition the
+                    // old count was seen to stay in this pinned row after a meeting was
+                    // deleted, while the count over the page had moved on.
+                    Text(verbatim: "\(count)").font(.system(size: 11.5, weight: .medium)).monospacedDigit()
                         .foregroundStyle(DS.Colors.muted)
-                        .contentTransition(.numericText())
+                        .id(count)
+                        .transition(.opacity)
                 }
             }
             .foregroundStyle(selected ? AnyShapeStyle(.primary) : AnyShapeStyle(DS.Colors.muted))
