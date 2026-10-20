@@ -626,7 +626,7 @@ struct SettingsPage: View {
             }
             CardDivider()
             // The same cues start a meeting and its introduction round: switched off here, all of them.
-            CardRow(title: "Ljud vid diktering", detail: "Ett diskret ljud när Mindtalk börjar och slutar lyssna, också i möten.") {
+            CardRow(title: "Ljud vid diktering", detail: "Ett kort ljud när Mindtalk börjar och slutar lyssna. Gäller också möten.") {
                 InkToggle(label: "Ljud vid diktering", isOn: $prefs.sounds)
             }
         }
@@ -996,9 +996,9 @@ private struct DictationKeyCard: View {
 
     private var how: String {
         switch dictation.mode {
-        case .hold: return String(localized: "Släpp när du är klar, så skrivs texten där markören står. Utan textfält hamnar texten i urklipp. Esc avbryter.")
-        case .toggle: return String(localized: "Tryck igen när du är klar, så skrivs texten där markören står. Utan textfält hamnar texten i urklipp. Esc avbryter.")
-        case .holdOrDoubleTap: return String(localized: "Släpp när du är klar, så skrivs texten där markören står. Utan textfält hamnar texten i urklipp. Dubbeltryck för att låsa och prata fritt. Esc avbryter.")
+        case .hold: return String(localized: "Släpp när du är klar, så hamnar texten där markören står. Esc avbryter.")
+        case .toggle: return String(localized: "Tryck igen när du är klar, så hamnar texten där markören står. Esc avbryter.")
+        case .holdOrDoubleTap: return String(localized: "Släpp när du är klar, så hamnar texten där markören står. Dubbeltryck så slipper du hålla in. Esc avbryter.")
         }
     }
 
@@ -1154,7 +1154,7 @@ struct RecentPage: View {
             HStack(alignment: .top) {
                 PageHeader(title: "Diktering",
                            eyebrow: stats.today.words > 0 ? (stats.today.words == 1 ? String(localized: "1 ord i dag") : String(localized: "\(Stats.number(stats.today.words)) ord i dag"))
-                               : stats.totalWords > 0 ? String(localized: "Inget sagt i dag än") : nil)
+                               : stats.totalWords > 0 ? String(localized: "Inget dikterat i dag än") : nil)
                     .staggered(0)
                 Spacer(minLength: 16)
                 if !dictation.recent.isEmpty {
@@ -1334,8 +1334,8 @@ private struct TextCleanupCard: View {
                 }
             }
             CardDivider()
-            CardRow(title: "Lämna texten i urklipp", detail: "Texten skrivs in som vanligt och ligger sedan kvar i urklipp. Lösenord hamnar aldrig där.") {
-                InkToggle(label: "Lämna texten i urklipp", isOn: $prefs.keepInClipboard)
+            CardRow(title: "Behåll texten i urklipp", detail: "Texten skrivs in som vanligt och ligger sedan kvar i urklipp. Lösenord hamnar aldrig där.") {
+                InkToggle(label: "Behåll texten i urklipp", isOn: $prefs.keepInClipboard)
             }
         }
         .card()
@@ -1347,7 +1347,7 @@ private struct TextCleanupCard: View {
     private var polishDetail: String {
         switch status {
         case .available:
-            return String(localized: "Rättar skiljetecken och självrättelser med Apple Intelligence.")
+            return String(localized: "Sätter skiljetecken och rättar när du ändrar dig mitt i en mening. Använder Apple Intelligence.")
         case .notEnabled:
             return String(localized: "Kräver Apple Intelligence, som är avstängt på den här Macen.")
         case .notReady:

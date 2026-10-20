@@ -1320,8 +1320,8 @@ final class Dictation: ObservableObject {
             guard current else { return }
             // The thought key held alone and not a word: ⌘ held for something else.
             if take.thought && take.byKey && !take.locked { return reset() }
-            return fail(take.heard < 0.03 ? String(localized: "Hörde inget. Kontrollera mikrofonen.")
-                                          : String(localized: "Uppfattade inga ord. Försök igen."))
+            return fail(take.heard < 0.03 ? String(localized: "Hörde inget. Är rätt mikrofon vald?")
+                                          : String(localized: "Hörde inga ord. Försök igen."))
         }
         // A thought: kept in Tankar — nothing typed anywhere.
         if take.thought {
@@ -1329,7 +1329,7 @@ final class Dictation: ObservableObject {
             if let pending = take.pending { Thoughts.shared.fill(pending, text: text) } else { Thoughts.shared.add(text) }
             guard current else { return }
             Cue.done()
-            if take.note == .micWentQuiet { return fail(Self.micWentQuiet) }
+            if take.note == .micWentQuiet { return fail(Self.micWentQuietKept) }
             if take.note == .micChanged { return fail(Self.micChanged) }
             return saved()
         }
@@ -1363,7 +1363,7 @@ final class Dictation: ObservableObject {
         if !selfTest, let target = take.target, NSWorkspace.shared.frontmostApplication?.processIdentifier != target {
             if onlyBreak { return reset() }
             return fail(secret ? String(localized: "Du bytte app, så texten skrevs inte in.")
-                               : String(localized: "Du bytte app. Klistra in med ⌃⌥V."))
+                               : String(localized: "Du bytte app, så texten väntar. Klistra in med ⌃⌥V."))
         }
         // Hjälpmedel switched off meanwhile: nothing can be typed. The text goes to the
         // clipboard instead (never a password), and Kom igång asks for Hjälpmedel again.
@@ -1386,7 +1386,7 @@ final class Dictation: ObservableObject {
         switch take.note {
         case .micWentQuiet: fail(Self.micWentQuiet)
         case .micChanged: fail(Self.micChanged)
-        case .timeUp: fail(String(localized: "Stannade efter tio minuter. Texten är inskriven."))
+        case .timeUp: fail(String(localized: "En diktering kan vara tio minuter. Det du sa är inskrivet."))
         case nil: reset()
         }
     }
@@ -1397,11 +1397,14 @@ final class Dictation: ObservableObject {
     private static var accessibilityOffNotTyped: String {
         String(localized: "Hjälpmedel är avstängt för Mindtalk, så texten skrevs inte in.")
     }
-    private static var micWentQuiet: String { String(localized: "Mikrofonen tystnade. Det du hann säga är kvar.") }
+    /// Said once the text is typed in, so it says so.
+    private static var micWentQuiet: String { String(localized: "Mikrofonen tystnade, men det du hann säga är inskrivet.") }
+    /// A thought: kept in Tankar, not typed anywhere.
+    private static var micWentQuietKept: String { String(localized: "Mikrofonen tystnade. Det du hann säga är kvar.") }
     private static var micChanged: String { String(localized: "Mikrofonen byttes, så dikteringen stannade. Det du hann säga är kvar.") }
-    static var couldNotWrite: String { String(localized: "Det gick inte att göra text av det. Försök igen.") }
+    static var couldNotWrite: String { String(localized: "Det blev ingen text. Försök igen.") }
     /// Said when the sound is kept: a click on the HUD tries again.
-    static var clickToRetry: String { String(localized: "Det gick inte att göra text av det. Klicka för att försöka igen.") }
+    static var clickToRetry: String { String(localized: "Det blev ingen text. Klicka för att försöka igen.") }
 
     /// A dictation that couldn't be written: its sound is kept for "Försök igen" —
     /// not a thought's (Tankar keeps those) and never a password field's.

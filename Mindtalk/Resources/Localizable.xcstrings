@@ -4397,6 +4397,22 @@
         }
       }
     },
+    "Behåll texten i urklipp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep text on the clipboard"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Behåll texten i urklipp"
+          }
+        }
+      }
+    },
     "Behörigheter och ljud": {
       "extractionState": "stale",
       "localizations": {
@@ -5662,6 +5678,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Det blev inga ord den gången. Prova igen."
+          }
+        }
+      }
+    },
+    "Det blev ingen text. Försök igen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That didn’t become text. Try again."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det blev ingen text. Försök igen."
+          }
+        }
+      }
+    },
+    "Det blev ingen text. Klicka för att försöka igen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That didn’t become text. Click to try again."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det blev ingen text. Klicka för att försöka igen."
           }
         }
       }
@@ -7024,6 +7072,22 @@
         }
       }
     },
+    "Du bytte app, så texten väntar. Klistra in med ⌃⌥V.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You switched apps, so the text is waiting. Paste with ⌃⌥V."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du bytte app, så texten väntar. Klistra in med ⌃⌥V."
+          }
+        }
+      }
+    },
     "Du bytte app. Klistra in med ⌃⌥V.": {
       "localizations": {
         "en": {
@@ -7482,6 +7546,22 @@
         }
       }
     },
+    "En diktering kan vara tio minuter. Det du sa är inskrivet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A dictation can last ten minutes. What you said is typed in."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En diktering kan vara tio minuter. Det du sa är inskrivet."
+          }
+        }
+      }
+    },
     "En fil blev skadad under nedladdningen. Försök igen.": {
       "localizations": {
         "en": {
@@ -7743,6 +7823,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ett företag, en produkt eller ett ord från jobbet."
+          }
+        }
+      }
+    },
+    "Ett kort ljud när Mindtalk börjar och slutar lyssna. Gäller också möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A short sound when Mindtalk starts and stops listening. Meetings too."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ett kort ljud när Mindtalk börjar och slutar lyssna. Gäller också möten."
           }
         }
       }
@@ -10869,6 +10965,22 @@
         }
       }
     },
+    "Håll in %@ medan du pratar. Dubbeltryck så slipper du hålla in.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold %@ while you talk. Double-tap so you don’t have to hold."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in %@ medan du pratar. Dubbeltryck så slipper du hålla in."
+          }
+        }
+      }
+    },
     "Håll in %@ och prata": {
       "localizations": {
         "en": {
@@ -11896,6 +12008,22 @@
         }
       }
     },
+    "Hörde inga ord. Försök igen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Didn’t hear any words. Try again."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hörde inga ord. Försök igen."
+          }
+        }
+      }
+    },
     "Hörde inget. Kontrollera mikrofonen.": {
       "localizations": {
         "en": {
@@ -11908,6 +12036,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hörde inget. Kontrollera mikrofonen."
+          }
+        }
+      }
+    },
+    "Hörde inget. Är rätt mikrofon vald?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heard nothing. Is the right mic selected?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hörde inget. Är rätt mikrofon vald?"
           }
         }
       }
@@ -12772,6 +12916,22 @@
         }
       }
     },
+    "Inget dikterat i dag än": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing dictated today"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inget dikterat i dag än"
+          }
+        }
+      }
+    },
     "Inget dikterat än": {
       "extractionState": "stale",
       "localizations": {
@@ -12981,6 +13141,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inget tal hördes i filen."
+          }
+        }
+      }
+    },
+    "Inget textfält här. Texten är kopierad, klistra in med ⌘V.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No text field here. It’s copied, paste with ⌘V."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inget textfält här. Texten är kopierad, klistra in med ⌘V."
           }
         }
       }
@@ -18953,6 +19129,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mikrofonen slutade ge ljud. Startar om den…"
+          }
+        }
+      }
+    },
+    "Mikrofonen tystnade, men det du hann säga är inskrivet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The mic went quiet, but what you said is typed in."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofonen tystnade, men det du hann säga är inskrivet."
           }
         }
       }
@@ -24963,6 +25155,38 @@
         }
       }
     },
+    "Släpp när du är klar, så hamnar texten där markören står. Dubbeltryck så slipper du hålla in. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let go when you’re done and the text lands at your cursor. Double-tap so you don’t have to hold. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Släpp när du är klar, så hamnar texten där markören står. Dubbeltryck så slipper du hålla in. Esc avbryter."
+          }
+        }
+      }
+    },
+    "Släpp när du är klar, så hamnar texten där markören står. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let go when you’re done and the text lands at your cursor. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Släpp när du är klar, så hamnar texten där markören står. Esc avbryter."
+          }
+        }
+      }
+    },
     "Släpp när du är klar, så skrivs texten där markören står. Dubbeltryck för att låsa och prata fritt. Esc avbryter.": {
       "extractionState": "stale",
       "localizations": {
@@ -27268,6 +27492,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sätt på mikrofonen igen så fortsätter mötet där det pausades (⌥⌘P)"
+          }
+        }
+      }
+    },
+    "Sätter skiljetecken och rättar när du ändrar dig mitt i en mening. Använder Apple Intelligence.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adds punctuation and fixes it when you change your mind mid-sentence. Uses Apple Intelligence."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sätter skiljetecken och rättar när du ändrar dig mitt i en mening. Använder Apple Intelligence."
           }
         }
       }
@@ -30017,6 +30257,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tryck igen för att avsluta"
+          }
+        }
+      }
+    },
+    "Tryck igen när du är klar, så hamnar texten där markören står. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press again when you’re done and the text lands at your cursor. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck igen när du är klar, så hamnar texten där markören står. Esc avbryter."
           }
         }
       }

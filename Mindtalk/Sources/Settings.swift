@@ -109,7 +109,7 @@ enum DictationMode: String, CaseIterable, Identifiable {
         switch self {
         // The key named, so the choice reads with the key you use (now also in Genvägar).
         case .holdOrDoubleTap:
-            return String(localized: "Håll in \(key) för korta meddelanden. Dubbeltryck för att låsa och prata fritt.")
+            return String(localized: "Håll in \(key) medan du pratar. Dubbeltryck så slipper du hålla in.")
         case .hold:
             return String(localized: "Mindtalk lyssnar så länge du håller in \(key).")
         case .toggle:
