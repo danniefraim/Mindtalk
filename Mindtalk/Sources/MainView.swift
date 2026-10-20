@@ -1201,7 +1201,8 @@ struct RecentPage: View {
                         VStack(spacing: 0) {
                             ForEach(Array(day.items.enumerated()), id: \.element.id) { i, entry in
                                 if i > 0 { CardDivider() }
-                                RecentRow(entry: entry, copy: { dictation.copy(entry) }, remove: { remove(entry) })
+                                RecentRow(entry: entry, paste: { dictation.paste(entry) }, copy: { dictation.copy(entry) },
+                                          remove: { remove(entry) })
                             }
                         }
                         .card()
@@ -1263,13 +1264,18 @@ struct RecentPage: View {
     }
 }
 
-/// One dictation: the time on the left, the words, and a copy button.
+/// One dictation: the time on the left, the words, a copy button, and ⋯ (on hover,
+/// or reached with the keyboard) with the same three things as a right-click.
 private struct RecentRow: View {
     let entry: Dictation.Entry
+    /// Into the app you were in before Mindtalk, as ⌃⌥V would.
+    let paste: () -> Void
     let copy: () -> Void
     let remove: () -> Void
     @State private var copied = false
     @State private var expanded = false
+    @State private var hovering = false
+    @FocusState private var menuFocused: Bool
 
     private var long: Bool { entry.text.count > 280 || entry.text.filter { $0 == "\n" }.count > 3 }
 
@@ -1321,13 +1327,43 @@ private struct RecentRow: View {
             .buttonStyle(.borderless)
             .help("Kopiera")
             .accessibilityLabel(Text("Kopiera"))
+            Menu { actions } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.muted)
+                    .frame(width: 22, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .focused($menuFocused)
+            // Quiet until the row is pointed at; always there for the keyboard and VoiceOver.
+            .opacity(hovering || menuFocused ? 1 : 0)
+            .help("Mer")
+            .accessibilityLabel(Text("Mer"))
         }
         .padding(.horizontal, 22)
         .padding(.vertical, 14)
-        .contextMenu {
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: hovering)
+        .contextMenu { actions }
+        // VoiceOver has them as actions on the row, whatever the pointer does.
+        .accessibilityElement(children: .contain)
+        .accessibilityActions {
+            Button("Klistra in", action: paste)
             Button("Kopiera", action: copy)
-            Button("Ta bort", role: .destructive, action: remove)
+            Button("Ta bort", action: remove)
         }
+    }
+
+    /// The row's actions, the same behind ⋯ and a right-click.
+    @ViewBuilder private var actions: some View {
+        Button("Klistra in", action: paste)
+        Button("Kopiera", action: copy)
+        Divider()
+        Button("Ta bort", role: .destructive, action: remove)
     }
 }
 
