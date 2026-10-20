@@ -603,7 +603,7 @@ struct StartCard: View {
                 Toggle(isOn: $memory.enabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Kom ihåg rösterna till nästa möte").font(.system(size: 13, weight: .medium))
-                        Text("Bara ett röstavtryck sparas på din Mac, aldrig ljud. Fråga de andra i rummet först.")
+                        Text("Mindtalk känner igen rösten utan att spara den som ljud. Fråga de andra i rummet först.")
                             .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                             .fixedSize(horizontal: false, vertical: true)
                     }

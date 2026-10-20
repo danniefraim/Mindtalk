@@ -20201,6 +20201,22 @@
         }
       }
     },
+    "Mindtalk känner igen rösten utan att spara den som ljud. Fråga de andra i rummet först.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk recognizes the voice without keeping it as audio. Ask the others in the room first."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk känner igen rösten utan att spara den som ljud. Fråga de andra i rummet först."
+          }
+        }
+      }
+    },
     "Mindtalk lyssnade igenom mötet igen och justerade %lld talarbyten.": {
       "localizations": {
         "en": {
