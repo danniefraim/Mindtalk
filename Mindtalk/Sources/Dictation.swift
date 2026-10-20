@@ -1210,6 +1210,9 @@ final class Dictation: ObservableObject {
 
     private func finish() {
         let lasted = recordingStarted.map { Date().timeIntervalSince($0) } ?? 0
+        // Under a quarter second holds no words: straight back to nothing, never through
+        // "writing" — which would read as a try that heard no words.
+        if lasted < 0.25 { return cancel() }
         watchdog?.invalidate(); watchdog = nil
         MediaControl.shared.end()
         let locked = handsFree
