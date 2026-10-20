@@ -1229,7 +1229,8 @@ final class Dictation: ObservableObject {
         let selfTest = TextInserter.dryRun
         let raw: String
         do {
-            let terms = VocabularyBoost.terms(from: Vocabulary.shared.entries.map(\.word))
+            // A password field gets what was said, not your Ordlista's words.
+            let terms = take.secret && !take.thought ? [] : VocabularyBoost.terms(from: Vocabulary.shared.entries.map(\.word))
             let result = try await SpeechEngine.shared.transcribe(samples: take.samples, with: take.language, listeningFor: terms)
             raw = result.text
             // The debug self-test leaves your vocabulary counts, stats and history alone.
@@ -1244,10 +1245,13 @@ final class Dictation: ObservableObject {
         }
         // A password field: typed, never kept or polished.
         let secret = !selfTest && (take.secret || SecureInput.isActive)
+        // There it's typed just as the speech model heard it: no rules, no capital
+        // letter or full stop of ours, no Ordlista, no space after.
+        let verbatim = secret && !take.thought
         // Rules, then your vocabulary, then (if on) the on-device polish —
         // with the vocabulary once more so your spellings win.
-        let cleaned = TextCleanup.apply(raw, fillers: Settings.removeFillers, commands: Settings.voiceCommands)
-        var text = selfTest ? cleaned : Vocabulary.shared.apply(cleaned)
+        let cleaned = verbatim ? raw : TextCleanup.apply(raw, fillers: Settings.removeFillers, commands: Settings.voiceCommands)
+        var text = selfTest || verbatim ? cleaned : Vocabulary.shared.apply(cleaned)
         if Settings.aiPolish, !secret, let polished = await Polisher.shared.polish(text) {
             let fixed = Vocabulary.shared.reapply(polished)
             // A name from your list split by the polish: the text before it is kept.
@@ -1314,7 +1318,7 @@ final class Dictation: ObservableObject {
         }
         // A spoken line break at the end is the separator; otherwise a space.
         // Never a password in the clipboard, whatever the setting, nor a bare break.
-        TextInserter.insert(text.hasSuffix("\n") ? text : text + " ",
+        TextInserter.insert(verbatim || text.hasSuffix("\n") ? text : text + " ",
                             keeping: Settings.keepInClipboard && !secret && !onlyBreak ? text : nil)
         Cue.done()
         switch take.note {
