@@ -11118,6 +11118,54 @@
         }
       }
     },
+    "Hämtar %@, ungefär %lld minuter kvar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading %@, about %lld minutes left."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hämtar %@, ungefär %lld minuter kvar."
+          }
+        }
+      }
+    },
+    "Hämtar %@, ungefär en minut kvar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading %@, about a minute left."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hämtar %@, ungefär en minut kvar."
+          }
+        }
+      }
+    },
+    "Hämtar %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading %@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hämtar %@."
+          }
+        }
+      }
+    },
     "Hämtar NVIDIA:s modell Nemotron 3, som håller isär rösterna…": {
       "extractionState": "stale",
       "localizations": {

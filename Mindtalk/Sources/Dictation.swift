@@ -489,12 +489,17 @@ final class Dictation: ObservableObject {
     }
 
     #if DEBUG
-    /// Renders (--render-window): permissions and the model as given, nothing asked of macOS.
+    /// Renders (--render-window, --render-onboarding): permissions and the model as
+    /// given, nothing asked of macOS. A download given as progress is shown as on its way.
     func preview(mic: Bool, accessibility: Bool, asked: Bool, model: ModelState? = nil) {
         micGranted = mic
         accessibilityGranted = accessibility
         accessibilityAsked = asked
         if let model { self.model = model }
+        if case .downloading(let p) = model {
+            downloads[engine] = p
+            downloadStarted[engine] = Date().addingTimeInterval(-40)
+        }
     }
     #endif
 

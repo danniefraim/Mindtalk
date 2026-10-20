@@ -1045,11 +1045,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             RunLoop.main.run()
         }
-        // `Mindtalk --render-onboarding out.png --onboarding-step more [--dark]`: one step of the introduction.
+        // `Mindtalk --render-onboarding out.png --onboarding-step more [--dark] [--downloading]`:
+        // one step of the introduction; `--downloading` with the speech model on its way.
         if let i = args.firstIndex(of: "--render-onboarding"), i + 1 < args.count {
             Task { @MainActor in
                 let dark = args.contains("--dark")
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                if args.contains("--downloading") {
+                    Dictation.shared.preview(mic: true, accessibility: true, asked: false, model: .downloading(0.42))
+                }
                 let view = OnboardingView(dictation: .shared) {}.frame(width: 760, height: 640)
                     .environment(\.colorScheme, dark ? .dark : .light)
                 let renderer = ImageRenderer(content: view)
@@ -2315,11 +2319,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 finishingOnboarding = false
             } else {
                 // Closed with the red button or ⌘W: a word typed in the list is kept, and
-                // past "Prova" the introduction counts as done — before it, it comes
-                // back at the next launch. Either way you land on Hem, not on nothing.
+                // past the permissions the introduction counts as done — before it, it
+                // comes back at the next launch. Either way you land on Hem, not on nothing.
                 VocabularyStep.commitPending?()
                 VocabularyStep.commitPending = nil
-                if OnboardingView.pastTry { Settings.didOnboard = true }
+                if OnboardingView.pastSetup { Settings.didOnboard = true }
                 if !Self.isQuitting { Self.showWindow(page: .dictation) }
             }
         }

@@ -3,20 +3,22 @@ import SwiftUI
 // MARK: - First run
 //
 // Eight steps — welcome → language (starts the download) → permissions (while it
-// downloads) → try it for real, with your key → a thought, for real → meetings (and
-// the voice model, if you want it) → the word list → what you have now, with Gemma
-// offered if it fits (OnboardingReadyStep.swift) — and then Hem. Each feature gets its
-// own step that says what to do and when. With Reduce Motion on, it's all calm and still.
+// downloads) → a thought, for real → meetings (and the voice model, if you want it)
+// → the word list → try it for real, with your key, last, so the speech model has
+// had time to arrive → what you have now, with Gemma offered if it fits
+// (OnboardingReadyStep.swift) — and then Hem. Each feature gets its own step that
+// says what to do and when. While anything downloads, the footer says how much and
+// how long, on every step. With Reduce Motion on, it's all calm and still.
 
 struct OnboardingView: View {
     @ObservedObject var dictation: Dictation
     let finish: () -> Void
 
-    /// Past "Prova": the introduction counts as done even if its window is closed now
-    /// (closing earlier brings it back at the next launch).
-    static var pastTry = false
+    /// Past the permissions: the introduction counts as done even if its window is
+    /// closed now (closing earlier brings it back at the next launch).
+    static var pastSetup = false
 
-    enum Step: Int, CaseIterable { case welcome, language, permissions, tryIt, thoughts, meetings, vocabulary, ready }
+    enum Step: Int, CaseIterable { case welcome, language, permissions, thoughts, meetings, vocabulary, tryIt, ready }
 
     @State private var step: Step = OnboardingView.firstStep
 
@@ -96,7 +98,7 @@ struct OnboardingView: View {
     }
 
     #if DEBUG
-    /// Walks the download test: both models, then on to "Prova", logging as it goes.
+    /// Walks the download test: both models, then on to the next step, logging as it goes.
     private func autoDownload() async {
         try? await Task.sleep(for: .seconds(1.5))
         chosen = Set(SpeechModel.allCases)
@@ -158,12 +160,8 @@ struct OnboardingView: View {
                 .buttonStyle(.plain)
                 .transition(.opacity)
             }
-            // While you go through the steps; "Prova" shows it in the box itself — unless the
-            // box is asking for a permission. From "Prova" on just a ring and a number, so
-            // the footer keeps to one line.
-            if step == .permissions || step.rawValue >= Step.thoughts.rawValue || (step == .tryIt && !permitted) {
-                DownloadStatus(dictation: dictation, compact: step.rawValue >= Step.tryIt.rawValue)
-            }
+            // One line on every step while anything is on its way: how much, how long.
+            DownloadStatus(dictation: dictation)
             Spacer(minLength: 8)
             if step.rawValue >= Step.thoughts.rawValue, step != .ready {
                 Button { done() } label: {
@@ -180,6 +178,7 @@ struct OnboardingView: View {
             if skipping || waitingForModel || skippingAccessibility {
                 // The same shape as the ink button, in chip grey: a quiet way past.
                 Button(action: primary) {
+                    // Two ways past in the whole introduction: this, and "Avsluta introduktionen".
                     Text(skippingAccessibility ? "Hoppa över, tangenten fungerar inte än" : "Hoppa över")
                         .contentTransition(.opacity)
                         .font(.system(size: 14, weight: .semibold))
@@ -265,13 +264,14 @@ struct OnboardingView: View {
 
     private func go(_ delta: Int) {
         guard let next = Step(rawValue: step.rawValue + delta) else { return }
-        // On from "Prova": closing the window now counts as done.
-        // Past "Prova": done, even if Mindtalk is quit before the last step — and the
-        // day the first-day card on Hem counts from.
-        if step == .tryIt, delta > 0 {
+        // On from the permissions: closing the window now counts as done. The steps
+        // after are the features, and each can be left with "Avsluta introduktionen".
+        // Done, even if Mindtalk is quit before the last step — and the day the
+        // first-day card on Hem counts from.
+        if step == .permissions, delta > 0 {
             // Only the first time through: shown again later, the first day stays the first day.
             let firstRun = !Settings.didOnboard
-            OnboardingView.pastTry = true
+            OnboardingView.pastSetup = true
             Settings.didOnboard = true
             if firstRun, UserDefaults.standard.object(forKey: "introFinishedAt") == nil {
                 UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "introFinishedAt")
@@ -1042,152 +1042,144 @@ private struct ProgressSegments: View {
     }
 }
 
-/// The downloads, next to the Back button: a ring, the model, MB and time left —
-/// or what went wrong, with a way to try again. The speech models and, once Möten
-/// has asked for it, the voice model. `compact` (from "Prova" on, where the footer
-/// also holds "Avsluta introduktionen"): only a ring and a percentage each — the
-/// whole sentence is in the tooltip and for VoiceOver — plus the name when there's
-/// just one.
+/// The downloads, at the foot of every step while anything is on its way: one line,
+/// "Hämtar 1,2 GB, ungefär 4 minuter kvar." — the speech models, the voice model, the
+/// listener and Gemma added up, with one ring for the whole — or what went wrong, with
+/// a way to try again. The time left comes from how fast the bytes have come in over
+/// the last little while, not from the start. Gone once everything is in.
 struct DownloadStatus: View {
     @ObservedObject var dictation: Dictation
-    var compact = false
     @ObservedObject private var voices = VoiceModels.shared
     @ObservedObject private var notes = BetterNotes.shared
     @ObservedObject private var listener = VocabularyBoostStatus.shared
+    @State private var pace = Pace()
 
-    /// One thing on its way, or one that went wrong.
-    private struct Item: Identifiable {
-        let id: String
+    /// One thing on its way: what it is, how big, and how much of it is in.
+    private struct Item {
         let name: String
-        /// nil: it failed.
-        let progress: Double?
-        /// A speech model spends its last tenth preparing for this Mac; the others don't.
-        var speech = false
-        /// The files are in and it's being made ready (the voice model, between its bundles).
-        var preparing = false
+        let total: Int64
+        let done: Int64
+    }
+
+    /// One that went wrong.
+    private struct Failure: Identifiable {
+        let id: String
         let detail: String
         let retry: () -> Void
+    }
+
+    /// Bytes in over the last twenty seconds: the rate the time left is counted from.
+    final class Pace {
+        private var samples: [(at: Date, done: Int64)] = []
+
+        /// Bytes per second, once there's a few seconds to count from; nil before that.
+        func rate(done: Int64, at now: Date = Date()) -> Double? {
+            // Something finished, or started over: count from here.
+            if let last = samples.last, done < last.done { samples = [] }
+            samples.append((now, done))
+            samples.removeAll { now.timeIntervalSince($0.at) > 20 }
+            guard let first = samples.first, now.timeIntervalSince(first.at) >= 3, done > first.done else { return nil }
+            return Double(done - first.done) / now.timeIntervalSince(first.at)
+        }
     }
 
     private var items: [Item] {
         var items: [Item] = []
         for m in SpeechModel.allCases {
             if let p = dictation.downloads[m] {
-                items.append(Item(id: m.rawValue, name: m.title, progress: p, speech: true,
-                                  detail: m.progressText(p, started: dictation.downloadStarted[m]), retry: {}))
-            } else if dictation.downloadErrors[m] != nil {
-                items.append(Item(id: m.rawValue, name: m.title, progress: nil, speech: true,
-                                  detail: String(localized: "\(m.title) laddades inte ned"),
-                                  retry: { dictation.downloadModel(m) }))
+                // A speech model spends its last tenth preparing for this Mac; the files
+                // are all in by 0.9.
+                items.append(Item(name: m.title, total: m.downloadBytes, done: Int64(min(1, p / 0.9) * Double(m.downloadBytes))))
             }
         }
-        switch voices.state {
-        case .downloading(let p):
-            items.append(Item(id: "voices", name: String(localized: "Röstmodellen"), progress: p, preparing: voices.preparing,
-                              detail: String(localized: "\(Self.percent(p)) %"), retry: {}))
-        case .failed:
-            items.append(Item(id: "voices", name: String(localized: "Röstmodellen"), progress: nil,
-                              detail: String(localized: "Röstmodellen laddades inte ned"),
-                              retry: { VoiceModels.shared.download() }))
-        default: break
+        if case .downloading(let p) = voices.state {
+            items.append(Item(name: String(localized: "Röstmodellen"), total: 400_000_000, done: Int64(p * 400_000_000)))
         }
-        switch listener.state {
-        case .downloading:
-            items.append(Item(id: "listener", name: String(localized: "Lyssnaren"), progress: 0, preparing: true,
-                              detail: String(localized: "Lyssnaren laddas ned"), retry: {}))
-        case .failed:
-            items.append(Item(id: "listener", name: String(localized: "Lyssnaren"), progress: nil,
-                              detail: String(localized: "Lyssnaren laddades inte ned"),
-                              retry: { Vocabulary.shared.fetchListener() }))
-        default: break
+        if case .downloading = listener.state {
+            items.append(Item(name: String(localized: "Lyssnaren"), total: VocabularyBoost.bytes, done: 0))
         }
         for m in NotesModel.allCases {
-            switch notes.state(m) {
-            case .downloading(let p):
-                items.append(Item(id: "notes", name: m.name, progress: p, detail: String(localized: "\(Self.percent(p)) %"), retry: {}))
-            case .failed:
-                items.append(Item(id: "notes", name: m.name, progress: nil,
-                                  detail: String(localized: "\(m.name) laddades inte ned"),
-                                  retry: { BetterNotes.shared.download(m) }))
-            default: break
+            if case .downloading(let p) = notes.state(m) {
+                items.append(Item(name: m.name, total: m.bytes, done: Int64(p * Double(m.bytes))))
             }
         }
         return items
     }
 
-    /// The speech models spend their last tenth preparing for this Mac.
-    private static func percent(_ p: Double, model: Bool = false) -> Int {
-        Int((model ? min(1, p / 0.9) : p) * 100)
+    private var failures: [Failure] {
+        var failures: [Failure] = []
+        for m in SpeechModel.allCases where dictation.downloadErrors[m] != nil && dictation.downloads[m] == nil {
+            failures.append(Failure(id: m.rawValue, detail: String(localized: "\(m.title) laddades inte ned"),
+                                    retry: { dictation.downloadModel(m) }))
+        }
+        if case .failed = voices.state {
+            failures.append(Failure(id: "voices", detail: String(localized: "Röstmodellen laddades inte ned"),
+                                    retry: { VoiceModels.shared.download() }))
+        }
+        if case .failed = listener.state {
+            failures.append(Failure(id: "listener", detail: String(localized: "Lyssnaren laddades inte ned"),
+                                    retry: { Vocabulary.shared.fetchListener() }))
+        }
+        for m in NotesModel.allCases {
+            if case .failed = notes.state(m) {
+                failures.append(Failure(id: "notes-\(m.rawValue)", detail: String(localized: "\(m.name) laddades inte ned"),
+                                        retry: { BetterNotes.shared.download(m) }))
+            }
+        }
+        return failures
     }
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { _ in
+        TimelineView(.periodic(from: .now, by: 1)) { context in
             let items = self.items
-            HStack(spacing: compact ? 12 : 18) {
-                ForEach(items) { item in
-                    if compact { compactRow(item, named: items.count == 1) } else { fullRow(item) }
+            let failures = self.failures
+            HStack(spacing: 14) {
+                if !items.isEmpty {
+                    let total = items.reduce(Int64(0)) { $0 + $1.total }
+                    let done = items.reduce(Int64(0)) { $0 + $1.done }
+                    let rate = pace.rate(done: done, at: context.date)
+                    HStack(spacing: 7) {
+                        ProgressRing(progress: total > 0 ? Double(done) / Double(total) : 0).frame(width: 16, height: 16)
+                        Text(verbatim: Self.line(total: total, done: done, rate: rate))
+                            .font(.system(size: 12, weight: .medium)).monospacedDigit()
+                            .foregroundStyle(DS.Colors.muted)
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text(verbatim: Self.line(total: total, done: done, rate: rate)))
+                    .help(Text(verbatim: items.map { "\($0.name) \(Self.percent($0)) %" }.joined(separator: " · ")))
+                }
+                ForEach(failures) { failure in
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warning)
+                        Button("intro|Försök igen", action: failure.retry)
+                            .buttonStyle(.plain)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(DS.Colors.accent)
+                            .accessibilityHint(failure.detail)
+                    }
+                    .help(failure.detail)
                 }
             }
-            .padding(.leading, compact ? 4 : 10)
-            .animation(.easeOut(duration: 0.25), value: items.map(\.id))
+            .fixedSize()
+            .padding(.leading, 4)
+            .animation(.easeOut(duration: 0.25), value: items.count + failures.count)
         }
     }
 
-    @ViewBuilder private func fullRow(_ item: Item) -> some View {
-        if let p = item.progress {
-            HStack(spacing: 9) {
-                ProgressRing(progress: p).frame(width: 20, height: 20)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(item.name).font(.system(size: 12.5, weight: .semibold))
-                    Text(item.preparing ? String(localized: "Förbereds") : item.detail)
-                        .font(.system(size: 11.5)).monospacedDigit()
-                        .foregroundStyle(DS.Colors.muted)
-                }
-            }
-        } else {
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warning)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(item.detail).font(.system(size: 12.5, weight: .semibold))
-                    retryButton(item)
-                }
-            }
-        }
+    private static func percent(_ item: Item) -> Int {
+        item.total > 0 ? Int(Double(item.done) / Double(item.total) * 100) : 0
     }
 
-    @ViewBuilder private func compactRow(_ item: Item, named: Bool) -> some View {
-        let model = item.speech
-        Group {
-            if let p = item.progress {
-                let preparing = item.preparing || (model && SpeechModel.isPreparing(p))
-                let amount = String(localized: "\(Self.percent(p, model: model)) %")
-                HStack(spacing: 6) {
-                    ProgressRing(progress: p).frame(width: 16, height: 16)
-                    Text(preparing ? (named ? String(localized: "\(item.name) förbereds") : String(localized: "Förbereds"))
-                                   : (named ? "\(item.name) \(amount)" : amount))
-                        .font(.system(size: 12, weight: .medium)).monospacedDigit()
-                        .foregroundStyle(DS.Colors.muted)
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(String(localized: "\(item.name) laddas ned, \(Self.percent(p, model: model)) procent"))
-                .help(String(localized: "\(item.name) laddas ned · \(item.detail)"))
-            } else {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warning)
-                    retryButton(item)
-                }
-                .help(item.detail)
-            }
-        }
-        .fixedSize()
-    }
-
-    private func retryButton(_ item: Item) -> some View {
-        Button("intro|Försök igen", action: item.retry)
-            .buttonStyle(.plain)
-            .font(.system(size: compact ? 12 : 11.5, weight: .semibold))
-            .foregroundStyle(DS.Colors.accent)
-            .accessibilityHint(item.detail)
+    /// "Hämtar 1,2 GB, ungefär 4 minuter kvar." — "ungefär en minut kvar" at the end, and
+    /// only the size until the pace is known. All in: "Förbereder…".
+    static func line(total: Int64, done: Int64, rate: Double?) -> String {
+        let left = total - done
+        guard left > 0 else { return String(localized: "Förbereder…") }
+        let size = DiskSize.text(total)
+        guard let rate, rate > 0 else { return String(localized: "Hämtar \(size).") }
+        let seconds = Double(left) / rate
+        if seconds < 90 { return String(localized: "Hämtar \(size), ungefär en minut kvar.") }
+        return String(localized: "Hämtar \(size), ungefär \(Int((seconds / 60).rounded())) minuter kvar.")
     }
 }
 
