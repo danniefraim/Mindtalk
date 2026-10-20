@@ -71,6 +71,13 @@ struct ClaudeSettingsCard: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            // Everything else stays on the Mac; this is the one way text leaves it. Said
+            // plainly, every time, not only in the first-time dialog.
+            Text("Det Claude eller ChatGPT läser här skickas till deras servrar, som när du klistrar in text i chatten. Ljud och röstavtryck stannar alltid på din Mac.")
+                .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 22).padding(.top, -6).padding(.bottom, 16)
             if !ClaudeInstall.helperReachable {
                 Text("Flytta Mindtalk till mappen Program och öppna den igen, annars hittar AI-apparna inte Mindtalk.")
                     .font(.system(size: 13, weight: .medium))

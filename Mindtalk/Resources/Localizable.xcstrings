@@ -5746,6 +5746,22 @@
         }
       }
     },
+    "Det Claude eller ChatGPT läser här skickas till deras servrar, som när du klistrar in text i chatten. Ljud och röstavtryck stannar alltid på din Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What Claude or ChatGPT reads here is sent to their servers, just like when you paste text into the chat. Audio and voiceprints always stay on your Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det Claude eller ChatGPT läser här skickas till deras servrar, som när du klistrar in text i chatten. Ljud och röstavtryck stannar alltid på din Mac."
+          }
+        }
+      }
+    },
     "Det behövs drygt %@ ledigt på disken.": {
       "localizations": {
         "en": {
