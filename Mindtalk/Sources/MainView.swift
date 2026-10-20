@@ -85,6 +85,12 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     }
 }
 
+/// A card on a settings section that a link can scroll to (mindtalk://settings/meetings#summaries).
+enum SettingsAnchor: String {
+    /// Möten → Sammanfattningar.
+    case summaries
+}
+
 struct MainView: View {
     @ObservedObject var dictation: Dictation
     @ObservedObject var prefs: AppPrefs
@@ -370,10 +376,25 @@ struct SettingsPage: View {
         fixedSection ?? SettingsSection.preview ?? SettingsSection(stored: sectionRaw)
     }
 
-    /// Settings on that section, also when Settings is already on screen.
-    static func open(_ section: SettingsSection) {
+    /// Settings on that section, also when Settings is already on screen; with an anchor,
+    /// scrolled to that card once the section is up.
+    static func open(_ section: SettingsSection, scrollTo anchor: SettingsAnchor? = nil) {
         UserDefaults.standard.set(section.rawValue, forKey: SettingsSection.storageKey)
+        pendingAnchor = anchor
         AppDelegate.showWindow(page: .settings)
+        if anchor != nil { NotificationCenter.default.post(name: .scrollSettings, object: nil) }
+    }
+
+    /// The card the page scrolls to when it next appears or is told to (`open(_:scrollTo:)`).
+    static var pendingAnchor: SettingsAnchor?
+
+    /// Scrolls to the pending card, after the section has had a moment to lay out.
+    private func scrollToPending(_ proxy: ScrollViewProxy) {
+        guard let anchor = Self.pendingAnchor else { return }
+        Self.pendingAnchor = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo(anchor, anchor: .top) }
+        }
     }
 
     /// Settings → Integrationer, where MCP is (mindtalk://settings/mcp).
@@ -391,11 +412,15 @@ struct SettingsPage: View {
                 sectionContent.padding(28)
             } else {
                 // The same column as every other page, so the left edge stays put;
-                // a new section starts at its top.
-                sectionContent
-                    .pageLayout()
-                    .id(section)
-                    .transition(.opacity)
+                // a new section starts at its top, or at the card a link asked for.
+                ScrollViewReader { proxy in
+                    sectionContent
+                        .pageLayout()
+                        .id(section)
+                        .transition(.opacity)
+                        .onAppear { scrollToPending(proxy) }
+                        .onReceive(NotificationCenter.default.publisher(for: .scrollSettings)) { _ in scrollToPending(proxy) }
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: plain ? nil : .infinity, alignment: .topLeading)
@@ -661,7 +686,7 @@ struct SettingsPage: View {
         meetingKeyRow(title: "Starta ett möte").card()
         MeetingStorageCard()
         VoiceMemoryCard(memory: .shared)
-        SummaryWritersCard()
+        SummaryWritersCard().id(SettingsAnchor.summaries)
     }
 }
 

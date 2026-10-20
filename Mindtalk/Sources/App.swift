@@ -911,6 +911,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                         (URL(string: "mindtalk://settings/other")!, nil),
                         (URL(string: "mindtalk://settings/meetings")!, .settings(.meetings)),
                         (URL(string: "mindtalk://settings/language")!, .settings(.language)),
+                        (URL(string: "mindtalk://settings/meetings#summaries")!, .settings(.meetings, .summaries)),
+                        (URL(string: "mindtalk://settings/meetings#other")!, .settings(.meetings)),
                         (URL(string: "https://example.com/meeting/\(id.uuidString)")!, nil),
                     ]
                     for (url, expected) in checks where MindtalkLink.parse(url) != expected {
@@ -2036,8 +2038,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             NotificationCenter.default.post(name: .showThought, object: id)
         case .mcpSettings:
             SettingsPage.openMCP()
-        case .settings(let section):
-            SettingsPage.open(section)
+        case .settings(let section, let anchor):
+            SettingsPage.open(section, scrollTo: anchor)
         }
     }
     @objc func menuSettings() { Self.showWindow(page: .settings) }

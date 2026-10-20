@@ -5580,6 +5580,54 @@
         }
       }
     },
+    "Den här Macen kan inte köra Apple Intelligence.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac can't run Apple Intelligence."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den här Macen kan inte köra Apple Intelligence."
+          }
+        }
+      }
+    },
+    "Den här Macen kan inte köra Apple Intelligence. Du kan ladda ned Gemma 4 under Inställningar → Möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac can't run Apple Intelligence. You can download Gemma 4 under Settings → Meetings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den här Macen kan inte köra Apple Intelligence. Du kan ladda ned Gemma 4 under Inställningar → Möten."
+          }
+        }
+      }
+    },
+    "Den här Macen kan inte köra Apple Intelligence. Du kan läsa och söka i texten som vanligt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac can't run Apple Intelligence. You can read and search the text as usual."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den här Macen kan inte köra Apple Intelligence. Du kan läsa och söka i texten som vanligt."
+          }
+        }
+      }
+    },
     "Den här Macen kan inte köra Apple Intelligence. Ladda ned Gemma 4 under Inställningar → Modeller. Texten finns under fliken Text.": {
       "extractionState": "stale",
       "localizations": {
@@ -5593,6 +5641,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Den här Macen kan inte köra Apple Intelligence. Ladda ned Gemma 4 under Inställningar → Modeller. Texten finns under fliken Text."
+          }
+        }
+      }
+    },
+    "Den här Macen kan inte köra Apple Intelligence. Ladda ned Gemma 4 under Inställningar → Möten. Du kan läsa och söka i texten som vanligt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac can't run Apple Intelligence. Download Gemma 4 under Settings → Meetings. You can read and search the text as usual."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den här Macen kan inte köra Apple Intelligence. Ladda ned Gemma 4 under Inställningar → Möten. Du kan läsa och söka i texten som vanligt."
           }
         }
       }
@@ -9364,6 +9428,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Frågor"
+          }
+        }
+      }
+    },
+    "Frågor kräver Apple Intelligence eller Gemma 4.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questions need Apple Intelligence or Gemma 4."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frågor kräver Apple Intelligence eller Gemma 4."
           }
         }
       }
@@ -25046,6 +25126,22 @@
         }
       }
     },
+    "Sammanfattad av %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summarized by %@."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfattad av %@."
+          }
+        }
+      }
+    },
     "Sammanfattat av %@.": {
       "localizations": {
         "en": {
@@ -25140,6 +25236,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sammanfattningar kräver Apple Intelligence"
+          }
+        }
+      }
+    },
+    "Sammanfattningar skrivs på din Mac av Apple Intelligence.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summaries are written on your Mac by Apple Intelligence."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfattningar skrivs på din Mac av Apple Intelligence."
           }
         }
       }
@@ -26450,6 +26562,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Slå på Apple Intelligence under Systeminställningar → Apple Intelligence och Siri."
+          }
+        }
+      }
+    },
+    "Slå på Apple Intelligence, så skrivs de på din Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn on Apple Intelligence, and they are written on your Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slå på Apple Intelligence, så skrivs de på din Mac."
           }
         }
       }
@@ -33876,6 +34004,22 @@
         }
       }
     },
+    "Välj vem som skriver sammanfattningen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose who writes the summary"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj vem som skriver sammanfattningen"
+          }
+        }
+      }
+    },
     "Välj vilken modell som skriver sammanfattningarna i Inställningar → Modeller.": {
       "extractionState": "stale",
       "localizations": {
@@ -34896,6 +35040,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "läser %@ ord-delar åt gången"
+          }
+        }
+      }
+    },
+    "macOS laddar fortfarande ned Apple Intelligence. Det brukar ta några minuter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS is still downloading Apple Intelligence. That usually takes a few minutes."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS laddar fortfarande ned Apple Intelligence. Det brukar ta några minuter."
           }
         }
       }
@@ -36839,6 +36999,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppnar Cursor, som frågar om du vill lägga till Mindtalk."
+          }
+        }
+      }
+    },
+    "Öppnar Inställningar → Möten → Sammanfattningar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens Settings → Meetings → Summaries."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppnar Inställningar → Möten → Sammanfattningar."
           }
         }
       }

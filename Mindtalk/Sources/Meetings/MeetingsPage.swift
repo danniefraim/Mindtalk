@@ -2273,15 +2273,19 @@ private struct SummaryView: View {
                     NotesList(title: "Värt att komma ihåg", kind: .point, items: summary.points, record: record, cast: cast,
                               turns: turns, showInText: showInText).staggered(3)
                 }
-                HStack(alignment: .center, spacing: 7) {
-                    Image(systemName: summary.writer == nil ? "apple.intelligence" : "sparkle")
-                        .font(.system(size: 12))
-                    Text(String(localized: "Sammanfattat av \(summary.writer ?? "Apple Intelligence")."))
-                    // Who writes the summaries is chosen in Settings → Möten: one click away.
-                    Button("Byt modell") { SettingsPage.open(.meetings) }
-                        .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.accent)
-                        .help("Välj vilken modell som skriver sammanfattningarna i Inställningar → Möten.")
-                    Text("Stämmer något inte? Klicka på en tid och lyssna själv.")
+                HStack(alignment: .top, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(alignment: .center, spacing: 7) {
+                            Image(systemName: summary.writer == nil ? "apple.intelligence" : "sparkle")
+                                .font(.system(size: 12))
+                            Text(String(localized: "Sammanfattad av \(summary.writer ?? "Apple Intelligence")."))
+                        }
+                        // Who writes the summaries is chosen in Settings → Möten: one click, to that card.
+                        Button("Välj vem som skriver sammanfattningen") { SettingsPage.open(.meetings, scrollTo: .summaries) }
+                            .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.accent)
+                            .help("Öppnar Inställningar → Möten → Sammanfattningar.")
+                        Text("Stämmer något inte? Klicka på en tid och lyssna själv.")
+                    }
                     Spacer(minLength: 16)
                     if MeetingNotes.isAvailable {
                         Button {
@@ -2338,10 +2342,8 @@ private struct SummaryView: View {
             }
             Spacer()
             if Polisher.status == .notEnabled {
-                Button("Slå på") {
-                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!)
-                }
-                .buttonStyle(.soft)
+                Button("Slå på") { SummaryWritersCard.openAppleIntelligenceSettings() }
+                    .buttonStyle(.soft)
             }
             // The other way: Gemma 4, on this Mac, when it can run it.
             if NotesModel.recommended != nil {
@@ -2359,8 +2361,8 @@ private struct SummaryView: View {
         case .notReady: return String(localized: "Apple Intelligence laddas ned. Sammanfatta när den är klar.")
         default:
             return NotesModel.recommended != nil
-                ? String(localized: "Den här Macen kan inte köra Apple Intelligence. Ladda ned Gemma 4 under Inställningar → Möten. Texten finns under fliken Text.")
-                : String(localized: "Den här Macen kan inte köra Apple Intelligence. Texten finns under fliken Text.")
+                ? String(localized: "Den här Macen kan inte köra Apple Intelligence. Ladda ned Gemma 4 under Inställningar → Möten. Du kan läsa och söka i texten som vanligt.")
+                : String(localized: "Den här Macen kan inte köra Apple Intelligence. Du kan läsa och söka i texten som vanligt.")
         }
     }
 
@@ -2826,7 +2828,8 @@ private struct ReviewBar: View {
                 }
                 .transition(.opacity)
             }
-            if MeetingNotes.isAvailable { field }
+            // Nothing here can answer: the field stays, greyed, and says what it needs.
+            field.disabled(!MeetingNotes.isAvailable).opacity(MeetingNotes.isAvailable ? 1 : 0.6)
         }
         .animation(.spring(duration: 0.35, bounce: 0.15), value: player.meeting)
         .padding(.bottom, 20)
@@ -2835,15 +2838,17 @@ private struct ReviewBar: View {
 
     private var field: some View {
         HStack(spacing: 10) {
-            TextField("Fråga om det här mötet", text: $question)
+            let available = MeetingNotes.isAvailable
+            TextField(available ? String(localized: "Fråga om det här mötet") : String(localized: "Frågor kräver Apple Intelligence eller Gemma 4."),
+                      text: $question)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
                 .focused($focused)
                 .onSubmit { ask(question) }
-                .accessibilityLabel("Fråga om det här mötet")
+                .accessibilityLabel(available ? String(localized: "Fråga om det här mötet") : String(localized: "Frågor kräver Apple Intelligence eller Gemma 4."))
             if busy {
                 SettlingLine(color: DS.Colors.ink).scaleEffect(0.7).frame(width: 40)
-            } else {
+            } else if available {
                 Button { ask(question) } label: {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 12, weight: .bold))

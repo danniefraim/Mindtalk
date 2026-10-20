@@ -10,6 +10,7 @@ import Foundation
 //   mindtalk://settings/mcp                   Inställningar, on Integrationer (MCP)
 //                                             (mindtalk://settings/claude still works, the old name)
 //   mindtalk://settings/<section>             Inställningar on general, language, dictation or meetings
+//   mindtalk://settings/meetings#summaries    … scrolled to the Sammanfattningar card
 //
 // The scheme is registered in Info.plist (CFBundleURLTypes); AppDelegate hands the
 // URLs here. Anything else is ignored, with a line in the log.
@@ -19,8 +20,8 @@ enum MindtalkLink: Equatable {
     case thought(UUID)
     /// Inställningar → Integrationer → MCP.
     case mcpSettings
-    /// Another section of Inställningar.
-    case settings(SettingsSection)
+    /// Another section of Inställningar, and a card on it to scroll to.
+    case settings(SettingsSection, SettingsAnchor? = nil)
 
     static let scheme = "mindtalk"
 
@@ -43,7 +44,9 @@ enum MindtalkLink: Equatable {
         case "settings":
             switch rest.first?.lowercased() {
             case "mcp", "claude", "integrations": return .mcpSettings
-            case let name?: return SettingsSection(rawValue: name).map { .settings($0) }
+            case let name?:
+                let anchor = url.fragment.flatMap { SettingsAnchor(rawValue: $0.lowercased()) }
+                return SettingsSection(rawValue: name).map { .settings($0, anchor) }
             default: return nil
             }
         default:
@@ -72,6 +75,8 @@ enum MindtalkLink: Equatable {
 extension Notification.Name {
     /// Open a saved meeting on the Möten page (object: UUID; userInfo["at"]: seconds).
     static let openMeeting = Notification.Name("MindtalkOpenMeeting")
+    /// Settings: scroll to the card in SettingsPage.pendingAnchor.
+    static let scrollSettings = Notification.Name("MindtalkScrollSettings")
     /// Show a thought on the Tankar page (object: UUID).
     static let showThought = Notification.Name("MindtalkShowThought")
 }
