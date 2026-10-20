@@ -598,6 +598,13 @@ struct StartCard: View {
                     .fixedSize(horizontal: false, vertical: true).padding(.top, 6)
             }
             roomControl.padding(.top, 20)
+            // The microphone hears the room, not the call: said before the first Teams meeting
+            // with headphones gives a text with only you in it.
+            Text("Mindtalk spelar in det mikrofonen hör. I Teams och Zoom med hörlurar hörs bara du, så använd högtalare eller sitt i samma rum.")
+                .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 440, alignment: .leading)
+                .padding(.top, 14)
             if dictation.micGranted {
                 // On from the start; switched off here or in Settings. The voices are other people's, so the line asks you to tell them.
                 Toggle(isOn: $memory.enabled) {

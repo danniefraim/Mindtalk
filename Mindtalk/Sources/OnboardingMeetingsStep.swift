@@ -34,6 +34,14 @@ struct MeetingsStep: View {
                     .frame(width: Self.cardWidth, height: Self.height)
                     .staggered(2)
             }
+            // What the microphone hears: in a video call with headphones, only you.
+            Text("Mindtalk spelar in det mikrofonen hör. I Teams och Zoom med hörlurar hörs bara du, så använd högtalare eller sitt i samma rum.")
+                .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: Self.tileWidth + DS.Layout.stepGap + Self.cardWidth)
+                .padding(.top, -10)
+                .staggered(3)
         }
     }
 }

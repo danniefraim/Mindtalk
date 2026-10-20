@@ -20863,6 +20863,22 @@
         }
       }
     },
+    "Mindtalk spelar in det mikrofonen hör. I Teams och Zoom med hörlurar hörs bara du, så använd högtalare eller sitt i samma rum.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk records what the microphone hears. In Teams or Zoom with headphones, only you are heard, so use the speakers or sit in the same room."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk spelar in det mikrofonen hör. I Teams och Zoom med hörlurar hörs bara du, så använd högtalare eller sitt i samma rum."
+          }
+        }
+      }
+    },
     "Mindtalk startar om för att byta språk.": {
       "extractionState": "stale",
       "localizations": {
