@@ -281,9 +281,15 @@ struct FloatingTabBar: View {
         return n
     }
 
-    /// "Ett steg kvar", "2 steg kvar": short, and the same in the menu bar panel.
-    static func stepsText(_ n: Int) -> String {
-        n == 1 ? String(localized: "Ett steg kvar") : String(localized: "\(n) steg kvar")
+    /// What's missing, by name — "Hjälpmedel saknas", "Mikrofon saknas", "Talmodellen
+    /// saknas" — or "2 steg kvar" when it's more than one. Short, and the same on Hem
+    /// and in the menu bar panel.
+    static func stepsText(_ dictation: Dictation) -> String {
+        let n = stepsLeft(dictation)
+        if n > 1 { return String(localized: "\(n) steg kvar") }
+        if !dictation.accessibilityGranted { return String(localized: "Hjälpmedel saknas") }
+        if !dictation.micGranted { return String(localized: "Mikrofon saknas") }
+        return String(localized: "Talmodellen saknas")
     }
 
     private var statusText: String {
@@ -293,7 +299,7 @@ struct FloatingTabBar: View {
         case .downloading(let p): return String(localized: "Laddar ned \(Int(min(1, p / 0.9) * 100)) %")
         default:
             // What you must do comes before what Mindtalk is busy with.
-            if stepsLeft > 0 { return Self.stepsText(stepsLeft) }
+            if stepsLeft > 0 { return Self.stepsText(dictation) }
             return dictation.model == .loading ? String(localized: "Startar…") : String(localized: "Redo")
         }
     }

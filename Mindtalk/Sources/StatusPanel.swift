@@ -366,7 +366,7 @@ struct StatusPanelView: View {
                             } label: {
                                 HStack(spacing: 5) {
                                     Circle().fill(DS.Colors.ink).frame(width: 6, height: 6)
-                                    Text(verbatim: FloatingTabBar.stepsText(left)).foregroundStyle(.primary)
+                                    Text(verbatim: FloatingTabBar.stepsText(dictation)).foregroundStyle(.primary)
                                     Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold))
                                 }
                             }

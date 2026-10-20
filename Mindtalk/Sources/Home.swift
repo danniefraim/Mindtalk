@@ -141,8 +141,8 @@ struct HomeHero: View {
                         .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted).monospacedDigit().padding(.top, 8)
                 } else {
                     // Not ready yet: the steps are asked for in Kom igång below, and only there.
-                    // Counted as in the tab bar: "2 steg kvar".
-                    Text(verbatim: FloatingTabBar.stepsText(FloatingTabBar.stepsLeft(dictation)))
+                    // Named as in the tab bar: "Hjälpmedel saknas", "2 steg kvar".
+                    Text(verbatim: FloatingTabBar.stepsText(dictation))
                         .font(.system(size: 40, weight: .regular, design: .serif)).foregroundStyle(ink)
                     Text("Det som saknas står här nedanför.")
                         .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted).padding(.top, 8)
