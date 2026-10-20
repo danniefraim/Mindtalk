@@ -1063,7 +1063,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@, recognised voice"
+            "value": "%@, recognized voice"
           }
         },
         "sv": {
@@ -2705,7 +2705,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "All licence texts that come with Mindtalk."
+            "value": "All license texts that come with Mindtalk."
           }
         },
         "sv": {
@@ -3496,7 +3496,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Apple Intelligence is downloading. Summarise when it’s ready."
+            "value": "Apple Intelligence is downloading. Summarize when it’s ready."
           }
         },
         "sv": {
@@ -3843,7 +3843,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cancelled."
+            "value": "Canceled."
           }
         },
         "sv": {
@@ -7191,7 +7191,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You’ve added notes. Summarise again?"
+            "value": "You’ve added notes. Summarize again?"
           }
         },
         "sv": {
@@ -9729,7 +9729,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Name a speaker once and Mindtalk recognises the voice in later meetings. Only a voiceprint is kept, no audio, and it stays on your Mac. Ask the people you record if that’s okay."
+            "value": "Name a speaker once and Mindtalk recognizes the voice in later meetings. Only a voiceprint is kept, no audio, and it stays on your Mac. Ask the people you record if that’s okay."
           }
         },
         "sv": {
@@ -9746,7 +9746,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Name a speaker once and Mindtalk recognises the voice in future meetings. Only a voiceprint is kept, no audio, and only on your Mac. Ask the people you record if that’s okay."
+            "value": "Name a speaker once and Mindtalk recognizes the voice in future meetings. Only a voiceprint is kept, no audio, and only on your Mac. Ask the people you record if that’s okay."
           }
         },
         "sv": {
@@ -11731,7 +11731,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Keeps Mindtalk up to date. Open source, MIT licence."
+            "value": "Keeps Mindtalk up to date. Open source, MIT license."
           }
         },
         "sv": {
@@ -11814,7 +11814,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tells who is speaking and recognises voices next time."
+            "value": "Tells who is speaking and recognizes voices next time."
           }
         },
         "sv": {
@@ -12337,7 +12337,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recognised voice"
+            "value": "Recognized voice"
           }
         },
         "sv": {
@@ -13866,7 +13866,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "I recognise the voice."
+            "value": "I recognize the voice."
           }
         },
         "sv": {
@@ -15469,7 +15469,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recognise voices"
+            "value": "Recognize voices"
           }
         },
         "sv": {
@@ -15485,7 +15485,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recognising the voice…"
+            "value": "Recognizing the voice…"
           }
         },
         "sv": {
@@ -15502,7 +15502,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recognises voices between meetings · comes with the app"
+            "value": "Recognizes voices between meetings · comes with the app"
           }
         },
         "sv": {
@@ -15519,7 +15519,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recognises voices. By LAB260, built on ReDimNet2 by Palabra.ai. Included in the app. Apache 2.0."
+            "value": "Recognizes voices. By LAB260, built on ReDimNet2 by Palabra.ai. Included in the app. Apache 2.0."
           }
         },
         "sv": {
@@ -15535,7 +15535,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recognising the voices…"
+            "value": "Recognizing the voices…"
           }
         },
         "sv": {
@@ -15552,7 +15552,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recognising…"
+            "value": "Recognizing…"
           }
         },
         "sv": {
@@ -15569,7 +15569,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Runs Gemma on your Mac. By Apple. MIT licence."
+            "value": "Runs Gemma on your Mac. By Apple. MIT license."
           }
         },
         "sv": {
@@ -16402,7 +16402,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Licence"
+            "value": "License"
           }
         },
         "sv": {
@@ -16418,7 +16418,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Licences"
+            "value": "Licenses"
           }
         },
         "sv": {
@@ -16435,7 +16435,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The licence texts and links that come with Mindtalk."
+            "value": "The license texts and links that come with Mindtalk."
           }
         },
         "sv": {
@@ -19772,7 +19772,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mindtalk hears who says what, writes it down while you talk and summarises afterwards."
+            "value": "Mindtalk hears who says what, writes it down while you talk and summarizes afterwards."
           }
         },
         "sv": {
@@ -19821,7 +19821,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mindtalk recognised the voice"
+            "value": "Mindtalk recognized the voice"
           }
         },
         "sv": {
@@ -19837,7 +19837,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mindtalk recognised the voice."
+            "value": "Mindtalk recognized the voice."
           }
         },
         "sv": {
@@ -19854,7 +19854,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mindtalk recognised the voice. Click to change"
+            "value": "Mindtalk recognized the voice. Click to change"
           }
         },
         "sv": {
@@ -19870,7 +19870,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mindtalk recognised the voice. Click to change."
+            "value": "Mindtalk recognized the voice. Click to change."
           }
         },
         "sv": {
@@ -19886,7 +19886,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mindtalk recognises %@ by their voice"
+            "value": "Mindtalk recognizes %@ by their voice"
           }
         },
         "sv": {
@@ -20216,7 +20216,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Minimise"
+            "value": "Minimize"
           }
         },
         "sv": {
@@ -21261,7 +21261,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Names the round of introductions recognises. Statistics Sweden (SCB), 2020. CC BY 4.0."
+            "value": "Names the round of introductions recognizes. Statistics Sweden (SCB), 2020. CC BY 4.0."
           }
         },
         "sv": {
@@ -21293,7 +21293,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The name is removed from this meeting. Mindtalk still recognises the voice."
+            "value": "The name is removed from this meeting. Mindtalk still recognizes the voice."
           }
         },
         "sv": {
@@ -21342,7 +21342,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Name a speaker once and Mindtalk recognises the voice in future meetings. Only a voiceprint is kept on your Mac, never audio. Ask the others in the room first."
+            "value": "Name a speaker once and Mindtalk recognizes the voice in future meetings. Only a voiceprint is kept on your Mac, never audio. Ask the others in the room first."
           }
         },
         "sv": {
@@ -23730,7 +23730,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The voice won’t be recognised next time. The name in old meetings stays."
+            "value": "The voice won’t be recognized next time. The name in old meetings stays."
           }
         },
         "sv": {
@@ -24107,7 +24107,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Summarise"
+            "value": "Summarize"
           }
         },
         "sv": {
@@ -24123,7 +24123,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Summarise again"
+            "value": "Summarize again"
           }
         },
         "sv": {
@@ -24139,7 +24139,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Summarise the week"
+            "value": "Summarize the week"
           }
         },
         "sv": {
@@ -24155,7 +24155,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Summarise the week in %@"
+            "value": "Summarize the week in %@"
           }
         },
         "sv": {
@@ -24171,7 +24171,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Summarised by %@."
+            "value": "Summarized by %@."
           }
         },
         "sv": {
@@ -25223,7 +25223,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Stop recognising %@"
+            "value": "Stop recognizing %@"
           }
         },
         "sv": {
@@ -25842,7 +25842,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Save the voices so %@ are recognised next time?"
+            "value": "Save the voices so %@ are recognized next time?"
           }
         },
         "sv": {
@@ -25858,7 +25858,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Save the voices so Mindtalk recognises %@ next time?"
+            "value": "Save the voices so Mindtalk recognizes %@ next time?"
           }
         },
         "sv": {
@@ -28559,7 +28559,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Credits and Licences…"
+            "value": "Credits and Licenses…"
           }
         },
         "sv": {
@@ -32240,7 +32240,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Show Licences…"
+            "value": "Show Licenses…"
           }
         },
         "sv": {
@@ -32532,7 +32532,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose Summarise again in the ⋯ menu and the changes go into the summary."
+            "value": "Choose Summarize again in the ⋯ menu and the changes go into the summary."
           }
         },
         "sv": {
@@ -32549,7 +32549,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose Summarise Again in the ⋯ menu to include the changes."
+            "value": "Choose Summarize Again in the ⋯ menu to include the changes."
           }
         },
         "sv": {
