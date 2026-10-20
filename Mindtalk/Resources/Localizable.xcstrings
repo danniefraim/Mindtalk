@@ -2007,6 +2007,22 @@
         }
       }
     },
+    "**Senare?** Du hittar den under Möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Later?** You'll find it under Meetings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Senare?** Du hittar den under Möten."
+          }
+        }
+      }
+    },
     "**Senare?** Du hittar den under Möten. Utan den går det inte att spela in möten.": {
       "localizations": {
         "en": {
@@ -10921,6 +10937,22 @@
         }
       }
     },
+    "Hjälpmedel saknas": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accessibility missing"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hjälpmedel saknas"
+          }
+        }
+      }
+    },
     "Hjälpmedel är avstängt för Mindtalk, så texten skrevs inte in.": {
       "localizations": {
         "en": {
@@ -11194,6 +11226,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hämta modeller i Ollama eller LM Studio. Mindtalk skickar bara till program på den här Macen. Molnmodeller visas inte."
+          }
+        }
+      }
+    },
+    "Hämta rösterna (%@). Utan den går det inte att starta ett möte.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download the voices (%@). Without it, a meeting can't be started."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hämta rösterna (%@). Utan den går det inte att starta ett möte."
           }
         }
       }
@@ -19692,6 +19740,22 @@
         }
       }
     },
+    "Mikrofon saknas": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Microphone missing"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofon saknas"
+          }
+        }
+      }
+    },
     "Mikrofonen byttes, så dikteringen stannade. Det du hann säga är kvar.": {
       "localizations": {
         "en": {
@@ -22087,6 +22151,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nedladdningen blev inte komplett."
+          }
+        }
+      }
+    },
+    "Nemotron 3": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nemotron 3"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nemotron 3"
           }
         }
       }
@@ -27853,6 +27933,22 @@
         }
       }
     },
+    "Står också under Tack till i Inställningar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Also listed under Credits in Settings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Står också under Tack till i Inställningar."
+          }
+        }
+      }
+    },
     "Svarade på %@ s. Orkar ungefär %@ ord åt gången.": {
       "localizations": {
         "en": {
@@ -29725,6 +29821,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Talmodellen laddas ned, så att Mindtalk kan skriva ned det som sägs."
+          }
+        }
+      }
+    },
+    "Talmodellen saknas": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speech model missing"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellen saknas"
           }
         }
       }
@@ -32575,6 +32687,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vilka uppgifter har jag?"
+          }
+        }
+      }
+    },
+    "Vilken modell är det?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Which model is this?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vilken modell är det?"
           }
         }
       }

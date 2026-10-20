@@ -534,6 +534,33 @@ private struct RecordingPulse: View {
 
 // MARK: - The voice model
 
+/// ⓘ: which model hears the voices, and who made it, as under Tack till.
+private struct VoiceModelInfo: View {
+    @State private var open = false
+
+    var body: some View {
+        Button { open.toggle() } label: {
+            Image(systemName: "info.circle").font(.system(size: 12))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Vilken modell är det?")
+        .accessibilityLabel("Vilken modell är det?")
+        .popover(isPresented: $open, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Nemotron 3").font(.system(size: 12.5, weight: .semibold))
+                Text("Av NVIDIA, Core ML av FluidInference. OpenMDW 1.1.")
+                    .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
+                Text("Står också under Tack till i Inställningar.")
+                    .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
+                    .padding(.top, 2)
+            }
+            .padding(14)
+            .frame(width: 280, alignment: .leading)
+        }
+    }
+}
+
 /// Why it's needed, what it is, how big and where it runs — then one button, and what
 /// waiting means. While it downloads: how far, and that you can go on. Then: done.
 private struct VoiceModelCard: View {
@@ -630,9 +657,9 @@ private struct VoiceModelCard: View {
                     .padding(.top, 6)
             }
             VStack(alignment: .leading, spacing: 7) {
+                // What it does and what it costs; which model it is sits behind the ⓘ.
                 // After a failed download the reason takes its place.
-                if failure == nil { fact("cpu", Text("Nemotron 3 från NVIDIA")) }
-                fact("arrow.down.circle", Text("\(VoiceModels.sizeText), laddas ned en gång"))
+                if failure == nil { fact("person.wave.2", Text("Hämta rösterna (\(VoiceModels.sizeText)). Utan den går det inte att starta ett möte.")) }
                 fact("lock", Text("Körs på din Mac, ljudet lämnar den aldrig"))
                 fact("internaldrive", Text("Du har \(BetterNotes.gigabytes(BetterNotes.freeBytes)) ledigt"),
                      warn: BetterNotes.freeBytes < 2_000_000_000)
@@ -650,11 +677,15 @@ private struct VoiceModelCard: View {
             }
             .buttonStyle(.ink)
             .help("Laddas ned i bakgrunden medan du fortsätter")
-            Text("**Senare?** Du hittar den under Möten. Utan den går det inte att spela in möten.")
-                .font(.system(size: 11.5))
-                .foregroundStyle(DS.Colors.muted)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 10)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("**Senare?** Du hittar den under Möten.")
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                VoiceModelInfo()
+            }
+            .font(.system(size: 11.5))
+            .foregroundStyle(DS.Colors.muted)
+            .padding(.top, 10)
         }
         .transition(.opacity)
     }
