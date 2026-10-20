@@ -74,7 +74,7 @@ case "mcp":
         }
     }
     do {
-        try await server.start(transport: StdioTransport())
+        try await server.start(transport: LenientTransport())
         await server.waitUntilCompleted()
     } catch {
         log.error("server: \(error.localizedDescription, privacy: .public)")

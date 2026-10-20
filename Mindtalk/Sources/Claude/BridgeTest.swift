@@ -535,6 +535,76 @@ enum BridgeTest {
         check("loggen: anropen är där, med den som frågade", answered.count > 20 && answered.allSatisfy { $0.client == "Mindtalk" },
               "\(answered.count) besvarade, " + Set(answered.map { $0.client ?? "okänd" }).joined(separator: ", "))
 
+        // `mindtalk mcp` as each app starts it: initialize, initialized, tools/list and one
+        // tools/call, a line at a time. Codex's initialize is the one ChatGPT sent when
+        // the SDK could not read its capabilities.experimental (an object per entry); the
+        // future one asks for a version not yet made and gets the newest the SDK knows.
+        /// The answers, by id. A request is written only once the previous one is answered.
+        func mcp(_ messages: [String]) async -> [Int: [String: Any]] {
+            await Task.detached {
+                let p = Process()
+                p.executableURL = helper
+                p.arguments = ["mcp"]
+                var env = ProcessInfo.processInfo.environment
+                env["MINDTALK_SOCKET"] = setup.socket.path
+                p.environment = env
+                let input = Pipe(), output = Pipe()
+                p.standardInput = input
+                p.standardOutput = output
+                p.standardError = FileHandle.nullDevice
+                do { try p.run() } catch { return [:] }
+                let watchdog = DispatchWorkItem { if p.isRunning { p.terminate() } }
+                DispatchQueue.global().asyncAfter(deadline: .now() + 20, execute: watchdog)
+                var answers: [Int: [String: Any]] = [:]
+                var buffer = Data()
+                for message in messages {
+                    input.fileHandleForWriting.write(Data((message + "\n").utf8))
+                    guard let sent = (try? JSONSerialization.jsonObject(with: Data(message.utf8))) as? [String: Any],
+                          let id = sent["id"] as? Int else { continue }
+                    reading: while answers[id] == nil {
+                        while let newline = buffer.firstIndex(of: 0x0A) {
+                            let line = buffer[..<newline]
+                            buffer.removeSubrange(...newline)
+                            if let reply = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any],
+                               let replyID = reply["id"] as? Int { answers[replyID] = reply }
+                        }
+                        if answers[id] != nil { break reading }
+                        let chunk = output.fileHandleForReading.availableData
+                        if chunk.isEmpty { break reading }
+                        buffer.append(chunk)
+                    }
+                    if answers[id] == nil { break }
+                }
+                try? input.fileHandleForWriting.close()
+                p.waitUntilExit()
+                watchdog.cancel()
+                return answers
+            }.value
+        }
+        let session = [
+            #"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
+            #"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"#,
+            #"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"mindtalk_list_folders","arguments":{}}}"#,
+        ]
+        let clients: [(name: String, initialize: String, version: String)] = [
+            ("Claude", #"{"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"claude-ai","version":"0.1.0"}},"jsonrpc":"2.0","id":0}"#, "2025-06-18"),
+            ("Codex", #"{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{"experimental":{"codex/auth-change":{}},"elicitation":{"form":{},"url":{}}},"clientInfo":{"name":"codex-mcp-client","title":"Codex","version":"0.163.0-alpha.10.2"}}}"#, "2025-06-18"),
+            ("en framtida klient", #"{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2099-01-01","capabilities":{"experimental":{"x/y":{"z":[1,2]}},"roots":{"listChanged":true},"sampling":{"tools":{}},"elicitation":{"form":{}},"tasks":{"requests":{}}},"clientInfo":{"name":"later","version":"9","title":"Later","websiteUrl":"https://example.com","icons":[{"src":"https://example.com/i.png","mimeType":"image/png","sizes":["48x48"]}]},"_meta":{"a":1}}}"#, "2025-11-25"),
+        ]
+        for client in clients {
+            let answers = await mcp([client.initialize] + session)
+            let initialized = answers[0]?["result"] as? [String: Any]
+            check("mcp, \(client.name): initialize svarar Mindtalk med \(client.version)",
+                  (initialized?["serverInfo"] as? [String: Any])?["name"] as? String == "Mindtalk"
+                  && initialized?["protocolVersion"] as? String == client.version, "\(answers[0] ?? [:])")
+            let tools = (answers[1]?["result"] as? [String: Any])?["tools"] as? [[String: Any]]
+            check("mcp, \(client.name): tools/list, sju verktyg", tools?.count == 7 && tools?.contains { $0["name"] as? String == "mindtalk_list_folders" } == true, "\(answers[1] ?? [:])")
+            let called = answers[2]?["result"] as? [String: Any]
+            check("mcp, \(client.name): mindtalk_list_folders, två mappar",
+                  called?["isError"] as? Bool == false
+                  && ((called?["structuredContent"] as? [String: Any])?["folders"] as? [[String: Any]])?.count == 2, "\(answers[2] ?? [:])")
+        }
+
         // Off: 3, with the app's own words. Unreachable: 3 too.
         sharing.enabled = false
         r = await mindtalk("meetings")
