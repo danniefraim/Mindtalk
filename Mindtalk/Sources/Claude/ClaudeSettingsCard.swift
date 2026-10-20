@@ -5,9 +5,9 @@ import SwiftUI
 //
 // Off by default. One row on top, MCP and the switch, with a line that says what it does
 // and that dictations are never shared. Switched on, the card fits one screen: two
-// buttons, Claude and ChatGPT, with a small link under them that copies the Claude Code
-// command; three steps for all other programs with the standard setting to copy; and a
-// "Läs mer" that opens the help page (MCPHelpView: Claude and ChatGPT, then every
+// buttons, Claude and ChatGPT, with a small link beside them that copies the Claude Code
+// command and a line saying ChatGPT's works in its Mac app; folded under "Andra program",
+// three steps with the standard setting to copy; and a "Läs mer" that opens the help page (MCPHelpView: Claude and ChatGPT, then every
 // developer tool step by step, and the Terminal command). Then what has been read so
 // far. On means everything Mindtalk has may be read; off means nothing: switching on is
 // the choice, so there is nothing more to set. Switched off: the row and a line saying
@@ -31,6 +31,8 @@ struct ClaudeSettingsCard: View {
     @State private var confirmClear = false
     /// The help page, from "Läs mer".
     @State private var showHelp = false
+    /// "Andra program": the three steps with the setting, folded until asked for.
+    @State private var otherApps = false
 
     private static let shown = 10
 
@@ -79,11 +81,17 @@ struct ClaudeSettingsCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 22).padding(.top, -6).padding(.bottom, 16)
             if !ClaudeInstall.helperReachable {
-                Text("Flytta Mindtalk till mappen Program och öppna den igen, annars hittar AI-apparna inte Mindtalk.")
-                    .font(.system(size: 13, weight: .medium))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 22).padding(.bottom, 16)
+                // The same Flytta as under Allmänt: moved and opened from there in one press.
+                HStack(alignment: .center, spacing: 16) {
+                    Text("Flytta Mindtalk till mappen Program och öppna den igen, annars hittar AI-apparna inte Mindtalk.")
+                        .font(.system(size: 13, weight: .medium))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if !AppMover.isInApplications {
+                        Button("Flytta") { AppMover.moveNow() }.buttonStyle(.soft)
+                    }
+                }
+                .padding(.horizontal, 22).padding(.bottom, 16)
             }
             CardDivider()
             if sharing.enabled {
@@ -106,7 +114,14 @@ struct ClaudeSettingsCard: View {
             }
             Button("Avbryt", role: .cancel) {}
         } message: {
-            Text("AI-apparna du kopplar kan då läsa dina tankar, mötenas sammanfattningar, dina anteckningar och mötenas hela text. När du frågar en AI-app skickas texten till appens leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud, röstavtryck och dikteringar delas aldrig. Alla program som körs som du på den här Macen kan fråga, och loggen visar varje läsning.")
+            // Four short lines: who reads, where the text goes, what never leaves, and
+            // where you see it. (That any program running as you may ask is on the help page.)
+            Text(verbatim: [
+                String(localized: "Claude eller ChatGPT får läsa dina möten och tankar när du frågar dem."),
+                String(localized: "Texten skickas då till deras servrar, som när du klistrar in i chatten."),
+                String(localized: "Ljud, röstavtryck och dikteringar delas aldrig."),
+                String(localized: "Du ser varje läsning i loggen här."),
+            ].joined(separator: "\n"))
         }
         .confirmationDialog("Rensa loggen?", isPresented: $confirmClear) {
             Button("Rensa", role: .destructive) { withAnimation(.snappy) { sharing.clearLog() } }
@@ -144,22 +159,42 @@ struct ClaudeSettingsCard: View {
                 HStack(spacing: 18) { buttons; claudeCodeLink }
                 VStack(alignment: .leading, spacing: 10) { buttons; claudeCodeLink }
             }
+            // Where ChatGPT's connection works, said before the press, not after.
+            Text(verbatim: ClaudeInstall.chatGPTWhere)
+                .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 10)
             if let notice { noticeView(notice).padding(.top, 12) }
 
-            Text("Alla andra program")
-                .font(.system(size: 14, weight: .semibold))
-                .padding(.top, 22).padding(.bottom, 10)
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .center, spacing: 0) {
-                    StepNumber(1)
-                    Text("steg|Kopiera inställningen").font(.system(size: 13)).fixedSize()
-                        .padding(.trailing, 12)
-                    MCPCopyField(text: ClaudeInstall.serverConfig(), what: "the MCP server config") {
-                        sharing.connectedOnce = true
-                    }
+            // Every other program: the standard setting and where it goes, folded.
+            Button { withAnimation(.easeOut(duration: 0.2)) { otherApps.toggle() } } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DS.Colors.muted)
+                        .rotationEffect(.degrees(otherApps ? 90 : 0))
+                    Text("Andra program").font(.system(size: 14, weight: .semibold))
                 }
-                step(2, LocalizedStringKey(ClaudeInstall.pasteSettingStep))
-                step(3, "Starta om programmet och fråga om dina möten.")
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Andra program"))
+            .accessibilityAddTraits(otherApps ? [.isButton, .isSelected] : .isButton)
+            .padding(.top, 22)
+            if otherApps {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .center, spacing: 0) {
+                        StepNumber(1)
+                        Text("steg|Kopiera inställningen").font(.system(size: 13)).fixedSize()
+                            .padding(.trailing, 12)
+                        MCPCopyField(text: ClaudeInstall.serverConfig(), what: "the MCP server config") {
+                            sharing.connectedOnce = true
+                        }
+                    }
+                    step(2, LocalizedStringKey(ClaudeInstall.pasteSettingStep))
+                    step(3, "Starta om programmet och fråga om dina möten.")
+                }
+                .padding(.top, 12)
+                .transition(.opacity)
             }
             HStack {
                 Spacer()
@@ -221,16 +256,12 @@ struct ClaudeSettingsCard: View {
                 .fixedSize(horizontal: false, vertical: true)
         case .chatGPT:
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(ClaudeInstall.chatGPTSteps.enumerated()), id: \.offset) { index, text in
+                ForEach(Array(ClaudeInstall.chatGPTSteps().enumerated()), id: \.offset) { index, text in
                     HStack(alignment: .firstTextBaseline, spacing: 0) {
                         StepNumber(index + 1)
                         Text(verbatim: text).font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                Text(verbatim: ClaudeInstall.chatGPTWhere)
-                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 2)
             }
         case .trouble(let text, let get):
             HStack(spacing: 8) {
@@ -303,7 +334,9 @@ struct ClaudeSettingsCard: View {
                 }
             }
             if sharing.entries.isEmpty {
-                Text("Inget läst än.").font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                Text("Inget har lästs än. Här ser du varje gång en AI-app hämtar något från Mindtalk.")
+                    .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             } else {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(showAll ? sharing.entries : Array(sharing.entries.prefix(Self.shown))) { entry in

@@ -285,6 +285,8 @@ struct MCPHelpView: View {
                  String(localized: "Kontrollera att MCP är på här, och starta om programmet.")),
             .ask(String(localized: "Säger programmet att Mindtalk inte är igång?"),
                  String(localized: "Öppna Mindtalk.")),
+            .ask(String(localized: "Vilka program kan läsa?"),
+                 String(localized: "Alla program som körs som du på den här Macen kan fråga när MCP är på. Loggen här visar varje läsning.")),
             .ask(String(localized: "Vill du slå av?"),
                  String(localized: "Slå av MCP här. Inget kan läsas från den stunden.")),
         ])
@@ -310,15 +312,17 @@ struct MCPHelpView: View {
             ])
         case .claudeCode:
             return Section(title: client.title, lines: [
+                .note(String(localized: "Claude Code är för dig som skriver kod i Terminalen.")),
                 .copy(copyCommand, text: copied(client), what: "the Claude Code command"),
                 .step(paste),
                 .step(String(localized: "Skriv /mcp i Claude Code för att se att Mindtalk är kopplat.")),
             ])
         case .chatGPT:
             return Section(title: "ChatGPT", client: client, lines: [
+                .note(ClaudeInstall.chatGPTWhere),
                 .copy(String(localized: "steg|Kopiera sökvägen"), text: ClaudeInstall.helperLinkURL.path, what: "the helper path for ChatGPT"),
-            ] + ClaudeInstall.chatGPTSteps.map { .step($0) } + [
-                .note(String(localized: "Det fungerar både i Codex och i den vanliga chatten, i ChatGPT-appen för Mac. Inte på webben eller i mobilen.")),
+            ] + ClaudeInstall.chatGPTSteps(copied: false).map { .step($0) } + [
+                .note(String(localized: "Det fungerar både i Codex och i den vanliga chatten.")),
                 .note(String(localized: "Inte under Plugins. Där fungerar bara servrar på internet.")),
                 .note(String(localized: "Använder du Codex i Terminalen? Kopiera kommandot och klistra in där.")),
                 .field(ClaudeInstall.codexCommand(), what: "the Codex command"),

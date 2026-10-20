@@ -2812,6 +2812,22 @@
         }
       }
     },
+    "Alla program som körs som du på den här Macen kan fråga när MCP är på. Loggen här visar varje läsning.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every program running as you on this Mac can ask while MCP is on. The log here shows every read."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alla program som körs som du på den här Macen kan fråga när MCP är på. Loggen här visar varje läsning."
+          }
+        }
+      }
+    },
     "Alla program som körs som du på den här Macen kan fråga. Loggen visar varje läsning.": {
       "extractionState": "stale",
       "localizations": {
@@ -5186,6 +5202,38 @@
         }
       }
     },
+    "Claude Code är för dig som skriver kod i Terminalen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code is for people who write code in the Terminal."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code är för dig som skriver kod i Terminalen."
+          }
+        }
+      }
+    },
+    "Claude eller ChatGPT får läsa dina möten och tankar när du frågar dem.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude or ChatGPT can read your meetings and thoughts when you ask them."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude eller ChatGPT får läsa dina möten och tankar när du frågar dem."
+          }
+        }
+      }
+    },
     "Claude och ChatGPT": {
       "localizations": {
         "en": {
@@ -6311,6 +6359,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Det fungerar både i Codex och i den vanliga chatten, i ChatGPT-appen för Mac. Inte på webben eller i mobilen."
+          }
+        }
+      }
+    },
+    "Det fungerar både i Codex och i den vanliga chatten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It works both in Codex and in the regular chat."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det fungerar både i Codex och i den vanliga chatten."
           }
         }
       }
@@ -7631,6 +7695,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Du markerade det här under mötet"
+          }
+        }
+      }
+    },
+    "Du ser varje läsning i loggen här.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You see every read in the log here."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du ser varje läsning i loggen här."
           }
         }
       }
@@ -13718,6 +13798,22 @@
         }
       }
     },
+    "Inget har lästs än. Här ser du varje gång en AI-app hämtar något från Mindtalk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing has been read yet. Here you see every time an AI app fetches something from Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inget har lästs än. Här ser du varje gång en AI-app hämtar något från Mindtalk."
+          }
+        }
+      }
+    },
     "Inget här.": {
       "localizations": {
         "en": {
@@ -17538,6 +17634,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ljud äldre än %lld dagar flyttas till papperskorgen. Texten sparas alltid."
+          }
+        }
+      }
+    },
+    "Ljud, röstavtryck och dikteringar delas aldrig.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio, voiceprints and dictations are never shared."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ljud, röstavtryck och dikteringar delas aldrig."
           }
         }
       }
@@ -22196,6 +22308,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Namn stavas rätt när du pratar (%@)"
+          }
+        }
+      }
+    },
+    "Namn: mindtalk. Command: klistra in. Argument: mcp.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name: mindtalk. Command: paste. Argument: mcp."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namn: mindtalk. Command: klistra in. Argument: mcp."
           }
         }
       }
@@ -26908,6 +27036,22 @@
         }
       }
     },
+    "Spara och starta om ChatGPT.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save and restart ChatGPT."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spara och starta om ChatGPT."
+          }
+        }
+      }
+    },
     "Spara och tryck Restart.": {
       "localizations": {
         "en": {
@@ -29073,6 +29217,22 @@
         }
       }
     },
+    "Sökvägen är kopierad. Öppna Inställningar i ChatGPT, välj MCP servers och Add server.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The path is copied. Open Settings in ChatGPT, choose MCP servers and Add server."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sökvägen är kopierad. Öppna Inställningar i ChatGPT, välj MCP servers och Add server."
+          }
+        }
+      }
+    },
     "Ta bort": {
       "localizations": {
         "en": {
@@ -30810,6 +30970,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Texten och inspelningen tas bort från din Mac och går inte att få tillbaka."
+          }
+        }
+      }
+    },
+    "Texten skickas då till deras servrar, som när du klistrar in i chatten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text is then sent to their servers, like when you paste into the chat."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten skickas då till deras servrar, som när du klistrar in i chatten."
           }
         }
       }
@@ -33027,6 +33203,22 @@
         }
       }
     },
+    "Vilka program kan läsa?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Which programs can read?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vilka program kan läsa?"
+          }
+        }
+      }
+    },
     "Vilka uppgifter har jag?": {
       "localizations": {
         "en": {
@@ -33739,6 +33931,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Välj"
+          }
+        }
+      }
+    },
+    "Välj STDIO, det betyder ett program på din Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose STDIO, which means a program on your Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj STDIO, det betyder ett program på din Mac."
           }
         }
       }
@@ -36755,6 +36963,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna ChatGPT"
+          }
+        }
+      }
+    },
+    "Öppna Inställningar i ChatGPT, välj MCP servers och Add server.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings in ChatGPT, choose MCP servers and Add server."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna Inställningar i ChatGPT, välj MCP servers och Add server."
           }
         }
       }

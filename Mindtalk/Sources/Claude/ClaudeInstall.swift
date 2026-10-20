@@ -14,7 +14,7 @@ import os
 //     the .mcpb type and shows the extension for installation.
 //   • ChatGPT: the helper's path, copied, and the ChatGPT app opened; its own MCP
 //     settings take a local (STDIO) server, in Codex and the regular chat alike, in the
-//     app for Mac only. Four steps say where (chatGPTSteps).
+//     app for Mac only. Four steps say where (chatGPTSteps(copied:)).
 //   • Claude Code, Codex, Gemini CLI: one `… mcp add` line, copied to the clipboard.
 //     (Gemini CLI for those on Gemini Code Assist; Antigravity reads the standard
 //     setting from its own file.)
@@ -157,17 +157,19 @@ enum ClaudeInstall {
         String(localized: "Claude öppnas och visar Mindtalk. Tryck Installera, så är det klart.")
     }
 
-    /// What to do in ChatGPT once the path is copied, the same on the card and the help page.
-    static var chatGPTSteps: [String] {
+    /// What to do in ChatGPT, the same on the card and the help page. On the card the
+    /// button has just copied the path, and the first step says so.
+    static func chatGPTSteps(copied: Bool = true) -> [String] {
         [
-            String(localized: "I ChatGPT: Inställningar → MCP servers → Add server, välj STDIO."),
-            String(localized: "Skriv mindtalk som namn och klistra in som kommando."),
-            String(localized: "Skriv mcp som argument."),
-            String(localized: "Spara och tryck Restart."),
+            copied ? String(localized: "Sökvägen är kopierad. Öppna Inställningar i ChatGPT, välj MCP servers och Add server.")
+                   : String(localized: "Öppna Inställningar i ChatGPT, välj MCP servers och Add server."),
+            String(localized: "Välj STDIO, det betyder ett program på din Mac."),
+            String(localized: "Namn: mindtalk. Command: klistra in. Argument: mcp."),
+            String(localized: "Spara och starta om ChatGPT."),
         ]
     }
 
-    /// Under the ChatGPT steps: where it works.
+    /// Under the buttons, before any press: where ChatGPT's connection works.
     static var chatGPTWhere: String {
         String(localized: "Fungerar i ChatGPT-appen för Mac, inte på webben eller i mobilen.")
     }
