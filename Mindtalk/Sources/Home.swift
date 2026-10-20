@@ -196,6 +196,15 @@ struct HomeHero: View {
                 Text(verbatim: subline(week: week, weekWords: weekWords, fresh: fresh)).font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
                     .fixedSize(horizontal: false, vertical: true).padding(.top, today > 0 || weekWords > 0 ? 2 : 8)
             }
+            // Another program has Secure Input on: the key can't be heard. Said here as in
+            // the menu bar panel, as a warning, since nothing else on the page says why.
+            if dictation.isReady, dictation.keyboardBlocked, !session.isBusy {
+                Label("Ett annat program spärrar tangentbordet just nu, så tangenten för diktering fungerar inte.",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 13, weight: .medium)).foregroundStyle(DS.Colors.warning)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 12)
+            }
         }
     }
 
