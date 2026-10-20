@@ -924,7 +924,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
         // `Mindtalk --render-mcp out.png [--dark] [--on] [--client <name>] [--help-page]`: Settings →
         // Integrationer → MCP, off or on, with made-up folders and a made-up log (nothing
-        // saved). `--client "ChatGPT (Codex)"`: as right after pressing that program's button.
+        // saved). `--client chatgpt` (claude, claude-missing, chatgpt-missing, claude-code):
+        // as right after that press (ClaudeSettingsCard.Preview).
         // `--help-page`: the help page from "Läs mer" instead. `--render-claude` is the old
         // name of the same flag.
         if let i = args.firstIndex(of: "--render-mcp") ?? args.firstIndex(of: "--render-claude"), i + 1 < args.count {
@@ -941,7 +942,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     .init(date: now.addingTimeInterval(-86_400), tool: "mindtalk_list_meetings", scope: "Kunder", items: 12, characters: 2400),
                     .init(date: now.addingTimeInterval(-90_000), tool: "mindtalk_list_thoughts", scope: LogScope.thoughts, items: 7, characters: 900),
                 ])
-                let client = args.firstIndex(of: "--client").flatMap { j in j + 1 < args.count ? ClaudeInstall.Client(rawValue: args[j + 1]) : nil }
+                let client = args.firstIndex(of: "--client").flatMap { j in j + 1 < args.count ? ClaudeSettingsCard.Preview(rawValue: args[j + 1]) : nil }
                 let view: AnyView = args.contains("--help-page")
                     ? AnyView(MCPHelpView(sharing: .shared, close: {}, plain: true)
                         .environment(\.colorScheme, dark ? .dark : .light))

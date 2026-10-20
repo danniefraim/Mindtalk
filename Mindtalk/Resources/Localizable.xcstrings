@@ -2619,6 +2619,22 @@
         }
       }
     },
+    "AI-apparna du kopplar kan då läsa dina tankar, mötenas sammanfattningar, dina anteckningar och mötenas hela text. När du frågar en AI-app skickas texten till appens leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud, röstavtryck och dikteringar delas aldrig. Alla program som körs som du på den här Macen kan fråga, och loggen visar varje läsning.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The AI apps you connect can then read your thoughts, your meetings’ summaries, your notes and your meetings’ full text. When you ask an AI app, the text is sent to that app’s provider under the terms of your account there. Mindtalk sends nothing on its own. Audio, voiceprints and dictations are never shared. Any app running as you on this Mac can ask, and the log shows every reading."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI-apparna du kopplar kan då läsa dina tankar, mötenas sammanfattningar, dina anteckningar och mötenas hela text. När du frågar en AI-app skickas texten till appens leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud, röstavtryck och dikteringar delas aldrig. Alla program som körs som du på den här Macen kan fråga, och loggen visar varje läsning."
+          }
+        }
+      }
+    },
     "AI-program": {
       "localizations": {
         "en": {
@@ -3337,6 +3353,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Använder %@ så länge."
+          }
+        }
+      }
+    },
+    "Använder du Claude Code? Kopiera kommandot.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Using Claude Code? Copy the command."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Använder du Claude Code? Kopiera kommandot."
           }
         }
       }
@@ -5010,6 +5042,22 @@
         }
       }
     },
+    "ChatGPT-appen hittades inte.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The ChatGPT app was not found."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ChatGPT-appen hittades inte."
+          }
+        }
+      }
+    },
     "Claude öppnas och frågar om du vill lägga till Mindtalk. Svara ja.": {
       "localizations": {
         "en": {
@@ -5022,6 +5070,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Claude öppnas och frågar om du vill lägga till Mindtalk. Svara ja."
+          }
+        }
+      }
+    },
+    "Claude öppnas och visar Mindtalk. Tryck Installera, så är det klart.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude opens and shows Mindtalk. Press Install, and you’re done."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude öppnas och visar Mindtalk. Tryck Installera, så är det klart."
           }
         }
       }
@@ -8506,6 +8570,22 @@
         }
       }
     },
+    "Flytta Mindtalk till mappen Program och öppna den igen, annars hittar AI-apparna inte Mindtalk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move Mindtalk to the Applications folder and open it again, or the AI apps won’t find Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flytta Mindtalk till mappen Program och öppna den igen, annars hittar AI-apparna inte Mindtalk."
+          }
+        }
+      }
+    },
     "Flytta Mindtalk till mappen Program och öppna den igen, annars hittar AI-programmen inte Mindtalk.": {
       "localizations": {
         "en": {
@@ -9210,6 +9290,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Från och med nu stavas ”%@” så i allt du dikterar."
+          }
+        }
+      }
+    },
+    "Fungerar i ChatGPT-appen för Mac, inte på webben eller i mobilen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Works in the ChatGPT app for Mac, not on the web or on mobile."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fungerar i ChatGPT-appen för Mac, inte på webben eller i mobilen."
           }
         }
       }
@@ -10766,6 +10862,22 @@
         }
       }
     },
+    "Hämta ChatGPT": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get ChatGPT"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hämta ChatGPT"
+          }
+        }
+      }
+    },
     "Hämta Claude": {
       "localizations": {
         "en": {
@@ -12166,6 +12278,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "I %@"
+          }
+        }
+      }
+    },
+    "I ChatGPT: Inställningar → MCP servers → Add server, välj STDIO.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In ChatGPT: Settings → MCP servers → Add server, choose STDIO."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I ChatGPT: Inställningar → MCP servers → Add server, välj STDIO."
           }
         }
       }
@@ -15056,6 +15184,22 @@
         }
       }
     },
+    "Kopierar sökvägen och öppnar ChatGPT-appen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copies the path and opens the ChatGPT app."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopierar sökvägen och öppnar ChatGPT-appen."
+          }
+        }
+      }
+    },
     "Kopierar sökvägen som ChatGPT-appen startar Mindtalk med.": {
       "localizations": {
         "en": {
@@ -15085,6 +15229,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kopierat"
+          }
+        }
+      }
+    },
+    "Kopierat.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copied."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopierat."
           }
         }
       }
@@ -18216,6 +18376,22 @@
         }
       }
     },
+    "Låt Claude, ChatGPT och andra AI-appar läsa dina möten och tankar, så kan du fråga dem om allt ni sagt. Dina dikteringar delas inte.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let Claude, ChatGPT and other AI apps read your meetings and thoughts, so you can ask them about anything you’ve said. Your dictations are not shared."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Låt Claude, ChatGPT och andra AI-appar läsa dina möten och tankar, så kan du fråga dem om allt ni sagt. Dina dikteringar delas inte."
+          }
+        }
+      }
+    },
     "Låt Claude, ChatGPT och andra AI-program läsa dina tankar och möten via MCP.": {
       "localizations": {
         "en": {
@@ -18360,6 +18536,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "MCP är ett öppet sätt för AI-program att läsa dina möten och tankar. Mindtalk kör en liten server på din Mac som programmet startar själv. Det fungerar i program på Macen, inte på webben eller i mobilen."
+          }
+        }
+      }
+    },
+    "MCP, låt AI-appar läsa möten och tankar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP, let AI apps read meetings and thoughts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MCP, låt AI-appar läsa möten och tankar"
           }
         }
       }
@@ -24767,6 +24959,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skriv in"
+          }
+        }
+      }
+    },
+    "Skriv mcp som argument.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type mcp as the argument."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriv mcp som argument."
+          }
+        }
+      }
+    },
+    "Skriv mindtalk som namn och klistra in som kommando.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type mindtalk as the name and paste as the command."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriv mindtalk som namn och klistra in som kommando."
           }
         }
       }

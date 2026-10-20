@@ -4,17 +4,20 @@ import os
 
 // MARK: - Integrationer → MCP: getting the connection into the user's program
 //
-// The settings card has a row of buttons for the four most asked for (Claude, Claude
-// Code, ChatGPT, Cursor) and the standard setting for all other programs; the help page
-// (MCPHelpView) has one section per program (ClaudeInstall.Client). What each does:
+// The settings card has two buttons, Claude and ChatGPT, a link that copies the Claude
+// Code command, and the standard setting for all other programs; the help page
+// (MCPHelpView) has Claude and ChatGPT first and then one section per developer tool
+// (ClaudeInstall.Client). What each does:
 //
 //   • Claude: a .mcpb bundle (a zip with manifest.json at its root, the Claude desktop
 //     app's extension format) that Mindtalk writes and opens. The Claude app registers
 //     the .mcpb type and shows the extension for installation.
-//   • Claude Code, Codex: one `… mcp add` line, copied to the clipboard. The ChatGPT
-//     button on the card copies the helper's path instead, for the app's own MCP
-//     settings. (Gemini CLI is gone since June 2026; Antigravity reads the standard
-//     setting, as any other program.)
+//   • ChatGPT: the helper's path, copied, and the ChatGPT app opened; its own MCP
+//     settings take a local (STDIO) server, in Codex and the regular chat alike, in the
+//     app for Mac only. Four steps say where (chatGPTSteps).
+//   • Claude Code, Codex, Gemini CLI: one `… mcp add` line, copied to the clipboard.
+//     (Gemini CLI for those on Gemini Code Assist; Antigravity reads the standard
+//     setting from its own file.)
 //   • Cursor, VS Code, LM Studio, Raycast: a link in the program's own scheme that
 //     opens it with the server filled in.
 //   • Zed and any other program: the settings snippet, copied to the clipboard.
@@ -151,7 +154,22 @@ enum ClaudeInstall {
 
     /// The step after "Lägg till i Claude", the same on the card and the help page.
     static var claudeOpensStep: String {
-        String(localized: "Claude öppnas och visar Mindtalk. Tryck Installera.")
+        String(localized: "Claude öppnas och visar Mindtalk. Tryck Installera, så är det klart.")
+    }
+
+    /// What to do in ChatGPT once the path is copied, the same on the card and the help page.
+    static var chatGPTSteps: [String] {
+        [
+            String(localized: "I ChatGPT: Inställningar → MCP servers → Add server, välj STDIO."),
+            String(localized: "Skriv mindtalk som namn och klistra in som kommando."),
+            String(localized: "Skriv mcp som argument."),
+            String(localized: "Spara och tryck Restart."),
+        ]
+    }
+
+    /// Under the ChatGPT steps: where it works.
+    static var chatGPTWhere: String {
+        String(localized: "Fungerar i ChatGPT-appen för Mac, inte på webben eller i mobilen.")
     }
 
     /// Step 2 for any other program, the same on the card and the help page.
@@ -200,6 +218,29 @@ enum ClaudeInstall {
             log.error("add to Claude: \(error.localizedDescription, privacy: .public)")
             return .failed(error.localizedDescription)
         }
+    }
+
+    // MARK: ChatGPT
+
+    /// The ChatGPT app for Mac (chatgpt.com/download).
+    static let chatGPTBundleID = "com.openai.chat"
+    static let chatGPTDownloadURL = URL(string: "https://chatgpt.com/download")!
+
+    /// Copies the helper's path and opens the ChatGPT app, if it is on this Mac. The
+    /// path is copied either way: it is what goes in ChatGPT's settings.
+    @MainActor
+    static func addToChatGPT() -> OpenOutcome {
+        copy(helperLinkURL.path, what: "the helper path for ChatGPT")
+        guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: chatGPTBundleID) else {
+            log.notice("add to ChatGPT: the ChatGPT app was not found")
+            return .notInstalled
+        }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.openApplication(at: app, configuration: configuration) { _, error in
+            if let error { log.error("open ChatGPT: \(error.localizedDescription, privacy: .public)") }
+        }
+        return .opened
     }
 
     // MARK: The programs

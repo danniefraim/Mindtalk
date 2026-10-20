@@ -3,25 +3,26 @@ import SwiftUI
 
 // MARK: - Inställningar → Integrationer → MCP
 //
-// Off by default. One row on top, AI-program and the switch, with a line that says what
-// it does (MCP is named there, not in the title). Switched on, the card fits one
-// screen: a row of buttons for the four programs people ask for (Claude, Claude Code,
-// ChatGPT, Cursor), three steps for all other programs with the standard setting to
-// copy, and a "Läs mer" that opens the help page (MCPHelpView, every program step by
-// step, and the Terminal command). Then what has been read so far. On means everything
-// Mindtalk has may be read; off means nothing: switching on is the choice, so there is
-// nothing more to set. Switched off: the row and a line saying so. Run from outside
-// Applications, or without the helper's link, a line says the programs won't find it.
+// Off by default. One row on top, MCP and the switch, with a line that says what it does
+// and that dictations are never shared. Switched on, the card fits one screen: two
+// buttons, Claude and ChatGPT, with a small link under them that copies the Claude Code
+// command; three steps for all other programs with the standard setting to copy; and a
+// "Läs mer" that opens the help page (MCPHelpView: Claude and ChatGPT, then every
+// developer tool step by step, and the Terminal command). Then what has been read so
+// far. On means everything Mindtalk has may be read; off means nothing: switching on is
+// the choice, so there is nothing more to set. Switched off: the row and a line saying
+// so. Run from outside Applications, or without the helper's link, a line says the
+// apps won't find it.
 //
 // The first time the switch goes on, a dialog says where the text goes and what is
 // never shared; after that the switch is a switch.
 
 struct ClaudeSettingsCard: View {
     @ObservedObject var sharing: ClaudeSharing
-    /// The button that reads "Kopierat" for a moment after a copy.
-    @State private var copied: ClaudeInstall.Client?
+    /// "Kopierat." in place of the Claude Code link, for a moment.
+    @State private var codeCopied = false
     @State private var copiedTask: Task<Void, Never>?
-    /// The line under the buttons: what to do with the copy, or what went wrong.
+    /// The lines under the buttons: what happens next, or what went wrong.
     @State private var notice: Notice?
     @State private var noticeTask: Task<Void, Never>?
     /// "Slå på MCP?", the first time.
@@ -34,25 +35,36 @@ struct ClaudeSettingsCard: View {
     private static let shown = 10
 
     private enum Notice: Equatable {
-        /// Muted, and gone after a while (longer for a longer line).
-        case copied(String)
-        /// In ink, until the next press; for the Claude app with "Hämta Claude" beside it.
-        case trouble(String, getClaude: Bool)
+        /// Muted, and gone after a while.
+        case said(String)
+        /// The four ChatGPT steps, until the next press.
+        case chatGPT
+        /// In ink, until the next press, with a button to get the app.
+        case trouble(String, get: GetApp?)
     }
 
-    /// `preview`: the renders, as right after pressing that program's button.
-    init(sharing: ClaudeSharing, preview: ClaudeInstall.Client? = nil) {
+    /// The app a "Hämta" button beside a trouble line gets.
+    private enum GetApp: Equatable {
+        case claude, chatGPT
+        var title: String { self == .claude ? String(localized: "Hämta Claude") : String(localized: "Hämta ChatGPT") }
+        var url: URL { self == .claude ? ClaudeInstall.downloadURL : ClaudeInstall.chatGPTDownloadURL }
+    }
+
+    /// The renders (`--render-mcp --client …`): as right after a press.
+    enum Preview: String {
+        case claude, claudeMissing = "claude-missing", chatGPT = "chatgpt", chatGPTMissing = "chatgpt-missing"
+        case claudeCode = "claude-code"
+    }
+
+    init(sharing: ClaudeSharing, preview: Preview? = nil) {
         self.sharing = sharing
         switch preview {
-        case .codex, .claudeCode:
-            _copied = State(initialValue: preview)
-            _notice = State(initialValue: .copied(Self.copiedLine(preview!)))
-        case .cursor:
-            _notice = State(initialValue: .trouble(ClaudeInstall.Client.cursor.notFound, getClaude: false))
-        case .claude:
-            _notice = State(initialValue: .trouble(String(localized: "Claude-appen hittades inte."), getClaude: true))
-        default:
-            break
+        case .claude: _notice = State(initialValue: .said(ClaudeInstall.claudeOpensStep))
+        case .claudeMissing: _notice = State(initialValue: .trouble(String(localized: "Claude-appen hittades inte."), get: .claude))
+        case .chatGPT: _notice = State(initialValue: .chatGPT)
+        case .chatGPTMissing: _notice = State(initialValue: .trouble(String(localized: "ChatGPT-appen hittades inte."), get: .chatGPT))
+        case .claudeCode: _codeCopied = State(initialValue: true)
+        case nil: break
         }
     }
 
@@ -60,7 +72,7 @@ struct ClaudeSettingsCard: View {
         VStack(spacing: 0) {
             header
             if !ClaudeInstall.helperReachable {
-                Text("Flytta Mindtalk till mappen Program och öppna den igen, annars hittar AI-programmen inte Mindtalk.")
+                Text("Flytta Mindtalk till mappen Program och öppna den igen, annars hittar AI-apparna inte Mindtalk.")
                     .font(.system(size: 13, weight: .medium))
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -87,7 +99,7 @@ struct ClaudeSettingsCard: View {
             }
             Button("Avbryt", role: .cancel) {}
         } message: {
-            Text("Programmen du kopplar kan då läsa dina tankar, mötenas sammanfattningar, dina anteckningar och mötenas hela text. När du frågar ett AI-program skickas texten till det programmets leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud och röstavtryck delas aldrig. Alla program som körs som du på den här Macen kan fråga, och loggen visar varje läsning.")
+            Text("AI-apparna du kopplar kan då läsa dina tankar, mötenas sammanfattningar, dina anteckningar och mötenas hela text. När du frågar en AI-app skickas texten till appens leverantör, enligt villkoren för ditt konto där. Mindtalk skickar inget själv. Ljud, röstavtryck och dikteringar delas aldrig. Alla program som körs som du på den här Macen kan fråga, och loggen visar varje läsning.")
         }
         .confirmationDialog("Rensa loggen?", isPresented: $confirmClear) {
             Button("Rensa", role: .destructive) { withAnimation(.snappy) { sharing.clearLog() } }
@@ -110,30 +122,22 @@ struct ClaudeSettingsCard: View {
     }
 
     private var header: some View {
-        CardRow(title: "AI-program",
-                detail: sharing.enabled ? "När det är på kan programmen du kopplar läsa dina tankar och möten. Allt de läser syns nedan."
-                    : "Låt Claude, ChatGPT och andra AI-program läsa dina tankar och möten via MCP.") {
-            InkToggle(label: String(localized: "MCP, låt AI-program läsa möten och tankar"), isOn: enabled)
+        CardRow(title: "MCP",
+                detail: "Låt Claude, ChatGPT och andra AI-appar läsa dina möten och tankar, så kan du fråga dem om allt ni sagt. Dina dikteringar delas inte.") {
+            InkToggle(label: String(localized: "MCP, låt AI-appar läsa möten och tankar"), isOn: enabled)
         }
     }
 
-    // MARK: The four buttons, and all other programs
+    // MARK: Claude and ChatGPT, and all other programs
 
     private var connect: some View {
         VStack(alignment: .leading, spacing: 0) {
-            FlowLayout(spacing: 10) {
-                Button("Lägg till i Claude") { addToClaude() }
-                    .buttonStyle(.ink)
-                    .help("Skapar ett tillägg och öppnar det i Claude-appen.")
-                copyButton(.claudeCode, title: "Claude Code")
-                    .help("Kopierar kommandot som lägger till Mindtalk i Claude Code.")
-                copyButton(.codex, title: "ChatGPT")
-                    .help("Kopierar sökvägen som ChatGPT-appen startar Mindtalk med.")
-                Button { open(.cursor) } label: { Text(verbatim: "Cursor") }
-                    .buttonStyle(.soft)
-                    .help("Öppnar Cursor, som frågar om du vill lägga till Mindtalk.")
+            // The Claude Code link beside the buttons, or under them when the card is narrow.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 18) { buttons; claudeCodeLink }
+                VStack(alignment: .leading, spacing: 10) { buttons; claudeCodeLink }
             }
-            if let notice { noticeLine(notice).padding(.top, 10) }
+            if let notice { noticeView(notice).padding(.top, 12) }
 
             Text("Alla andra program")
                 .font(.system(size: 14, weight: .semibold))
@@ -169,6 +173,33 @@ struct ClaudeSettingsCard: View {
         .padding(.horizontal, 22).padding(.top, 18).padding(.bottom, 14)
     }
 
+    private var buttons: some View {
+        HStack(spacing: 10) {
+            Button("Lägg till i Claude") { addToClaude() }
+                .buttonStyle(.ink)
+                .help("Skapar ett tillägg och öppnar det i Claude-appen.")
+            Button { addToChatGPT() } label: { Text(verbatim: "ChatGPT") }
+                .buttonStyle(.soft)
+                .help("Kopierar sökvägen och öppnar ChatGPT-appen.")
+        }
+        .fixedSize()
+    }
+
+    /// "Använder du Claude Code? Kopiera kommandot.", and "Kopierat." for a moment after.
+    private var claudeCodeLink: some View {
+        Button { copyClaudeCode() } label: {
+            ZStack(alignment: .leading) {
+                Text("Använder du Claude Code? Kopiera kommandot.").opacity(codeCopied ? 0 : 1)
+                Text("Kopierat.").opacity(codeCopied ? 1 : 0)
+            }
+            .fixedSize()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
+        .help("Kopierar kommandot som lägger till Mindtalk i Claude Code.")
+    }
+
     private func step(_ number: Int, _ text: LocalizedStringKey) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 0) {
             StepNumber(number)
@@ -176,29 +207,30 @@ struct ClaudeSettingsCard: View {
         }
     }
 
-    /// A soft button that reads "Kopierat" for a moment, as wide as the wider of the two
-    /// so the row doesn't move.
-    private func copyButton(_ client: ClaudeInstall.Client, title: String) -> some View {
-        Button { copy(client) } label: {
-            ZStack {
-                Text(verbatim: title).opacity(copied == client ? 0 : 1)
-                Text("Kopierat").opacity(copied == client ? 1 : 0)
-            }
-        }
-        .buttonStyle(.soft)
-    }
-
-    @ViewBuilder private func noticeLine(_ notice: Notice) -> some View {
+    @ViewBuilder private func noticeView(_ notice: Notice) -> some View {
         switch notice {
-        case .copied(let text):
+        case .said(let text):
             Text(verbatim: text).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
-        case .trouble(let text, let getClaude):
+        case .chatGPT:
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(ClaudeInstall.chatGPTSteps.enumerated()), id: \.offset) { index, text in
+                    HStack(alignment: .firstTextBaseline, spacing: 0) {
+                        StepNumber(index + 1)
+                        Text(verbatim: text).font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Text(verbatim: ClaudeInstall.chatGPTWhere)
+                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2)
+            }
+        case .trouble(let text, let get):
             HStack(spacing: 8) {
                 Text(verbatim: text).font(.system(size: 12.5)).foregroundStyle(.primary)
-                if getClaude {
-                    Button { NSWorkspace.shared.open(ClaudeInstall.downloadURL) } label: {
-                        Text("Hämta Claude").font(.system(size: 12.5, weight: .medium)).underline()
+                if let get {
+                    Button { NSWorkspace.shared.open(get.url) } label: {
+                        Text(verbatim: get.title).font(.system(size: 12.5, weight: .medium)).underline()
                     }
                     .buttonStyle(.plain)
                 }
@@ -206,20 +238,12 @@ struct ClaudeSettingsCard: View {
         }
     }
 
-    private static func copiedLine(_ client: ClaudeInstall.Client) -> String {
-        client == .codex
-            ? String(localized: "Kopierat. I ChatGPT-appen: Inställningar → MCP servers → Add server. Välj STDIO, klistra in som kommando och skriv mcp som argument. Spara och tryck Restart.")
-            : String(localized: "Kopierat. Klistra in i Terminalen.")
-    }
-
     private func say(_ new: Notice?) {
         noticeTask?.cancel()
         withAnimation(.snappy) { notice = new }
-        guard case .copied(let text) = new else { return }
-        // Time to read it: the ChatGPT steps take longer than "Kopierat".
-        let seconds = text.count > 60 ? 12.0 : 4.0
+        guard case .said = new else { return }
         noticeTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(seconds))
+            try? await Task.sleep(for: .seconds(8))
             if !Task.isCancelled { withAnimation(.snappy) { notice = nil } }
         }
     }
@@ -228,38 +252,30 @@ struct ClaudeSettingsCard: View {
         let outcome = ClaudeInstall.addToClaude()
         if outcome == .opened { sharing.connectedOnce = true }
         // Opened: what happens next in Claude, as on the help page.
-        say(outcome.trouble.map { .trouble($0, getClaude: outcome == .noClaudeApp) } ?? .copied(ClaudeInstall.claudeOpensStep))
+        say(outcome.trouble.map { .trouble($0, get: outcome == .noClaudeApp ? .claude : nil) } ?? .said(ClaudeInstall.claudeOpensStep))
     }
 
-    /// Claude Code: its `claude mcp add` line. ChatGPT: the helper's path, for the app's
-    /// own MCP settings (the `codex mcp add` line is on the help page).
-    private func copy(_ client: ClaudeInstall.Client) {
-        let text: String
-        if client == .codex {
-            text = ClaudeInstall.helperLinkURL.path
-        } else {
-            guard case .copy(_, let line) = client.action else { return }
-            text = line
-        }
-        ClaudeInstall.copy(text, what: client == .codex ? "the helper path for ChatGPT" : "the command for \(client.rawValue)")
-        sharing.connectedOnce = true
-        copiedTask?.cancel()
-        withAnimation(.snappy) { copied = client }
-        copiedTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2))
-            if !Task.isCancelled { withAnimation(.snappy) { copied = nil } }
-        }
-        say(.copied(Self.copiedLine(client)))
-    }
-
-    private func open(_ client: ClaudeInstall.Client) {
-        guard case .open(_, let url) = client.action else { return }
-        switch ClaudeInstall.open(url) {
+    /// The helper's path to the clipboard and the ChatGPT app opened, with the steps
+    /// for its settings under the buttons.
+    private func addToChatGPT() {
+        switch ClaudeInstall.addToChatGPT() {
         case .opened:
             sharing.connectedOnce = true
-            say(nil)
+            say(.chatGPT)
         case .notInstalled:
-            say(.trouble(client.notFound, getClaude: false))
+            say(.trouble(String(localized: "ChatGPT-appen hittades inte."), get: .chatGPT))
+        }
+    }
+
+    /// Claude Code: its `claude mcp add` line, and "Kopierat." for a moment.
+    private func copyClaudeCode() {
+        ClaudeInstall.copyClaudeCodeCommand()
+        sharing.connectedOnce = true
+        copiedTask?.cancel()
+        withAnimation(.snappy) { codeCopied = true }
+        copiedTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            if !Task.isCancelled { withAnimation(.snappy) { codeCopied = false } }
         }
     }
 
