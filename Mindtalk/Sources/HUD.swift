@@ -7,6 +7,7 @@ import SwiftUI
 // waveform. Locked (hands-free), it grows a ✕ to cancel and a ✓ — our text
 // cursor — to type it in, both clickable. When you finish, the wave settles
 // into a line and ends in a blinking cursor: speech becoming text, as in the icon.
+// Once it's in, a quiet ✓ for a moment.
 
 @MainActor
 final class HUD {
@@ -186,6 +187,14 @@ private struct HUDView: View {
                 .buttonStyle(.plain)
                 .help("Öppna Tankar")
                 .accessibilityHint(Text("Öppnar Tankar"))
+            case .typed:
+                // In: a quiet ✓, gone in a moment.
+                Image(systemName: "checkmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 16)
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
+                    .accessibilityLabel(Text("Inskrivet"))
             case .idle:
                 EmptyView()
             }

@@ -28,6 +28,8 @@ final class Dictation: ObservableObject {
         case copied
         /// A thought, kept in Tankar.
         case saved
+        /// The text is in where you are: a ✓ for a moment.
+        case typed
         /// Something worth knowing that isn't a problem: a text that came late, nothing
         /// heard, the speech model starting. Said in white, without the warning sign.
         case notice(String)
@@ -765,7 +767,7 @@ final class Dictation: ObservableObject {
             doubleTapTimer?.cancel()
             awaitingSecondTap = false
             secondTapDown = true
-        case .idle, .failed, .copied, .saved, .notice:
+        case .idle, .failed, .copied, .saved, .notice, .typed:
             freshStart()
             begin()
         case .transcribing:
@@ -840,7 +842,7 @@ final class Dictation: ObservableObject {
             }
             ignoreNextRelease = true
             finish()
-        case .idle, .failed, .copied, .saved, .notice:
+        case .idle, .failed, .copied, .saved, .notice, .typed:
             freshStart()
             forThought = true
             thoughtByKey = KeyListener.shared.thoughtShortcut?.isModifier == true
@@ -895,7 +897,7 @@ final class Dictation: ObservableObject {
     /// "Säg en tanke" (the Tankar page, the menu bar): listening hands-free until ✓.
     func startThought() {
         switch phase {
-        case .idle, .failed, .copied, .saved, .notice:
+        case .idle, .failed, .copied, .saved, .notice, .typed:
             freshStart()
             forThought = true
             // A click is clearly meant: a problem (the model starting, no mic) is said
@@ -1348,7 +1350,7 @@ final class Dictation: ObservableObject {
             lateJob = nil
             guard !selfTest, !secret, !onlyBreak else { return }
             switch phase {
-            case .idle, .failed, .copied, .notice: notice(String(localized: "Klar. Klistra in med ⌃⌥V."))
+            case .idle, .failed, .copied, .notice, .typed: notice(String(localized: "Klar. Klistra in med ⌃⌥V."))
             default: break
             }
             return
@@ -1389,7 +1391,7 @@ final class Dictation: ObservableObject {
         case .micWentQuiet: notice(Self.micWentQuiet)
         case .micChanged: notice(Self.micChanged)
         case .timeUp: notice(String(localized: "En diktering kan vara tio minuter. Det du sa är inskrivet."))
-        case nil: reset()
+        case nil: selfTest ? reset() : typed()
         }
     }
 
@@ -1426,7 +1428,7 @@ final class Dictation: ObservableObject {
     func retryLast() {
         guard var take = failedTake else { return }
         switch phase {
-        case .idle, .failed, .copied, .saved, .notice: break
+        case .idle, .failed, .copied, .saved, .notice, .typed: break
         default: return
         }
         guard model == .ready else { return beep() }
@@ -1558,6 +1560,13 @@ final class Dictation: ObservableObject {
         showUntilReset(after: message.count > 34 ? 4.5 : 3.5) { if case .notice = $0 { return true }; return false }
     }
 
+    /// Typed in where you are: a ✓ in the pill for a moment, then it goes.
+    private func typed() {
+        reset()
+        phase = .typed
+        showUntilReset(after: 0.9) { $0 == .typed }
+    }
+
     /// A thought kept: the bubble says where it went, for a moment.
     private func saved() {
         phase = .saved
@@ -1587,7 +1596,7 @@ final class Dictation: ObservableObject {
             return beep()
         case .recording:
             cancel()               // the key held as part of ⌃⌥V: not a dictation
-        case .failed, .copied, .saved, .notice:
+        case .failed, .copied, .saved, .notice, .typed:
             reset()
         case .idle:
             break
@@ -1607,6 +1616,7 @@ final class Dictation: ObservableObject {
                 return copied(last.text)
             }
             TextInserter.insert(last.text.hasSuffix("\n") ? last.text : last.text + " ", keeping: Settings.keepInClipboard ? last.text : nil)
+            if phase == .idle { typed() }
         }
     }
 

@@ -13211,6 +13211,22 @@
         }
       }
     },
+    "Inskrivet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Typed in"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inskrivet"
+          }
+        }
+      }
+    },
     "Inspelning": {
       "extractionState": "stale",
       "localizations": {
