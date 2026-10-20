@@ -30,9 +30,12 @@ final class Recorder: @unchecked Sendable {
     private var running = false
     /// Stopping: the last, partly filled buffer is still on its way — kept, not re-queued.
     private var stopping = false
-    /// When audio last arrived (or the recording started) — a mic that goes quiet
-    /// without saying so is caught by its silence.
-    private var lastAudio = Date()
+    /// When audio last arrived — a mic that goes quiet without saying so is caught
+    /// by its silence. Nil until the first buffer: a headset is given time to start.
+    private var lastAudio: Date?
+    /// The input is Bluetooth: AirPods take a few seconds to switch to their headset
+    /// mode before the first buffer comes.
+    private var bluetoothInput = false
     private var hardwareStarted = false
     private var interruptionReported = false
     /// Since when every sample has been exactly zero (nil while there's signal).
@@ -138,13 +141,15 @@ final class Recorder: @unchecked Sendable {
             guard let buffer else { throw Self.microphoneError() }
             try Self.check(AudioQueueEnqueueBuffer(created, buffer, 0, nil), "enqueue")
         }
+        let input = device ?? Self.defaultInput()
+        let bluetooth = input.map(Self.isBluetooth) ?? false
         lock.lock()
         queue = created; context = state; generation = state.takeUnretainedValue().generation
         running = true; stopping = false; hardwareStarted = false; interruptionReported = false
-        lastAudio = Date()
+        lastAudio = nil; bluetoothInput = bluetooth
         zeroSince = nil; startedAt = Date(); signalLossReported = false
         lock.unlock()
-        inputDevice = device ?? Self.defaultInput()
+        inputDevice = input
         // A device that is changing format (AirPods switching to their headset
         // mode, a call app taking the mic) asks to be tried again a moment later.
         var status = AudioQueueStart(created, nil)
@@ -179,7 +184,11 @@ final class Recorder: @unchecked Sendable {
         let stoppedContext = context
         queue = nil; context = nil; generation = nil; running = false; stopping = false
         lock.unlock()
-        if let stoppedQueue { Self.dispose(stoppedQueue, context: stoppedContext) }
+        // Its buffers are in: the queue is let go of elsewhere, so the samples aren't
+        // kept waiting for it (a Bluetooth device can take a while to close).
+        if let stoppedQueue {
+            DispatchQueue.global(qos: .utility).async { Self.dispose(stoppedQueue, context: stoppedContext) }
+        }
         lock.lock(); defer { lock.unlock() }
         let out = samples
         samples = []
@@ -208,10 +217,14 @@ final class Recorder: @unchecked Sendable {
         return AudioQueueGetProperty(queue, kAudioQueueProperty_IsRunning, &value, &size) == noErr && value != 0
     }
 
-    /// Seconds since audio last arrived — 0 when not recording.
+    /// Seconds since audio last arrived — 0 when not recording. Before the first
+    /// buffer it counts from the end of a grace period: longer for Bluetooth, whose
+    /// headset mode can take seconds to start.
     var silentFor: TimeInterval {
         lock.lock(); defer { lock.unlock() }
-        return running && !stopping ? Date().timeIntervalSince(lastAudio) : 0
+        guard running && !stopping else { return 0 }
+        if let lastAudio { return Date().timeIntervalSince(lastAudio) }
+        return max(0, Date().timeIntervalSince(startedAt) - (bluetoothInput ? 5 : 1.5))
     }
 
     /// The system's input device right now.

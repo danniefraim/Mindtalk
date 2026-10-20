@@ -1044,12 +1044,18 @@ final class Dictation: ObservableObject {
         }
     }
 
-    /// Stops the mic — after a start still on its way — and hands back what it heard.
-    private func stopMic() -> [Float] {
+    /// Stops the mic on its own queue — after a start still on its way — and hands
+    /// what it heard back here. The key tap lives on this thread: it never waits for
+    /// the last buffers (a Bluetooth headset can take a moment to let go).
+    private func stopMic(then done: (@MainActor ([Float]) -> Void)? = nil) {
         micGeneration += 1
         micWaiting = false
         let recorder = recorder
-        return Self.micQueue.sync { recorder.stop() }
+        Self.micQueue.async {
+            let samples = recorder.stop()
+            guard let done else { return }
+            DispatchQueue.main.async { MainActor.assumeIsolated { done(samples) } }
+        }
     }
 
     private func micFailed(_ error: Error, generation: Int) {
@@ -1120,7 +1126,6 @@ final class Dictation: ObservableObject {
     }
 
     private func finish() {
-        let samples = stopMic()
         let lasted = recordingStarted.map { Date().timeIntervalSince($0) } ?? 0
         watchdog?.invalidate(); watchdog = nil
         MediaControl.shared.end()
@@ -1132,30 +1137,44 @@ final class Dictation: ObservableObject {
         pressedAt = nil
         let note = closingNote
         closingNote = nil
-        // Held a while and not a sound: the mic never delivered — say so.
-        if samples.isEmpty, lasted > 1 {
-            return fail(String(localized: "Hittar ingen fungerande mikrofon."))
-        }
-        // Under a quarter second holds no words.
-        guard samples.count > 4_000 else { return reset() }
+        // Writing from here on: the last buffers come in while the HUD says so, and a
+        // press meanwhile waits for the text like any other.
         phase = .transcribing
-        hud.show()
         transcription += 1
         let job = transcription
         let language = recordingEngine ?? engine
         let thought = forThought
+        let byKey = thoughtByKey
+        let heard = peakLevel
+        // Where you are when you stop talking is where the text goes — or
+        // nowhere, if you switch app while it's being written.
+        let target = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        // A password field now, or by the time the text is in: secret.
+        let secret = !TextInserter.dryRun && SecureInput.isActive
+        stopMic { [weak self] samples in
+            // Let go of meanwhile (Esc): nothing more to do.
+            guard let self, job == self.transcription, self.phase == .transcribing else { return }
+            // Held a while and not a sound: the mic never delivered — say so.
+            if samples.isEmpty, lasted > 1 {
+                self.fail(String(localized: "Hittar ingen fungerande mikrofon."))
+                return self.resumeHeldPress()
+            }
+            // Under a quarter second holds no words.
+            guard samples.count > 4_000 else { self.reset(); return self.resumeHeldPress() }
+            self.transcribe(Take(samples: samples, job: job, language: language, heard: heard, thought: thought,
+                                 byKey: byKey, locked: locked, pending: nil, target: target, secret: secret, note: note))
+        }
+    }
+
+    /// The recording's sound is in: on its way to text.
+    private func transcribe(_ heard: Take) {
+        hud.show()
+        let job = heard.job
+        var take = heard
         // A thought is on the page at once, its sound kept until the text is there —
         // a failed transcription is "Försök igen", not a lost thought.
-        let pending = thought && !TextInserter.dryRun ? Thoughts.shared.hold(samples, language: language) : nil
-        writingThought = pending
-        let take = Take(samples: samples, job: job, language: language, heard: peakLevel, thought: thought,
-                        byKey: thoughtByKey, locked: locked, pending: pending,
-                        // Where you are when you stop talking is where the text goes — or
-                        // nowhere, if you switch app while it's being written.
-                        target: NSWorkspace.shared.frontmostApplication?.processIdentifier,
-                        // A password field now, or by the time the text is in: secret.
-                        secret: !TextInserter.dryRun && SecureInput.isActive,
-                        note: note)
+        take.pending = take.thought && !TextInserter.dryRun ? Thoughts.shared.hold(take.samples, language: take.language) : nil
+        writingThought = take.pending
         // Writing never takes a minute and a half: the model is stuck. Let go of it.
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.maxWriting) { [weak self] in
             guard let self, self.phase == .transcribing, self.transcription == job else { return }
@@ -1179,7 +1198,7 @@ final class Dictation: ObservableObject {
         /// Listening hands-free (a tap, or the button): ended on purpose, so not a
         /// word heard is worth saying.
         let locked: Bool
-        let pending: UUID?
+        var pending: UUID?
         let target: pid_t?
         let secret: Bool
         let note: ClosingNote?
@@ -1337,7 +1356,7 @@ final class Dictation: ObservableObject {
     }
 
     private func cancel() {
-        _ = stopMic()
+        stopMic()
         ignoreNextRelease = false
         reset()
     }
