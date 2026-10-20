@@ -68,7 +68,9 @@ struct FloatingTabBar: View {
     }
 
     private func tab(_ p: Page) -> some View {
-        NavRow(icon: p.icon, title: p.title, selected: page == p, matchID: "tab", namespace: selection) {
+        let waiting = p == .recent && dictation.waiting && page != .recent
+        return NavRow(icon: p.icon, title: p.title, selected: page == p, matchID: "tab", namespace: selection,
+                      spoken: waiting ? String(localized: "Diktering, en text väntar") : nil) {
             guard page != p else { return }
             withAnimation(.spring(duration: 0.45, bounce: 0.15)) { page = p }
         } badge: {
@@ -80,9 +82,17 @@ struct FloatingTabBar: View {
                     .offset(x: -3, y: 3)
                     .transition(.scale.combined(with: .opacity))
             }
+            // A dictation that never got typed waits on Diktering: a small ink dot, not a count.
+            if waiting {
+                Circle().fill(DS.Colors.ink)
+                    .frame(width: 7, height: 7)
+                    .overlay(Circle().strokeBorder(DS.Colors.card, lineWidth: 1.5))
+                    .offset(x: -4, y: 4)
+                    .transition(.scale.combined(with: .opacity))
+                    .accessibilityHidden(true)
+            }
         } trailing: {
             if p == .thoughts, thoughts.openCount > 0 { count(thoughts.openCount) }
-            if p == .recent, dictation.recent.count > 0 { count(dictation.recent.count) }
         }
     }
 

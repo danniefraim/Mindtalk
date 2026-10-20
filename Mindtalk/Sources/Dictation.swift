@@ -122,6 +122,9 @@ final class Dictation: ObservableObject {
     @Published private(set) var recent: [Entry] = Dictation.loadRecent() {
         didSet { saveRecent() }
     }
+    /// A dictation kept on Diktering that never got typed (you switched app, the screen
+    /// locked, it came late): the tab gets a dot until it's pasted or looked at.
+    @Published private(set) var waiting = false
     /// When the current recording started (for the HUD's timer).
     @Published private(set) var recordingStarted: Date?
     /// A dictation has been typed or copied at least once (a thought isn't one): the
@@ -1349,6 +1352,7 @@ final class Dictation: ObservableObject {
         if !current, lateJob == take.job {
             lateJob = nil
             guard !selfTest, !secret, !onlyBreak else { return }
+            waiting = true
             switch phase {
             case .idle, .failed, .copied, .notice, .typed: notice(String(localized: "Klar. Klistra in med ⌃⌥V."))
             default: break
@@ -1359,12 +1363,16 @@ final class Dictation: ObservableObject {
         if !selfTest, !onlyBreak { dictatedOnce = true }
         // The screen locked or another user took over meanwhile: typed nowhere. It's
         // on Diktering, one ⌃⌥V away.
-        if !selfTest, away { return reset() }
+        if !selfTest, away {
+            if !secret, !onlyBreak { waiting = true }
+            return reset()
+        }
         // You switched app while it was being written: don't type into the
         // wrong one. It's on Diktering, one ⌃⌥V away. A bare line break isn't
         // worth a word.
         if !selfTest, let target = take.target, NSWorkspace.shared.frontmostApplication?.processIdentifier != target {
             if onlyBreak { return reset() }
+            if !secret { waiting = true }
             return notice(secret ? String(localized: "Du bytte app, så texten skrevs inte in.")
                                  : String(localized: "Du bytte app, så texten väntar. Klistra in med ⌃⌥V."))
         }
@@ -1602,6 +1610,7 @@ final class Dictation: ObservableObject {
             break
         }
         guard let last = recent.first else { return notice(String(localized: "Inget att klistra in än.")) }
+        waiting = false
         Task { @MainActor in
             for _ in 0..<40 {
                 let held = CGEventSource.flagsState(.combinedSessionState).intersection([.maskControl, .maskAlternate])
@@ -1620,11 +1629,19 @@ final class Dictation: ObservableObject {
         }
     }
 
+    /// Diktering was looked at: what waits there has been seen.
+    func sawWaiting() {
+        if waiting { waiting = false }
+    }
+
     func copy(_ entry: Entry) {
         TextInserter.copy(entry.text)
     }
 
-    func clearRecent() { recent = [] }
+    func clearRecent() {
+        recent = []
+        waiting = false
+    }
 
     func removeRecent(_ entry: Entry) { recent.removeAll { $0.id == entry.id } }
 

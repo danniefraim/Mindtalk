@@ -6448,6 +6448,22 @@
         }
       }
     },
+    "Diktering, en text väntar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dictation, a text is waiting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diktering, en text väntar"
+          }
+        }
+      }
+    },
     "Dikteringen är borttagen": {
       "localizations": {
         "en": {

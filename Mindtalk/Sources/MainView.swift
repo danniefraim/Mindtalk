@@ -1140,6 +1140,9 @@ struct RecentPage: View {
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
                 }
+                // Whatever waited here has been seen: the dot in the tab bar goes.
+                .onAppear { dictation.sawWaiting() }
+                .onDisappear { dictation.sawWaiting() }
                 .confirmationDialog("Rensa historiken?", isPresented: $confirmClear) {
                     Button("Rensa", role: .destructive) { withAnimation(.snappy) { dictation.clearRecent() } }
                     Button("Avbryt", role: .cancel) {}
