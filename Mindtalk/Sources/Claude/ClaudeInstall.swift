@@ -68,7 +68,7 @@ enum ClaudeInstall {
             "display_name": "Mindtalk",
             "version": version,
             "description": "Your meetings and thoughts from Mindtalk, read only when you ask. Audio and voiceprints are never shared.",
-            "long_description": "Ask about one meeting, a folder or all your meetings: summaries, decisions, tasks, your notes and the whole text. You switch it on in Mindtalk, under Settings → Integrations → AI apps, and Mindtalk keeps a log of every call.",
+            "long_description": "Ask about one meeting, a folder or all your meetings: summaries, decisions, tasks, your notes and the whole text. You switch it on in Mindtalk, under Settings → Integrations → MCP, and Mindtalk keeps a log of every call.",
             "author": ["name": "Mindact Solutions AB"],
             "homepage": "https://mindact.ai",
             "icon": "icon.png",

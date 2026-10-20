@@ -29,7 +29,7 @@ enum ClaudeTools {
         var refusal: String? = nil
     }
 
-    static let offMessage = "MCP is switched off in Mindtalk, so nothing can be read. Ask the user to switch it on in Mindtalk under Settings → Integrations → AI apps (Inställningar → Integrationer → AI-program in Swedish)."
+    static let offMessage = "MCP is switched off in Mindtalk, so nothing can be read. Ask the user to switch it on in Mindtalk under Settings → Integrations → MCP (Inställningar → Integrationer → MCP in Swedish)."
     /// A list or a search that didn't fit, or has another page.
     static let moreNote = "More hits than shown: narrow with meeting_id, folder_id, from/to or more specific words, or follow nextCursor where there is one."
     /// A meeting's notes that didn't fit.

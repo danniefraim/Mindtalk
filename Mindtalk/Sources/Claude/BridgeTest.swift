@@ -625,6 +625,13 @@ enum BridgeTest {
                   && ((called?["structuredContent"] as? [String: Any])?["folders"] as? [[String: Any]])?.count == 2, "\(answers[2] ?? [:])")
         }
 
+        // The helper's own words for off (no app, no marker) are the app's, word for word,
+        // and both say where the switch is now.
+        let binary = (try? Data(contentsOf: helper)) ?? Data()
+        check("avstängt: hjälparen har appens ord", binary.range(of: Data(ClaudeTools.offMessage.utf8)) != nil)
+        check("avstängt: orden pekar på Integrationer → MCP", ClaudeTools.offMessage.contains("Settings → Integrations → MCP")
+              && ClaudeTools.offMessage.contains("Inställningar → Integrationer → MCP"))
+
         // Off: 3, with the app's own words. Unreachable: 3 too.
         sharing.enabled = false
         r = await mindtalk("meetings")
