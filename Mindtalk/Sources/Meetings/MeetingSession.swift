@@ -1418,14 +1418,36 @@ final class MeetingSession: ObservableObject {
         default: break
         }
         showDemo(finished: false)
+        // Two notes of your own, so the margin has something in its list.
+        record?.notes = [MeetingRecord.Note(text: "Rekorddag för nedladdningar", at: 9),
+                         MeetingRecord.Note(text: "Norge och Danmark växer, fråga supporten om engelskan", at: 25)]
         switch state {
         case "silence": silenceAsked = true
         case "latecomer": latecomer = 2
         case "manyvoices": manyVoices = true
         case "whoareyou": askingWhoYouAre = true
+        case "paused": pausedAt = Date()
+        case "scrolled": Self.previewScrolledUp = true
+        case "ended":
+            // The meeting ends a moment after the page is up: the finished meeting as
+            // it shows right after, in memory only (nothing is written).
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
+                guard var done = record else { return }
+                done.refined = true
+                done.duration = 754
+                MeetingStore.shared.replaceAll([done] + MeetingStore.shared.meetings)
+                pending = []
+                record = nil
+                startedAt = nil
+                phase = .idle
+                finished = done.id
+            }
         default: break
         }
     }
+
+    /// `--meeting-state scrolled`: the text read back to its start, "Till det senaste" showing.
+    static var previewScrolledUp = false
     #endif
 
     // MARK: How the live text keeps up (in the log macOS keeps)

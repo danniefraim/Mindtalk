@@ -6329,6 +6329,22 @@
         }
       }
     },
+    "Det du skriver och markerar hamnar här.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you write and mark shows up here."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det du skriver och markerar hamnar här."
+          }
+        }
+      }
+    },
     "Det du säger dyker upp här.": {
       "extractionState": "stale",
       "localizations": {
@@ -26559,6 +26575,22 @@
         }
       }
     },
+    "Skriv en anteckning": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Write a note"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriv en anteckning"
+          }
+        }
+      }
+    },
     "Skriv en anteckning och tryck ↩": {
       "localizations": {
         "en": {
@@ -28388,6 +28420,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Spelar upp det som sades"
+          }
+        }
+      }
+    },
+    "Spelas in": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spelas in"
           }
         }
       }
@@ -32966,6 +33014,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tryck på tangenten och prata, så hamnar texten där markören står."
+          }
+        }
+      }
+    },
+    "Tryck ↩ för att spara": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press ↩ to save"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck ↩ för att spara"
           }
         }
       }

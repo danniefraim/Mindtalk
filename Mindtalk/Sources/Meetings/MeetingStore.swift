@@ -453,6 +453,32 @@ struct MeetingTurn: Identifiable, Equatable {
 }
 
 enum MeetingText {
+    /// The words still being written, without what is already settled: the same words
+    /// shown once, as settled text, not twice. A word still being written that began
+    /// before the last settled one ended and repeats a settled word goes, and so does a
+    /// run that only repeats the end of the settled text ("Jag skickar den" settled,
+    /// "Jag skickar den på torsdag" still being written: "på torsdag").
+    static func fresh(_ pending: [MeetingWord], after words: [MeetingWord]) -> [MeetingWord] {
+        guard let last = words.last, !pending.isEmpty else { return pending }
+        func norm(_ text: String) -> String {
+            text.lowercased().trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
+        }
+        let tail = words.suffix(8).map { norm($0.text) }
+        var out = ArraySlice(pending)
+        while let first = out.first, first.start < last.end - 0.05, tail.contains(norm(first.text)) {
+            out = out.dropFirst()
+        }
+        var k = min(tail.count, out.count)
+        while k >= 2 {
+            if Array(tail.suffix(k)) == out.prefix(k).map({ norm($0.text) }) {
+                out = out.dropFirst(k)
+                break
+            }
+            k -= 1
+        }
+        return Array(out)
+    }
+
     /// Groups words into turns. Words with no clear speaker stay with the one before.
     /// With `paragraphs`, someone speaking at length is broken up — at a pause of two
     /// seconds, or at a full stop once a paragraph is long — so a monologue isn't one

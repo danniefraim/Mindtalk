@@ -302,60 +302,63 @@ struct NoteIsland<Leading: View, Trailing: View>: View {
     }
 }
 
-/// Pause and stop, at the end of the island. Recording: pause (quiet), then stop —
-/// the stop labelled where there's room for it. Paused: "Fortsätt" first.
+/// Pause and stop, at the end of the island. Recording: pause (quiet), then stop.
+/// Paused: "Fortsätt" first. In the panel both have their words, as in the window's
+/// pill: Pausa or Fortsätt, and Avsluta.
 struct MeetingControls: View {
     @ObservedObject var session: MeetingSession
-    /// The panel: stop as "Avsluta".
+    /// The panel: "Pausa", "Fortsätt" and "Avsluta" as words.
     var labelledStop = false
 
     var body: some View {
         HStack(spacing: 6) {
             if session.isPaused {
-                Button { withAnimation(.spring(duration: 0.3, bounce: 0.15)) { session.resume() } } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "play.fill").font(.system(size: 10, weight: .bold))
-                        Text(String(localized: "pause|Fortsätt")).font(.system(size: 12.5, weight: .semibold))
-                    }
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 13)
-                    .frame(height: 32)
-                    .background(Capsule().fill(.white))
-                    .contentShape(Capsule())
+                word(String(localized: "pause|Fortsätt"), symbol: "play.fill", solid: true,
+                     help: "Sätt på mikrofonen igen så fortsätter mötet där det pausades (⌥⌘P)") { session.resume() }
+                    .keyboardShortcut("p", modifiers: [.command, .option])
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                if labelledStop {
+                    word(String(localized: "meeting|Avsluta"), symbol: nil, solid: false,
+                         help: "Avsluta mötet. Du kan ångra i några sekunder.") { _ = session.requestStop() }
+                } else {
+                    round(symbol: "stop.fill", filled: false, help: "Avsluta mötet. Du kan ångra i några sekunder.",
+                          label: "meeting|Avsluta") { _ = session.requestStop() }
                 }
-                .buttonStyle(.plain)
-                .keyboardShortcut("p", modifiers: [.command, .option])
-                .help("Sätt på mikrofonen igen så fortsätter mötet där det pausades (⌥⌘P)")
-                .accessibilityLabel(String(localized: "pause|Fortsätt"))
-                .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                round(symbol: "stop.fill", filled: false, help: "Avsluta mötet. Du kan ångra i några sekunder.",
-                      label: "meeting|Avsluta") { _ = session.requestStop() }
+            } else if labelledStop {
+                word(String(localized: "Pausa"), symbol: nil, solid: false,
+                     help: "Pausa: mikrofonen stängs av och mötet väntar (⌥⌘P)") { session.pause() }
+                    .keyboardShortcut("p", modifiers: [.command, .option])
+                word(String(localized: "meeting|Avsluta"), symbol: nil, solid: true,
+                     help: "Avsluta mötet. Du kan ångra i några sekunder.") { _ = session.requestStop() }
             } else {
                 round(symbol: "pause.fill", filled: false, help: "Pausa: mikrofonen stängs av och mötet väntar (⌥⌘P)",
                       label: "Pausa") { session.pause() }
                     .keyboardShortcut("p", modifiers: [.command, .option])
-                if labelledStop {
-                    Button { withAnimation(.spring(duration: 0.3, bounce: 0.15)) { _ = session.requestStop() } } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "stop.fill").font(.system(size: 9.5, weight: .bold))
-                            Text(String(localized: "meeting|Avsluta")).font(.system(size: 12.5, weight: .semibold))
-                        }
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 12)
-                        .frame(height: 32)
-                        .background(Capsule().fill(.white))
-                        .contentShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .help("Avsluta mötet. Du kan ångra i några sekunder.")
-                    .accessibilityLabel("meeting|Avsluta")
-                } else {
-                    round(symbol: "stop.fill", filled: true, help: "Avsluta mötet. Du kan ångra i några sekunder.",
-                          label: "meeting|Avsluta") { _ = session.requestStop() }
-                }
+                round(symbol: "stop.fill", filled: true, help: "Avsluta mötet. Du kan ångra i några sekunder.",
+                      label: "meeting|Avsluta") { _ = session.requestStop() }
             }
         }
         .animation(.spring(duration: 0.3, bounce: 0.15), value: session.isPaused)
+    }
+
+    /// A button with its word: white when it's the one to press, quiet otherwise.
+    private func word(_ title: String, symbol: String?, solid: Bool, help: LocalizedStringKey,
+                      action: @escaping () -> Void) -> some View {
+        Button { withAnimation(.spring(duration: 0.3, bounce: 0.15)) { action() } } label: {
+            HStack(spacing: 6) {
+                if let symbol { Image(systemName: symbol).font(.system(size: 10, weight: .bold)) }
+                Text(title).font(.system(size: 12.5, weight: .semibold))
+            }
+            .foregroundStyle(solid ? Color.black : Color.white)
+            .padding(.horizontal, 12)
+            .frame(height: 32)
+            .background(Capsule().fill(solid ? Color.white : Color.white.opacity(0.1)))
+            .overlay(Capsule().strokeBorder(.white.opacity(solid ? 0 : 0.14), lineWidth: 0.5))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(title)
     }
 
     private func round(symbol: String, filled: Bool, help: LocalizedStringKey, label: LocalizedStringKey,

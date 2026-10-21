@@ -360,7 +360,8 @@ private struct LivePanel: View {
     var body: some View {
         let record = session.record
         let cast = record?.cast ?? Cast(words: [], names: [:])
-        let turns = MeetingText.turns(record?.words ?? [], pending: session.pending, paragraphs: true)
+        let turns = MeetingText.turns(record?.words ?? [], pending: MeetingText.fresh(session.pending, after: record?.words ?? []),
+                                       paragraphs: true)
         VStack(spacing: 0) {
             header
             if session.isRecording, let record { PanelTitle(session: session, title: record.title) }

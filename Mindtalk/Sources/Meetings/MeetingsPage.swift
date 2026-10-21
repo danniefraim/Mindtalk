@@ -29,7 +29,7 @@ struct MeetingsPage: View {
         GeometryReader { geo in
             ZStack {
                 if let record = session.record {
-                    MeetingView(record: record, pending: session.pending, session: session, width: geo.size.width,
+                    MeetingView(record: record, pending: MeetingText.fresh(session.pending, after: record.words), session: session, width: geo.size.width,
                                 edit: .live(session))
                         .transition(.opacity)
                         .overlay { if startCue { StartCue().transition(.opacity) } }
@@ -1377,13 +1377,11 @@ private struct IntroductionGate<Meeting: View, Bar: View>: View {
                     .transition(.opacity)
                 bar()
             } else {
-                // The meeting: the text above, your notes and the pill below it — the
-                // text ends where they begin, nothing slides in behind them.
-                VStack(spacing: 0) {
-                    meeting().frame(maxHeight: .infinity)
-                    bar()
-                }
-                .transition(.opacity)
+                // The meeting: the text, the margin beside it and the pill under the
+                // text (the meeting places them itself).
+                meeting()
+                    .frame(maxHeight: .infinity)
+                    .transition(.opacity)
             }
         }
         .animation(.easeOut(duration: 0.35), value: session.introducing)
@@ -1435,20 +1433,9 @@ struct MeetingView: View {
         let hit = hits.isEmpty ? nil : hits[min(findIndex, hits.count - 1)]
         return VStack(spacing: 0) {
             header(cast)
-            if finding {
-                MeetingFindBar(query: $findQuery, count: hits.count, current: min(findIndex, max(0, hits.count - 1)),
-                               step: { by in
-                                   guard !hits.isEmpty else { return }
-                                   findIndex = (min(findIndex, hits.count - 1) + by + hits.count) % hits.count
-                               },
-                               close: closeFind)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .pageColumn(width)
-                    .padding(.bottom, 10)
-                    .transition(.opacity)
-                    .onChange(of: findQuery) { _, _ in findIndex = 0 }
-            }
-            RememberVoicesOffer(record: record, live: live).padding(.bottom, 12)
+            findBar(hits, column: width)
+            // Asked after the meeting, never while it records: once, quietly.
+            if !live { RememberVoicesOffer(record: record, live: false).pageColumn(width).padding(.bottom, 12) }
             ZStack {
                 if live || tab == .transcript {
                     TranscriptView(record: record, turns: turns, cast: cast, session: session, width: width,
@@ -1474,10 +1461,81 @@ struct MeetingView: View {
         }
     }
 
+    /// The page from this width on has room for the margin beside the text.
+    static let marginFrom: CGFloat = 900
+    static let marginWidth: CGFloat = 248
+
+    /// While it records: the conversation is the page. The title and one quiet line
+    /// above it, what the room needs to know under that, the recording pill at its
+    /// foot, and your notes and marks in a margin to the right (in a narrow window,
+    /// one row under the text).
+    private func liveMeeting(_ session: MeetingSession) -> some View {
+        let cast = record.cast
+        let turns = MeetingText.turns(record.words, pending: pending, paragraphs: true)
+        let hits = finding ? MeetingFind.hits(findQuery, in: turns) : []
+        let hit = hits.isEmpty ? nil : hits[min(findIndex, hits.count - 1)]
+        let wide = width >= Self.marginFrom
+        let column = wide ? width - Self.marginWidth : width
+        return HStack(spacing: 0) {
+            VStack(spacing: 0) {
+                liveHeader(session, cast, column: column)
+                findBar(hits, column: column)
+                // Is it over, a new voice, many voices, which of them is you: here,
+                // above the text, never on top of it.
+                LiveNotices(session: session, record: record, cast: cast, edit: edit)
+                    .pageColumn(column)
+                    .padding(.bottom, hasNotice(session, cast) ? 14 : 0)
+                TranscriptView(record: record, turns: turns, cast: cast, session: session, width: column,
+                               edit: edit, focusTurn: $focusTurn, focusNote: $focusNote,
+                               finding: finding ? findQuery : "", findHit: hit, inlineNotes: !wide)
+                    .id(epoch.value)   // see WindowEpoch
+                    .frame(maxHeight: .infinity)
+                if !wide, session.isRecording, !session.stopping {
+                    MarginRow(session: session)
+                        .pageColumn(column)
+                        .padding(.top, 6)
+                        .transition(.opacity)
+                }
+                LiveBar(session: session)
+            }
+            .frame(maxWidth: .infinity)
+            if wide {
+                LiveMargin(session: session, record: record, show: { at in
+                    guard !turns.isEmpty else { return }
+                    focusTurn = NotePlacement.turn(at: at, in: turns)
+                }, remove: { id in withAnimation(.snappy) { edit.removeMark(id) } })
+                .frame(width: Self.marginWidth)
+                .transition(.opacity)
+            }
+        }
+    }
+
+    private func hasNotice(_ session: MeetingSession, _ cast: Cast) -> Bool {
+        session.silenceAsked || session.askingWhoYouAre || session.manyVoices
+            || session.latecomer.map { cast.order.contains($0) } == true
+    }
+
+    /// ⌘F: "Sök i mötet", over the text.
+    @ViewBuilder private func findBar(_ hits: [MeetingFind.Hit], column: CGFloat) -> some View {
+        if finding {
+            MeetingFindBar(query: $findQuery, count: hits.count, current: min(findIndex, max(0, hits.count - 1)),
+                           step: { by in
+                               guard !hits.isEmpty else { return }
+                               findIndex = (min(findIndex, hits.count - 1) + by + hits.count) % hits.count
+                           },
+                           close: closeFind)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .pageColumn(column)
+                .padding(.bottom, 10)
+                .transition(.opacity)
+                .onChange(of: findQuery) { _, _ in findIndex = 0 }
+        }
+    }
+
     var body: some View {
         Group {
             if let session {
-                IntroductionGate(session: session) { meeting } bar: { LiveBar(session: session) }
+                IntroductionGate(session: session) { liveMeeting(session) } bar: { LiveBar(session: session) }
                     .id(epoch.value)   // the bar too: built anew when the window comes back (see WindowEpoch)
             } else {
                 ZStack(alignment: .bottom) {
@@ -1567,45 +1625,20 @@ struct MeetingView: View {
                 actions
             }
             .frame(height: 30)
-            TextField("Namnlöst möte", text: $title, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(DS.pageTitle)
-                .lineLimit(1...2)
-                .focused($editingTitle)
-                .onSubmit(commitTitle)
-                .onChange(of: editingTitle) { _, editing in if !editing { commitTitle() } }
-                .help("Ändra mötets titel")
+            titleField
             HStack(alignment: .center, spacing: 12) {
-                if live {
-                    // While it records, as before (pass 3 redesigns the meeting as it runs).
-                    FlowLayout(spacing: 8) {
-                        Text(meta).font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
-                            .padding(.trailing, 4)
-                        FolderTag(record: record)
-                        ForEach(cast.order, id: \.self) { s in
-                            SpeakerChip(speaker: s, cast: cast, recognized: record.recognized[String(s)] != nil,
-                                        rename: { edit.name(s, $0) },
-                                        merge: { other in withAnimation(.snappy) { edit.merge(s, into: other) } })
-                        }
-                    }
-                } else {
-                    metaLine(cast)
-                }
+                metaLine(cast)
                 Spacer(minLength: 12)
-                if !live {
-                    PillPicker(options: [(Tab.summary, "Sammanfattning"), (Tab.transcript, "Text")], selection: $tab)
-                }
+                PillPicker(options: [(Tab.summary, "Sammanfattning"), (Tab.transcript, "Text")], selection: $tab)
             }
             // The timeline belongs to the text, where it steers what you hear.
-            if !segments.isEmpty, live || tab == .transcript {
-                MeetingRibbon(record: record, cast: cast, segments: segments, live: live, now: session?.elapsed)
+            if !segments.isEmpty, tab == .transcript {
+                MeetingRibbon(record: record, cast: cast, segments: segments, live: false, now: nil)
                     .padding(.top, 4)
                     .transition(.opacity)
             }
             healLine
             banner
-            // While it runs: is it over, a new voice, many voices, which of them is you.
-            if let session { LiveNotices(session: session, record: record, cast: cast, edit: edit) }
             SaveProblemLine()
             if !live { FolderSuggestion(record: record) }
             // "Fortsätt mötet" couldn't: why, here where you pressed it.
@@ -1624,14 +1657,14 @@ struct MeetingView: View {
 
     /// "I dag 9:30 · 25 min · Anna, Erik och Sara · Kunder": one quiet line. A name is
     /// a button (name them, or say two are the same person); the folder is a menu.
-    private func metaLine(_ cast: Cast) -> some View {
+    private func metaLine(_ cast: Cast, lead: String? = nil) -> some View {
         let order = cast.order
         return FlowLayout(spacing: 0) {
-            Text(verbatim: finishedMeta + (order.isEmpty ? "" : " · "))
+            Text(verbatim: (lead ?? finishedMeta) + (order.isEmpty ? "" : " · "))
                 .foregroundStyle(DS.Colors.muted).monospacedDigit()
             // Imported: the file it came from (a click shows it in Finder); its date is
             // changed under ⋯.
-            if let source = record.source {
+            if !live, let source = record.source {
                 SourceLink(source: source)
                     .padding(.trailing, 4)
                     .popover(isPresented: $changingDate, arrowEdge: .bottom) {
@@ -1647,9 +1680,72 @@ struct MeetingView: View {
                         .foregroundStyle(DS.Colors.muted)
                 }
             }
-            FolderTag(record: record, quiet: true)
+            if !live { FolderTag(record: record, quiet: true) }
         }
         .font(.system(size: 13))
+    }
+
+    /// The title, editable as you go.
+    private var titleField: some View {
+        TextField("Namnlöst möte", text: $title, axis: .vertical)
+            .textFieldStyle(.plain)
+            .font(DS.pageTitle)
+            .lineLimit(1...2)
+            .focused($editingTitle)
+            .onSubmit(commitTitle)
+            .onChange(of: editingTitle) { _, editing in if !editing { commitTitle() } }
+            .help("Ändra mötets titel")
+    }
+
+    /// While it records: the title, and one quiet line under it. "Spelas in · Anna, Erik
+    /// och Talare 3": a name is a button, to name them or say two are the same. Showing
+    /// it as a panel and copying the text are under a small ⋯ at its end.
+    private func liveHeader(_ session: MeetingSession, _ cast: Cast, column: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            titleField
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                metaLine(cast, lead: liveStatus(session))
+                Spacer(minLength: 8)
+                liveMore(session)
+            }
+            SaveProblemLine()
+        }
+        .padding(.top, DS.Layout.pageTop)
+        .padding(.bottom, 16)
+        .pageColumn(column)
+    }
+
+    private func liveStatus(_ session: MeetingSession) -> String {
+        if case .finishing = session.phase { return String(localized: "Mötet är slut") }
+        return session.isPaused ? String(localized: "Pausat") : String(localized: "Spelas in")
+    }
+
+    /// The meeting beside your work (as closing the window does), and the text copied.
+    private func liveMore(_ session: MeetingSession) -> some View {
+        Menu {
+            Button("Visa som panel") { MeetingPanel.shared.collapse() }
+                .disabled(!session.isBusy)
+            Button("Kopiera texten", action: copy)
+                .disabled(record.words.isEmpty)
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(DS.Colors.muted)
+                .frame(width: 26, height: 22)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Mer")
+        .accessibilityLabel("Mer")
+        // ⇧⌘C copies the text, as on a finished meeting.
+        .background {
+            Button("", action: copy).keyboardShortcut("c", modifiers: [.command, .shift])
+                .disabled(record.words.isEmpty)
+                .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
+        }
     }
 
     /// "I dag 9:30 · 25 min", and what's worth knowing about the recording.
@@ -1676,17 +1772,6 @@ struct MeetingView: View {
         finding = false
         findQuery = ""
         findIndex = 0
-    }
-
-    private var meta: String {
-        // A file that didn't say when it was recorded: "Datum okänt", and the import's
-        // day in the source link beside it ("importerad i dag från …").
-        let when = record.source?.dateKnown == false ? String(localized: "Datum okänt") : MeetingRecord.when(record.date)
-        guard !live else { return when }
-        var parts = [when, Self.duration(record.duration)]
-        if record.informed != nil { parts.append(String(localized: "deltagarna informerades")) }
-        if !record.hasAudio { parts.append(String(localized: "inspelningen borttagen")) }
-        return parts.joined(separator: " · ")
     }
 
     /// What listening through the whole meeting changed — and a way to see it.
@@ -1751,47 +1836,18 @@ struct MeetingView: View {
 
     // MARK: Actions
 
-    @ViewBuilder private var actions: some View {
+    /// A finished meeting's header: everything you send or save in one menu, everything
+    /// else under ⋯. (While it records there's only the small ⋯ by the line under the title.)
+    private var actions: some View {
         HStack(spacing: 8) {
-            if let session {
-                // While it records, as before (pass 3 redesigns the meeting as it runs).
-                // The meeting beside your work instead — the same as closing the window.
-                if session.isBusy {
-                    Button { MeetingPanel.shared.collapse() } label: {
-                        Label("Visa som panel", systemImage: "pip.enter")
-                            .font(.system(size: 12.5, weight: .semibold))
-                            .padding(.horizontal, 12)
-                            .frame(height: 30)
-                            .background(Capsule().fill(DS.Colors.chip))
-                            .contentShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .help("Mötet fortsätter i en liten panel bredvid det du gör")
+            ShareMenu(record: record, copied: copied) { flashCopied() }
+                // ⇧⌘C: the summary on its tab, the text otherwise.
+                .background {
+                    Button("", action: copy).keyboardShortcut("c", modifiers: [.command, .shift])
+                        .disabled(record.words.isEmpty)
+                        .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
                 }
-                Button(action: copy) {
-                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                        .contentTransition(.symbolEffect(.replace))
-                        .font(.system(size: 12, weight: .semibold))
-                        .frame(width: 30, height: 30)
-                        .background(Circle().fill(DS.Colors.chip))
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .disabled(record.words.isEmpty)
-                .keyboardShortcut("c", modifiers: [.command, .shift])
-                .help(copyHelp)
-                .accessibilityLabel(copyHelp)
-            } else {
-                // Everything you send or save, in one menu; everything else under ⋯.
-                ShareMenu(record: record, copied: copied) { flashCopied() }
-                    // ⇧⌘C: the summary on its tab, the text otherwise.
-                    .background {
-                        Button("", action: copy).keyboardShortcut("c", modifiers: [.command, .shift])
-                            .disabled(record.words.isEmpty)
-                            .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
-                    }
-                moreMenu
-            }
+            moreMenu
         }
     }
 
@@ -1846,11 +1902,6 @@ struct MeetingView: View {
         .fixedSize()
         .help("Mer")
         .accessibilityLabel("Mer")
-    }
-
-    private var copyHelp: String {
-        !live && tab == .summary && record.summary != nil
-            ? String(localized: "Kopiera sammanfattningen (⇧⌘C)") : String(localized: "Kopiera texten (⇧⌘C)")
     }
 
     private func copy() {
@@ -1925,6 +1976,9 @@ private struct TranscriptView: View {
     /// ⌘F: what's searched for ("" when nothing), and the place you're at.
     var finding = ""
     var findHit: MeetingFind.Hit? = nil
+    /// While it records in a narrow window (no margin): your notes under the turns they
+    /// were written in, as after the meeting.
+    var inlineNotes = false
     /// Renders: the rows in a plain stack, no scroll view (ImageRenderer draws none).
     var flat = false
     @ObservedObject private var player = MeetingPlayer.shared
@@ -1938,9 +1992,9 @@ private struct TranscriptView: View {
     private var live: Bool { session != nil }
 
     var body: some View {
-        // Your notes under the turns they were written in (saved meetings: live, the
-        // island shows them as they come).
-        let notes = live ? [:] : NotePlacement.place(record, turns: turns)
+        // Your notes under the turns they were written in (while it records, the margin
+        // lists them instead, when there's room for it).
+        let notes = live && !inlineNotes ? [:] : NotePlacement.place(record, turns: turns)
         if flat {
             VStack(alignment: .leading, spacing: 0) { rows(notes) }.pageColumn(width).padding(.top, 8)
         } else {
@@ -2037,6 +2091,8 @@ private struct TranscriptView: View {
             }
             .onChange(of: focusTurn, initial: true) { _, id in
                 guard let id else { return }
+                // Live: shown from the margin, it stays there until "Till det senaste".
+                if live { following = false }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     withAnimation(.smooth(duration: 0.5)) { proxy.scrollTo(id, anchor: .center) }
                 }
@@ -2056,15 +2112,18 @@ private struct TranscriptView: View {
                             following = true
                             withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) }
                         } label: {
+                            // Quiet: a paper chip, not ink, so it doesn't compete with the pill.
                             Label("Till det senaste", systemImage: "arrow.down")
                                 .font(.system(size: 12.5, weight: .semibold))
-                                .foregroundStyle(DS.Colors.onInk)
+                                .foregroundStyle(DS.Colors.ink)
                                 .padding(.horizontal, 14)
                                 .frame(height: 30)
-                                .background(Capsule().fill(DS.Colors.ink))
+                                .background(Capsule().fill(DS.Colors.field)
+                                    .shadow(color: .black.opacity(0.08), radius: 6, y: 2))
+                                .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke, lineWidth: 0.5))
                         }
                         .buttonStyle(.plain)
-                        .padding(.bottom, live ? 14 : 96)
+                        .padding(.bottom, live ? 10 : 96)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
@@ -2073,6 +2132,14 @@ private struct TranscriptView: View {
             // Built anew mid-meeting (WindowEpoch): back to where the conversation is.
             .onAppear {
                 guard live, !turns.isEmpty else { return }
+                #if DEBUG
+                // Renders: `--meeting-state scrolled`, read back to the start of the meeting.
+                if MeetingSession.previewScrolledUp {
+                    following = false
+                    DispatchQueue.main.async { proxy.scrollTo(turns[0].id, anchor: .top) }
+                    return
+                }
+                #endif
                 following = true
                 // Once now, and once more after the layout has settled (after the round).
                 DispatchQueue.main.async { proxy.scrollTo("end", anchor: .bottom) }
@@ -2787,9 +2854,10 @@ private struct WritingPlaceholder: View {
 
 // MARK: - Bars
 
-/// While recording: the island (time, note, marks, stop); otherwise the dark pill, as
-/// when you dictate — time, sound, stop. Above
-/// it, a word when something needs attention.
+/// The meeting's one control, at the foot of the text: "● 12:34  Pausa  Avsluta", or
+/// "Pausat 12:34  Fortsätt  Avsluta". The red dot is the only red. Dark in both
+/// appearances, as the recording pill always was. Above it, a word when something
+/// needs attention. (During the round of names: the time, the sound and Avsluta.)
 private struct LiveBar: View {
     @ObservedObject var session: MeetingSession
     /// Until the panel has been used once: closing the window doesn't end the meeting.
@@ -2808,18 +2876,14 @@ private struct LiveBar: View {
                     .background(Capsule().fill(DS.Colors.paper.opacity(0.9)))
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
-            // Recording: one island — the time, your note, the marks, stop.
-            if session.isRecording, !session.introducing, !session.stopping {
-                NoteIsland(session: session) { timer } trailing: { MeetingControls(session: session) }
-                    .padding(.horizontal, 24)
-                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .bottom)))
-            } else {
-                pill
-            }
+            pill
         }
-        .padding(.bottom, 22)
+        .padding(.top, 8)
+        .padding(.bottom, 20)
+        .padding(.horizontal, 16)
         .animation(.spring(duration: 0.35, bounce: 0.15), value: session.phase)
         .animation(.spring(duration: 0.35, bounce: 0.15), value: session.stopping)
+        .animation(.spring(duration: 0.3, bounce: 0.15), value: session.isPaused)
         .animation(.easeOut(duration: 0.25), value: caption?.text)
         // Read out when a warning appears: it may be the only sign something's off.
         .onChange(of: session.warning) { _, w in
@@ -2841,8 +2905,10 @@ private struct LiveBar: View {
         return nil
     }
 
+    private var finishing: Bool { if case .finishing = session.phase { return true } else { return false } }
+
     private var pill: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 10) {
             switch session.phase {
             case .finishing(let what):
                 SettlingLine()
@@ -2850,36 +2916,43 @@ private struct LiveBar: View {
                     .accessibilityLabel(what)
                 FinishingClock(session: session)
             default:
-                timer
+                timer.padding(.trailing, 4)
                 if session.stopping {
                     StopCountdown(session: session, compact: true, onDark: true)
                         .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .trailing)))
-                } else {
+                } else if session.introducing || !session.isRecording {
                     LiveWave().frame(width: 96, height: 22).accessibilityHidden(true)
-                    stopButton
+                    endButton(solid: true)
+                } else {
+                    pauseButton
+                    endButton(solid: !session.isPaused)
                 }
             }
         }
         .padding(.leading, 18)
-        .padding(.trailing, session.isRecording ? 7 : 18)
-        .frame(height: 46)
+        .padding(.trailing, finishing ? 18 : 6)
+        .frame(height: 44)
         .background(Capsule().fill(Color(white: 0.07)))
         .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
         .shadow(color: .black.opacity(0.28), radius: 10, y: 4)
         .fixedSize()
     }
 
-    /// One press ends it — with a few seconds to undo, the recording going on meanwhile.
-    /// The red dot and how long it has been going.
+    /// The red dot (or "Pausat") and how long it has been going.
     private var timer: some View {
-        HStack(spacing: 10) {
-            RecordingMark(session: session)
+        HStack(spacing: 9) {
+            if session.isPaused {
+                Text("Pausat").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.75))
+                    .accessibilityHidden(true)      // the time says it
+            } else {
+                RecordingDot()
+            }
             if let start = session.startedAt {
                 TimelineView(.periodic(from: start, by: 1)) { context in
                     let time = session.clock(at: context.date)
                     Text(MeetingView.duration(time))
                         .font(.system(size: 15, weight: .semibold, design: .rounded)).monospacedDigit()
-                        .foregroundStyle(.white.opacity(session.isPaused ? 0.55 : 1))
+                        .foregroundStyle(.white.opacity(session.isPaused ? 0.6 : 1))
                         .accessibilityLabel(session.isPaused ? "Pausat, \(MeetingView.spoken(time))" : "Spelar in, \(MeetingView.spoken(time))")
                 }
             }
@@ -2887,19 +2960,48 @@ private struct LiveBar: View {
         .fixedSize()
     }
 
-    private var stopButton: some View {
+    /// Pausa, or Fortsätt when paused (then the main button): ⌥⌘P either way.
+    private var pauseButton: some View {
+        let paused = session.isPaused
+        return Button {
+            withAnimation(.spring(duration: 0.3, bounce: 0.15)) { if paused { session.resume() } else { session.pause() } }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: paused ? "play.fill" : "pause.fill").font(.system(size: 9.5, weight: .bold))
+                Text(paused ? String(localized: "pause|Fortsätt") : String(localized: "Pausa"))
+                    .font(.system(size: 12.5, weight: .semibold))
+            }
+            .foregroundStyle(paused ? Color.black : Color.white)
+            .padding(.horizontal, 13)
+            .frame(height: 32)
+            .background(Capsule().fill(paused ? Color.white : Color.white.opacity(0.12)))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut("p", modifiers: [.command, .option])
+        .help(paused ? Text("Sätt på mikrofonen igen så fortsätter mötet där det pausades (⌥⌘P)")
+                     : Text("Pausa: mikrofonen stängs av och mötet väntar (⌥⌘P)"))
+        .accessibilityLabel(paused ? String(localized: "pause|Fortsätt") : String(localized: "Pausa"))
+    }
+
+    /// One press ends it, with a few seconds to undo, the recording going on meanwhile.
+    private func endButton(solid: Bool) -> some View {
         Button {
             withAnimation(.spring(duration: 0.3, bounce: 0.15)) { _ = session.requestStop() }
         } label: {
-            Image(systemName: "stop.fill").font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.black)
-                .frame(width: 32, height: 32)
-                .background(Circle().fill(.white))
-                .contentShape(Circle())
+            HStack(spacing: 6) {
+                Image(systemName: "stop.fill").font(.system(size: 9, weight: .bold))
+                Text(String(localized: "meeting|Avsluta")).font(.system(size: 12.5, weight: .semibold))
+            }
+            .foregroundStyle(solid ? Color.black : Color.white)
+            .padding(.horizontal, 13)
+            .frame(height: 32)
+            .background(Capsule().fill(solid ? Color.white : Color.white.opacity(0.12)))
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .help("Avsluta mötet. Du kan ångra i några sekunder.")
-        .accessibilityLabel("meeting|Avsluta")
+        .accessibilityLabel(String(localized: "meeting|Avsluta"))
     }
 }
 

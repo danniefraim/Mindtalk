@@ -671,24 +671,26 @@ struct VoiceScanner: View {
     static let greetings: Set<String> = ["hej", "hejsan", "hallå", "tjena", "tja", "tjenare", "morsning", "god", "hi", "hello", "hey", "ja", "nej", "okej", "ok", "tack"]
 }
 
-/// "Spara rösterna?" — once, under a meeting whose people were named, while voice
-/// memory is off: the moment it's easiest to see what it's for (and to ask the room).
+/// "Spara rösterna?" — after a meeting whose people were named, while voice memory is
+/// off: never while it records, and once. Shown on a finished meeting and then left
+/// unanswered, it isn't asked again (Settings → Möten has the switch).
 struct RememberVoicesOffer: View {
     let record: MeetingRecord
     let live: Bool
     var preview = false
     @ObservedObject private var memory = VoiceMemory.shared
     @AppStorage("voiceMemoryAsked") private var asked = false
+    @State private var shown = false
 
     var body: some View {
         let names = VoiceMemory.namesToRemember(in: record)
-        if preview || (!memory.enabled && !asked && !names.isEmpty) {
-            HStack(alignment: .center, spacing: 14) {
-                Image(systemName: "person.wave.2").font(.system(size: 16)).foregroundStyle(DS.Colors.muted)
+        if preview || (!live && !memory.enabled && !asked && !names.isEmpty) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "person.wave.2").font(.system(size: 14)).foregroundStyle(DS.Colors.muted)
                     .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text("Spara rösterna så att Mindtalk känner igen \(Self.list(names)) nästa gång?")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold))
                     Text("Mindtalk känner igen rösten utan att spara den som ljud. Fråga kollegorna först.")
                         .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                 }
@@ -700,11 +702,15 @@ struct RememberVoicesOffer: View {
                     withAnimation(.snappy) { asked = true }
                     memory.turnOn(learningFrom: live ? nil : record)
                 }
-                .buttonStyle(.ink)
+                .buttonStyle(SoftButtonStyle(small: true))
             }
-            .padding(16)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
             .card()
             .transition(.opacity)
+            .onAppear { shown = true }
+            // Once: seen and left, it doesn't come back on the next meeting.
+            .onDisappear { if shown, !preview { Settings.keep(true, forKey: "voiceMemoryAsked") } }
         }
     }
 

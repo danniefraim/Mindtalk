@@ -17,8 +17,10 @@ import SwiftUI
 //                  says a made-up name
 //   --open-meeting with --demo: Möten showing the demo meeting, its summary open
 //   --find-query "ord"  with --open-meeting: ⌘F open in the meeting, that searched for
-//   --meeting-state silence|latecomer|manyvoices|whoareyou: a meeting being recorded,
-//                  at that moment; voiceconsent: the start card asking about the voices
+//   --meeting-state silence|latecomer|manyvoices|whoareyou|paused|scrolled: a meeting
+//                  being recorded, at that moment (scrolled: read back, "Till det senaste");
+//                  ended: recorded, then ended a second later, the finished meeting shown;
+//                  voiceconsent: the start card asking about the voices
 //   --voices-off   "Kom ihåg rösterna" as for someone who never chose (off), in memory only
 //   --models-ready with --ready: the start card as if the meeting models were downloaded
 //   --tried        with --open-meeting: the summary just rewritten by Gemma 4 E4B, picked
