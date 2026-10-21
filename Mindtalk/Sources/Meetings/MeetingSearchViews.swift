@@ -51,6 +51,10 @@ struct SearchResults: View {
     var folder: String? = nil
     var showAll: (() -> Void)? = nil
     let open: (UUID, Double?) -> Void
+    /// How many meetings are drawn: the best first, more on a press. Every hit is a
+    /// button you can drag, and drawing them all on each key made typing stall.
+    @State private var showing = SearchResults.firstPage
+    static let firstPage = 12
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -65,7 +69,7 @@ struct SearchResults: View {
                         .font(.system(size: 12.5, weight: .semibold))
                 }
             }
-            ForEach(matches) { match in
+            ForEach(matches.prefix(showing)) { match in
                 VStack(alignment: .leading, spacing: 0) {
                     Button { open(match.record.id, nil) } label: {
                         HStack(alignment: .firstTextBaseline) {
@@ -93,7 +97,19 @@ struct SearchResults: View {
                 }
                 .card()
             }
+            if matches.count > showing {
+                Button { showing += 20 } label: {
+                    Text("Visa fler möten (\(matches.count - showing))")
+                        .font(.system(size: 13, weight: .semibold))
+                        .padding(.horizontal, 14)
+                        .frame(height: 32)
+                        .background(Capsule().fill(DS.Colors.chip))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
         }
+        .onChange(of: query) { _, _ in showing = Self.firstPage }
     }
 
     /// The words searched for, in bold.

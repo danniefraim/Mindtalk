@@ -167,7 +167,8 @@ private struct MeetingList: View {
     /// The page has come in: from then on, what scrolls back into view stays still.
     @State private var entered = false
 
-    private var searching: Bool { !query.trimmingCharacters(in: .whitespaces).isEmpty }
+    /// From two letters: one finds nearly every meeting and only makes the list jump.
+    private var searching: Bool { query.trimmingCharacters(in: .whitespaces).count >= 2 }
     private var canAsk: Bool { MeetingNotes.isAvailable && shown.contains { !$0.words.isEmpty } }
 
     /// Every count the folder chips show, as one key.

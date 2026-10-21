@@ -34567,6 +34567,22 @@
         }
       }
     },
+    "Visa fler möten (%lld)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show more meetings (%lld)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa fler möten (%lld)"
+          }
+        }
+      }
+    },
     "Visa färre": {
       "localizations": {
         "en": {
