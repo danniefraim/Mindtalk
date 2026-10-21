@@ -104,8 +104,10 @@ struct VoiceScanner: View {
             GeometryReader { geo in
                 TimelineView(.periodic(from: .now, by: 0.5)) { _ in
                     let colour = SpeakerMark.fill(revealing?.colour ?? round.captures.count)
+                    let place = Self.layout(in: geo.size)
                     Constellation(figure: revealing?.figure ?? round.figure, color: colour, level: scanner.roomLevel,
-                                  searching: round.phase == .listening && round.progress > 0, defined: revealing != nil, form: forming)
+                                  searching: round.phase == .listening && round.progress > 0, defined: revealing != nil, form: forming,
+                                  center: CGPoint(x: geo.size.width / 2, y: place.cy), radius: place.R)
                     .overlay { ring(in: geo.size, colour: colour) }
                     .overlay(alignment: .topLeading) { heading.padding(.leading, 40).padding(.top, 34) }
                     .overlay(alignment: .topTrailing) { scanner.continueButton(round).padding(24) }
@@ -207,7 +209,32 @@ struct VoiceScanner: View {
         static let flight = 0.6
 
         /// Where the row stands under the cloud.
-        private func rowY(in size: CGSize) -> CGFloat { size.height * 0.42 + min(size.width, size.height) * 0.28 * 1.16 + 62 }
+        private func rowY(in size: CGSize) -> CGFloat {
+            let place = Self.layout(in: size)
+            return place.cy + place.R * Self.ringScale + 62
+        }
+
+        /// The ring is a little larger than the cloud.
+        static let ringScale: CGFloat = 1.16
+        /// The heading's foot ("Vem är här?" and the line under it, from the top padding),
+        /// and the air kept under it.
+        static let headingBottom: CGFloat = 34 + 64
+        static let headingMargin: CGFloat = 20
+
+        /// Where the cloud stands and how large it is: its centre at 0.42 of the height
+        /// and its radius 0.28 of the shorter side, as it always was. In a wide, short
+        /// window that would put the ring over the heading: then the centre is moved
+        /// down under it, and the cloud made smaller so the name row under the ring
+        /// (the figure and the name) still ends above the foot, where "I rummet" and
+        /// the words stand (the line under the big one, with its padding: 56).
+        static func layout(in size: CGSize) -> (cy: CGFloat, R: CGFloat) {
+            let top = headingBottom + headingMargin
+            let row = 62 + VoiceFigureView.Size.large.points / 2
+            let room = size.height - top - 56
+            var R = min(size.width, size.height) * 0.28
+            if 2 * R * ringScale + row > room { R = max(40, (room - row) / (2 * ringScale)) }
+            return (max(size.height * 0.42, top + R * ringScale), R)
+        }
 
         /// The column's measure with `count` people in it: the figure's width, the
         /// name's size, the space between rows and the tick's size. Four stand at full
@@ -269,7 +296,8 @@ struct VoiceScanner: View {
         /// The ring around the cloud: fills as the person speaks (Face ID–like), and
         /// closes with one pulse the moment the name is settled.
         @ViewBuilder private func ring(in size: CGSize, colour: Color) -> some View {
-            let r = min(size.width, size.height) * 0.28 * 1.16
+            let place = Self.layout(in: size)
+            let r = place.R * Self.ringScale
             let c = Constellation.rgb(colour)
             let tint = Color(red: c.x, green: c.y, blue: c.z)
             if let reveal, !reveal.flying {
@@ -281,7 +309,7 @@ struct VoiceScanner: View {
                     }
                 }
                 .frame(width: r * 2, height: r * 2)
-                .position(x: size.width / 2, y: size.height * 0.42)
+                .position(x: size.width / 2, y: place.cy)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
                 .transition(.opacity)
@@ -295,7 +323,7 @@ struct VoiceScanner: View {
                         .animation(.easeOut(duration: 0.25), value: round.progress)
                 }
                 .frame(width: r * 2, height: r * 2)
-                .position(x: size.width / 2, y: size.height * 0.42)
+                .position(x: size.width / 2, y: place.cy)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
             }

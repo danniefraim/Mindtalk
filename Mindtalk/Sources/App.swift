@@ -740,7 +740,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             RunLoop.main.run()
         }
         #if DEBUG
-        // `Mindtalk --render-round out.png [--round-state reveal|known|new|listening|forming|ready]`:
+        // `Mindtalk --render-round out.png [--round-state reveal|known|new|listening|forming|ready] [--size 1200x500]`:
         // the round's room in a given state (the moment a name is settled, by default;
         // `forming` is a turn at 60 % with the cloud halfway into its figure), with demo
         // people and prints — nothing heard, nothing saved.
@@ -749,7 +749,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 let state = args.firstIndex(of: "--round-state").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } ?? "reveal"
                 let round = IntroRound(session: .shared)
                 round.demo(state)
-                let renderer = ImageRenderer(content: VoiceScanner.still(round: round, size: CGSize(width: 1100, height: 680))
+                // `--size 1200x500`: the room in a window of that size (1100x680 by default).
+                var size = CGSize(width: 1100, height: 680)
+                if let text = args.firstIndex(of: "--size").flatMap({ $0 + 1 < args.count ? args[$0 + 1] : nil }) {
+                    let parts = text.lowercased().split(separator: "x").compactMap { Double($0) }
+                    if parts.count == 2 { size = CGSize(width: parts[0], height: parts[1]) }
+                }
+                let renderer = ImageRenderer(content: VoiceScanner.still(round: round, size: size)
                     .padding(28).background(DS.Colors.night))
                 // `--render-scale 3`: closer, to check the figures' lines.
                 renderer.scale = args.firstIndex(of: "--render-scale").flatMap { $0 + 1 < args.count ? CGFloat(Double(args[$0 + 1]) ?? 2) : nil } ?? 2

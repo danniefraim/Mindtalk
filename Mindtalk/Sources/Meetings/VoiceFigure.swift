@@ -316,6 +316,11 @@ struct Constellation: View {
     /// How far the cloud may have fallen into the figure (0…1): in the round the
     /// figure forms in step with the ring as the person talks. nil: all the way.
     var form: Double?
+    /// Where the cloud's centre is and how large it is, when the room decides (the
+    /// round, VoiceScanner.Room.layout). nil: a little above the middle, 0.28 of the
+    /// shorter side.
+    var center: CGPoint?
+    var radius: CGFloat?
     /// The colour as given, for the listening sphere on a light surface (the sphere
     /// is white otherwise; only a voice's figure takes a colour).
     private let plain: SIMD3<Double>
@@ -325,8 +330,10 @@ struct Constellation: View {
     static let count = 900
 
     init(figure: VoiceFigure?, color: Color, level: Double, searching: Bool = false, paused: Bool = false, onLight: Bool = false,
-         defined: Bool = false, form: Double? = nil) {
+         defined: Bool = false, form: Double? = nil, center: CGPoint? = nil, radius: CGFloat? = nil) {
         self.figure = figure
+        self.center = center
+        self.radius = radius
         self.color = color
         self.level = level
         self.searching = searching
@@ -361,7 +368,8 @@ struct Constellation: View {
         let state = morph.state(now: now, instant: reduceMotion)
         let clear = morph.clarity(now: now)
         let angle = morph.turn(now: now, speed: reduceMotion ? 0 : (searching ? 0.6 : 0.25))
-        let cx = size.width / 2, cy = size.height * 0.42, R = min(size.width, size.height) * 0.28
+        let cx = center?.x ?? size.width / 2, cy = center?.y ?? size.height * 0.42
+        let R = radius ?? min(size.width, size.height) * 0.28
         let k = state.k
         let rgb = onLight && state.figure == nil ? plain : state.rgb
         let tint = Color(red: rgb.x, green: rgb.y, blue: rgb.z)
