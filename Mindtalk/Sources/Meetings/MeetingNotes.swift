@@ -138,6 +138,15 @@ final class MeetingNotes: ObservableObject {
     /// for it, else the one chosen for all.
     func writerSentenceName(for id: UUID) -> String { (writers[id] ?? BetterNotes.shared.choice).sentenceName }
 
+    #if DEBUG
+    /// `--render-window … --tried`: the meeting just rewritten by `choice`, as if picked
+    /// in Skriv om, so the question under the foot shows. In memory only.
+    func previewTried(_ id: UUID, _ choice: SummaryWriterChoice) {
+        guard Settings.previewing else { return }
+        tried[id] = choice
+    }
+    #endif
+
     /// "Använd Gemma 4 E4B i alla möten?" answered: Ja makes it the choice for all.
     func keepTried(_ id: UUID, _ keep: Bool) {
         guard let choice = tried.removeValue(forKey: id) else { return }

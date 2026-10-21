@@ -180,10 +180,11 @@ private struct MeetingList: View {
         // Lazy, so the search field and the folders can stay pinned at the top as the
         // list scrolls — a meeting far down can still be dragged onto a folder.
         LazyVStack(alignment: .leading, spacing: 20, pinnedViews: [.sectionHeaders]) {
+            // The title; what the page is for only while there's nothing in it yet.
             PageHeader(title: "Möten",
-                       eyebrow: store.meetings.isEmpty ? nil
-                           : store.meetings.count == 1 ? String(localized: "1 möte") : String(localized: "\(store.meetings.count) möten"),
-                       subtitle: "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får en sammanfattning.")
+                       subtitle: store.meetings.isEmpty
+                           ? "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får en sammanfattning."
+                           : nil)
                 .staggered(0)
             SaveProblemLine()
             StartCard(session: session, voices: voices, dictation: dictation).staggered(1)
@@ -964,14 +965,15 @@ struct StartCard: View {
     }
 }
 
-/// The last seven days in one card: how many meetings, how long, with whom most often —
-/// and a way to have them summed up. Only with two or more. In a folder, its meetings.
+/// The last seven days in one quiet line: how many meetings, how long, and a way to
+/// have them summed up. Only with two or more. In a folder, its meetings.
 private struct WeekRecap: View {
     let meetings: [MeetingRecord]
     let all: [MeetingRecord]
     /// The folder chosen, by name: the card and the summary are its meetings.
     var folder: String? = nil
     @ObservedObject private var library = MeetingLibrary.shared
+    @State private var hovering = false
 
     var body: some View {
         let since = Date().addingTimeInterval(-7 * 86_400)
@@ -979,38 +981,30 @@ private struct WeekRecap: View {
         let week = meetings.filter { $0.date > since && !$0.words.isEmpty }
         if week.count >= 2 {
             let time = week.reduce(0) { $0 + $1.duration }
-            let people = ArchiveSection(id: "week", title: "", kind: .recent, meetings: week).people(among: all)
-            HStack(alignment: .center, spacing: 18) {
-                VStack(alignment: .leading, spacing: 4) {
-                    CapsLabel(String(localized: "Senaste veckan"))
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text(verbatim: String(localized: "\(week.count) möten"))
-                            .font(.system(size: 30, weight: .regular, design: .serif)).monospacedDigit()
-                        Text(verbatim: Stats.duration(time)).font(.system(size: 15)).foregroundStyle(DS.Colors.muted).monospacedDigit()
-                    }
-                    if !people.isEmpty {
-                        Text(verbatim: String(localized: "Oftast med \(ListFormatter.localizedString(byJoining: people))"))
-                            .font(.system(size: 13)).foregroundStyle(DS.Colors.muted).lineLimit(1)
-                    }
-                }
-                Spacer(minLength: 12)
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(verbatim: String(localized: "Senaste veckan: \(week.count) möten, \(Stats.duration(time))"))
+                    .font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
+                    .lineLimit(1)
                 if MeetingNotes.isAvailable {
                     Button {
-                        // "den senaste veckan": the same seven days as the card counts.
+                        // "den senaste veckan": the same seven days as the line counts.
                         withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
                             library.ask(folder.map { String(localized: "Vad hände i mötena i \($0) den senaste veckan?") }
                                         ?? String(localized: "Vad hände i mina möten den senaste veckan?"))
                         }
                     } label: {
-                        Label(folder.map { String(localized: "Sammanfatta veckan i \($0)") } ?? String(localized: "Sammanfatta veckan"),
-                              systemImage: "text.alignleft")
+                        Text(folder.map { String(localized: "Sammanfatta veckan i \($0)") } ?? String(localized: "Sammanfatta veckan"))
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(DS.Colors.ink)
+                            .underline(hovering, color: DS.Colors.muted.opacity(0.6))
+                            .lineLimit(1)
                     }
-                    .buttonStyle(.soft)
+                    .buttonStyle(.plain)
+                    .onHover { hovering = $0 }
                     .disabled(library.asking)
                 }
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 22).padding(.vertical, 18)
-            .card()
             .accessibilityElement(children: .contain)
         }
     }
@@ -1107,7 +1101,7 @@ struct MeetingRow: View {
 
     private func full(_ cast: Cast) -> some View {
             HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
                         if let source = record.source {
                             Image(systemName: source.video ? "film" : "waveform")
@@ -1124,23 +1118,18 @@ struct MeetingRow: View {
                         Text(lede).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted).lineLimit(1)
                     }
                     (Text(meta) + (folder.map { Text("  \(Image(systemName: "folder")) \($0)") } ?? Text("")))
-                        .font(.system(size: 12)).foregroundStyle(DS.Colors.muted).monospacedDigit().lineLimit(1)
+                        .font(.system(size: 12)).foregroundStyle(DS.Colors.faint).monospacedDigit().lineLimit(1)
                 }
                 Spacer(minLength: 12)
-                if record.words.isEmpty {
-                    SpeakerStack(cast: cast)
-                } else {
-                    MeetingRibbon(record: record, cast: cast, segments: MeetingText.segments(record.words), compact: true)
-                        .frame(width: 96)
-                }
+                // The names say who was there: no timeline here, and the arrow only under the pointer.
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(DS.Colors.faint)
-                    .opacity(hovering ? 1 : 0.5)
+                    .opacity(hovering ? 1 : 0)
                     .accessibilityHidden(true)
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.vertical, 11)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(DS.Colors.chip.opacity(selected ? 1 : hovering ? 0.6 : 0)))
             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -1249,30 +1238,6 @@ struct SpeakerMark: View {
     }
 }
 
-/// Overlapping marks: who took part.
-private struct SpeakerStack: View {
-    let cast: Cast
-
-    var body: some View {
-        HStack(spacing: -6) {
-            ForEach(cast.order.prefix(5), id: \.self) { s in
-                SpeakerMark(speaker: s, cast: cast, size: 20)
-                    .overlay(Circle().strokeBorder(DS.Colors.card, lineWidth: 2))
-            }
-            if cast.order.count > 5 {
-                Text("+\(cast.order.count - 5)")
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundStyle(DS.Colors.muted)
-                    .frame(width: 20, height: 20)
-                    .background(Circle().fill(DS.Colors.chip))
-                    .overlay(Circle().strokeBorder(DS.Colors.card, lineWidth: 2))
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(cast.order.map { cast.name(of: $0) }.joined(separator: ", "))
-    }
-}
-
 /// A speaker's name; click to name them, or to say they're someone else.
 struct SpeakerChip: View {
     let speaker: Int
@@ -1286,7 +1251,8 @@ struct SpeakerChip: View {
     @State private var editing = false
 
     /// `newVoice`: "Ny röst. Vem är det?", a voice heard first after the room was known.
-    enum Style { case chip, name, newVoice }
+    /// `plain`: just the name, quiet like the line it stands in (a finished meeting's header).
+    enum Style { case chip, name, newVoice, plain }
     @State private var draft = ""
     /// Under the pointer: the name underlined and a pencil, so it reads as something to click.
     @State private var hovering = false
@@ -1312,10 +1278,11 @@ struct SpeakerChip: View {
                 .accessibilityLabel(recognized ? String(localized: "\(cast.name(of: speaker)), igenkänd röst") : cast.name(of: speaker))
             case .name:
                 HStack(spacing: 5) {
+                    // Ink: their colour is the thin line beside what they said, nowhere else.
                     Text(cast.name(of: speaker))
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(SpeakerMark.ink(of: speaker, in: cast))
-                        .underline(hovering, color: SpeakerMark.ink(of: speaker, in: cast).opacity(0.5))
+                        .foregroundStyle(DS.Colors.ink)
+                        .underline(hovering, color: DS.Colors.muted.opacity(0.6))
                         .lineLimit(1)
                     Image(systemName: "pencil").font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(DS.Colors.faint)
@@ -1323,6 +1290,13 @@ struct SpeakerChip: View {
                         .accessibilityHidden(true)
                 }
                 .contentShape(Rectangle())
+            case .plain:
+                Text(cast.name(of: speaker))
+                    .foregroundStyle(hovering ? DS.Colors.ink : DS.Colors.muted)
+                    .underline(hovering, color: DS.Colors.muted.opacity(0.6))
+                    .lineLimit(1)
+                    .contentShape(Rectangle())
+                    .accessibilityLabel(recognized ? String(localized: "\(cast.name(of: speaker)), igenkänd röst") : cast.name(of: speaker))
             case .newVoice:
                 HStack(spacing: 6) {
                     VoiceBadge(speaker: speaker, cast: cast, size: 18)
@@ -1436,8 +1410,6 @@ struct MeetingView: View {
     @State private var confirmRemoveAudio = false
     @State private var changingDate = false
     @State private var copied = false
-    /// "Kopiera till mejl" just pressed: "Kopierat" for a moment.
-    @State private var mailCopied = false
     /// ⌘F: "Sök i mötet", what's searched for, and which place you're at.
     @State private var finding = false
     @State private var findQuery = ""
@@ -1604,34 +1576,28 @@ struct MeetingView: View {
                 .onChange(of: editingTitle) { _, editing in if !editing { commitTitle() } }
                 .help("Ändra mötets titel")
             HStack(alignment: .center, spacing: 12) {
-                FlowLayout(spacing: 8) {
-                    Text(meta).font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
-                        .padding(.trailing, 4)
-                    // Imported: the file it came from — a click shows it in Finder — and
-                    // the date to change, since a file's date can be wrong or missing.
-                    // (A meeting recorded here keeps its real time.)
-                    if !live, let source = record.source {
-                        SourceLink(source: source).padding(.trailing, 4)
-                        Button("Ändra datum") { changingDate = true }
-                            .buttonStyle(SoftButtonStyle(small: true))
-                            .help(source.dateKnown ? "Filens datum kan vara fel: ange när mötet var" : "Filen säger inte när den spelades in: ange när mötet var")
-                            .popover(isPresented: $changingDate, arrowEdge: .bottom) {
-                                MeetingDatePopover(record: record) { changingDate = false }
-                            }
+                if live {
+                    // While it records, as before (pass 3 redesigns the meeting as it runs).
+                    FlowLayout(spacing: 8) {
+                        Text(meta).font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
+                            .padding(.trailing, 4)
+                        FolderTag(record: record)
+                        ForEach(cast.order, id: \.self) { s in
+                            SpeakerChip(speaker: s, cast: cast, recognized: record.recognized[String(s)] != nil,
+                                        rename: { edit.name(s, $0) },
+                                        merge: { other in withAnimation(.snappy) { edit.merge(s, into: other) } })
+                        }
                     }
-                    FolderTag(record: record)
-                    ForEach(cast.order, id: \.self) { s in
-                        SpeakerChip(speaker: s, cast: cast, recognized: record.recognized[String(s)] != nil,
-                                    rename: { edit.name(s, $0) },
-                                    merge: { other in withAnimation(.snappy) { edit.merge(s, into: other) } })
-                    }
+                } else {
+                    metaLine(cast)
                 }
                 Spacer(minLength: 12)
                 if !live {
                     PillPicker(options: [(Tab.summary, "Sammanfattning"), (Tab.transcript, "Text")], selection: $tab)
                 }
             }
-            if !segments.isEmpty {
+            // The timeline belongs to the text, where it steers what you hear.
+            if !segments.isEmpty, live || tab == .transcript {
                 MeetingRibbon(record: record, cast: cast, segments: segments, live: live, now: session?.elapsed)
                     .padding(.top, 4)
                     .transition(.opacity)
@@ -1654,6 +1620,45 @@ struct MeetingView: View {
         .padding(.top, DS.Layout.pageTop - 10)
         .padding(.bottom, 12)
         .pageColumn(width)
+    }
+
+    /// "I dag 9:30 · 25 min · Anna, Erik och Sara · Kunder": one quiet line. A name is
+    /// a button (name them, or say two are the same person); the folder is a menu.
+    private func metaLine(_ cast: Cast) -> some View {
+        let order = cast.order
+        return FlowLayout(spacing: 0) {
+            Text(verbatim: finishedMeta + (order.isEmpty ? "" : " · "))
+                .foregroundStyle(DS.Colors.muted).monospacedDigit()
+            // Imported: the file it came from (a click shows it in Finder); its date is
+            // changed under ⋯.
+            if let source = record.source {
+                SourceLink(source: source)
+                    .padding(.trailing, 4)
+                    .popover(isPresented: $changingDate, arrowEdge: .bottom) {
+                        MeetingDatePopover(record: record) { changingDate = false }
+                    }
+            }
+            ForEach(Array(order.enumerated()), id: \.element) { i, s in
+                HStack(spacing: 0) {
+                    SpeakerChip(speaker: s, cast: cast, recognized: record.recognized[String(s)] != nil, style: .plain,
+                                rename: { edit.name(s, $0) },
+                                merge: { other in withAnimation(.snappy) { edit.merge(s, into: other) } })
+                    Text(verbatim: i < order.count - 2 ? ", " : i == order.count - 2 ? " " + String(localized: "names|och") + " " : "")
+                        .foregroundStyle(DS.Colors.muted)
+                }
+            }
+            FolderTag(record: record, quiet: true)
+        }
+        .font(.system(size: 13))
+    }
+
+    /// "I dag 9:30 · 25 min", and what's worth knowing about the recording.
+    private var finishedMeta: String {
+        let when = record.source?.dateKnown == false ? String(localized: "Datum okänt") : MeetingRecord.when(record.date)
+        var parts = [when, Stats.duration(record.duration)]
+        if record.informed != nil { parts.append(String(localized: "deltagarna informerades")) }
+        if !record.hasAudio { parts.append(String(localized: "inspelningen borttagen")) }
+        return parts.joined(separator: " · ")
     }
 
     private func commitTitle() {
@@ -1686,7 +1691,7 @@ struct MeetingView: View {
 
     /// What listening through the whole meeting changed — and a way to see it.
     @ViewBuilder private var healLine: some View {
-        if !live, let heal = record.heal, heal.words + heal.speakers > 0 {
+        if !live, tab == .transcript, let heal = record.heal, heal.words + heal.speakers > 0 {
             HStack(spacing: 8) {
                 Image(systemName: "checkmark.seal").foregroundStyle(DS.Colors.muted)
                 Text(Self.healText(heal)).foregroundStyle(DS.Colors.muted)
@@ -1748,109 +1753,99 @@ struct MeetingView: View {
 
     @ViewBuilder private var actions: some View {
         HStack(spacing: 8) {
-            // The meeting beside your work instead — the same as closing the window.
-            if let session, session.isBusy {
-                Button { MeetingPanel.shared.collapse() } label: {
-                    Label("Visa som panel", systemImage: "pip.enter")
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .padding(.horizontal, 12)
-                        .frame(height: 30)
-                        .background(Capsule().fill(DS.Colors.chip))
-                        .contentShape(Capsule())
+            if let session {
+                // While it records, as before (pass 3 redesigns the meeting as it runs).
+                // The meeting beside your work instead — the same as closing the window.
+                if session.isBusy {
+                    Button { MeetingPanel.shared.collapse() } label: {
+                        Label("Visa som panel", systemImage: "pip.enter")
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .padding(.horizontal, 12)
+                            .frame(height: 30)
+                            .background(Capsule().fill(DS.Colors.chip))
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Mötet fortsätter i en liten panel bredvid det du gör")
                 }
-                .buttonStyle(.plain)
-                .help("Mötet fortsätter i en liten panel bredvid det du gör")
-            }
-            // The summary for a mail: headings and lists that Mail and Outlook keep.
-            if !live, record.summary != nil {
-                Button {
-                    MeetingExport.copyForMail(record)
-                    mailCopied = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { mailCopied = false }
-                } label: {
-                    Label(mailCopied ? String(localized: "Kopierat") : String(localized: "Kopiera till mejl"),
-                          systemImage: mailCopied ? "checkmark" : "envelope")
+                Button(action: copy) {
+                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
                         .contentTransition(.symbolEffect(.replace))
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .padding(.horizontal, 12)
-                        .frame(height: 30)
-                        .background(Capsule().fill(DS.Colors.chip))
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .help("Kopierar sammanfattningen med rubriker och listor, redo att klistra in i ett mejl")
-            }
-            if !live { ExportMenu(record: record) }
-            Button(action: copy) {
-                Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                    .contentTransition(.symbolEffect(.replace))
-                    .font(.system(size: 12, weight: .semibold))
-                    .frame(width: 30, height: 30)
-                    .background(Circle().fill(DS.Colors.chip))
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .disabled(record.words.isEmpty)
-            .keyboardShortcut("c", modifiers: [.command, .shift])
-            .help(copyHelp)
-            .accessibilityLabel(copyHelp)
-            if !live {
-                Menu {
-                    Menu("Sammanfatta igen") {
-                        ForEach(SummaryLanguage.allCases) { choice in
-                            Button(choice.menuTitle) {
-                                notes.summarize(record.id, in: choice)
-                            }
-                        }
-                        .disabled(!MeetingNotes.isAvailable)
-                        Section("Sammanfatta igen med") {
-                            SummarizeAgainItems(record: record)
-                        }
-                    }
-                    .disabled(notes.writing.contains(record.id))
-                    if record.source != nil { Button("Ändra datum…") { changingDate = true } }
-                    if record.hasAudio {
-                        Button("Spela in mer") { AppDelegate.continueMeeting(record.id) }
-                            .disabled(!record.finished || MeetingSession.shared.phase != .idle)
-                        // Again — in another language too, when there's more than one.
-                        let models = SpeechModel.allCases.filter(\.isInstalled)
-                        if models.count > 1 {
-                            Menu("Lyssna igenom igen") {
-                                ForEach(models, id: \.self) { model in
-                                    Button {
-                                        MeetingSession.shared.finishInterrupted(record.id, language: model)
-                                    } label: {
-                                        if model == record.language { Label(model.listenIn, systemImage: "checkmark") } else { Text(model.listenIn) }
-                                    }
-                                }
-                            }
-                            .disabled(MeetingSession.shared.phase != .idle)
-                        } else {
-                            Button("Lyssna igenom igen") { MeetingSession.shared.finishInterrupted(record.id) }
-                                .disabled(MeetingSession.shared.phase != .idle)
-                        }
-                        Button("Visa inspelningen i Finder") {
-                            NSWorkspace.shared.activateFileViewerSelecting([MeetingStore.audioURL(for: record.id)])
-                        }
-                        Button("Ta bort inspelningen…") { confirmRemoveAudio = true }
-                    }
-                    Divider()
-                    Button("Ta bort mötet…", role: .destructive) { confirmDelete = true }
-                } label: {
-                    Image(systemName: "ellipsis")
                         .font(.system(size: 12, weight: .semibold))
                         .frame(width: 30, height: 30)
                         .background(Circle().fill(DS.Colors.chip))
                         .contentShape(Circle())
                 }
-                .menuStyle(.button)
                 .buttonStyle(.plain)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .help("Mer")
-                .accessibilityLabel("Mer")
+                .disabled(record.words.isEmpty)
+                .keyboardShortcut("c", modifiers: [.command, .shift])
+                .help(copyHelp)
+                .accessibilityLabel(copyHelp)
+            } else {
+                // Everything you send or save, in one menu; everything else under ⋯.
+                ShareMenu(record: record, copied: copied) { flashCopied() }
+                    // ⇧⌘C: the summary on its tab, the text otherwise.
+                    .background {
+                        Button("", action: copy).keyboardShortcut("c", modifiers: [.command, .shift])
+                            .disabled(record.words.isEmpty)
+                            .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
+                    }
+                moreMenu
             }
         }
+    }
+
+    /// Everything about the meeting itself: its name, its folder, the summary and the
+    /// recording again, and taking it away.
+    private var moreMenu: some View {
+        Menu {
+            Button("Byt namn") { editingTitle = true }
+            Menu("Flytta till") { MoveToFolderItems(ids: [record.id], current: record.folder) }
+            if record.source != nil { Button("Ändra datum…") { changingDate = true } }
+            Divider()
+            Button("Sammanfatta igen") { notes.summarize(record.id) }
+                .disabled(notes.writing.contains(record.id) || !MeetingNotes.isAvailable || record.words.isEmpty)
+            if record.hasAudio {
+                Button("Spela in mer") { AppDelegate.continueMeeting(record.id) }
+                    .disabled(!record.finished || MeetingSession.shared.phase != .idle)
+                // Again — in another language too, when there's more than one.
+                let models = SpeechModel.allCases.filter(\.isInstalled)
+                if models.count > 1 {
+                    Menu("Lyssna igenom igen") {
+                        ForEach(models, id: \.self) { model in
+                            Button {
+                                MeetingSession.shared.finishInterrupted(record.id, language: model)
+                            } label: {
+                                if model == record.language { Label(model.listenIn, systemImage: "checkmark") } else { Text(model.listenIn) }
+                            }
+                        }
+                    }
+                    .disabled(MeetingSession.shared.phase != .idle)
+                } else {
+                    Button("Lyssna igenom igen") { MeetingSession.shared.finishInterrupted(record.id) }
+                        .disabled(MeetingSession.shared.phase != .idle)
+                }
+                Divider()
+                Button("Visa inspelningen i Finder") {
+                    NSWorkspace.shared.activateFileViewerSelecting([MeetingStore.audioURL(for: record.id)])
+                }
+                Button("Ta bort inspelningen…") { confirmRemoveAudio = true }
+            }
+            Divider()
+            Button("Ta bort mötet…", role: .destructive) { confirmDelete = true }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(DS.Colors.chip))
+                .contentShape(Circle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Mer")
+        .accessibilityLabel("Mer")
     }
 
     private var copyHelp: String {
@@ -1864,8 +1859,13 @@ struct MeetingView: View {
         } else {
             put(MeetingText.plain(record))
         }
-        copied = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
+        flashCopied()
+    }
+
+    /// "Kopierat" for a moment, where you copied from.
+    private func flashCopied() {
+        withAnimation(.easeOut(duration: 0.15)) { copied = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { withAnimation(.easeOut(duration: 0.2)) { copied = false } }
     }
 
     private func put(_ text: String) {
@@ -2225,7 +2225,7 @@ private struct TurnRow: View {
                 Text(speaker.map { cast.name(of: $0) }
                      ?? (live ? String(localized: "Känner igen rösten…") : String(localized: "Okänd talare")))
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(SpeakerMark.ink(of: speaker, in: cast))
+                    .foregroundStyle(speaker == nil ? DS.Colors.muted : DS.Colors.ink)
             }
             if let play {
                 Button(action: play) {
@@ -2385,7 +2385,9 @@ private struct SummaryView: View {
                     Color.clear.frame(height: 1).id("end")
                 }
                 .pageColumn(width)
-                .padding(.top, 14)
+                // The anchor above takes a full step of the column (30): the summary starts close
+                // under the header, as a document does.
+                .padding(.top, -16)
             }
             .contentMargins(.bottom, 150, for: .scrollContent)
             .scrollContentBackground(.hidden)
@@ -2416,16 +2418,6 @@ private struct SummaryView: View {
         }
     }
 
-    /// "3 beslut · 2 uppgifter · 41 min" — under the summary, what it holds.
-    static func contents(_ summary: MeetingSummary, duration: Double) -> String {
-        var parts: [String] = []
-        let d = summary.decisions.count, t = summary.tasks.count
-        if d > 0 { parts.append(d == 1 ? String(localized: "1 beslut") : String(localized: "\(d) beslut")) }
-        if t > 0 { parts.append(t == 1 ? String(localized: "1 uppgift") : String(localized: "\(t) uppgifter")) }
-        parts.append(Stats.duration(duration))
-        return parts.joined(separator: " · ")
-    }
-
     /// You wrote to your notes (or gave a mark words) after the summary was written:
     /// it doesn't know. Not while it's being written again, not for summaries from
     /// before this was kept, and not when nothing on this Mac can write one.
@@ -2448,76 +2440,44 @@ private struct SummaryView: View {
             }
             // The old notes stay while the new ones are written — faded, so it's
             // clear they're about to change.
-            VStack(alignment: .leading, spacing: 32) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(summary.overview)
-                        .font(.system(size: 20, weight: .regular, design: .serif))
-                        .lineSpacing(7)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: 620, alignment: .leading)
-                    Text(verbatim: Self.contents(summary, duration: record.duration))
-                        .font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted).monospacedDigit()
-                }
-                .staggered(0)
-                if !summary.decisions.isEmpty {
-                    NotesList(title: "Beslut", kind: .decision, items: summary.decisions, record: record, cast: cast,
-                              turns: turns, showInText: showInText).staggered(1)
-                }
+            VStack(alignment: .leading, spacing: 28) {
+                // What it was about, then what to do, what was decided, what to keep.
+                Text(summary.overview)
+                    .font(.system(size: 20, weight: .regular, design: .serif))
+                    .lineSpacing(7)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: 620, alignment: .leading)
+                    .staggered(0)
                 if !summary.tasks.isEmpty {
                     NotesList(title: "Att göra", kind: .task, items: summary.tasks, record: record, cast: cast,
+                              turns: turns, showInText: showInText).staggered(1)
+                }
+                if !summary.decisions.isEmpty {
+                    NotesList(title: "Beslut", kind: .decision, items: summary.decisions, record: record, cast: cast,
                               turns: turns, showInText: showInText).staggered(2)
                 }
                 if !summary.points.isEmpty {
                     NotesList(title: "Värt att komma ihåg", kind: .point, items: summary.points, record: record, cast: cast,
                               turns: turns, showInText: showInText).staggered(3)
                 }
-                HStack(alignment: .top, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(alignment: .center, spacing: 7) {
-                            Image(systemName: summary.writer == nil ? "apple.intelligence" : "sparkle")
-                                .font(.system(size: 12))
-                            Text(String(localized: "Sammanfattad av \(summary.writer ?? "Apple Intelligence")."))
+                VStack(alignment: .leading, spacing: 8) {
+                    SummaryFooter(record: record, summary: summary, writing: writing)
+                    // Rewritten by another writer than the one chosen for all: keep it for
+                    // all? Asked once, right then, and gone when answered.
+                    if let picked = notes.tried[record.id] {
+                        HStack(spacing: 10) {
+                            Text("Använd \(picked.name) i alla möten?").foregroundStyle(DS.Colors.muted)
+                            Button("Ja") { withAnimation(.easeOut(duration: 0.2)) { notes.keepTried(record.id, true) } }
+                                .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.ink)
+                            Button("Nej") { withAnimation(.easeOut(duration: 0.2)) { notes.keepTried(record.id, false) } }
+                                .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.ink)
                         }
-                        // Who writes the summaries is chosen in Settings → Möten: one click, to that card.
-                        Button("Välj vem som skriver sammanfattningen") { SettingsPage.open(.meetings, scrollTo: .summaries) }
-                            .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.accent)
-                            .help("Öppnar Inställningar → Möten → Sammanfattningar.")
-                        Text("Stämmer något inte? Klicka på en tid och lyssna själv.")
+                        .font(.system(size: 12))
+                        .transition(.opacity)
                     }
-                    Spacer(minLength: 16)
-                    // Again, with the writer chosen for all, or with another one for this
-                    // meeting only (the first item is the one chosen for all).
-                    Menu {
-                        SummarizeAgainItems(record: record)
-                    } label: {
-                        // The soft style draws no menu arrow: one of our own, so it reads as a choice.
-                        HStack(spacing: 6) {
-                            Label("Sammanfatta igen med", systemImage: "arrow.clockwise")
-                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
-                        }
-                    }
-                    .menuStyle(.button)
-                    .buttonStyle(.soft)
-                    .fixedSize()
-                    .disabled(writing)
-                    .help("Sammanfatta mötet igen, med den som skriver alla sammanfattningar eller en annan för det här mötet.")
                 }
-                .font(.system(size: 11.5))
-                .foregroundStyle(DS.Colors.muted)
+                .padding(.top, -8)
                 .staggered(4)
-                // Another writer than the one chosen for all wrote this one: keep it for all?
-                if let picked = notes.tried[record.id] {
-                    HStack(spacing: 12) {
-                        Text("Använd \(picked.name) i alla möten?")
-                        Button("Ja") { notes.keepTried(record.id, true) }
-                            .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.accent)
-                        Button("Nej") { notes.keepTried(record.id, false) }
-                            .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.accent)
-                    }
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(DS.Colors.muted)
-                    .transition(.opacity)
-                }
                 // Written by Apple Intelligence: once, the Gemma that suits this Mac.
                 if summary.writer == nil, MeetingSession.shared.record?.id != record.id { NotesModelOffer().staggered(5) }
             }
@@ -2676,10 +2636,18 @@ private struct NotesList: View {
                 .foregroundStyle(done ? DS.Colors.muted : .primary)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            // You marked it while it was said: a quiet word, in ink.
             if item.marked == true {
-                Image(systemName: "flag.fill").font(.system(size: 10.5)).foregroundStyle(markTint)
-                    .help("Du markerade det här under mötet")
-                    .accessibilityLabel("Markerat av dig")
+                HStack(spacing: 3) {
+                    Image(systemName: "flag").font(.system(size: 9.5, weight: .semibold))
+                    Text("Markerat")
+                }
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(DS.Colors.muted)
+                .fixedSize()
+                .help("Du markerade det här under mötet")
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Markerat av dig")
             }
             if let owner = item.owner { OwnerTag(name: owner, shown: record.shownOwner(owner), cast: cast) }
             if let at = item.at {
@@ -2691,19 +2659,13 @@ private struct NotesList: View {
         .animation(.easeOut(duration: 0.25), value: done)
     }
 
-    /// The colour of what you marked: the list's kind.
-    private var markTint: Color {
-        switch kind {
-        case .decision: return MeetingRecord.Mark.Kind.decision.tint
-        case .task: return MeetingRecord.Mark.Kind.task.tint
-        case .point: return MeetingRecord.Mark.Kind.important.tint
-        }
-    }
-
     @ViewBuilder private func marker(_ item: MeetingSummary.Item, done: Bool) -> some View {
         switch kind {
         case .decision:
-            Image(systemName: "checkmark.circle").font(.system(size: 15)).foregroundStyle(DS.Colors.muted)
+            // Not a tick: a decision isn't something done. The mark's own sign, in ink.
+            Image(systemName: MeetingRecord.Mark.Kind.decision.symbol)
+                .font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
+                .frame(width: 16)
                 .accessibilityHidden(true)
         case .task:
             Button {
@@ -2711,7 +2673,7 @@ private struct NotesList: View {
             } label: {
                 Image(systemName: done ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 16))
-                    .foregroundStyle(done ? AnyShapeStyle(DS.Colors.ink) : AnyShapeStyle(DS.Colors.faint))
+                    .foregroundStyle(done ? DS.Colors.ink : DS.Colors.muted)
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.plain)
@@ -2723,7 +2685,7 @@ private struct NotesList: View {
     }
 }
 
-/// Who does it — their mark and name, if they're one of the speakers; "Du" when it's you.
+/// Who does it: just the name, "Du" when it's you.
 private struct OwnerTag: View {
     let name: String
     /// As shown: the name, or "Du".
@@ -2731,83 +2693,47 @@ private struct OwnerTag: View {
     let cast: Cast
 
     var body: some View {
-        let speaker = cast.order.first { cast.name(of: $0).caseInsensitiveCompare(name) == .orderedSame }
-        HStack(spacing: 5) {
-            if let speaker { SpeakerMark(speaker: speaker, cast: cast, size: 18) }
-            Text(shown).font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
-                .lineLimit(1).frame(maxWidth: 120, alignment: .trailing).fixedSize()
-        }
+        Text(shown).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+            .lineLimit(1).frame(maxWidth: 120, alignment: .trailing).fixedSize()
     }
 }
 
-/// The source: when it was said — play from there. Click for the words.
+/// The source: when it was said, as quiet digits. Under the pointer "▸ 17:38", and a
+/// click plays from there (no recording: the text at that place). Right-click: show it
+/// in the text.
 private struct Receipt: View {
     let at: Double
     let record: MeetingRecord
     let cast: Cast
     let turns: [MeetingTurn]
     let showInText: (Double) -> Void
-    @State private var open = false
     @State private var hovering = false
 
-    private var turn: MeetingTurn? { turns.last { $0.start <= at + 0.05 } ?? turns.first }
-
     var body: some View {
-        Button { open = true } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "play.fill").font(.system(size: 7.5))
+        Button {
+            if record.hasAudio { MeetingPlayer.shared.play(record.id, from: at) } else { showInText(at) }
+        } label: {
+            HStack(spacing: 3) {
+                if hovering { Image(systemName: "play.fill").font(.system(size: 7)) }
                 Text(MeetingView.duration(at)).monospacedDigit()
             }
-            .font(.system(size: 11.5, weight: .semibold))
-            .foregroundStyle(hovering ? DS.Colors.onInk : DS.Colors.muted)
-            .frame(minWidth: 48)
-            .frame(height: 22)
-            .padding(.horizontal, 6)
-            .background(Capsule().fill(hovering ? DS.Colors.ink : DS.Colors.control))
-            .overlay(Capsule().strokeBorder(hovering ? Color.clear : DS.Colors.fieldStroke, lineWidth: 1))
-            .contentShape(Capsule())
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(hovering ? DS.Colors.onInk : DS.Colors.faint)
+            .padding(.horizontal, 7)
+            .frame(height: 20)
+            .background(Capsule().fill(hovering ? DS.Colors.ink : Color.clear))
+            .frame(minWidth: 52, alignment: .trailing)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { h in withAnimation(.easeOut(duration: 0.12)) { hovering = h } }
-        .help("Visa var det sades")
-        .accessibilityLabel("Källa, \(MeetingView.spoken(at))")
-        .accessibilityHint("Visar och spelar upp det som sades")
-        .popover(isPresented: $open, arrowEdge: .trailing) {
-            VStack(alignment: .leading, spacing: 12) {
-                if let turn {
-                    let speaker = turn.speaker.flatMap { $0 >= 0 ? $0 : nil }
-                    HStack(spacing: 8) {
-                        SpeakerMark(speaker: speaker, cast: cast, size: 20)
-                        Text(speaker.map { cast.name(of: $0) } ?? String(localized: "Okänd talare"))
-                            .font(.system(size: 12.5, weight: .semibold))
-                        Text(MeetingView.duration(turn.start)).font(.system(size: 11.5)).monospacedDigit()
-                            .foregroundStyle(DS.Colors.muted)
-                    }
-                    Text("”\(turn.text)”")
-                        .font(.system(size: 15, design: .serif))
-                        .lineSpacing(3)
-                        .lineLimit(10)
-                        .textSelection(.enabled)
-                        .frame(width: 360, alignment: .leading)
-                }
-                HStack(spacing: 8) {
-                    if record.hasAudio {
-                        Button {
-                            MeetingPlayer.shared.play(record.id, from: at)
-                        } label: {
-                            Label("Lyssna", systemImage: "play.fill")
-                        }
-                        .buttonStyle(.ink)
-                    }
-                    Button("Visa i texten") {
-                        open = false
-                        showInText(at)
-                    }
-                    .buttonStyle(.soft)
-                }
-            }
-            .padding(18)
+        .help(record.hasAudio ? "Lyssna härifrån. Högerklicka för att visa det i texten." : "Visa var det sades")
+        .contextMenu {
+            if record.hasAudio { Button("Lyssna härifrån") { MeetingPlayer.shared.play(record.id, from: at) } }
+            Button("Visa i texten") { showInText(at) }
         }
+        .accessibilityLabel("Källa, \(MeetingView.spoken(at))")
+        .accessibilityHint(record.hasAudio ? "Spelar upp det som sades" : "Visar det som sades i texten")
     }
 }
 
@@ -3168,29 +3094,69 @@ private struct PlayerBar: View {
     }
 }
 
-/// The items of "Sammanfatta igen med": every writer, the one chosen for all first and
-/// ticked. One that can't write now is there but grey, with why under it. Built from
-/// what Mindtalk already knows (the Gemmas on the disk, the models Ollama and LM
-/// Studio listed last time): nothing is asked over the network for the menu.
-struct SummarizeAgainItems: View {
+/// The summary's foot, one quiet line: who wrote it, and "Skriv om ▾" to write it again
+/// with another writer or in another language, or to choose the one for all meetings.
+private struct SummaryFooter: View {
     let record: MeetingRecord
+    let summary: MeetingSummary
+    let writing: Bool
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: summary.writer == nil ? "apple.intelligence" : "sparkle")
+                .font(.system(size: 11))
+                .accessibilityHidden(true)
+            Text(verbatim: summary.writer ?? "Apple Intelligence")
+            Text(verbatim: "·").foregroundStyle(DS.Colors.faint)
+            Menu {
+                RewriteItems(record: record, current: summary.writer ?? "Apple Intelligence")
+            } label: {
+                HStack(spacing: 3) {
+                    Text("Skriv om")
+                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
+                }
+                .fontWeight(.semibold)
+                .foregroundStyle(DS.Colors.ink)
+                .underline(hovering, color: DS.Colors.muted.opacity(0.6))
+                .contentShape(Rectangle())
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .onHover { hovering = $0 }
+            .disabled(writing)
+            .help("Skriv sammanfattningen igen, med en annan modell eller på ett annat språk")
+        }
+        .font(.system(size: 12))
+        .foregroundStyle(DS.Colors.muted)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+/// The items of "Skriv om": every writer, the one that wrote this summary ticked, one
+/// that can't write now grey with why; the language; and where the one for all
+/// meetings is chosen. Built from what Mindtalk already knows (the Gemmas on the disk,
+/// the models Ollama and LM Studio listed last time): nothing is asked over the
+/// network for the menu.
+struct RewriteItems: View {
+    let record: MeetingRecord
+    /// Who wrote the summary there is now, by name ("Apple Intelligence", "Gemma 4 E4B").
+    let current: String
     @ObservedObject private var notes = MeetingNotes.shared
     @ObservedObject private var better = BetterNotes.shared
     @ObservedObject private var servers = LocalServers.shared
 
-    /// Every writer, the one chosen for all first; a reason when one can't write now.
+    /// Every writer; a reason when one can't write now.
     private var items: [(choice: SummaryWriterChoice, reason: String?)] {
         var all: [(choice: SummaryWriterChoice, reason: String?)] = [(.apple, Self.appleReason)]
         for m in NotesModel.allCases { all.append((.gemma(m), gemmaReason(m))) }
         for b in ServerBackend.allCases where servers.states[b] != .notInstalled {
             for model in servers.models[b] ?? [] { all.append((.server(b, model.id), nil)) }
         }
-        // The one chosen, also when it's a server model that isn't in the list any more.
-        if let i = all.firstIndex(where: { $0.choice == better.choice }) {
-            all.insert(all.remove(at: i), at: 0)
-        } else {
-            all.insert((better.choice, nil), at: 0)
-        }
+        // The one chosen for all, also when it's a server model that isn't listed any more.
+        if !all.contains(where: { $0.choice == better.choice }) { all.append((better.choice, nil)) }
         return all
     }
 
@@ -3212,20 +3178,42 @@ struct SummarizeAgainItems: View {
         }
     }
 
+    /// The one chosen for all is asked as such (nil), so it isn't offered for all again.
+    private func pick(_ choice: SummaryWriterChoice) -> SummaryWriterChoice? {
+        choice == better.choice ? nil : choice
+    }
+
+    /// Another language: by the writer that wrote this one, when it still can.
+    private var currentPick: SummaryWriterChoice? {
+        guard let item = items.first(where: { $0.choice.name == current }), item.reason == nil else { return nil }
+        return pick(item.choice)
+    }
+
     var body: some View {
-        ForEach(Array(items.enumerated()), id: \.offset) { i, item in
-            Button {
-                notes.summarize(record.id, with: i == 0 ? nil : item.choice)
-            } label: {
-                if i == 0 {
-                    Label(item.choice.name, systemImage: "checkmark")
-                } else {
-                    Text(item.choice.name)
+        Section("Skriv om med") {
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                Button {
+                    notes.summarize(record.id, with: pick(item.choice))
+                } label: {
+                    if item.choice.name == current {
+                        Label(item.choice.name, systemImage: "checkmark")
+                    } else {
+                        Text(item.choice.name)
+                    }
+                    if let reason = item.reason { Text(reason) }
                 }
-                if let reason = item.reason { Text(reason) }
+                .disabled(item.reason != nil)
             }
-            .disabled(item.reason != nil)
         }
+        Section("Språk") {
+            ForEach(SummaryLanguage.allCases) { language in
+                Button(language.menuTitle) { notes.summarize(record.id, in: language, with: currentPick) }
+            }
+            .disabled(!MeetingNotes.isAvailable)
+        }
+        Divider()
+        // Who writes every meeting's summary: Inställningar → Möten, at that card.
+        Button("Välj standard i Inställningar…") { SettingsPage.open(.meetings, scrollTo: .summaries) }
     }
 }
 

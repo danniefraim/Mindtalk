@@ -251,30 +251,49 @@ struct MoveToFolderItems: View {
 /// unless the page is just suggesting one.
 struct FolderTag: View {
     let record: MeetingRecord
+    /// In the meeting's one quiet line: after a dot, plain text, no icon until it's in one.
+    var quiet = false
     @ObservedObject private var folders = MeetingFolders.shared
     @ObservedObject private var store = MeetingStore.shared
+    @State private var hovering = false
 
     var body: some View {
         let current = folders.folder(of: record)
         if current != nil || folders.suggestion(for: record, among: store.meetings) == nil {
-            Menu {
-                MoveToFolderItems(ids: [record.id], current: record.folder)
-            } label: {
-                Label {
-                    Text(current?.name ?? String(localized: "Lägg i mapp"))
-                        .lineLimit(1).truncationMode(.middle).frame(maxWidth: 200, alignment: .leading).fixedSize()
-                } icon: {
-                    Image(systemName: current == nil ? "folder.badge.plus" : "folder")
+            HStack(spacing: 0) {
+                if quiet { Text(verbatim: " · ").foregroundStyle(DS.Colors.muted) }
+                Menu {
+                    MoveToFolderItems(ids: [record.id], current: record.folder)
+                } label: {
+                    if quiet {
+                        HStack(spacing: 4) {
+                            if current != nil { Image(systemName: "folder").font(.system(size: 11)) }
+                            Text(current?.name ?? String(localized: "Lägg i mapp"))
+                                .lineLimit(1).truncationMode(.middle).frame(maxWidth: 200, alignment: .leading).fixedSize()
+                                .underline(hovering, color: DS.Colors.muted.opacity(0.6))
+                        }
+                        .font(.system(size: 13))
+                        .foregroundStyle(DS.Colors.muted)
+                        .contentShape(Rectangle())
+                    } else {
+                        Label {
+                            Text(current?.name ?? String(localized: "Lägg i mapp"))
+                                .lineLimit(1).truncationMode(.middle).frame(maxWidth: 200, alignment: .leading).fixedSize()
+                        } icon: {
+                            Image(systemName: current == nil ? "folder.badge.plus" : "folder")
+                        }
+                        .font(.system(size: 13, weight: current == nil ? .regular : .medium))
+                        .foregroundStyle(current == nil ? DS.Colors.faint : DS.Colors.muted)
+                        .contentShape(Rectangle())
+                    }
                 }
-                .font(.system(size: 13, weight: current == nil ? .regular : .medium))
-                .foregroundStyle(current == nil ? DS.Colors.faint : DS.Colors.muted)
-                .contentShape(Rectangle())
+                .menuStyle(.button)
+                .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .onHover { hovering = $0 }
+                .help(current == nil ? "Lägg mötet i en mapp" : "Flytta mötet till en annan mapp")
             }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .help(current == nil ? "Lägg mötet i en mapp" : "Flytta mötet till en annan mapp")
         }
     }
 }

@@ -21,6 +21,8 @@ import SwiftUI
 //                  at that moment; voiceconsent: the start card asking about the voices
 //   --voices-off   "Kom ihåg rösterna" as for someone who never chose (off), in memory only
 //   --models-ready with --ready: the start card as if the meeting models were downloaded
+//   --tried        with --open-meeting: the summary just rewritten by Gemma 4 E4B, picked
+//                  for this meeting, and "Använd … i alla möten?" under its foot
 
 @MainActor
 enum WindowRender {
@@ -41,6 +43,12 @@ enum WindowRender {
         MainView.rendering = true
         SettingsSection.preview = value("--section").flatMap(SettingsSection.init(rawValue:)) ?? .general
         if Demo.on { WindowDemo.fill(openMeeting: args.contains("--open-meeting")) }
+        if args.contains("--tried"), Demo.on, var first = MeetingStore.shared.meetings.first, var summary = first.summary {
+            summary.writer = NotesModel.small.name
+            first.summary = summary
+            MeetingStore.shared.replaceAll([first] + MeetingStore.shared.meetings.dropFirst())
+            MeetingNotes.shared.previewTried(first.id, .gemma(.small))
+        }
         // In memory only: a render never writes a setting (Settings.previewing).
         if args.contains("--voices-off") { VoiceMemory.shared.enabled = false }
         if let state = value("--meeting-state") { MeetingSession.shared.preview(state: state) }

@@ -41,22 +41,18 @@ extension MeetingRecord.Mark.Kind {
         }
     }
 
+    /// In ink, the same everywhere: the island, the text, the summary. A decision is a
+    /// signpost (a way chosen), not a tick, so it isn't read as something done.
     var symbol: String {
         switch self {
-        case .decision: return "checkmark.seal.fill"
-        case .task: return "list.bullet.clipboard.fill"
-        case .important: return "star.fill"
+        case .decision: return "signpost.right"
+        case .task: return "circle"
+        case .important: return "star"
         }
     }
 
-    /// Its quiet colour — on the icon and the label, nowhere bigger.
-    var tint: Color {
-        switch self {
-        case .decision: return DS.Colors.markDecision
-        case .task: return DS.Colors.markTask
-        case .important: return DS.Colors.markImportant
-        }
-    }
+    /// Ink, like the rest of the app: the kind is told by its symbol and its word.
+    var tint: Color { DS.Colors.ink }
 }
 
 /// What you're typing as a note in a meeting: one draft, whether typed in the window
@@ -453,16 +449,14 @@ struct MarkPill: View {
     let done: Bool
 
     var body: some View {
+        // White on the island's dark, in both appearances: ink there.
         Image(systemName: done ? "checkmark" : kind.symbol)
-            .font(.system(size: 14, weight: .semibold))
-            // The symbol in its colour, its marks cut out in the island's dark (the
-            // star has none: one layer, all colour).
-            .symbolRenderingMode(.palette)
-            .foregroundStyle(done || kind == .important ? kind.tint : Color(white: 0.07), kind.tint)
+            .font(.system(size: kind == .task && !done ? 12.5 : 13.5, weight: .semibold))
+            .foregroundStyle(.white)
             .contentTransition(.symbolEffect(.replace))
             .frame(width: 32, height: 32)
-            .background(Circle().fill(kind.tint.opacity(done ? 0.28 : open ? 0.2 : 0.11)))
-            .overlay(Circle().strokeBorder(kind.tint.opacity(open ? 0.55 : 0.22), lineWidth: 0.6))
+            .background(Circle().fill(.white.opacity(done ? 0.26 : open ? 0.18 : 0.1)))
+            .overlay(Circle().strokeBorder(.white.opacity(open ? 0.4 : 0.14), lineWidth: 0.5))
             .contentShape(Circle())
             .scaleEffect(done ? 1.08 : 1)
             // The first one nearest the island's edge: its label grows to the right.
@@ -480,7 +474,6 @@ struct MarkPill: View {
 
     private var label: some View {
         HStack(spacing: 7) {
-            Circle().fill(kind.tint).frame(width: 6, height: 6)
             Text(done ? String(localized: "Markerat") : kind.title)
                 .font(.system(size: 12.5, weight: .semibold))
                 .foregroundStyle(.white)
@@ -493,7 +486,7 @@ struct MarkPill: View {
         .padding(.horizontal, 11)
         .frame(height: 28)
         .background(Capsule().fill(Color(white: 0.13)))
-        .overlay(Capsule().strokeBorder(kind.tint.opacity(0.45), lineWidth: 0.6))
+        .overlay(Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 0.6))
         .shadow(color: .black.opacity(0.35), radius: 8, y: 3)
         .environment(\.colorScheme, .dark)
     }
@@ -675,9 +668,9 @@ struct MarkChips: View {
         HStack(spacing: 6) {
             ForEach(marks) { mark in
                 HStack(spacing: 4) {
-                    Image(systemName: mark.kind.symbol).foregroundStyle(mark.kind.tint)
-                    Text("\(mark.kind.title) \(MeetingView.duration(mark.at))")
-                        .fixedSize()
+                    Image(systemName: mark.kind.symbol).font(.system(size: compact ? 9.5 : 10, weight: .semibold))
+                    Text(mark.kind.title).fixedSize()
+                    Text(MeetingView.duration(mark.at)).fontWeight(.medium).foregroundStyle(DS.Colors.muted).fixedSize()
                     // What you wrote when you marked it: the start of it, all of it under the pointer.
                     if let text = mark.text {
                         Text(verbatim: Self.start(of: text, compact ? 24 : 44))
@@ -691,7 +684,8 @@ struct MarkChips: View {
                     .font(.system(size: compact ? 11 : 11.5, weight: .semibold)).monospacedDigit()
                     .padding(.horizontal, compact ? 8 : 9)
                     .frame(height: compact ? 22 : 24)
-                    .background(Capsule().fill(mark.kind.tint.opacity(0.12)))
+                    .foregroundStyle(DS.Colors.ink)
+                    .background(Capsule().fill(DS.Colors.chip.opacity(0.7)))
                     .contextMenu {
                         if let remove { Button("Ta bort markeringen") { remove(mark.id) } }
                     }

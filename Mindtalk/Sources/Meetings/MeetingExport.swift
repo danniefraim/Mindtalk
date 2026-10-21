@@ -432,34 +432,42 @@ enum MeetingExport {
 }
 
 /// "Exportera ⌄" on a saved meeting's page.
-struct ExportMenu: View {
+/// "Dela" on a meeting's page: copy it (for a mail, the summary, the text), or save it
+/// as a file (PDF, Word, Markdown, text), its sound or its subtitles. `copied` is told
+/// when something went to the pasteboard, so the button can say so.
+struct ShareMenu: View {
     let record: MeetingRecord
+    /// Just copied: "Kopierat" on the button for a moment.
+    var copied = false
+    let didCopy: () -> Void
 
     var body: some View {
         Menu {
-            ForEach(MeetingExport.Content.allCases, id: \.self) { content in
-                Menu(String(localized: content.title)) {
-                    ForEach(MeetingExport.Format.allCases, id: \.self) { format in
-                        Button(String(localized: format.title)) { MeetingExport.save(record, content, as: format) }
+            Button("Kopiera till mejl") { MeetingExport.copyForMail(record); didCopy() }
+                .disabled(record.summary == nil)
+            Button("Kopiera sammanfattningen") { MeetingExport.copySummary(record); didCopy() }
+                .disabled(record.summary == nil)
+            Button("Kopiera texten") { put(MeetingText.plain(record)); didCopy() }
+                .disabled(record.words.isEmpty)
+            Section("Spara som fil") {
+                ForEach(MeetingExport.Content.allCases, id: \.self) { content in
+                    Menu(String(localized: content.title)) {
+                        ForEach(MeetingExport.Format.allCases, id: \.self) { format in
+                            Button(String(localized: format.title)) { MeetingExport.save(record, content, as: format) }
+                        }
                     }
+                    .disabled(content == .notes && record.summary == nil && record.notes.isEmpty
+                              || content == .text && record.words.isEmpty)
                 }
-                .disabled(content == .notes && record.summary == nil && record.notes.isEmpty
-                          || content == .text && record.words.isEmpty)
+                Button("Ljudet (.m4a)…") { MeetingExport.saveAudio(record) }
+                    .disabled(!record.hasAudio)
+                Button("Undertexter (.srt)…") { MeetingExport.saveSubtitles(record) }
+                    .disabled(record.words.isEmpty)
             }
-            Divider()
-            Button("Ljudet (.m4a)…") { MeetingExport.saveAudio(record) }
-                .disabled(!record.hasAudio)
-            Button("Undertexter (.srt)…") { MeetingExport.saveSubtitles(record) }
-                .disabled(record.words.isEmpty)
-            Divider()
-            Button("Kopiera till mejl") { MeetingExport.copyForMail(record) }
-                .disabled(record.summary == nil)
-            Button("Kopiera sammanfattningen") { MeetingExport.copySummary(record) }
-                .disabled(record.summary == nil)
-            Button("Kopiera texten") { put(MeetingText.plain(record)) }
-                .disabled(record.words.isEmpty)
         } label: {
-            Label("Exportera", systemImage: "square.and.arrow.up")
+            Label(copied ? String(localized: "Kopierat") : String(localized: "Dela"),
+                  systemImage: copied ? "checkmark" : "square.and.arrow.up")
+                .contentTransition(.symbolEffect(.replace))
                 .font(.system(size: 12.5, weight: .semibold))
                 .padding(.horizontal, 12)
                 .frame(height: 30)
@@ -470,7 +478,7 @@ struct ExportMenu: View {
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help("Spara mötet som PDF, Word, Markdown eller text, eller ljudet och undertexterna")
+        .help("Kopiera mötet eller spara det som en fil. ⇧⌘C kopierar det du läser.")
     }
 
     private func put(_ text: String) {
