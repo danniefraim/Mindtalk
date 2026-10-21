@@ -68,6 +68,49 @@ enum SummaryWriterChoice: Equatable, Sendable {
     }
 
     var isServer: Bool { if case .server = self { return true }; return false }
+
+    #if DEBUG
+    /// `Mindtalk --writer-test`: every choice through `stored` and back, including
+    /// server models whose ids have "/" and ":" in them, and strings that must not parse.
+    static func selfTest() -> Int32 {
+        var failed = 0
+        func check(_ ok: Bool, _ what: String) { if !ok { failed += 1; print("FEL  \(what)") } }
+        var choices: [SummaryWriterChoice] = [.apple]
+        choices += NotesModel.allCases.map { .gemma($0) }
+        let ids = ["qwen3.5:9b", "google/gemma-4-e4b", "hf.co/unsloth/gemma-3:latest",
+                   "lmstudio-community/gemma-4-E4B-it-MLX-4bit", "a:b:c/d:e", "mistral"]
+        for b in ServerBackend.allCases { for id in ids { choices.append(.server(b, id)) } }
+        for c in choices {
+            let back = SummaryWriterChoice(stored: c.stored)
+            check(back == c, "\(c.stored) läses tillbaka som \(back.map(\.stored) ?? "ingenting")")
+        }
+        check(SummaryWriterChoice(stored: "server:lmStudio:google/gemma-4-e4b") == .server(.lmStudio, "google/gemma-4-e4b"), "LM Studio-modellen som den sparas")
+        check(SummaryWriterChoice(stored: "server:ollama:qwen3.5:9b") == .server(.ollama, "qwen3.5:9b"), "Ollama-modellen som den sparas")
+        check(SummaryWriterChoice(stored: "gemma:e4b") == .gemma(.small), "gemma:e4b")
+        for bad in ["", "apple:", "gemma", "gemma:", "gemma:x", "server", "server:", "server:ollama", "server:ollama:", "server:nope:m", "ollama:qwen3.5:9b"] {
+            check(SummaryWriterChoice(stored: bad) == nil, "\"\(bad)\" ska inte läsas som ett val")
+        }
+        print(failed == 0 ? "Writer self-test passed (\(choices.count) val)." : "\(failed) fel")
+        return failed == 0 ? 0 : 1
+    }
+    #endif
+}
+
+/// A chosen writer that can't write right now, said plainly.
+enum WriterError: Error, Equatable {
+    /// The Gemma chosen is no longer on the disk (moved to the Trash in Finder).
+    case gemmaMissing(NotesModel)
+    /// The Gemma chosen is still being downloaded.
+    case gemmaDownloading(NotesModel)
+
+    var plainWords: String {
+        switch self {
+        case .gemmaMissing(let m):
+            return String(localized: "\(m.name) finns inte kvar på disken. Ladda ned den igen under Inställningar → Sammanfattningar, eller välj en annan där.")
+        case .gemmaDownloading(let m):
+            return String(localized: "\(m.name) laddas fortfarande ned. Sammanfatta igen när den är klar.")
+        }
+    }
 }
 
 /// Apple Intelligence as a writer of plain text. The notes mostly ask Apple's model
@@ -91,7 +134,17 @@ struct GemmaWriter: SummaryWriter {
     let contextTokens = 131_072
     let wordBudget = Lines.localBudget
 
+    /// The Gemma chosen writes, or says why it can't: never another writer instead.
+    private func ready() async throws {
+        guard !model.isInstalled else { return }
+        if case .downloading = await MainActor.run(body: { BetterNotes.shared.state(model) }) { throw WriterError.gemmaDownloading(model) }
+        throw WriterError.gemmaMissing(model)
+    }
+
+    func begin(system: String, prompts: [String]) async throws { try await ready() }
+
     func complete(system: String, user: String, maxTokens: Int) async throws -> String {
-        try await LocalWriter.shared.respond(system.isEmpty ? user : system + "\n\n" + user, model: model, maxTokens: maxTokens)
+        try await ready()
+        return try await LocalWriter.shared.respond(system.isEmpty ? user : system + "\n\n" + user, model: model, maxTokens: maxTokens)
     }
 }

@@ -659,12 +659,14 @@ final class MeetingLibrary: ObservableObject {
             return
         }
         // Not the large model during a meeting: it would crowd the live transcription.
-        let writer = MeetingSession.shared.isRecording ? nil : BetterNotes.shared.writer
+        let recording = MeetingSession.shared.isRecording
+        let writer = recording ? nil : BetterNotes.shared.writer
         // Then only Apple's model answers: without it, say so plainly.
         guard writer != nil || Polisher.status == .available else {
             failed = MeetingNotes.onlyAppleDuringMeeting
             return
         }
+        MeetingNotes.logStart("answer", writer: writer, reason: recording ? "fallback:recording" : "chosen")
         asking = true
         failed = nil
         // The questions before, in the same folder — not what was asked about others.
@@ -678,7 +680,7 @@ final class MeetingLibrary: ObservableObject {
                 answers.append(answer)
                 Self.log.info("answered across \(answer.read) meetings in \(Date().timeIntervalSince(t0), format: .fixed(precision: 1)) s")
             } catch {
-                Self.log.error("ask across: \(error.localizedDescription, privacy: .public)")
+                MeetingNotes.logFailure("answer", writer: writer, error: error)
                 failed = MeetingNotes.explainError(error)
             }
         }

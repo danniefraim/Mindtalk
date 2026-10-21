@@ -136,6 +136,7 @@ final class MeetingNotes: ObservableObject {
         var lines = Lines(record)
         if let name = choice.name { lines.write(in: name) }
         let writer = BetterNotes.shared.writer
+        Self.logStart("summary", writer: writer, reason: "chosen")
         let written = (words: record.words.count, duration: record.duration)
         let notesFrom = record.notesFingerprint
         summaryTasks[id] = Task {
@@ -181,7 +182,7 @@ final class MeetingNotes: ObservableObject {
             } catch is CancellationError {
                 // Avbryt pressed: no notes, and nothing to explain.
             } catch {
-                Self.log.error("notes: \(error.localizedDescription, privacy: .public)")
+                Self.logFailure("summary", writer: writer, error: error)
                 failed[id] = Self.explain(error)
                 failedServer[id] = Self.server(of: error)
             }
@@ -216,13 +217,15 @@ final class MeetingNotes: ObservableObject {
         let question = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard Self.isAvailable, !question.isEmpty, !answering.contains(id),
               let record = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
-        let writer = MeetingSession.shared.isRecording ? nil : BetterNotes.shared.writer   // not during a meeting
+        let recording = MeetingSession.shared.isRecording
+        let writer = recording ? nil : BetterNotes.shared.writer   // not during a meeting
         // During a meeting only Apple's model answers: without it, say so plainly.
         guard writer != nil || Polisher.status == .available else {
             failed[id] = Self.onlyAppleDuringMeeting
             failedServer[id] = nil
             return
         }
+        Self.logStart("answer", writer: writer, reason: recording ? "fallback:recording" : "chosen")
         answering.insert(id)
         failed[id] = nil
         failedServer[id] = nil
@@ -244,7 +247,7 @@ final class MeetingNotes: ObservableObject {
                 MeetingStore.shared.save(latest)
             } catch is CancellationError {
             } catch {
-                Self.log.error("answer: \(error.localizedDescription, privacy: .public)")
+                Self.logFailure("answer", writer: writer, error: error)
                 failed[id] = Self.explain(error)
             }
         }
@@ -316,8 +319,39 @@ final class MeetingNotes: ObservableObject {
         }
     }
 
+    /// One line in the system log when a summary or an answer starts: who writes, what
+    /// is chosen, and why they differ when they do. No meeting text.
+    static func logStart(_ what: String, writer: (any SummaryWriter)?, reason: String) {
+        let chosen = BetterNotes.shared.choice.stored
+        log.notice("\(what, privacy: .public): writer=\(writer?.name ?? "Apple Intelligence", privacy: .public) chosen=\(chosen, privacy: .public) reason=\(reason, privacy: .public)")
+    }
+
+    /// The writer chosen couldn't write (not running, not on the disk, the model gone):
+    /// said so in the log, and nothing is written by anyone else.
+    nonisolated static func logFailure(_ what: String, writer: (any SummaryWriter)?, error: Error) {
+        let name = writer?.name ?? "Apple Intelligence"
+        if isUnavailable(error) {
+            log.notice("\(what, privacy: .public): \(name, privacy: .public) unavailable (\(String(describing: error), privacy: .public)), not written")
+        } else {
+            log.error("\(what, privacy: .public): \(name, privacy: .public) failed (\(String(describing: error), privacy: .public))")
+        }
+    }
+
+    /// The writer itself was out of reach, rather than failing on the meeting.
+    nonisolated private static func isUnavailable(_ error: Error) -> Bool {
+        if error is WriterError { return true }
+        if let e = error as? ModelError, case .notInstalled = e { return true }
+        switch error as? ServerError {
+        case .notRunning?, .notInstalled?, .noModels?, .modelGone?, .noEndpoint?: return true
+        default: break
+        }
+        if let e = error as? LanguageModelSession.GenerationError, case .assetsUnavailable = e { return true }
+        return false
+    }
+
     private static func explain(_ error: Error) -> String {
         if let e = error as? ServerError { return e.plainWords }
+        if let e = error as? WriterError { return e.plainWords }
         if error is EmptyAnswer { return String(localized: "Modellen skrev inget svar. Försök igen.") }
         if error is CancellationError { return String(localized: "Avbrutet.") }
         if let e = error as? LanguageModelSession.GenerationError {

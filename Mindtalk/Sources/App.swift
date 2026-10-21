@@ -1325,6 +1325,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // `Mindtalk --guard-test`: what the AI polish may and may not do to a dictation,
         // and the rules for what the speech model gets wrong.
         // `Mindtalk --matcher-test`: the word list's matching, on made-up words.
+        // `Mindtalk --writer-test`: every choice of summary writer through its stored
+        // form and back (SummaryWriter.swift), nothing read or written.
+        if args.contains("--writer-test") {
+            exit(SummaryWriterChoice.selfTest())
+        }
         if args.contains("--matcher-test") {
             let m = VocabularyMatcher(entries: [
                 (word: "Mindtalk", heardAs: []), (word: "Mindact", heardAs: ["min dakt"]), (word: "AI", heardAs: []),

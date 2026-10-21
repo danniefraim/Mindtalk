@@ -144,6 +144,8 @@ final class BetterNotes: ObservableObject {
     /// model in Ollama or LM Studio (SummaryWriter.swift).
     @Published var choice: SummaryWriterChoice = .apple {
         didSet {
+            // In the system log, so a summary by the wrong writer can be traced.
+            Self.log.notice("writer chosen: \(self.choice.stored, privacy: .public), was \(oldValue.stored, privacy: .public)")
             let defaults = UserDefaults.standard
             defaults.set(choice.stored, forKey: "summaryWriter")
             // As the versions before kept it (a server model reads as Apple to them).
@@ -178,14 +180,18 @@ final class BetterNotes: ObservableObject {
         if case .server(let b, let m) = choice { return (b, m) }
         return nil
     }
-    /// Who writes the next notes, unless it's Apple Intelligence (nil).
+    /// Who writes the next notes, unless it's Apple Intelligence (nil). The one chosen,
+    /// whether it can write right now or not: a Gemma moved to the Trash, or a server
+    /// that isn't running, says so when asked to write. Never another writer instead.
     var writer: (any SummaryWriter)? {
-        if let active { return GemmaWriter(model: active) }
-        if let server { return LocalServerWriter(backend: server.backend, model: server.model) }
-        return nil
+        switch choice {
+        case .apple: return nil
+        case .gemma(let m): return GemmaWriter(model: m)
+        case .server(let b, let m): return LocalServerWriter(backend: b, model: m)
+        }
     }
-    /// Something other than Apple Intelligence writes.
-    var isActive: Bool { active != nil || server != nil }
+    /// Something other than Apple Intelligence is chosen to write.
+    var isActive: Bool { choice != .apple }
     /// "Gemma 4 E4B", "Ollama · qwen3.5:9b", or "Apple Intelligence".
     var writerName: String { writer?.name ?? "Apple Intelligence" }
     /// The same in a sentence: "qwen3.5:9b i Ollama".
@@ -215,8 +221,14 @@ final class BetterNotes: ObservableObject {
             states[model] = !model.supported ? .unsupported : model.isInstalled ? .ready : .missing
         }
         let defaults = UserDefaults.standard
-        if let saved = defaults.string(forKey: "summaryWriter"), let c = SummaryWriterChoice(stored: saved) {
-            choice = c
+        if let saved = defaults.string(forKey: "summaryWriter") {
+            if let c = SummaryWriterChoice(stored: saved) {
+                choice = c
+            } else {
+                // Not understood (a newer version's choice?): Apple Intelligence writes,
+                // but what was saved stays as it is, for the version that wrote it.
+                Self.log.error("writer at launch: stored choice \(saved, privacy: .public) not understood, Apple Intelligence writes")
+            }
         } else if let saved = defaults.string(forKey: "notesModel") {
             chosen = NotesModel(rawValue: saved)
         } else {
@@ -224,6 +236,7 @@ final class BetterNotes: ObservableObject {
             let wasOn = defaults.object(forKey: "betterNotes") as? Bool ?? true
             chosen = wasOn && NotesModel.large.isInstalled ? .large : nil
         }
+        Self.log.notice("writer at launch: \(self.choice.stored, privacy: .public)")
     }
 
     /// The Gemmas as they are on disk: one moved to the Trash in Finder is no longer
@@ -272,9 +285,10 @@ final class BetterNotes: ObservableObject {
                 }
                 if generation == mine {
                     states[model] = .ready
-                    // Downloaded to be used, in place of Apple Intelligence. Another
-                    // Gemma or a model in Ollama or LM Studio you picked stays picked.
-                    if !isActive { chosen = model }
+                    // Downloaded to be used, in place of Apple Intelligence or a Gemma
+                    // no longer on the disk. Another Gemma that is here, or a model in
+                    // Ollama or LM Studio you picked, stays picked.
+                    if active == nil, server == nil { chosen = model }
                 }
                 Self.log.info("installed \(model.rawValue, privacy: .public)")
             } catch is CancellationError {

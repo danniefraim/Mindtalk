@@ -366,8 +366,10 @@ struct SummaryWritersCard: View {
             }
         }()
         // The one that suits this Mac (NotesModel.recommended weighs the memory and the disk).
+        // Shown as chosen while it is, even gone from the disk: then its row says so
+        // and offers the download, and a summary says why it wasn't written.
         return ModelRow(name: m.name, badge: recommended ? String(localized: "Rekommenderas för din Mac") : nil,
-                        chooser: (notes.active == m, state == .ready, { notes.chosen = m })) {
+                        chooser: (notes.chosen == m, state == .ready || notes.chosen == m, { notes.chosen = m })) {
             ModelParts.detail(detail)
         } trailing: {
             switch state {
