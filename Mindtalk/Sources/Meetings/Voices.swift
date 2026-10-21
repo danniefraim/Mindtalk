@@ -189,7 +189,7 @@ final class VoiceModels: ObservableObject {
         guard isInstalled else { return }
         let configs = [live, final]
         Task.detached(priority: .utility) {
-            for config in configs { _ = try? await load(config) }
+            for config in configs { _ = try? await ModelWork.run { try await load(config) } }
             await MainActor.run { warm = true; VoiceModels.shared.isWarm = true }
         }
     }

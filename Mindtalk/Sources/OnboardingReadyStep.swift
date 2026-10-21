@@ -181,7 +181,7 @@ struct ReadyStep: View {
             switch Polisher.status {
             case .available:
                 ReadyRow(icon: "sparkle", state: .ready, title: "Sammanfattningar", keys: nil,
-                         detail: String(localized: "Sammanfattningar skrivs på din Mac av Apple Intelligence.")) { EmptyView() }
+                         detail: String(localized: "Skrivs av \("Apple Intelligence") på din Mac.")) { EmptyView() }
             case .notEnabled:
                 ReadyRow(icon: "sparkle", state: .optional, title: "Sammanfattningar", keys: nil,
                          detail: String(localized: "Slå på Apple Intelligence, så skrivs de på din Mac.")) {

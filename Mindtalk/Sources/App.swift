@@ -1354,6 +1354,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if args.contains("--writer-test") {
             exit(SummaryWriterChoice.selfTest())
         }
+        // `Mindtalk --unquote-test`: a summary item loses a transcript line pasted after it.
+        if args.contains("--unquote-test") {
+            exit(MeetingNotes.unquoteSelfTest())
+        }
         // `Mindtalk --defaults-test`: a render or a self-test never changes the settings
         // on this Mac (Settings.previewing, PreviewDefaults).
         if args.contains("--defaults-test") {
@@ -1869,7 +1873,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             alert.addButton(withTitle: String(localized: "Vänta"))
             return alert.runModal() == .alertFirstButtonReturn ? .terminateNow : .terminateCancel
         }
-        guard meeting.isBusy else { return .terminateNow }
+        guard meeting.isBusy else {
+            guard ModelWork.busy else { return .terminateNow }
+            // A model still being prepared (just after launch): a moment for it to finish,
+            // at most ten seconds, so quitting doesn't pull Metal out from under it.
+            Task { @MainActor in
+                for _ in 0..<100 where ModelWork.busy { try? await Task.sleep(for: .milliseconds(100)) }
+                NSApp.reply(toApplicationShouldTerminate: true)
+            }
+            return .terminateLater
+        }
         NSApp.activate()
         let alert = NSAlert()
         alert.messageText = String(localized: "Ett möte spelas in")

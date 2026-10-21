@@ -503,6 +503,10 @@ actor SpeechEngine {
     /// One AsrManager, loaded and warmed with a silent pass (Core ML builds its plan
     /// before the first real dictation). `units` nil: as FluidAudio chooses — the Neural Engine.
     private static func make(dir: URL, version: AsrModelVersion, units: MLComputeUnits?) async throws -> AsrManager {
+        try await ModelWork.run { try await makeNow(dir: dir, version: version, units: units) }
+    }
+
+    private static func makeNow(dir: URL, version: AsrModelVersion, units: MLComputeUnits?) async throws -> AsrManager {
         let models = try AsrModels.loadLocal(from: dir, version: version, encoderComputeUnits: units)
         // One reading at a time, also for long audio. FluidAudio would otherwise read
         // audio over 15 s four chunks at once — and when macOS has cleared its cache of
@@ -649,3 +653,17 @@ actor SpeechEngine {
     }
 }
 
+/// A model being loaded or given its first pass, on Core ML's own threads. Quitting
+/// waits for it (AppDelegate.applicationShouldTerminate): quitting tears down what
+/// Metal is still using there, and Mindtalk crashed on quit two seconds after launch,
+/// while the GPU was preparing the speech model (19 October).
+enum ModelWork {
+    private static let count = OSAllocatedUnfairLock(initialState: 0)
+    static var busy: Bool { count.withLock { $0 > 0 } }
+
+    static func run<T>(_ work: () async throws -> T) async rethrows -> T {
+        count.withLock { $0 += 1 }
+        defer { count.withLock { $0 -= 1 } }
+        return try await work()
+    }
+}

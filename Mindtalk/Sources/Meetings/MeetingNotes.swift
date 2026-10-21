@@ -1141,6 +1141,42 @@ final class MeetingNotes: ObservableObject {
             .replacingOccurrences(of: "—", with: ", ")
     }
 
+    /// An item without a line of the transcript pasted after it: Apple's model sometimes
+    /// copies the line it read ("Analysera hur man använder AI. Anna: Nummer ett som…").
+    /// Cut at the first speaker's name followed by a colon, when something is left before it.
+    nonisolated static func unquoted(_ text: String, speakers: [String]) -> String {
+        let names = speakers.filter { $0.count > 1 && $0 != "?" }.map(NSRegularExpression.escapedPattern(for:))
+            + ["Talare \\d+", "Speaker \\d+"]
+        guard let pattern = try? NSRegularExpression(pattern: "\\s(?:" + names.joined(separator: "|") + "):\\s"),
+              let hit = pattern.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let cut = Range(hit.range, in: text) else { return text }
+        let kept = text[..<cut.lowerBound].trimmingCharacters(in: .whitespaces)
+        // Too little before the name: it's the item itself, not a pasted quote.
+        guard kept.split(separator: " ").count >= 3 else { return text }
+        return kept.last.map { ".!?".contains($0) } == true ? kept : kept + "."
+    }
+
+    /// `Mindtalk --unquote-test`: an item keeps its words and loses a pasted line.
+    nonisolated static func unquoteSelfTest() -> Int32 {
+        let people = ["Anna", "Erik", "Talare 3"]
+        let cases: [(String, String)] = [
+            ("Analysera hur man använder AI i olika system. Anna: Nummer ett som väldigt många gör som misstag.",
+             "Analysera hur man använder AI i olika system."),
+            ("Kontrollera vilka system som används Erik: Så där är en uppmaning.", "Kontrollera vilka system som används."),
+            ("Skicka offerten till kunden. Talare 7: Ja, det gör jag.", "Skicka offerten till kunden."),
+            ("Anna: skicka planen", "Anna: skicka planen"),
+            ("Boka lokal till kickoffen i november.", "Boka lokal till kickoffen i november."),
+            ("Fråga Anna om budgeten: den ska vara klar i maj.", "Fråga Anna om budgeten: den ska vara klar i maj."),
+        ]
+        var failed = 0
+        for (input, expected) in cases {
+            let got = unquoted(input, speakers: people)
+            if got != expected { failed += 1; print("FAIL:", input, "→", got) }
+        }
+        print(failed == 0 ? "unquote: \(cases.count) of \(cases.count) pass" : "unquote: \(failed) failed")
+        return failed == 0 ? 0 : 1
+    }
+
     nonisolated static func tidy(_ text: String) -> String {
         let text = undash(text)
         var seen = Set<String>()
@@ -1369,7 +1405,7 @@ struct Lines: Sendable {
     /// The item, with the moment it was said — if the line the model named (or one
     /// close to it) really says it. `strict`: without a matching line, drop the item.
     func checked(_ text: String, line: Int, strict: Bool = false) -> MeetingSummary.Item? {
-        let text = MeetingNotes.undash(text)
+        let text = MeetingNotes.unquoted(MeetingNotes.undash(text), speakers: people + lines.map(\.speaker))
         if translating {
             guard let at = start(ofLine: line) else { return strict || text.isEmpty ? nil : MeetingSummary.Item(text: text) }
             return MeetingSummary.Item(text: text, at: at)
