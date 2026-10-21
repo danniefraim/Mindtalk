@@ -27,7 +27,9 @@ final class VoiceModels: ObservableObject {
         case failed(String)
     }
 
-    @Published private(set) var state: State = .missing
+    @Published private(set) var state: State = .missing {
+        didSet { Self.installedAt = nil }
+    }
     /// `warm`, to watch: the start card waits for it before the round of names.
     @Published private(set) var isWarm = false
     /// A bundle's files are in and it's being prepared for this Mac (the bar would
@@ -47,7 +49,7 @@ final class VoiceModels: ObservableObject {
     static var directory: URL { SpeechModel.rootDirectory.appendingPathComponent("Voices") }
     private static var repoDirectory: URL { directory.appendingPathComponent("nemotron-3-diarization") }
 
-    private init() { state = Self.isInstalled ? .ready : .missing }
+    private init() { state = Self.checkInstalled() ? .ready : .missing }
 
     private static func bundle(_ config: Nemotron3Config) -> URL {
         repoDirectory.appendingPathComponent("\(config.hubSubdirectory)/\(config.modelFileName)")
@@ -56,7 +58,21 @@ final class VoiceModels: ObservableObject {
     /// Both bundles whole: the manifest and the weights of each, the silence embedding,
     /// and nothing left half-fetched (FluidAudio writes the manifest first, so a download
     /// that stopped at the weights would otherwise pass as installed).
+    ///
+    /// Read by the start card and the menu bar panel every time they're drawn (in a
+    /// scroll, every frame): looked up on disk at most once a second, and again at once
+    /// whenever the state changes (a download done, the model removed).
     static var isInstalled: Bool {
+        if let at = installedAt, Date().timeIntervalSince(at) < 1 { return installed }
+        installed = checkInstalled()
+        installedAt = Date()
+        return installed
+    }
+    private static var installed = false
+    private static var installedAt: Date?
+
+    /// On disk, now: where a download or a removal needs the answer as it is.
+    private static func checkInstalled() -> Bool {
         let fm = FileManager.default
         for config in [live, final] {
             let bundle = bundle(config)
@@ -81,7 +97,7 @@ final class VoiceModels: ObservableObject {
     /// instead of FluidAudio wiping it midway.
     private static func tidyBeforeDownload() {
         let fm = FileManager.default
-        guard fm.fileExists(atPath: repoDirectory.path), !isInstalled else { return }
+        guard fm.fileExists(atPath: repoDirectory.path), !checkInstalled() else { return }
         let marker = (try? String(contentsOf: repoDirectory.appendingPathComponent(".fluidaudio-revision"), encoding: .utf8))?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if marker != revision {
@@ -127,7 +143,7 @@ final class VoiceModels: ObservableObject {
                     await ModelCache.shared.put(models, for: config)
                 }
                 preparing = false
-                state = Self.isInstalled ? .ready : .failed(String(localized: "Nedladdningen blev inte klar."))
+                state = Self.checkInstalled() ? .ready : .failed(String(localized: "Nedladdningen blev inte klar."))
                 // Prepared for this Mac right away, so the first meeting doesn't wait for it.
                 if state == .ready { Self.warmUp() }
             } catch {

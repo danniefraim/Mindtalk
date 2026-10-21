@@ -62,16 +62,27 @@ struct Staggered: ViewModifier {
     let after: Double
     @State private var shown = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.entrances) private var entrances
 
     func body(content: Content) -> some View {
+        // Once the page has come in, what a lazy list builds again as it scrolls back
+        // into view just stands there: it doesn't rise and blur in again.
+        let visible = shown || !entrances
         content
-            .opacity(shown ? 1 : 0)
-            .offset(y: shown || reduceMotion ? 0 : 16)
-            .blur(radius: shown || reduceMotion ? 0 : 6)
+            .opacity(visible ? 1 : 0)
+            .offset(y: visible || reduceMotion ? 0 : 16)
+            .blur(radius: visible || reduceMotion ? 0 : 6)
             .onAppear {
+                guard entrances else { return }
                 withAnimation(.spring(duration: 0.7, bounce: 0.15).delay(after + Double(index) * 0.08 + 0.1)) { shown = true }
             }
     }
+}
+
+extension EnvironmentValues {
+    /// Whether elements still rise into place as they appear (`staggered`). A page in
+    /// a lazy list turns it off once it has come in.
+    @Entry var entrances = true
 }
 
 extension View {

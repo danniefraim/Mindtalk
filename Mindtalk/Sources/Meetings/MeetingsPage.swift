@@ -164,6 +164,8 @@ private struct MeetingList: View {
     @State private var anchor: UUID?
     /// What the search found — a moment after you stop typing.
     @State private var matches: [MeetingMatch] = []
+    /// The page has come in: from then on, what scrolls back into view stays still.
+    @State private var entered = false
 
     private var searching: Bool { !query.trimmingCharacters(in: .whitespaces).isEmpty }
     private var canAsk: Bool { MeetingNotes.isAvailable && shown.contains { !$0.words.isEmpty } }
@@ -243,6 +245,12 @@ private struct MeetingList: View {
             }
         }
         .padding(.bottom, canAsk ? 90 : 0)
+        .environment(\.entrances, !entered)
+        .task {
+            // Longer than the slowest entrance (six steps of 0.08 s, then 0.7 s).
+            try? await Task.sleep(for: .seconds(1.5))
+            entered = true
+        }
         .task(id: query + "\(store.meetings.count) \(shown.count)" + (folders.selected?.uuidString ?? "")) {
             guard searching else { matches = []; return }
             try? await Task.sleep(for: .milliseconds(120))
