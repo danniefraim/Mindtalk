@@ -712,7 +712,7 @@ struct StartCard: View {
                 let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 14))
                                   : AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
                 layout {
-                    choice(.round, "Med namnrunda", symbol: "person.2.wave.2",
+                    choice(.round, "Starta med namnrunda", symbol: "person.2.wave.2",
                            caption: "Alla säger sitt namn, så står rätt namn i texten. En halv minut.")
                     choice(.direct, "Starta direkt", symbol: "mic",
                            caption: "Namnge talarna under mötet om du vill.")
