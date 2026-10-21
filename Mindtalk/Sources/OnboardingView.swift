@@ -293,7 +293,7 @@ struct OnboardingView: View {
             OnboardingView.pastSetup = true
             Settings.didOnboard = true
             if firstRun, UserDefaults.standard.object(forKey: "introFinishedAt") == nil {
-                UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "introFinishedAt")
+                Settings.keep(Date().timeIntervalSince1970, forKey: "introFinishedAt")
             }
         }
         forward = delta > 0

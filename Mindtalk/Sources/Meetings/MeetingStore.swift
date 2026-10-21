@@ -964,7 +964,7 @@ enum MeetingAudio {
 
     static var keepDays: Int {
         get { UserDefaults.standard.integer(forKey: "meetingAudioDays") }
-        set { UserDefaults.standard.set(newValue, forKey: "meetingAudioDays") }
+        set { Settings.keep(newValue, forKey: "meetingAudioDays") }
     }
 
     static func title(_ days: Int) -> String {

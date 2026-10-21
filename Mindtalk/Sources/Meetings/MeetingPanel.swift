@@ -35,7 +35,7 @@ final class MeetingPanel: ObservableObject {
     /// can cover — it records just the same. Remembered.
     @Published var onTop = UserDefaults.standard.bool(forKey: "meetingPanelOnTop") {
         didSet {
-            UserDefaults.standard.set(onTop, forKey: "meetingPanelOnTop")
+            Settings.keep(onTop, forKey: "meetingPanelOnTop")
             if let panel { Self.applyLevel(panel, onTop: onTop) }
         }
     }
@@ -179,7 +179,7 @@ final class MeetingPanel: ObservableObject {
     func collapse(closingWindow: Bool = true) {
         guard MeetingSession.shared.isBusy else { return }
         if MeetingSession.shared.introducing { returnToPanel = false; MeetingSession.shared.endIntroduction() }
-        UserDefaults.standard.set(true, forKey: Self.tipSeenKey)
+        Settings.keep(true, forKey: Self.tipSeenKey)
         home = .panel
         if closingWindow, AppDelegate.mainWindowVisible { AppDelegate.hideMainWindow() }
         show()
@@ -190,7 +190,7 @@ final class MeetingPanel: ObservableObject {
         // The round lives in the window: closing it ends the round, the meeting goes on.
         if MeetingSession.shared.introducing { returnToPanel = false; MeetingSession.shared.endIntroduction() }
         guard MeetingSession.shared.isBusy, home == .window else { return }
-        UserDefaults.standard.set(true, forKey: Self.tipSeenKey)
+        Settings.keep(true, forKey: Self.tipSeenKey)
         home = .panel
         show()
     }

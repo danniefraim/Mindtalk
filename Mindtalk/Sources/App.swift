@@ -12,6 +12,8 @@ import os
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNotificationCenterDelegate {
     static func main() {
+        // A render, a self-test or a demo: the settings as they are now, back at exit.
+        PreviewDefaults.arm()
         // Before any model is looked at: the revisions FluidAudio fetches from.
         ModelPins.apply()
         // Self-test: `Mindtalk --transcribe file.wav [--model swedish|multilingual] [--clean]`
@@ -53,6 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             NSApplication.shared.setActivationPolicy(.accessory)
             Task { @MainActor in
                 await WindowRender.run(out: args[i + 1], args: args)
+                PreviewDefaults.restore()
                 exit(0)
             }
             NSApplication.shared.run()
@@ -114,7 +117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if let i = args.firstIndex(of: "--engine-fallback-test"), i + 1 < args.count {
             Task {
                 do {
-                    UserDefaults.standard.set(SpeechEngine.engineStamp, forKey: "neuralEngineReady.swedish")
+                    Settings.keep(SpeechEngine.engineStamp, forKey: "neuralEngineReady.swedish")
                     let samples = try Recorder.load(URL(fileURLWithPath: args[i + 1]))
                     let t0 = Date()
                     _ = try await SpeechEngine.shared.transcribe(samples: samples, with: .swedish)
@@ -1330,6 +1333,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if args.contains("--writer-test") {
             exit(SummaryWriterChoice.selfTest())
         }
+        // `Mindtalk --defaults-test`: a render or a self-test never changes the settings
+        // on this Mac (Settings.previewing, PreviewDefaults).
+        if args.contains("--defaults-test") {
+            exit(PreviewDefaults.selfTest())
+        }
         if args.contains("--matcher-test") {
             let m = VocabularyMatcher(entries: [
                 (word: "Mindtalk", heardAs: []), (word: "Mindact", heardAs: ["min dakt"]), (word: "AI", heardAs: []),
@@ -1584,6 +1592,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     func applicationWillTerminate(_ notification: Notification) {
         Self.isQuitting = true
+        PreviewDefaults.restore()
         MediaControl.shared.restoreNow()
         MeetingSession.shared.saveBeforeQuit()
     }
@@ -1747,7 +1756,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             let registered = "loginItemRegistered"
             if AppMover.runsFromApplications, !UserDefaults.standard.bool(forKey: registered),
                (try? SMAppService.mainApp.register()) != nil {
-                UserDefaults.standard.set(true, forKey: registered)
+                Settings.keep(true, forKey: registered)
             }
             showOnboarding()
         } else if let raw = UserDefaults.standard.string(forKey: "reopenPage"), let page = Page(rawValue: raw) {
@@ -2061,7 +2070,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     /// Quits and starts again (to switch the app's language), reopening the window on `page`.
     static func relaunch(showing page: Page) {
         guard !MeetingSession.shared.isBusy else { return NSSound.beep() }
-        UserDefaults.standard.set(page.rawValue, forKey: "reopenPage")
+        Settings.keep(page.rawValue, forKey: "reopenPage")
         let path = Bundle.main.bundlePath.replacingOccurrences(of: "'", with: "'\\''")
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/sh")

@@ -68,7 +68,7 @@ final class MeetingSession: ObservableObject {
     enum StartMode: String { case round, direct }
     static var startMode: StartMode {
         get { UserDefaults.standard.string(forKey: "meetingStartMode").flatMap(StartMode.init) ?? .round }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: "meetingStartMode") }
+        set { Settings.keep(newValue.rawValue, forKey: "meetingStartMode") }
     }
 
     /// Starts the way you chose last time (the shortcut, the card's Return key) —

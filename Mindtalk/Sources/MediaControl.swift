@@ -135,7 +135,7 @@ final class MediaControl {
         guard volume - level > 0.01 else { return }
         ducked = (device, volume, level)
         if let uid = Self.uid(of: device) {
-            UserDefaults.standard.set(["device": uid, "volume": Double(volume)], forKey: Self.savedKey)
+            Settings.keep(["device": uid, "volume": Double(volume)], forKey: Self.savedKey)
         }
         log.notice("ducked to \(Int(Self.duckLevel * 100), privacy: .public) %")
         fade(device, from: volume, to: level, over: .milliseconds(250))

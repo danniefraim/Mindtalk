@@ -35,7 +35,7 @@ enum AppMover {
         #else
         let answer = alert.runModal()
         #endif
-        if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: suppressKey) }
+        if alert.suppressionButton?.state == .on { Settings.keep(true, forKey: suppressKey) }
         guard answer == .alertFirstButtonReturn else { return false }
 
         do {

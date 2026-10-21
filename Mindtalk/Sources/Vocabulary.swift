@@ -70,7 +70,7 @@ final class Vocabulary: ObservableObject {
 
     /// Words to say yes or no to, newest first.
     @Published private(set) var suggestions: [VocabularySuggestion] = Vocabulary.loadSuggestions() {
-        didSet { UserDefaults.standard.set(try? JSONEncoder().encode(suggestions), forKey: "vocabularySuggestions") }
+        didSet { Settings.keep(try? JSONEncoder().encode(suggestions), forKey: "vocabularySuggestions") }
     }
     /// Said no to: not suggested again.
     private var declined = Set(UserDefaults.standard.stringArray(forKey: "vocabularyDeclined") ?? [])
@@ -89,7 +89,7 @@ final class Vocabulary: ObservableObject {
 
     /// A read-only self-test (`--ask-test`): the list is read as it is, and nothing is
     /// written back, not even a repaired copy.
-    nonisolated static var readOnly: Bool { CommandLine.arguments.contains("--ask-test") }
+    nonisolated static var readOnly: Bool { CommandLine.arguments.contains("--ask-test") || Settings.previewing }
 
     private init() {
         let defaults = UserDefaults.standard
@@ -333,7 +333,7 @@ final class Vocabulary: ObservableObject {
     func decline(_ suggestion: VocabularySuggestion) {
         suggestions.removeAll { $0.id == suggestion.id }
         declined.insert(Self.key(suggestion.word))
-        UserDefaults.standard.set(Array(declined), forKey: "vocabularyDeclined")
+        Settings.keep(Array(declined), forKey: "vocabularyDeclined")
     }
 
     // MARK: Import and export

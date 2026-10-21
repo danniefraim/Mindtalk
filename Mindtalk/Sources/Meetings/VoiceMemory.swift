@@ -48,7 +48,7 @@ final class VoiceMemory: ObservableObject {
     /// at first launch, and written down so it stays the same (see `initialEnabled`).
     @Published var enabled = VoiceMemory.initialEnabled() {
         didSet {
-            UserDefaults.standard.set(enabled, forKey: "voiceMemory")
+            Settings.keep(enabled, forKey: "voiceMemory")
             if enabled { prepare() }
         }
     }
@@ -74,7 +74,7 @@ final class VoiceMemory: ObservableObject {
         let meetings = ((try? FileManager.default.contentsOfDirectory(atPath: MeetingStore.root.path)) ?? [])
             .contains { UUID(uuidString: $0) != nil }
         let fresh = !Settings.didOnboard && !meetings && !defaults.bool(forKey: "voiceMemoryAsked")
-        defaults.set(fresh, forKey: "voiceMemory")
+        Settings.keep(fresh, forKey: "voiceMemory")
         return fresh
     }
 
@@ -201,7 +201,7 @@ final class VoiceMemory: ObservableObject {
     /// meetings are remembered right away, so the next meeting can know them.
     func learnFromPastMeetings() async {
         guard enabled, people.isEmpty, !UserDefaults.standard.bool(forKey: "voiceMemoryLearnedPast") else { return }
-        UserDefaults.standard.set(true, forKey: "voiceMemoryLearnedPast")
+        Settings.keep(true, forKey: "voiceMemoryLearnedPast")
         await MeetingStore.shared.ready()
         for record in MeetingStore.shared.meetings.sorted(by: { $0.date < $1.date }) where record.hasAudio {
             let given = record.names.filter { record.recognized[$0.key] == nil && Self.isRealName($0.value) }
@@ -290,7 +290,7 @@ final class VoiceMemory: ObservableObject {
         }
         // Forgotten means forgotten: not learned again from the meetings at the next
         // launch. (Names you give from now on are remembered as usual.)
-        UserDefaults.standard.set(true, forKey: "voiceMemoryLearnedPast")
+        Settings.keep(true, forKey: "voiceMemoryLearnedPast")
     }
 
     private static func key(_ name: String) -> String {

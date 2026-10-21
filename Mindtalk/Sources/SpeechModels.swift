@@ -567,7 +567,7 @@ actor SpeechEngine {
             await asr.cleanup()
             return
         }
-        UserDefaults.standard.set(Self.engineStamp, forKey: "neuralEngineReady.\(model.rawValue)")
+        Settings.keep(Self.engineStamp, forKey: "neuralEngineReady.\(model.rawValue)")
         while inFlight > 0 { try? await Task.sleep(for: .milliseconds(50)) }
         guard let still = loaded, still.model == model else { await asr.cleanup(); return }
         loaded = (model, asr)

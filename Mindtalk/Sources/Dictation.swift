@@ -119,7 +119,7 @@ final class Dictation: ObservableObject {
     /// Tillåt for Hjälpmedel has been pressed: if it's still off, Kom igång says how to
     /// switch it off and on again. Kept, so the tip is there at the next launch too.
     @Published private(set) var accessibilityAsked = UserDefaults.standard.bool(forKey: "accessibilityAsked") {
-        didSet { if !previewing { UserDefaults.standard.set(accessibilityAsked, forKey: "accessibilityAsked") } }
+        didSet { if !previewing { Settings.keep(accessibilityAsked, forKey: "accessibilityAsked") } }
     }
     /// A render (--render-window): shown as given, nothing written down.
     private var previewing = false
@@ -139,7 +139,7 @@ final class Dictation: ObservableObject {
     /// A dictation has been typed or copied at least once (a thought isn't one): the
     /// first step on Hem's first-day card. Never reset.
     @Published private(set) var dictatedOnce = UserDefaults.standard.bool(forKey: "dictatedOnce") {
-        didSet { UserDefaults.standard.set(dictatedOnce, forKey: "dictatedOnce") }
+        didSet { Settings.keep(dictatedOnce, forKey: "dictatedOnce") }
     }
 
     struct Entry: Identifiable, Equatable, Codable {
@@ -466,7 +466,7 @@ final class Dictation: ObservableObject {
         let hadAccessibility = accessibilityGranted
         micGranted = Recorder.micAuthorized
         accessibilityGranted = AXIsProcessTrusted()
-        if accessibilityGranted { UserDefaults.standard.set(true, forKey: Self.everTrustedKey) }
+        if accessibilityGranted { Settings.keep(true, forKey: Self.everTrustedKey) }
         // Accessibility taken away and given back while running: the old tap is deaf
         // for good, so a new one. Otherwise one that macOS switched off is switched on.
         if accessibilityGranted { KeyListener.shared.ensureTap(recreate: !hadAccessibility) }
@@ -672,7 +672,7 @@ final class Dictation: ObservableObject {
             do {
                 try await SpeechEngine.shared.load(target)
                 Self.log.notice("speech model ready in \(Int(Date().timeIntervalSince(self.loadingSince)), privacy: .public) s")
-                UserDefaults.standard.set(true, forKey: "modelPrepared.\(target.rawValue)")
+                Settings.keep(true, forKey: "modelPrepared.\(target.rawValue)")
                 if generation == loadGeneration { model = .ready }
             } catch {
                 Self.log.error("speech model failed after \(Int(Date().timeIntervalSince(self.loadingSince))) s: \(error.localizedDescription, privacy: .public)")

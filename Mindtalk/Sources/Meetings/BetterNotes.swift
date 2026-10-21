@@ -146,6 +146,8 @@ final class BetterNotes: ObservableObject {
         didSet {
             // In the system log, so a summary by the wrong writer can be traced.
             Self.log.notice("writer chosen: \(self.choice.stored, privacy: .public), was \(oldValue.stored, privacy: .public)")
+            // A render or a self-test: chosen for this run only, never written down.
+            guard !Settings.previewing else { return }
             let defaults = UserDefaults.standard
             defaults.set(choice.stored, forKey: "summaryWriter")
             // As the versions before kept it (a server model reads as Apple to them).

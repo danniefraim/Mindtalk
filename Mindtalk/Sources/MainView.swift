@@ -379,7 +379,7 @@ struct SettingsPage: View {
     /// Settings on that section, also when Settings is already on screen; with an anchor,
     /// scrolled to that card once the section is up.
     static func open(_ section: SettingsSection, scrollTo anchor: SettingsAnchor? = nil) {
-        UserDefaults.standard.set(section.rawValue, forKey: SettingsSection.storageKey)
+        Settings.keep(section.rawValue, forKey: SettingsSection.storageKey)
         pendingAnchor = anchor
         AppDelegate.showWindow(page: .settings)
         if anchor != nil { NotificationCenter.default.post(name: .scrollSettings, object: nil) }

@@ -25,7 +25,7 @@ enum SummaryLanguage: String, CaseIterable, Identifiable {
 
     static var chosen: SummaryLanguage {
         get { UserDefaults.standard.string(forKey: "summaryLanguage").flatMap(SummaryLanguage.init) ?? .meeting }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: "summaryLanguage") }
+        set { Settings.keep(newValue.rawValue, forKey: "summaryLanguage") }
     }
 
     var title: String {

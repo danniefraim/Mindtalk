@@ -20,7 +20,7 @@ enum MenuBarHint {
         guard UserDefaults.standard.object(forKey: "introFinishedAt") != nil,
               !UserDefaults.standard.bool(forKey: shownKey), panel == nil,
               let button, let buttonWindow = button.window, let screen = buttonWindow.screen ?? NSScreen.main else { return }
-        UserDefaults.standard.set(true, forKey: shownKey)
+        Settings.keep(true, forKey: shownKey)
 
         let hosting = NSHostingView(rootView: MenuBarHintBubble(onClick: { dismiss() }))
         let size = hosting.fittingSize

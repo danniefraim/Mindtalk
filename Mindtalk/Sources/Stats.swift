@@ -67,7 +67,7 @@ final class Stats: ObservableObject {
         #if DEBUG
         if Demo.on { return }
         #endif
-        UserDefaults.standard.set(try? JSONEncoder().encode(days), forKey: Self.key)
+        Settings.keep(try? JSONEncoder().encode(days), forKey: Self.key)
     }
 
     static func key(for date: Date) -> String { dayFormatter.string(from: date) }

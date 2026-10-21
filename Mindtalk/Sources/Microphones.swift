@@ -67,10 +67,10 @@ final class Microphones: ObservableObject {
     @Published private(set) var systemDefault: InputDevice?
     @Published var choice = MicChoice(raw: UserDefaults.standard.string(forKey: "microphone")) {
         didSet {
-            UserDefaults.standard.set(choice.raw, forKey: "microphone")
+            Settings.keep(choice.raw, forKey: "microphone")
             // Its name, for when it's unplugged: "AirPods saknas" says more than "saknas".
             if case .device(let uid) = choice, let device = devices.first(where: { $0.uid == uid }) {
-                UserDefaults.standard.set(device.name, forKey: "microphoneName")
+                Settings.keep(device.name, forKey: "microphoneName")
             }
             if monitoring { startMonitor() }
         }

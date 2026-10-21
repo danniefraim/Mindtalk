@@ -63,7 +63,7 @@ enum ServerBackend: String, CaseIterable, Identifiable, Sendable {
             if newValue == defaultPort || !(1...65_535).contains(newValue) {
                 UserDefaults.standard.removeObject(forKey: "serverPort.\(rawValue)")
             } else {
-                UserDefaults.standard.set(newValue, forKey: "serverPort.\(rawValue)")
+                Settings.keep(newValue, forKey: "serverPort.\(rawValue)")
             }
         }
     }
@@ -491,7 +491,7 @@ final class LocalServers: ObservableObject {
             notes[backend] = !found.isEmpty ? nil
                 : cloud > 0 ? String(localized: "Bara molnmodeller hittades. Mindtalk använder dem inte.")
                 : ServerError.noModels(backend).plainWords
-            UserDefaults.standard.set(found.map(\.stored), forKey: "serverModels.\(backend.rawValue)")
+            Settings.keep(found.map(\.stored), forKey: "serverModels.\(backend.rawValue)")
             Self.log.info("\(backend.name, privacy: .public): \(found.count) models")
         } catch let error as ServerError {
             switch error {

@@ -115,7 +115,7 @@ final class ArchiveOpen: ObservableObject {
 
     func toggle(_ section: ArchiveSection) {
         overrides[section.id] = !isOpen(section)
-        UserDefaults.standard.set(overrides, forKey: Self.key)
+        Settings.keep(overrides, forKey: Self.key)
     }
 }
 
