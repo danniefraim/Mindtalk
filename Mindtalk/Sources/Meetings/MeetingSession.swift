@@ -954,9 +954,13 @@ final class MeetingSession: ObservableObject {
     private func placeRound(final: (words: [MeetingWord], voices: [Int: RoundPlacement.Voice])? = nil) async -> Bool {
         guard let id = record?.id, roundMeeting == id, !roundTurns.isEmpty else { return false }
         let people = VoiceMemory.shared.known
-        // The voices' prints — only needed to check names of people you know.
+        // The voices' prints — to check names of people you know, and how each turn sounds.
         let voices: [Int: RoundPlacement.Voice]
-        if let final { voices = final.voices } else if people.isEmpty { voices = [:] } else {
+        // (Only with "Kom ihåg röster" on: switched off, the words alone decide.)
+        if let final { voices = final.voices } else if !VoiceMemory.shared.isOn
+                    || people.isEmpty && !roundTurns.contains(where: { $0.print != nil }) {
+            voices = [:]
+        } else {
             voices = await refreshLivePrints(words: (record?.words ?? []) + pending)
         }
         // From here on nothing waits: the record is read and written in one go.
@@ -975,8 +979,14 @@ final class MeetingSession: ObservableObject {
         for (key, names) in latest.rejected { if let s = Int(key) { refused[s, default: []].formUnion(names) } }
         for (key, names) in roundRefused { if let s = Int(key) { refused[s, default: []].formUnion(names) } }
         let span = roundSpan.flatMap { s in s.to.map { s.from...$0 } }
+        // Where each turn's name is now (the final pass keeps it unless its words say otherwise).
+        var previous: [Int: Int] = [:]
+        for (i, turn) in roundTurns.enumerated() {
+            if let key = roundPlaced.first(where: { $0.value == turn.name })?.key, let v = Int(key) { previous[i] = v }
+        }
         let decisions = RoundPlacement.place(roundTurns.map(\.turn), words: words, voices: voices, people: people,
-                                             fixed: fixed, rejected: refused, round: span, final: final != nil)
+                                             fixed: fixed, rejected: refused, round: span, previous: previous,
+                                             final: final != nil)
         var wanted: [String: IntroRound.Capture] = [:]
         for (d, turn) in zip(decisions, roundTurns) { if case .placed(let v) = d.outcome { wanted[String(v)] = turn } }
         for (key, name) in roundPlaced where wanted[key]?.name != name {
@@ -2065,7 +2075,7 @@ final class MeetingSession: ObservableObject {
             // with less keeps the one made while the meeting ran — the final voices are
             // numbered as the live ones), for the names of people you know.
             var prints: [Int: RoundPlacement.Voice] = [:]
-            if !VoiceMemory.shared.known.isEmpty {
+            if !VoiceMemory.shared.known.isEmpty || roundTurns.contains(where: { $0.print != nil }) {
                 prints = livePrints
                 for (speaker, voice) in await VoiceMemory.shared.prints(words: words, audio: url) { prints[speaker] = voice }
             }

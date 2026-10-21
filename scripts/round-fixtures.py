@@ -3,7 +3,7 @@
 
   round-fixtures.py make OUTDIR          the fixtures: OUTDIR/<name>.wav + <name>.json
   round-fixtures.py score FIXTURE.json RESULT.txt [--label RUN] [--truth MEETING.json
-                                          [--want JSON] [--background 0,2]]
+                                          [--want JSON] [--background 0,2] [--optional 1]]
                                           one line: what each voice should be called and
                                           what the replay called it (a real meeting: by
                                           the voices and names it was saved with, or
@@ -214,7 +214,7 @@ def sound(name):
 def overlap(a0, a1, b0, b1):
     return max(0.0, min(a1, b1) - max(a0, b0))
 
-def score(fixture, result_txt, truth=None, want=None, background_voices=(), run_label=None):
+def score(fixture, result_txt, truth=None, want=None, background_voices=(), run_label=None, optional_voices=()):
     """Who each voice in the replay is (by time), what it should be called, what it got."""
     line = next((l for l in open(result_txt, errors="replace") if l.startswith("ROUND-RESULT ")), None)
     if line is None:
@@ -231,7 +231,7 @@ def score(fixture, result_txt, truth=None, want=None, background_voices=(), run_
         expected_name = {int(k): v for k, v in (want or r["names"]).items() if v}
         # Recognised by voice when it was recorded (never said in the round): a replay
         # without your voices can't know them — named or not, both are right.
-        optional = set() if want else {int(k) for k in r.get("recognized", {})}
+        optional = set(optional_voices) if want else {int(k) for k in r.get("recognized", {})}
         label = os.path.basename(os.path.dirname(truth))[:8]
         background = set(background_voices)
     else:
@@ -292,6 +292,7 @@ if __name__ == "__main__":
         opt = lambda f: sys.argv[sys.argv.index(f) + 1] if f in sys.argv else None
         want = json.loads(opt("--want")) if opt("--want") else None
         bg = [int(x) for x in opt("--background").split(",")] if opt("--background") else []
-        print(json.dumps(score(sys.argv[2], sys.argv[3], opt("--truth"), want, bg, opt("--label")), ensure_ascii=False))
+        optional = [int(x) for x in opt("--optional").split(",")] if opt("--optional") else []
+        print(json.dumps(score(sys.argv[2], sys.argv[3], opt("--truth"), want, bg, opt("--label"), optional), ensure_ascii=False))
     else:
         print(__doc__); sys.exit(2)

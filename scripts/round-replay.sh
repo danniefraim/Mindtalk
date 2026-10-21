@@ -4,8 +4,11 @@
 #   scripts/round-replay.sh <Debug Mindtalk.app> <out dir> [run …]
 #
 # Each run is the app with ONE self-test flag (--round-replay-test) in a fresh HOME of its
-# own, with copies (APFS clones) of the speech and voice models: nothing of yours is
-# written — not your meetings, your voices or your settings (a self-test puts them back).
+# own, with copies (APFS clones) of the speech and voice models made once, in one place
+# ($REPLAY_ROOT): Core ML keeps a compiled copy of a model for every place it is loaded
+# from, so a new place per run would fill the disk. Nothing of yours is written — not
+# your meetings, your voices or your settings (a self-test puts them back). A run waits
+# for at least 4 GB free, and stops the replays if there isn't.
 # The synthetic fixtures (scripts/round-fixtures.py, macOS voices) are made once in
 # $FIXTURES; the real meetings are read where they are and copied into the run's HOME.
 #
@@ -31,17 +34,20 @@ MODELS=${MODELS:-"$SUPPORT/Models"}
 FIXTURES=${FIXTURES:-"$OUT/fixtures"}
 TV=B4E8D794-AD37-4F7B-A48A-CAFA105CA81B
 REAL=(${=REAL:-00D4325C 7E59AC06 3E2B79AB 5A147F38})
-mkdir -p "$OUT" "$FIXTURES"
+REPLAY_ROOT=${REPLAY_ROOT:-/tmp/mt-replay}
+mkdir -p "$OUT" "$FIXTURES" "$REPLAY_ROOT/models"
+for m in "$MODELS"/pianissimo-sv-* "$MODELS/Voices" "$MODELS/parakeet-ctc-110m-coreml"; do
+  [[ -e "$m" && ! -e "$REPLAY_ROOT/models/${m:t}" ]] && cp -cR "$m" "$REPLAY_ROOT/models/"
+done
 [[ -f "$FIXTURES/quiet-2.wav" ]] || python3 "$HERE/round-fixtures.py" make "$FIXTURES"
 
 # One run: fresh HOME, models cloned in, the app with the one test flag.
 replay() {   # label audio [extra args…]
   local label=$1 audio=$2; shift 2
+  local free=$(df -k / | awk 'NR==2 {print $4}')
+  if (( free < 4 * 1024 * 1024 )); then echo "STOPP: under 4 GB ledigt ($((free / 1024)) MB), $label körs inte"; exit 3; fi
   local H=$(mktemp -d /tmp/mt.XXXX)
-  mkdir -p "$H/models"
-  for m in "$MODELS"/pianissimo-sv-* "$MODELS/Voices" "$MODELS/parakeet-ctc-110m-coreml"; do
-    [[ -e "$m" ]] && cp -cR "$m" "$H/models/"
-  done
+  rm -rf "${REPLAY_ROOT:?}/Meetings"
   cp -c "$audio" "$H/audio.${audio:e}"
   local args=()
   for a in "$@"; do
@@ -50,7 +56,7 @@ replay() {   # label audio [extra args…]
     else args+=("$a"); fi
   done
   HOME=$H CFFIXED_USER_HOME=$H "$APP/Contents/MacOS/Mindtalk" --round-replay-test "$H/audio.${audio:e}" \
-    --models-dir "$H/models" "${args[@]}" > "$OUT/$label.txt" 2>&1
+    --models-dir "$REPLAY_ROOT/models" "${args[@]}" > "$OUT/$label.txt" 2>&1
   [[ -f "$H/learned.json" ]] && cp "$H/learned.json" "$FIXTURES/people-synth.json"
   rm -rf "${H:?}"
 }
@@ -81,7 +87,9 @@ for run in $runs; do
       # voices (0 and 2) stay unnamed.
       if [[ $run == tv ]]; then replay tv "$SUPPORT/Meetings/$TV/audio.caf"
       else replay tv-known "$SUPPORT/Meetings/$TV/audio.caf" --people "$SUPPORT/Meetings/People.json"; fi
-      score $run "" --truth "$SUPPORT/Meetings/$TV/meeting.json" --want '{"1": "Mathias"}' --background 0,2 ;;
+      # (Without your voices nothing says voice 1 is Mathias: named or not, both are right.)
+      opt=(); [[ $run == tv ]] && opt=(--optional 1)
+      score $run "" --truth "$SUPPORT/Meetings/$TV/meeting.json" --want '{"1": "Mathias"}' --background 0,2 $opt ;;
     real-*)
       d=$(ls -d "$SUPPORT/Meetings/${run#real-}"*(N) | head -1)
       [[ -n "$d" ]] || { echo "{\"fixture\": \"$run\", \"error\": \"not found\"}"; continue }

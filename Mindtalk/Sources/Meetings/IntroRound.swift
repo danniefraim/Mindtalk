@@ -56,7 +56,7 @@ final class IntroRound: ObservableObject {
         /// The turn as the placement sees it (RoundPlacement).
         var turn: RoundPlacement.Turn {
             RoundPlacement.Turn(name: name, from: min(turnFrom ?? from, from), to: max(turnTo ?? to, to), said: said,
-                                known: known, score: score, typed: typed)
+                                known: known, score: score, typed: typed, print: print)
         }
     }
 

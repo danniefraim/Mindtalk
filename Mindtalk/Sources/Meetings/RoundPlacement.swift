@@ -12,9 +12,12 @@ import Foundation
 //
 // 1. A name goes to the voice that said it. The word that is the name (and the phrase
 //    just around it, "jag heter …") decides — not whoever talked most in the turn. A
-//    name word whose voice isn't known yet waits for it. Only a turn whose name was never
-//    heard said (typed in the card, or a voice recognised by its print) goes by the
-//    whole turn, and then only when one voice clearly had it.
+//    name word whose voice isn't known yet waits for it. The turn's own print (made by
+//    the round from its audio) outweighs the word's label when it clearly sounds like
+//    another voice in the room. Only a turn whose name was never heard said (typed in the
+//    card, or a voice recognised by its print) goes by the whole turn, and then only when
+//    one voice clearly had it. The final pass keeps where the live words put a name
+//    unless its own words point to another voice.
 // 2. A voice that talks through the round is no turn's owner. Heard in two turns or more,
 //    or talking from before a turn into it, it is background: a radio, a TV, the next
 //    table, or someone talking over. It gets a turn's name only by saying the name word
@@ -98,6 +101,23 @@ enum RoundPlacement {
     /// "Clearly not them" only from this much speech (below VoiceMemory.notThem, 0.50).
     static let notThemSpeech = 10.0
 
+    // The turn's own print (the round makes one from the turn's audio) against the voices
+    // of the same meeting, measured with `--print-length-test` on 22 meetings with two
+    // voices or more (a clip of a voice against the rest of that voice's speech, and
+    // against the other voices in the room):
+    //
+    //   speech   same voice: min   p5   median  |  another voice: median  p99   max
+    //   1.5 s                0.11  0.20  0.67   |                 0.22   0.40  0.41
+    //   3 s                  0.15  0.41  0.79   |                 0.28   0.39  0.40
+    //   6 s                  0.35  0.50  0.86   |                 0.30   0.37  0.39
+    //
+    // A low score says nothing (the same voice went down to 0.11), but no other voice in
+    // the room ever reached 0.43: a turn scoring 0.50 against a voice is that voice's.
+    /// A turn that scores this against a voice (and the margin over every other voice)
+    /// sounds like it — evidence that outweighs the label on the name word (a radio's
+    /// label on someone's "Hej, jag heter Karin", said over it).
+    static let turnThisVoice: Float = 0.50
+
     // MARK: Inputs
 
     /// One turn of the round, as the round heard it (seconds into the meeting).
@@ -114,6 +134,9 @@ enum RoundPlacement {
         var score: Float?
         /// Typed by hand in the name card: never moved by a voice match.
         var typed = false
+        /// A print of the turn's own audio (made by the round from a second and a half of
+        /// speech), when there is one.
+        var print: [Float]? = nil
     }
 
     /// A voice of the meeting, as heard so far: its print, and from how much speech.
@@ -156,7 +179,7 @@ enum RoundPlacement {
     /// waits any more). Turns in the order they were held — "first keeps it".
     static func place(_ turns: [Turn], words: [MeetingWord], voices: [Int: Voice], people: [Known],
                       fixed: [Int: String], rejected: [Int: Set<String>] = [:], round: ClosedRange<Double>? = nil,
-                      final: Bool) -> [Decision] {
+                      previous: [Int: Int] = [:], final: Bool) -> [Decision] {
         let words = words.map { w -> MeetingWord in var w = w; w.end = min(w.end, w.start + longestWord); return w }
         let voiced = words.filter { ($0.speaker ?? -1) >= 0 }
         func speech(_ v: Int, _ a: Double, _ b: Double) -> Double {
@@ -212,7 +235,22 @@ enum RoundPlacement {
                 return nil
             }
             var notes: [String] = []
+            var against = Set<Int>()        // voices the evidence speaks against for this turn
             var choice: (voice: Int, why: String)?
+            // How the turn itself sounds next to a voice (its own print against the voice's).
+            func likeness(_ v: Int) -> Float? {
+                guard let tp = t.print, let vp = voices[v]?.print else { return nil }
+                return VoiceMemory.cosine(tp, vp)
+            }
+            // The voice the turn sounds like: at least `turnThisVoice`, clearly ahead of every
+            // other voice, and one that could own the turn.
+            func soundsLike() -> (Int, Float)? {
+                let ranked = voices.keys.compactMap { v -> (Int, Float)? in likeness(v).map { (v, $0) } }.sorted { $0.1 > $1.1 }
+                guard let (v, like) = ranked.first, like >= turnThisVoice,
+                      like - (ranked.dropFirst().first?.1 ?? -1) >= VoiceMemory.margin,
+                      excluded(v) == nil, !background(v, i), all.contains(v) else { return nil }
+                return (v, like)
+            }
             var waitFor: String?
             var located = false             // the name word found in the words
 
@@ -232,11 +270,13 @@ enum RoundPlacement {
                     for w in nameWords { if let s = w.speaker, s >= 0 { byVoice[s, default: 0] += w.end - w.start } }
                     if let s = byVoice.max(by: { $0.value < $1.value })?.key {
                         if let why = excluded(s) {
-                            notes.append(why)
+                            notes.append(why); against.insert(s)
                         } else if background(s, i), said.lowerBound - runStart(words, at: said.lowerBound, voice: s) > phraseLength {
-                            notes.append("voice \(s) talks through the round and right up to the name")
+                            notes.append("voice \(s) talks through the round and right up to the name"); against.insert(s)
                         } else if background(s, i), !introduces(words, name: nameWords[0], voice: s) {
-                            notes.append("voice \(s) talks through the round and mentions the name, no introduction")
+                            notes.append("voice \(s) talks through the round and mentions the name, no introduction"); against.insert(s)
+                        } else if let (v, like) = soundsLike(), v != s, like - (likeness(s) ?? -1) >= VoiceMemory.margin {
+                            notes.append("the name word is voice \(s)'s, but the turn sounds like voice \(v) (\(fmt(like)))"); against.insert(s)
                         } else {
                             choice = (s, "said the name")
                         }
@@ -253,7 +293,7 @@ enum RoundPlacement {
                             // (Nor a voice that was talking long before the name, through it.)
                             var votes: [Int: Double] = [:]
                             for w in around {
-                                guard let s = w.speaker, s >= 0, excluded(s) == nil, !background(s, i),
+                                guard let s = w.speaker, s >= 0, excluded(s) == nil, !background(s, i), !against.contains(s),
                                       said.lowerBound - runStart(words, at: said.lowerBound, voice: s) <= phraseLength else { continue }
                                 votes[s, default: 0] += overlap(w, a, b)
                             }
@@ -298,6 +338,12 @@ enum RoundPlacement {
                     }
                 }
             }
+            // Not found by the words: the voice in the room the turn itself sounds like — by
+            // its own print, clearly ahead of every other voice; never one that talks through
+            // the round (a loud TV would make the turn sound like it).
+            if choice == nil, waitFor == nil, let (v, like) = soundsLike(), !against.contains(v) {
+                choice = (v, "the voice the turn sounds like (\(fmt(like)))")
+            }
             // Someone you know, not found in the turn: the voice in the room that surely is them.
             if choice == nil, waitFor == nil, let person {
                 let sure = voices.keys.sorted().filter { excluded($0) == nil && fixed[$0] == nil }.compactMap { v -> (Int, Float)? in
@@ -305,6 +351,12 @@ enum RoundPlacement {
                     return nil
                 }.max { $0.1 < $1.1 }
                 if let (v, s) = sure { choice = (v, "the voice in the room that is them (\(fmt(s)))") }
+            }
+
+            // The final pass, with nothing new to say: the voice it was placed on while the
+            // meeting ran stays (the final words can make a clear name word "two at once").
+            if choice == nil, final, let v = previous[i], all.contains(v), excluded(v) == nil, !against.contains(v) {
+                choice = (v, "kept where the live words put it")
             }
 
             if let choice {

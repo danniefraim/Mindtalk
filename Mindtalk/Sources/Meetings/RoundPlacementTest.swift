@@ -181,6 +181,47 @@ enum RoundPlacementTest {
             check("a voice talking through the round says a name mid-sentence: not its name", placed(d) == [nil], "\(d)")
         }
 
+        // The final pass keeps where the live words put a name, unless its own words point
+        // elsewhere: a name word that has become "two voices at once" changes nothing.
+        do {
+            let r = round(2)
+            let blurred = r.words.map { w -> MeetingWord in var w = w; if w.speaker == 1 { w.speaker = MeetingWord.unknown }; return w }
+            let d = RoundPlacement.place(r.turns, words: blurred + words("och så vidare", 1, at: 30), voices: [:], people: [],
+                                         fixed: [:], previous: [0: 0, 1: 1], final: true)
+            check("final pass, the name word now two voices at once: the live placement stays", placed(d) == [0, 1], "\(d)")
+            let moved = r.words.map { w -> MeetingWord in var w = w; if w.speaker == 1 { w.speaker = 2 }; return w }
+            let d2 = RoundPlacement.place(r.turns, words: moved, voices: [:], people: [], fixed: [:], previous: [0: 0, 1: 1], final: true)
+            check("final pass, the name word now another voice's: it goes there", placed(d2) == [0, 2], "\(d2)")
+        }
+
+        // A radio talking through the round, and the speech model hearing Karin's "Hej, jag
+        // heter Karin" in the radio's voice: the turn's own print doesn't sound like the
+        // radio, it sounds like Karin's voice (heard later): her name goes there.
+        do {
+            var w = words("i östra delarna mest uppehåll", 9, at: 13.4)
+            w += words("Hej, jag heter Karin och jag jobbar med design.", 9, at: 17.2)
+            w += words("i morgon väntas ett nytt lågtryck", 9, at: 21.3)
+            w += words("jag skickar siffrorna i eftermiddag", 4, at: 40)
+            let karin = VoiceMemory.demoPrint("karin-voice"), radio = VoiceMemory.demoPrint("radio-voice")
+            let name = w.first { $0.text.hasPrefix("Karin") }!
+            let turn = Turn(name: "Karin", from: 17, to: 21.6, said: name.start...name.end, print: like(karin, 0.72, seed: "karin-turn"))
+            let voices = [9: Voice(print: radio, seconds: 30), 4: Voice(print: like(karin, 0.95, seed: "karin-later"), seconds: 8)]
+            let d = RoundPlacement.place([turn], words: w, voices: voices, people: [], fixed: [:], round: 0...33, final: true)
+            check("an intro heard in a background voice: the turn's own print puts it on the voice it sounds like",
+                  placed(d) == [4], "\(d)")
+            // A TV louder than the person, reading on right up to the name: the turn sounds like
+            // the TV — and still the name isn't the TV's.
+            var tvTurn = turn
+            tvTurn.print = like(radio, 0.85, seed: "tv-turn")
+            var glued = words("i östra delarna mest uppehåll med", 9, at: 14.8)
+            glued += words("Hej, jag heter Karin och jag jobbar med design.", 9, at: glued.last!.end + 0.1)
+            glued += words("i morgon väntas ett nytt lågtryck", 9, at: glued.last!.end + 0.1)
+            let k2 = glued.first { $0.text.hasPrefix("Karin") }!
+            tvTurn.said = k2.start...k2.end
+            let d2 = RoundPlacement.place([tvTurn], words: glued, voices: voices, people: [], fixed: [:], round: 0...33, final: true)
+            check("a turn that sounds like a TV reading on through the round: still not the TV's name", placed(d2) == [nil], "\(d2)")
+        }
+
         // 4. The name word's voice not known yet: wait, then place.
         do {
             let r = round(2, nameVoice: { $0 == 1 ? nil : $0 })
@@ -391,6 +432,46 @@ enum PrintLengthTest {
         for L in lengths {
             let a = same[L] ?? [], b = other[L] ?? []
             print(String(format: "%4.1f s  %8d  ", L, a.count) + "\(q(a, 0)) \(q(a, 0.05)) \(q(a, 0.5))  |  "
+                  + String(format: "%6d  ", b.count) + "\(q(b, 0.5)) \(q(b, 0.95)) \(q(b, 0.99)) \(q(b, 1))")
+        }
+        // Within one meeting (a round's turn against the voices in the same room): a clip
+        // of a voice against the print of the rest of that voice's speech ("same"), and
+        // against the other voices of the meeting ("other"). Every voice the separation
+        // heard, named or not.
+        var inSame: [Double: [Float]] = [:], inOther: [Double: [Float]] = [:]
+        var meetings = 0
+        for record in MeetingStore.shared.meetings where record.hasAudio {
+            let audio = MeetingStore.audioURL(for: record.id)
+            guard let file = try? AVAudioFile(forReading: audio) else { continue }
+            var speech: [Int: [Float]] = [:], whole: [Int: [Float]] = [:]
+            for speaker in Set(record.words.compactMap(\.speaker).filter { $0 >= 0 }).sorted() {
+                var samples: [Float] = []
+                for st in VoicePrints.stretches(of: speaker, in: record.words) { samples += read(file, from: st.start, to: st.end) }
+                guard samples.count >= 12 * 16_000, let p = await VoicePrints.shared.print(raw: samples) else { continue }
+                speech[speaker] = samples
+                whole[speaker] = p
+            }
+            guard whole.count >= 2 else { continue }
+            meetings += 1
+            for (speaker, samples) in speech {
+                for L in lengths where L <= 6 {
+                    let n = Int(L * 16_000)
+                    for k in 0..<2 {
+                        let at = (samples.count - n) * (k + 1) / 3
+                        let rest = Array(samples[..<at]) + Array(samples[(at + n)...])
+                        guard let clip = await VoicePrints.shared.print(raw: Array(samples[at..<at + n])),
+                              let restPrint = await VoicePrints.shared.print(raw: rest) else { continue }
+                        inSame[L, default: []].append(VoiceMemory.cosine(clip, restPrint))
+                        for (other, p) in whole where other != speaker { inOther[L, default: []].append(VoiceMemory.cosine(clip, p)) }
+                    }
+                }
+            }
+        }
+        print("\nInom samma möte (\(meetings) möten med två röster eller fler):")
+        print("längd   samma röst: n  min   p1   p5  p50  |  annan röst: n  p50  p95  p99  max")
+        for L in lengths where L <= 6 {
+            let a = inSame[L] ?? [], b = inOther[L] ?? []
+            print(String(format: "%4.1f s  %8d  ", L, a.count) + "\(q(a, 0)) \(q(a, 0.01)) \(q(a, 0.05)) \(q(a, 0.5))  |  "
                   + String(format: "%6d  ", b.count) + "\(q(b, 0.5)) \(q(b, 0.95)) \(q(b, 0.99)) \(q(b, 1))")
         }
         return 0
