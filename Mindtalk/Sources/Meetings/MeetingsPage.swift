@@ -158,6 +158,8 @@ private struct MeetingList: View {
     @ObservedObject private var archiveOpen = ArchiveOpen.shared
     let open: (UUID, Double?) -> Void
     @State private var confirmDelete: MeetingRecord?
+    /// Several chosen and "Ta bort" pressed: asked once for all of them.
+    @State private var confirmDeleteMany: [UUID] = []
     @State private var query = ""
     /// Meetings ⌘- or ⇧-clicked: dragged and moved together.
     @State private var selection: Set<UUID> = []
@@ -259,10 +261,14 @@ private struct MeetingList: View {
             matches = MeetingSearch.find(query, in: shown.filter { $0.id != session.record?.id })
         }
         #if DEBUG
-        .onAppear {   // screenshots: `--search-query "ord"`, `--ask-query "fråga"`
+        .onAppear {   // screenshots: `--search-query "ord"`, `--ask-query "fråga"`, `--select-meetings 3`
             let args = CommandLine.arguments
             if let i = args.firstIndex(of: "--search-query"), i + 1 < args.count { query = args[i + 1] }
             if let i = args.firstIndex(of: "--ask-query"), i + 1 < args.count { library.ask(args[i + 1]) }
+            // `--select-meetings 3`: the first three chosen, to see the bar over the list.
+            if let i = args.firstIndex(of: "--select-meetings"), i + 1 < args.count, let n = Int(args[i + 1]) {
+                selection = Set(shown.filter { $0.id != session.record?.id }.prefix(n).map(\.id))
+            }
         }
         #endif
         .pageLayout()
@@ -287,6 +293,30 @@ private struct MeetingList: View {
         } message: {
             Text("Inspelningen, texten, dina anteckningar och sammanfattningen flyttas till papperskorgen.")
         }
+        .confirmationDialog("Ta bort \(confirmDeleteMany.count) möten?",
+                            isPresented: Binding(get: { !confirmDeleteMany.isEmpty },
+                                                 set: { if !$0 { confirmDeleteMany = [] } })) {
+            Button("meeting|Ta bort", role: .destructive) { deleteMany(confirmDeleteMany) }
+            Button("Avbryt", role: .cancel) {}
+        } message: {
+            Text("Inspelningarna, texterna, dina anteckningar och sammanfattningarna flyttas till papperskorgen.")
+        }
+    }
+
+    /// The chosen meetings to the Trash, together. One that can't be moved stays,
+    /// and is said once for all of them rather than an alert each.
+    private func deleteMany(_ ids: [UUID]) {
+        var failed = 0
+        withAnimation(.snappy) {
+            for id in ids where !store.delete(id, quietly: true) { failed += 1 }
+            selection.subtract(ids)
+        }
+        guard failed > 0 else { return }
+        let alert = NSAlert()
+        alert.messageText = failed == 1 ? String(localized: "Ett möte kunde inte flyttas till papperskorgen")
+                                        : String(localized: "\(failed) möten kunde inte flyttas till papperskorgen")
+        alert.informativeText = String(localized: "De ligger kvar i listan. Försök igen, eller titta efter om disken är full.")
+        alert.runModal()
     }
 
     /// One meeting in the list: click opens it; ⌘-click adds it to a selection, ⇧-click
@@ -319,9 +349,11 @@ private struct MeetingList: View {
             if ids.count == 1 { Button("Öppna") { open(record.id, nil) } }
             MoveToFolderMenu(ids: ids, current: ids.count == 1 ? record.folder : nil,
                              title: ids.count == 1 ? "Flytta till" : "Flytta \(ids.count) möten till")
+            Divider()
             if ids.count == 1 {
-                Divider()
                 Button("Ta bort…", role: .destructive) { confirmDelete = record }
+            } else {
+                Button("Ta bort \(ids.count) möten…", role: .destructive) { confirmDeleteMany = ids }
             }
         }
     }
@@ -407,6 +439,13 @@ private struct MeetingList: View {
             .menuStyle(.button)
             .buttonStyle(.soft)
             .fixedSize()
+            Button { confirmDeleteMany = Array(selection) } label: {
+                Label("Ta bort…", systemImage: "trash")
+                    .font(.system(size: 12.5, weight: .semibold))
+            }
+            .buttonStyle(.soft)
+            .keyboardShortcut(.delete, modifiers: .command)
+            .help("Flytta de valda mötena till papperskorgen (⌘⌫)")
             Spacer()
             Button("Avmarkera") { withAnimation(.snappy) { selection = [] } }
                 .buttonStyle(.plain)

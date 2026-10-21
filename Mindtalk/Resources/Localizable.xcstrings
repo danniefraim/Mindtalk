@@ -1648,6 +1648,22 @@
         }
       }
     },
+    "%lld möten kunde inte flyttas till papperskorgen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld meetings could not be moved to the Trash"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld möten kunde inte flyttas till papperskorgen"
+          }
+        }
+      }
+    },
     "%lld möten valda": {
       "localizations": {
         "en": {
@@ -5593,6 +5609,22 @@
         }
       }
     },
+    "De ligger kvar i listan. Försök igen, eller titta efter om disken är full.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "They are still in the list. Try again, or check whether the disk is full."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De ligger kvar i listan. Försök igen, eller titta efter om disken är full."
+          }
+        }
+      }
+    },
     "De senaste 50 sparas. ⌃⌥V klistrar in den senaste igen.": {
       "extractionState": "stale",
       "localizations": {
@@ -8499,6 +8531,22 @@
         }
       }
     },
+    "Ett möte kunde inte flyttas till papperskorgen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One meeting could not be moved to the Trash"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ett möte kunde inte flyttas till papperskorgen"
+          }
+        }
+      }
+    },
     "Ett möte spelas in": {
       "localizations": {
         "en": {
@@ -9190,6 +9238,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Flytta Mindtalk till mappen Program och öppna den igen, annars hittar AI-programmen inte Mindtalk."
+          }
+        }
+      }
+    },
+    "Flytta de valda mötena till papperskorgen (⌘⌫)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move the selected meetings to the Trash (⌘⌫)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flytta de valda mötena till papperskorgen (⌘⌫)"
           }
         }
       }
@@ -14456,6 +14520,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inspelning"
+          }
+        }
+      }
+    },
+    "Inspelningarna, texterna, dina anteckningar och sammanfattningarna flyttas till papperskorgen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The recordings, transcripts, your notes and the summaries are moved to the Trash."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspelningarna, texterna, dina anteckningar och sammanfattningarna flyttas till papperskorgen."
           }
         }
       }
@@ -30368,6 +30448,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ta bort %@?"
+          }
+        }
+      }
+    },
+    "Ta bort %lld möten?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete %lld meetings?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort %lld möten?"
+          }
+        }
+      }
+    },
+    "Ta bort %lld möten…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove %lld meetings…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort %lld möten…"
           }
         }
       }
