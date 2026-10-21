@@ -450,7 +450,7 @@ struct StatusPanelView: View {
             Text("Gäller diktering och möten.")
                 .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
                 .padding(.horizontal, PanelMetrics.inset)
-                .padding(.top, -4).padding(.bottom, 4)
+                .padding(.top, 4).padding(.bottom, 8)
             // A language that isn't on the Mac yet: say how big, and let a click fetch it.
             if let m = confirming ?? downloading {
                 LanguageRow(model: m, index: (SpeechModel.allCases.firstIndex(of: m) ?? 0) + 1, selected: dictation.engine == m,
