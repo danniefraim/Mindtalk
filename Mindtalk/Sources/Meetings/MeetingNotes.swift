@@ -262,10 +262,13 @@ final class MeetingNotes: ObservableObject {
         let summary = record.summary
         // The last questions, so "och vem?" knows what it follows.
         let history = record.answers.suffix(2).map { "Q: \($0.question)\nA: \($0.answer)" }.joined(separator: "\n")
+        // "Vad lovade jag?": who "jag" is, when you've said which of them you are.
+        let asker = record.cast.order.map { record.name(of: $0) }.first { record.isMe($0) }
         answerTasks[id] = Task {
             defer { answering.remove(id); answerTasks[id] = nil }
             do {
-                let answer = try await Self.answer(question, from: lines, summary: summary, history: history, writer: writer)
+                let answer = try await Self.answer(question, from: lines, summary: summary, history: history, asker: asker,
+                                                   writer: writer)
                 // Continued meanwhile: the answer goes with the meeting being recorded.
                 if MeetingSession.shared.record?.id == id {
                     MeetingSession.shared.addAnswer(answer)
@@ -716,7 +719,7 @@ final class MeetingNotes: ObservableObject {
     /// they were said; for a particular one the lines that say it first, then what the
     /// meeting was about and the notes that match.
     nonisolated static func answer(_ question: String, from lines: Lines, summary: MeetingSummary? = nil, history: String = "",
-                                   writer: (any SummaryWriter)? = nil) async throws -> MeetingAnswer {
+                                   asker: String? = nil, writer: (any SummaryWriter)? = nil) async throws -> MeetingAnswer {
         // A short question ("vad?") is in the language of the meeting.
         let language = question.split(separator: " ").count >= 3 ? Lines.languageName(of: question) ?? lines.language : lines.language
         let broad = QuestionKind.isBroad(question)
@@ -772,7 +775,8 @@ final class MeetingNotes: ObservableObject {
             ? [notesPart, "Transcript:\n\(transcript)"].filter { !$0.isEmpty }.joined(separator: "\n\n")
             : "Transcript:\n\(transcript)\n\n\(notesPart)"
         let earlier = history.isEmpty ? "" : "\n\nEarlier questions and answers:\n\(history)"
-        let prompt = "\(context)\(earlier)\n\nQuestion: \(question)"
+        let who = asker.map { "\n\nThe person asking is \($0) (\"I\" and \"me\" in the question mean \($0))." } ?? ""
+        let prompt = "\(context)\(earlier)\(who)\n\nQuestion: \(question)"
         let about = shown.isEmpty ? "" : " The meeting notes are numbered too: use them, and the lines that say it."
         let reply: Reply
         do {

@@ -13,10 +13,10 @@ import SwiftUI
 // app: 192 numbers per voice, no audio) and compared with the people you've named before. A clear match
 // gets the name; anything unsure stays "Talare N".
 //
-// A voiceprint is biometric data. On a new Mac it starts on, and the start card says
-// so, asks you to tell the room and can switch it off (as can Inställningar → Möten).
-// Someone who used Mindtalk before this and never chose keeps it off: nothing is learnt
-// from their past meetings without asking. Prints live only on this Mac, in People.json next to the meetings, and
+// A voiceprint is biometric data. It is off until you switch it on: before the first
+// meeting Mindtalk asks whether to remember the voices ("Fråga dem först"), and the
+// start card and Inställningar → Möten can switch it either way. A choice already made
+// stays as it was. Prints live only on this Mac, in People.json next to the meetings, and
 // any person — or everyone — can be forgotten at any time. Nothing is ever sent.
 
 @MainActor
@@ -43,9 +43,8 @@ final class VoiceMemory: ObservableObject {
 
     enum State: Equatable { case missing, downloading(Double), ready, failed(String) }
 
-    /// On for a new install unless switched off: a saved voice is only a print, never
-    /// sound, and the start card says so and asks you to tell the room. Decided once,
-    /// at first launch, and written down so it stays the same (see `initialEnabled`).
+    /// Off until chosen: asked before the first meeting (MeetingSession.asksAboutVoices),
+    /// or switched on the start card or in Settings. A stored choice is kept as it is.
     @Published var enabled = VoiceMemory.initialEnabled() {
         didSet {
             Settings.keep(enabled, forKey: "voiceMemory")
@@ -62,20 +61,14 @@ final class VoiceMemory: ObservableObject {
     /// to be saved under the names they were given.
     private var reserved: [String: VoiceFigure] = [:]
 
-    /// The setting as chosen — or, never chosen, decided now and saved: on for a fresh
-    /// install (not onboarded, no meetings, never asked), off for someone who used
-    /// Mindtalk before (who may have said "Inte nu" to the offer).
-    /// At launch, before onboarding can set didOnboard: the first value written down.
+    /// Called at launch. Nothing is decided or written any more: never chosen means off,
+    /// and the first meeting asks.
     static func settleDefault() { _ = initialEnabled() }
 
-    private static func initialEnabled() -> Bool {
-        let defaults = UserDefaults.standard
-        if let chosen = defaults.object(forKey: "voiceMemory") as? Bool { return chosen }
-        let meetings = ((try? FileManager.default.contentsOfDirectory(atPath: MeetingStore.root.path)) ?? [])
-            .contains { UUID(uuidString: $0) != nil }
-        let fresh = !Settings.didOnboard && !meetings && !defaults.bool(forKey: "voiceMemoryAsked")
-        Settings.keep(fresh, forKey: "voiceMemory")
-        return fresh
+    /// The setting as chosen; never chosen, off. (Nothing is written: the question
+    /// before the first meeting goes by whether a choice is stored.)
+    static func initialEnabled(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: "voiceMemory") as? Bool ?? false
     }
 
     private init() {
@@ -634,9 +627,8 @@ actor VoicePrints {
     }
 }
 
-/// Settings → Möten: remembering voices — on for a fresh install, off where meetings
-/// were recorded before it existed (VoiceMemory.initialEnabled) — with the people it
-/// knows and a way to forget each of them.
+/// Settings → Möten: remembering voices (off until chosen, VoiceMemory.initialEnabled),
+/// with the people it knows and a way to forget each of them, and which of them is you.
 struct VoiceMemoryCard: View {
     @ObservedObject var memory: VoiceMemory
     @State private var confirmForgetAll = false
@@ -645,11 +637,31 @@ struct VoiceMemoryCard: View {
     /// Someone whose name is being put right, and the name as typed.
     @State private var renaming: VoiceMemory.Person?
     @State private var newName = ""
+    /// "Det här är jag": your name among the voices ("" for none).
+    @State private var me = Settings.myName ?? ""
+
+    /// The names to choose yourself from: the voices remembered, the names in your
+    /// latest meetings, and the one chosen.
+    @MainActor static func names(memory: VoiceMemory, mine: String) -> [String] {
+        var seen = Set<String>()
+        var out: [String] = []
+        let recent = MeetingStore.shared.meetings.prefix(30).flatMap { VoiceMemory.namesToRemember(in: $0) }
+        for name in [mine] + memory.people.map(\.name) + recent where !name.isEmpty && seen.insert(name.lowercased()).inserted {
+            out.append(name)
+        }
+        return out.sorted { $0.localizedCompare($1) == .orderedAscending }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             CardRow(title: "Kom ihåg röster", detail: detail) {
                 InkToggle(label: "Kom ihåg röster", isOn: $memory.enabled)
+            }
+            CardDivider()
+            // You among the voices: your tasks in the notes read "Du".
+            CardRow(title: "Det här är jag", detail: "Dina uppgifter i sammanfattningen visas som Du.") {
+                MenuPicker(options: [("", String(localized: "Ingen vald"))] + Self.names(memory: memory, mine: me).map { ($0, $0) },
+                           selection: Binding(get: { me }, set: { me = $0; Settings.myName = $0 }))
             }
             // Shown also when switched off: what's remembered can always be seen and forgotten.
             if !memory.people.isEmpty {

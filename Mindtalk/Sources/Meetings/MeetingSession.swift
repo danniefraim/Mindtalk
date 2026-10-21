@@ -75,7 +75,56 @@ final class MeetingSession: ObservableObject {
     /// not while what it needs is still being prepared: the card says so and waits.
     func startRemembered(folder: UUID? = nil) {
         guard !Self.preparing(Self.startMode) else { return }
-        start(introducing: Self.startMode == .round, folder: folder)
+        startFromCard(Self.startMode, folder: folder)
+    }
+
+    /// A start from the card (a tile, Return, or the shortcut while the card is in
+    /// front): the card says to tell everyone it's recorded, so that is noted. The very
+    /// first time, Mindtalk first asks whether to remember the voices, and nothing is
+    /// recorded until that is answered.
+    func startFromCard(_ mode: StartMode, folder: UUID? = nil) {
+        guard phase == .idle else { return }
+        if Self.asksAboutVoices {
+            voiceQuestion = PendingStart(mode: mode, folder: folder)
+            return
+        }
+        start(introducing: mode == .round, folder: folder, informed: true)
+    }
+
+    /// A start waiting for "Ska Mindtalk känna igen rösterna nästa gång?".
+    struct PendingStart: Equatable {
+        let mode: StartMode
+        let folder: UUID?
+    }
+    @Published private(set) var voiceQuestion: PendingStart?
+
+    /// Never chosen (no value stored, the question never answered): asked before the
+    /// first meeting starts. Someone who chose on the card or in Settings isn't asked.
+    static var asksAboutVoices: Bool { asksAboutVoices(in: .standard) }
+
+    nonisolated static func asksAboutVoices(in defaults: UserDefaults) -> Bool {
+        defaults.object(forKey: "voiceMemory") == nil && !defaults.bool(forKey: "voiceMemoryAsked")
+    }
+
+    /// The answer: the setting as said, never asked again, and the meeting starts.
+    func answerVoiceQuestion(remember: Bool) {
+        guard let pending = voiceQuestion else { return }
+        voiceQuestion = nil
+        Settings.keep(true, forKey: "voiceMemoryAsked")
+        VoiceMemory.shared.enabled = remember
+        Self.log.notice("voices: asked before the first meeting, remember \(remember)")
+        start(introducing: pending.mode == .round, folder: pending.folder, informed: true)
+    }
+
+    /// Esc on the question: nothing starts, nothing is recorded.
+    func cancelVoiceQuestion() { voiceQuestion = nil }
+
+    /// After a meeting ends: the one sentence said about it, wherever it's said (Hem,
+    /// the panel, the notification, VoiceOver). Without anything to summarise with, the
+    /// first half only.
+    static func endedSentence(summarizing: Bool? = nil) -> String {
+        summarizing ?? MeetingNotes.isAvailable
+            ? String(localized: "Mötet är sparat. Sammanfattningen skrivs nu.") : String(localized: "Mötet är sparat.")
     }
 
     /// The models a start needs are still being made ready — the speech model, and for
@@ -460,8 +509,11 @@ final class MeetingSession: ObservableObject {
 
     /// `folder`: started on the Möten page while a folder is chosen there — it goes
     /// in it. (From the menu bar or the shortcut, in none: the page suggests one after.)
-    func start(introducing: Bool = false, folder: UUID? = nil) {
+    /// `informed`: started from the card, where it says to tell everyone the meeting is
+    /// recorded; the moment is noted ("Deltagarna informerades") in the meeting.
+    func start(introducing: Bool = false, folder: UUID? = nil, informed: Bool = false) {
         guard phase == .idle else { return }
+        voiceQuestion = nil
         lastError = nil
         let dictation = Dictation.shared
         // What stands in the way first, said on the card — the card stays as it was.
@@ -499,6 +551,7 @@ final class MeetingSession: ObservableObject {
         new.finished = false
         new.folder = MeetingFolders.shared.folder(folder)?.id
         new.folderAsked = new.folder != nil
+        if informed { new.informed = date }
         do {
             try MeetingStore.prepareFolder(for: new.id)
             let intake = try AudioIntake(file: MeetingStore.audioURL(for: new.id))
@@ -529,6 +582,7 @@ final class MeetingSession: ObservableObject {
         startedAt = date
         lastSave = date
         lastHeard = date
+        resetWatch(newVoicesAfter: 180)
         phase = .starting
         startMoment = date
         lastRestart = nil
@@ -678,6 +732,7 @@ final class MeetingSession: ObservableObject {
         startedAt = Date().addingTimeInterval(-seconds)
         lastSave = Date()
         lastHeard = Date()
+        resetWatch(newVoicesAfter: seconds + 180)
         phase = .starting
         lastRestart = nil
         gaveUpOnSignal = false
@@ -781,6 +836,7 @@ final class MeetingSession: ObservableObject {
         startedAt = startedAt?.addingTimeInterval(Date().timeIntervalSince(pausedAt) - 1)
         self.pausedAt = nil
         lastHeard = Date()
+        lastSpeech = Date()             // the pause doesn't count as silence
         Self.log.notice("meeting resumed at \(Int(self.elapsed)) s")
     }
 
@@ -909,6 +965,12 @@ final class MeetingSession: ObservableObject {
         if let round {
             round.stop()
             placeRound(round.captures)
+            // Who's here is known now: a voice heard first after this is someone new.
+            if !round.captures.isEmpty {
+                newVoicesAfter = elapsed
+                namesGiven = true
+            }
+            if round.captures.count > VoiceTracker.speakers, !manyVoicesNoted { noteManyVoices() }
             self.round = nil
             // Words still settling: try the rest again a few times.
             if !roundLeft.isEmpty {
@@ -1019,6 +1081,8 @@ final class MeetingSession: ObservableObject {
         if old == nil || guessed { Vocabulary.shared.suggest(name, from: latest.title) }
         record = latest
         MeetingStore.shared.save(latest)
+        // Named by hand: the moment to ask which of them is you (once, ever).
+        if !name.trimmingCharacters(in: .whitespaces).isEmpty, !introducing { namesGiven = true }
     }
 
     /// Two voices that are one person — from now on too.
@@ -1170,6 +1234,8 @@ final class MeetingSession: ObservableObject {
         if speechFailed {
             warning = String(localized: "\(language.modelName) kunde inte startas, så ingen text skrivs just nu. Inspelningen fortsätter.")
         }
+        // No words will come: silence is then told by the sound level instead.
+        speechDown = speechFailed
         if phase == .starting { phase = .recording }
         while !Task.isCancelled, phase == .recording {
             // Paused: what was said before it is written out once (the second of quiet
@@ -1180,6 +1246,7 @@ final class MeetingSession: ObservableObject {
                     await settleAll()
                 }
                 checkInput()
+                watch()
                 try? await Task.sleep(for: .milliseconds(400))
                 continue
             }
@@ -1195,9 +1262,171 @@ final class MeetingSession: ObservableObject {
                 MeetingStore.shared.saveQuietly(record)
             }
             checkInput()
+            watch()
             try? await Task.sleep(for: .milliseconds(400))
         }
     }
+
+    // MARK: Watching the room: silence, new voices, many voices, who you are
+
+    /// No one has said anything for ten minutes: "Är mötet slut?" — and with no answer
+    /// and still nothing said for thirty more, it ends by itself, saved as any other.
+    @Published private(set) var silenceAsked = false
+    static let silenceAsk: TimeInterval = 10 * 60
+    static let silenceEnd: TimeInterval = 30 * 60
+    /// When words last came (written, or still being written).
+    private var lastSpeech = Date()
+    private var wordsHeard = 0
+    /// The speech model didn't start: no words come, so the sound level tells instead.
+    private var speechDown = false
+
+    /// A voice first heard after the round (or the first minutes): "Ny röst. Vem är det?"
+    @Published private(set) var latecomer: Int?
+    private var latecomersSeen: Set<Int> = []
+    /// The meeting's second after which a voice heard for the first time is someone new.
+    private var newVoicesAfter: Double = 180
+    /// More voices than Mindtalk can keep apart well: said once, quietly.
+    @Published private(set) var manyVoices = false
+    private var manyVoicesNoted = false
+    /// "Vem av er är du?" — once, the first time names are given.
+    @Published private(set) var askingWhoYouAre = false
+    private var namesGiven = false
+    /// Every few passes of the loop is enough for the voices.
+    private var watchTick = 0
+
+    private func resetWatch(newVoicesAfter seconds: Double) {
+        lastSpeech = Date()
+        wordsHeard = 0
+        speechDown = false
+        silenceAsked = false
+        latecomer = nil
+        latecomersSeen = []
+        newVoicesAfter = seconds
+        manyVoices = false
+        manyVoicesNoted = false
+        askingWhoYouAre = false
+        namesGiven = false
+        watchTick = 0
+    }
+
+    /// Twice a second from the live loop.
+    private func watch() {
+        guard phase == .recording, !stopping else { return }
+        checkSilence()
+        watchTick += 1
+        if watchTick % 4 == 0 { checkVoices() }
+    }
+
+    private func checkSilence() {
+        // Paused, or the round going on: neither counts as silence.
+        if isPaused || introducing {
+            lastSpeech = Date()
+            if silenceAsked { silenceAsked = false }
+            return
+        }
+        let words = (record?.words.count ?? 0) + pending.count
+        if words != wordsHeard { wordsHeard = words; lastSpeech = Date() }
+        let since = speechDown ? max(lastHeard, lastSpeech) : lastSpeech
+        let quiet = Date().timeIntervalSince(since)
+        if quiet >= Self.silenceAsk + Self.silenceEnd {
+            Self.log.notice("meeting: nothing said for \(Int(quiet / 60)) min, ended by itself")
+            silenceAsked = false
+            stop()
+            return
+        }
+        let ask = quiet >= Self.silenceAsk
+        guard ask != silenceAsked else { return }
+        silenceAsked = ask
+        if ask {
+            Self.log.notice("meeting: nothing said for ten minutes, asked whether it is over")
+            AccessibilityNotification.Announcement(String(localized: "Ingen har sagt något på tio minuter. Är mötet slut?")).post()
+        }
+    }
+
+    /// "Fortsätt" on the question: it goes on, and is asked again after ten more quiet minutes.
+    func keepGoing() {
+        lastSpeech = Date()
+        silenceAsked = false
+    }
+
+    private func checkVoices() {
+        guard let record else { return }
+        var first: [Int: Double] = [:]
+        var speech: [Int: Double] = [:]
+        for w in record.words + pending {
+            guard let s = w.speaker, s >= 0 else { continue }
+            if first[s] == nil { first[s] = w.start }
+            speech[s, default: 0] += w.end - w.start
+        }
+        if !manyVoicesNoted, first.count >= VoiceTracker.speakers { noteManyVoices() }
+        if namesGiven, !askingWhoYouAre, !Self.whoAmIAsked, !VoiceMemory.namesToRemember(in: record).isEmpty {
+            askingWhoYouAre = true
+        }
+        guard !introducing else { return }
+        // Named meanwhile (by you, or recognised), or merged into someone: the chip goes.
+        if let late = latecomer, !(record.names[String(late)] ?? "").isEmpty || first[late] == nil { latecomer = nil }
+        guard latecomer == nil else { return }
+        for (s, at) in first.sorted(by: { $0.value < $1.value })
+        where at >= newVoicesAfter && !latecomersSeen.contains(s) && (record.names[String(s)] ?? "").isEmpty
+            && (speech[s] ?? 0) >= 4 {
+            latecomersSeen.insert(s)
+            latecomer = s
+            Self.log.notice("voices: a new voice (\(s)) first heard at \(Int(at)) s, after the room was known")
+            break
+        }
+    }
+
+    /// "Ny röst" put away without naming it.
+    func dismissLatecomer() { latecomer = nil }
+
+    private func noteManyVoices() {
+        manyVoicesNoted = true
+        manyVoices = true
+        Self.log.notice("voices: eight or more, names may be less sure")
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(30))
+            self?.manyVoices = false
+        }
+    }
+
+    func dismissManyVoices() { manyVoices = false }
+
+    /// Answered once, ever: "Vem av er är du?"
+    static var whoAmIAsked: Bool { UserDefaults.standard.bool(forKey: "whoAmIAsked") }
+
+    /// "Det är jag": your name in this meeting; with the voices remembered, in the
+    /// meetings after it too (Settings → Möten can change it). nil: none of them.
+    func iAm(_ name: String?) {
+        Settings.keep(true, forKey: "whoAmIAsked")
+        askingWhoYouAre = false
+        guard let name, var record else { return }
+        record.me = name
+        self.record = record
+        MeetingStore.shared.save(record)
+        if VoiceMemory.shared.enabled { Settings.myName = name }
+        Self.log.notice("voices: you are one of the named speakers")
+    }
+
+    #if DEBUG
+    /// Renders (`--meeting-state …`): the meeting view, or the start card, as it looks
+    /// in that moment. Nothing is recorded or saved.
+    func preview(state: String) {
+        switch state {
+        case "voiceconsent":
+            voiceQuestion = PendingStart(mode: .round, folder: nil)
+            return
+        default: break
+        }
+        showDemo(finished: false)
+        switch state {
+        case "silence": silenceAsked = true
+        case "latecomer": latecomer = 2
+        case "manyvoices": manyVoices = true
+        case "whoareyou": askingWhoYouAre = true
+        default: break
+        }
+    }
+    #endif
 
     // MARK: How the live text keeps up (in the log macOS keeps)
 
@@ -1841,6 +2070,10 @@ final class MeetingSession: ObservableObject {
         heartbeat = nil
         recognition?.cancel()
         recognition = nil
+        silenceAsked = false
+        latecomer = nil
+        manyVoices = false
+        askingWhoYouAre = false
         finished = record?.id
         record = nil
         startedAt = nil
@@ -1858,6 +2091,9 @@ final class MeetingSession: ObservableObject {
         if let finished, MeetingNotes.shared.takeAfterMeeting(finished) || continued
             || MeetingStore.shared.meetings.first(where: { $0.id == finished })?.summary == nil {
             MeetingNotes.shared.summarize(finished)
+        }
+        if let finished {
+            AccessibilityNotification.Announcement(Self.endedSentence(summarizing: MeetingNotes.shared.writing.contains(finished))).post()
         }
         // A postponed update restarts Mindtalk: only once the notes are written.
         Task { @MainActor in

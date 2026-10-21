@@ -16,6 +16,11 @@ import SwiftUI
 //                  (Demo.on gives the dictations and the statistics); the greeting
 //                  says a made-up name
 //   --open-meeting with --demo: Möten showing the demo meeting, its summary open
+//   --find-query "ord"  with --open-meeting: ⌘F open in the meeting, that searched for
+//   --meeting-state silence|latecomer|manyvoices|whoareyou: a meeting being recorded,
+//                  at that moment; voiceconsent: the start card asking about the voices
+//   --voices-off   "Kom ihåg rösterna" as for someone who never chose (off), in memory only
+//   --models-ready with --ready: the start card as if the meeting models were downloaded
 
 @MainActor
 enum WindowRender {
@@ -36,6 +41,9 @@ enum WindowRender {
         MainView.rendering = true
         SettingsSection.preview = value("--section").flatMap(SettingsSection.init(rawValue:)) ?? .general
         if Demo.on { WindowDemo.fill(openMeeting: args.contains("--open-meeting")) }
+        // In memory only: a render never writes a setting (Settings.previewing).
+        if args.contains("--voices-off") { VoiceMemory.shared.enabled = false }
+        if let state = value("--meeting-state") { MeetingSession.shared.preview(state: state) }
         if args.contains("--setup") || args.contains("--asked") {
             Dictation.shared.preview(mic: false, accessibility: false, asked: args.contains("--asked"))
         } else if args.contains("--ready") {

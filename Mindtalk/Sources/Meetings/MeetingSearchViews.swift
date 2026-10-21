@@ -272,7 +272,7 @@ struct LibraryAskBar: View {
     @ObservedObject private var folders = MeetingFolders.shared
     @State private var question = ""
     @FocusState private var focused: Bool
-    private static let suggestions: [LocalizedStringResource] = ["Vad bestämdes den här veckan?", "Vilka uppgifter har jag?",
+    private static let suggestions: [LocalizedStringResource] = ["Vad lovade jag i veckan?", "Vad bestämdes den här veckan?",
                                                                   "Vad pratade vi om i går?"]
     private var empty: Bool { question.trimmingCharacters(in: .whitespaces).isEmpty }
 

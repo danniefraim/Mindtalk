@@ -194,6 +194,63 @@ enum MeetingExport {
         return out
     }
 
+    // MARK: Copying
+
+    /// "Kopiera till mejl": the summary (and your notes) with its headings and lists,
+    /// as HTML for Mail and Outlook and as plain text for anything else. Names stay
+    /// names: it is read by the others.
+    @MainActor static func copyForMail(_ record: MeetingRecord) {
+        let blocks = blocks(record, .notes)
+        put(html: html(blocks), plain: plain(blocks))
+    }
+
+    /// The summary copied (⇧⌘C, "Kopiera sammanfattningen"): rich where it's pasted
+    /// into something that takes it, Markdown elsewhere — as it always was.
+    @MainActor static func copySummary(_ record: MeetingRecord) {
+        put(html: html(blocks(record, .notes)), plain: MeetingNotes.markdown(record))
+    }
+
+    @MainActor private static func put(html: String, plain: String) {
+        let board = NSPasteboard.general
+        board.clearContents()
+        let item = NSPasteboardItem()
+        item.setString(html, forType: .html)
+        item.setString(plain, forType: .string)
+        board.writeObjects([item])
+    }
+
+    /// The blocks as a small HTML document: a heading, the details in grey, sections
+    /// with their lists. Plain tags and inline styles only, which mail clients keep.
+    static func html(_ blocks: [Block]) -> String {
+        func esc(_ s: String) -> String {
+            s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
+                .replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;")
+        }
+        var body = ""
+        var inList = false
+        func closeList() { if inList { body += "</ul>\n"; inList = false } }
+        for block in blocks {
+            if case .item = block {} else { closeList() }
+            switch block {
+            case .title(let t): body += "<h2 style=\"font-size:18px;margin:0 0 4px 0\">\(esc(t))</h2>\n"
+            case .meta(let t): body += "<p style=\"color:#666666;font-size:12px;margin:0 0 14px 0\">\(esc(t))</p>\n"
+            case .heading(let t): body += "<h3 style=\"font-size:15px;margin:16px 0 6px 0\">\(esc(t))</h3>\n"
+            case .paragraph(let t): body += "<p style=\"margin:0 0 10px 0\">\(esc(t))</p>\n"
+            case .item(let t, let done):
+                if !inList { body += "<ul style=\"margin:0 0 10px 0;padding-left:22px\">\n"; inList = true }
+                body += done == true ? "<li><s>\(esc(t))</s></li>\n" : "<li>\(esc(t))</li>\n"
+            case .speaker(let who, let at):
+                body += "<p style=\"margin:8px 0 2px 0\"><b>\(esc(who))</b> <span style=\"color:#666666\">\(esc(at))</span></p>\n"
+            }
+        }
+        closeList()
+        return """
+        <html><head><meta charset="utf-8"></head>\
+        <body style="font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45;color:#111111">
+        \(body)</body></html>
+        """
+    }
+
     // MARK: Text formats
 
     static func markdown(_ blocks: [Block]) -> String {
@@ -395,7 +452,9 @@ struct ExportMenu: View {
             Button("Undertexter (.srt)…") { MeetingExport.saveSubtitles(record) }
                 .disabled(record.words.isEmpty)
             Divider()
-            Button("Kopiera sammanfattningen") { put(MeetingNotes.markdown(record)) }
+            Button("Kopiera till mejl") { MeetingExport.copyForMail(record) }
+                .disabled(record.summary == nil)
+            Button("Kopiera sammanfattningen") { MeetingExport.copySummary(record) }
                 .disabled(record.summary == nil)
             Button("Kopiera texten") { put(MeetingText.plain(record)) }
                 .disabled(record.words.isEmpty)

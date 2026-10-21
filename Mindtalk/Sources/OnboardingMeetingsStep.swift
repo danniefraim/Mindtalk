@@ -249,7 +249,7 @@ private struct DemoMeeting: View {
         case .waiting: return String(localized: "Lyssnar…")
         case .recording: return String(localized: "Spelar in")
         case .summing: return String(localized: "Skriver sammanfattningen…")
-        case .done: return String(localized: "Mötet är slut")
+        case .done: return MeetingSession.endedSentence(summarizing: false)
         }
     }
 

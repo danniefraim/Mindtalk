@@ -255,14 +255,15 @@ final class MeetingPanel: ObservableObject {
                               width: size.width, height: size.height), display: false)
     }
 
-    /// "Mötet är klart" — when the panel was put away. Asks to notify the first time.
+    /// "Mötet är sparat. …" — when the panel was put away. Asks to notify the first time.
     private static func notify(_ record: MeetingRecord) {
+        let sentence = MeetingSession.endedSentence(summarizing: MeetingNotes.shared.writing.contains(record.id))
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert]) { granted, _ in
             guard granted else { return }
             let content = UNMutableNotificationContent()
-            content.title = String(localized: "Mötet är klart")
-            content.body = record.title
+            content.title = record.title
+            content.body = sentence
             content.userInfo = ["meeting": record.id.uuidString]
             center.add(UNNotificationRequest(identifier: "meeting-\(record.id.uuidString)", content: content, trigger: nil))
         }
@@ -545,6 +546,8 @@ private struct LivePanel: View {
                             .frame(maxWidth: .infinity)
                             .transition(.opacity)
                     }
+                    // Ten minutes without a word: asked here too, where the meeting is.
+                    if session.silenceAsked { SilenceQuestion(session: session, compact: true) }
                     NoteIsland(session: session, compact: true) { EmptyView() } trailing: {
                         MeetingControls(session: session, labelledStop: true)
                     }
@@ -570,6 +573,8 @@ private struct DonePanel: View {
     let done: MeetingPanel.Done
     let expand: () -> Void
     let close: () -> Void
+    /// Whether the summary is being written: the sentence says so while it is.
+    @ObservedObject private var notes = MeetingNotes.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -582,9 +587,12 @@ private struct DonePanel: View {
             Spacer()
             VStack(spacing: 10) {
                 switch done {
-                case .meeting(_, let title):
-                    Image(systemName: "checkmark.circle.fill").font(.system(size: 30)).foregroundStyle(DS.Colors.good)
-                    Text("Mötet är klart").font(.system(size: 16, weight: .semibold))
+                case .meeting(let id, let title):
+                    Image(systemName: "checkmark.circle.fill").font(.system(size: 30)).foregroundStyle(DS.Colors.ink)
+                    Text(verbatim: MeetingSession.endedSentence(summarizing: notes.writing.contains(id)))
+                        .font(.system(size: 16, weight: .semibold))
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(title).font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
                         .multilineTextAlignment(.center).lineLimit(2)
                     Button(action: expand) {

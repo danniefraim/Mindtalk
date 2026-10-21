@@ -20,6 +20,13 @@ enum Settings {
         defaults.set(value, forKey: key)
     }
 
+    /// Your own name among the voices ("Det här är jag" in Settings → Möten): your
+    /// tasks in a meeting's notes read "Du". nil: not chosen.
+    static var myName: String? {
+        get { defaults.string(forKey: "myName").flatMap { $0.isEmpty ? nil : $0 } }
+        set { keep(newValue?.isEmpty == false ? newValue : nil, forKey: "myName") }
+    }
+
     static var hotkey: Hotkey {
         get {
             guard let data = defaults.data(forKey: "hotkey"),
@@ -438,6 +445,22 @@ enum PreviewDefaults {
         check(defaults.object(forKey: "added") == nil, "en tillagd nyckel är kvar")
         check(defaults.data(forKey: "bytes") == Data([1, 2, 3]), "en borttagen nyckel kom inte tillbaka")
         check(restore(defaults, domain: scratch, to: copy), "en andra återställning sa att något ändrats")
+        // "Kom ihåg rösterna": off when never chosen, and asked before the first meeting;
+        // a stored choice is kept as it is, and an answer is never asked again.
+        defaults.removeObject(forKey: "voiceMemory")
+        defaults.removeObject(forKey: "voiceMemoryAsked")
+        check(!VoiceMemory.initialEnabled(in: defaults), "Kom ihåg rösterna är inte av när inget är valt")
+        check(defaults.object(forKey: "voiceMemory") == nil, "Kom ihåg rösterna skrevs ned utan att ha valts")
+        check(MeetingSession.asksAboutVoices(in: defaults), "frågan om rösterna ställs inte när inget är valt")
+        defaults.set(true, forKey: "voiceMemory")
+        check(VoiceMemory.initialEnabled(in: defaults), "ett sparat ja till rösterna lästes inte som på")
+        check(!MeetingSession.asksAboutVoices(in: defaults), "frågan om rösterna ställs trots ett sparat val")
+        defaults.set(false, forKey: "voiceMemory")
+        check(!VoiceMemory.initialEnabled(in: defaults), "ett sparat nej till rösterna lästes inte som av")
+        defaults.removeObject(forKey: "voiceMemory")
+        defaults.set(true, forKey: "voiceMemoryAsked")
+        check(!MeetingSession.asksAboutVoices(in: defaults), "frågan om rösterna ställs igen efter ett svar")
+        check(!restore(defaults, domain: scratch, to: copy), "återställningen efter rösterna sa att inget ändrats")
         // A copy that was nothing (first launch): the domain is removed again.
         check(!restore(defaults, domain: scratch, to: nil), "tom kopia: återställningen sa att inget ändrats")
         check(defaults.persistentDomain(forName: scratch)?.isEmpty != false, "tom kopia: domänen togs inte bort")

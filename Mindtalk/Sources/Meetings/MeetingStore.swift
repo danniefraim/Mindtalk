@@ -80,6 +80,9 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     /// When it was last done, by the clock: after a pause or a continuation that is
     /// later than its start plus its length. Nil for meetings from before it was kept.
     var endedAt: Date?
+    /// Which of the named speakers you are ("Vem av er är du?"), by the name they had:
+    /// your tasks read "Du" on screen. The summary itself keeps the name.
+    var me: String?
 
     struct Source: Codable, Equatable {
         /// The file's name, as it was.
@@ -249,11 +252,26 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         continuedAt = try? c.decodeIfPresent(Double.self, forKey: .continuedAt)
         source = try? c.decodeIfPresent(Source.self, forKey: .source)
         endedAt = try? c.decodeIfPresent(Date.self, forKey: .endedAt)
+        me = try? c.decodeIfPresent(String.self, forKey: .me)
         // A field since dropped ("hiddenFromAI") is passed over: the meeting opens as before.
     }
 
     /// Speakers in the order they first spoke.
     var speakers: [Int] { cast.order }
+
+    /// Who does a task, as shown on screen: "Du" when it's you (the name you said was
+    /// yours in this meeting, or the one in Settings → Möten). Copies and exports keep
+    /// the name: they are read by others.
+    func shownOwner(_ owner: String) -> String {
+        isMe(owner) ? String(localized: "Du") : owner
+    }
+
+    func isMe(_ name: String) -> Bool {
+        let name = name.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return false }
+        for mine in [me, Settings.myName].compactMap({ $0 }) where mine.caseInsensitiveCompare(name) == .orderedSame { return true }
+        return false
+    }
 
     /// Who's who, worked out once — views ask it many times per redraw.
     var cast: Cast { Cast(words: words, names: names) }

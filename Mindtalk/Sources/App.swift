@@ -2374,11 +2374,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 }
 
 extension AppDelegate: NSMenuItemValidation {
-    /// "Starta möte" becomes "Avsluta mötet" while one is recorded.
+    /// "Starta möte" becomes "Avsluta" (in the Möte menu) while one is recorded.
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         guard item.action == #selector(toggleMeeting) else { return true }
         let meeting = MeetingSession.shared
-        item.title = meeting.isRecording ? String(localized: "Avsluta mötet") : String(localized: "Starta möte")
+        item.title = meeting.isRecording ? String(localized: "meeting|Avsluta") : String(localized: "Starta möte")
         return meeting.isRecording || (meeting.phase == .idle && Dictation.shared.phase == .idle)
     }
 }

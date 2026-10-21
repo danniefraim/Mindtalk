@@ -491,6 +491,9 @@ struct StartCard: View {
     @FocusState private var focus: MeetingSession.StartMode?
     /// "Kom ihåg rösterna" ⓘ: what it means, in a popover.
     @State private var aboutVoices = false
+    /// "Gör klart för möten" pressed: which downloads it began, so the one progress
+    /// line counts them together.
+    @State private var setupParts: (voices: Bool, speech: Bool)?
 
     /// Drawn to an image (`--render-…`): no models are loaded for it.
     private static var rendering: Bool {
@@ -502,7 +505,17 @@ struct StartCard: View {
     }
 
     /// Both doors open: the voices and the speech model are here.
-    private var ready: Bool { voices.state == .ready && dictation.engine.isInstalled }
+    private var ready: Bool { Self.modelsShownReady || (voices.state == .ready && dictation.engine.isInstalled) }
+
+    /// Renders with a fresh HOME have no models: `--models-ready` draws the card as if
+    /// they were there (nothing is loaded).
+    private static var modelsShownReady: Bool {
+        #if DEBUG
+        return rendering && CommandLine.arguments.contains("--models-ready")
+        #else
+        return false
+        #endif
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -537,6 +550,7 @@ struct StartCard: View {
             }
         }
         .animation(.spring(duration: 0.3, bounce: 0.15), value: importer.dropping)
+        .animation(.easeOut(duration: 0.25), value: session.voiceQuestion)
         .onDisappear { putDown() }
         .onChange(of: session.phase) { _, now in if now == .idle { starting = false } }
         .onAppear {
@@ -548,8 +562,12 @@ struct StartCard: View {
         // Ready again after preparing: the keyboard back on the remembered tile.
         .onChange(of: MeetingSession.preparing(remembered)) { _, now in if !now, session.armed { takeKeyboard() } }
         .background {
-            // Esc while the card waits: nothing starts, nothing is recorded.
-            if session.armed {
+            // Esc while the card waits (or asks about the voices): nothing starts,
+            // nothing is recorded.
+            if session.voiceQuestion != nil {
+                Button("") { session.cancelVoiceQuestion() }.keyboardShortcut(.cancelAction)
+                    .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
+            } else if session.armed {
                 Button("") { putDown(escaped: true) }.keyboardShortcut(.cancelAction)
                     .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
             }
@@ -564,8 +582,12 @@ struct StartCard: View {
                 Text(error).font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
                     .fixedSize(horizontal: false, vertical: true).padding(.top, 8)
             }
-            roomControl.padding(.top, 18)
-            if dictation.micGranted { foot.padding(.top, 20) }
+            if session.voiceQuestion != nil {
+                voiceQuestion.padding(.top, 18).transition(.opacity)
+            } else {
+                roomControl.padding(.top, 18)
+                if dictation.micGranted { foot.padding(.top, 20) }
+            }
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 26)
@@ -611,8 +633,31 @@ struct StartCard: View {
         }
     }
 
-    /// "Kom ihåg rösterna ⓘ" and a small switch. On from the start; switched off here or
-    /// in Settings. The voices are other people's, so ⓘ says to ask them.
+    /// Before the very first meeting, in place of the tiles: whether to remember the
+    /// voices. Nothing is recorded until it's answered; Return is "Inte nu", Esc goes back.
+    private var voiceQuestion: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Ska Mindtalk känna igen rösterna nästa gång?")
+                .font(.system(size: 17, weight: .semibold))
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Fråga dem först.")
+                .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
+            HStack(spacing: 10) {
+                Button("Ja, de har sagt ja") { session.answerVoiceQuestion(remember: true) }
+                    .buttonStyle(.ink)
+                Button("Inte nu") { session.answerVoiceQuestion(remember: false) }
+                    .buttonStyle(.soft)
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.top, 12)
+        }
+        .frame(maxWidth: 520, alignment: .leading)
+        .accessibilityElement(children: .contain)
+    }
+
+    /// "Kom ihåg rösterna ⓘ" and a small switch. Off until chosen; switched here or in
+    /// Settings, or asked before the first meeting. The voices are other people's, so ⓘ
+    /// says to ask them.
     private var voicesSwitch: some View {
         HStack(spacing: 7) {
             Text("Kom ihåg rösterna")
@@ -673,6 +718,9 @@ struct StartCard: View {
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 .disabled(dictation.phase != .idle || starting)
+                // Said where you press: the room should know.
+                Text("Säg till alla att mötet spelas in.")
+                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                 if let line = waitingLine {
                     Text(verbatim: line)
                         .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
@@ -803,8 +851,8 @@ struct StartCard: View {
         MeetingSession.startMode = introducing ? .round : .direct
         remembered = MeetingSession.startMode
         starting = true
-        session.start(introducing: introducing, folder: MeetingFolders.shared.selected)
-        if session.phase == .idle { starting = false }     // it couldn't: the card says why
+        session.startFromCard(introducing ? .round : .direct, folder: MeetingFolders.shared.selected)
+        if session.phase == .idle { starting = false }     // it couldn't (the card says why), or it asks first
     }
 
     /// Opened for a meeting: the remembered tile holds the keyboard, so Return starts.
@@ -826,82 +874,91 @@ struct StartCard: View {
         }
     }
 
+    // MARK: Before the first meeting: one button for all of it
+
+    /// What a meeting still needs, said once: the voices, the speech model, or both.
     private var detail: String {
-        let speech: String? = {
-            guard !dictation.engine.isInstalled else { return nil }
-            if case .downloading = dictation.model {
-                return String(localized: "Talmodellen laddas ned, så att Mindtalk kan skriva ned det som sägs.")
-            }
-            return voices.state == .ready
-                ? String(localized: "Mindtalk behöver talmodellen för att skriva ned det som sägs.")
-                : String(localized: "Mindtalk behöver också talmodellen för att skriva ned det som sägs.")
-        }()
-        let voicesLine: String?
-        switch voices.state {
-        case .ready:
-            voicesLine = speech == nil ? String(localized: "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar.") : nil
-        case .downloading:
-            voicesLine = String(localized: "Laddar ned Nemotron 3 från NVIDIA, så att Mindtalk hör vem som pratar.")
-        case .missing, .failed:
-            voicesLine = String(localized: "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (\(VoiceModels.sizeText)). Den laddas ned en gång och fungerar sedan utan internet.")
+        if setupFraction != nil {
+            return String(localized: "Mindtalk laddar ned det som behövs för möten. Du kan göra annat under tiden.")
         }
-        return [voicesLine, speech].compactMap { $0 }.joined(separator: " ")
+        let voicesMissing = voices.state != .ready, speechMissing = !dictation.engine.isInstalled
+        if voicesMissing, speechMissing {
+            return String(localized: "Möten behöver två modeller, en som hör vem som pratar och en som skriver ned det som sägs. De laddas ned en gång och fungerar sedan utan internet.")
+        }
+        if voicesMissing {
+            return String(localized: "Möten behöver en modell som hör vem som pratar. Den laddas ned en gång och fungerar sedan utan internet.")
+        }
+        return String(localized: "Möten behöver talmodellen för att skriva ned det som sägs. Den laddas ned en gång och fungerar sedan utan internet.")
+    }
+
+    /// What is left to download, counted from the models themselves.
+    private var setupBytes: Int64 {
+        (voices.state == .ready ? 0 : VoiceModels.downloadBytes)
+            + (dictation.engine.isInstalled ? 0 : dictation.engine.downloadBytes)
+    }
+
+    /// The downloads on their way, as one fraction by their sizes (nil: none is).
+    private var setupFraction: Double? {
+        let voicesOn: Bool = { if case .downloading = voices.state { return true }; return false }()
+        let speechOn = dictation.downloads[dictation.engine] != nil
+        guard voicesOn || speechOn else { return nil }
+        let parts = setupParts ?? (voices: voicesOn, speech: speechOn)
+        var done = 0.0, total = 0.0
+        if parts.voices {
+            let weight = Double(VoiceModels.downloadBytes)
+            total += weight
+            switch voices.state {
+            case .downloading(let p): done += p * weight
+            case .ready: done += weight
+            default: break
+            }
+        }
+        if parts.speech {
+            let weight = Double(dictation.engine.downloadBytes)
+            total += weight
+            if dictation.engine.isInstalled { done += weight } else { done += (dictation.downloads[dictation.engine] ?? 0) * weight }
+        }
+        return total > 0 ? min(1, done / total) : nil
+    }
+
+    /// Why a download stopped, if one did.
+    private var setupFailure: String? {
+        if case .failed(let message) = voices.state { return message }
+        return dictation.downloadErrors[dictation.engine]
+    }
+
+    /// "Gör klart för möten": every download a meeting needs, at once.
+    private func getReady() {
+        setupParts = (voices: voices.state != .ready, speech: !dictation.engine.isInstalled)
+        if voices.state != .ready { voices.download() }
+        if !dictation.engine.isInstalled { dictation.downloadModel() }
     }
 
     @ViewBuilder private var control: some View {
-        switch voices.state {
-        case .ready:
-            // (Ready and the speech model here is the tile above: here it's missing.)
-            if !dictation.micGranted {
-                Button("Tillåt mikrofonen") { dictation.fix(.microphone) }.buttonStyle(.ink)
-            } else if case .downloading(let p) = dictation.model {
-                VStack(alignment: .trailing, spacing: 6) {
-                    ProgressView(value: p).tint(DS.Colors.ink).frame(width: 140)
-                        .accessibilityLabel("Laddar ned talmodellen")
-                    Text(p, format: .percent.precision(.fractionLength(0)))
-                        .font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.Colors.muted)
-                }
-            } else if dictation.model == .loading {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text("Förbereder talmodellen").font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
-                }
-            } else {
-                Button("Ladda ned \(dictation.engine.title)") {
-                    SettingsPage.open(.language)     // the language rows, each with its Ladda ned
-                }
-                .buttonStyle(.soft)
-            }
-        case .downloading(let p):
-            VStack(alignment: .trailing, spacing: 8) {
-                ProgressView(value: p).tint(DS.Colors.ink).frame(width: 140)
-                    .accessibilityLabel("Laddar ned Nemotron 3")
-                Text(p, format: .percent.precision(.fractionLength(0)))
-                    .font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.Colors.muted)
-                speechModelButton
-            }
-        case .missing:
-            VStack(alignment: .trailing, spacing: 8) {
-                Button("Ladda ned \(VoiceModels.sizeText)") { voices.download() }.buttonStyle(.ink)
-                speechModelButton
-            }
-        case .failed(let message):
+        if let fraction = setupFraction {
             VStack(alignment: .trailing, spacing: 6) {
-                Button("Försök igen") { voices.download() }.buttonStyle(.soft)
-                Text(message).font(.system(size: 11)).foregroundStyle(DS.Colors.warning)
-                    .lineLimit(2).frame(maxWidth: 200, alignment: .trailing)
-                speechModelButton
+                ProgressView(value: fraction).tint(DS.Colors.ink).frame(width: 180)
+                    .accessibilityLabel("Gör klart för möten")
+                HStack(spacing: 4) {
+                    Text("Laddar ned")
+                    Text(fraction, format: .percent.precision(.fractionLength(0))).monospacedDigit()
+                }
+                .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
             }
-        }
-    }
-
-    /// The speech model missing as well: a way to it right here, so the card is no
-    /// dead end. Nothing while it's on its way or starting (the detail says so).
-    @ViewBuilder private var speechModelButton: some View {
-        if !dictation.engine.isInstalled, dictation.micGranted {
-            switch dictation.model {
-            case .downloading, .loading: EmptyView()
-            default: Button("Ladda ned talmodellen") { dictation.downloadModel() }.buttonStyle(.soft)
+        } else if setupBytes > 0 {
+            VStack(alignment: .trailing, spacing: 6) {
+                Button("Gör klart för möten (\(DiskSize.text(setupBytes)))") { getReady() }
+                    .buttonStyle(.ink)
+                    .help("Laddar ned det som behövs för möten. Sedan fungerar det utan internet.")
+                if let failure = setupFailure {
+                    Text(failure).font(.system(size: 11)).foregroundStyle(DS.Colors.warning)
+                        .lineLimit(2).frame(maxWidth: 220, alignment: .trailing)
+                }
+            }
+        } else if dictation.model == .loading {
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Förbereder talmodellen").font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
             }
         }
     }
@@ -1228,7 +1285,8 @@ struct SpeakerChip: View {
     let merge: (Int) -> Void
     @State private var editing = false
 
-    enum Style { case chip, name }
+    /// `newVoice`: "Ny röst. Vem är det?", a voice heard first after the room was known.
+    enum Style { case chip, name, newVoice }
     @State private var draft = ""
     /// Under the pointer: the name underlined and a pencil, so it reads as something to click.
     @State private var hovering = false
@@ -1265,6 +1323,17 @@ struct SpeakerChip: View {
                         .accessibilityHidden(true)
                 }
                 .contentShape(Rectangle())
+            case .newVoice:
+                HStack(spacing: 6) {
+                    VoiceBadge(speaker: speaker, cast: cast, size: 18)
+                    Text("Ny röst. Vem är det?").font(.system(size: 12.5, weight: .semibold)).lineLimit(1).fixedSize()
+                }
+                .padding(.leading, 3)
+                .padding(.trailing, 11)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(DS.Colors.chip))
+                .overlay(Capsule().strokeBorder(DS.Colors.ink.opacity(hovering ? 0.35 : 0.15), lineWidth: 1))
+                .contentShape(Capsule())
             }
         }
         .buttonStyle(.plain)
@@ -1367,6 +1436,12 @@ struct MeetingView: View {
     @State private var confirmRemoveAudio = false
     @State private var changingDate = false
     @State private var copied = false
+    /// "Kopiera till mejl" just pressed: "Kopierat" for a moment.
+    @State private var mailCopied = false
+    /// ⌘F: "Sök i mötet", what's searched for, and which place you're at.
+    @State private var finding = false
+    @State private var findQuery = ""
+    @State private var findIndex = 0
     @State private var tab: Tab = .summary
     /// "Visa i texten" from a source: the turn to scroll to.
     @State private var focusTurn: Int?
@@ -1384,14 +1459,30 @@ struct MeetingView: View {
     private var meeting: some View {
         let cast = record.cast
         let turns = MeetingText.turns(record.words, pending: pending, paragraphs: true)
+        let hits = finding ? MeetingFind.hits(findQuery, in: turns) : []
+        let hit = hits.isEmpty ? nil : hits[min(findIndex, hits.count - 1)]
         return VStack(spacing: 0) {
             header(cast)
+            if finding {
+                MeetingFindBar(query: $findQuery, count: hits.count, current: min(findIndex, max(0, hits.count - 1)),
+                               step: { by in
+                                   guard !hits.isEmpty else { return }
+                                   findIndex = (min(findIndex, hits.count - 1) + by + hits.count) % hits.count
+                               },
+                               close: closeFind)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .pageColumn(width)
+                    .padding(.bottom, 10)
+                    .transition(.opacity)
+                    .onChange(of: findQuery) { _, _ in findIndex = 0 }
+            }
             RememberVoicesOffer(record: record, live: live).padding(.bottom, 12)
             ZStack {
                 if live || tab == .transcript {
                     TranscriptView(record: record, turns: turns, cast: cast, session: session, width: width,
                                    edit: edit, focusTurn: $focusTurn, focusNote: $focusNote,
-                                   changed: showChanges ? Set(record.heal?.changed ?? []) : [])
+                                   changed: showChanges ? Set(record.heal?.changed ?? []) : [],
+                                   finding: finding ? findQuery : "", findHit: hit)
                         .transition(.opacity.combined(with: .offset(y: 6)))
                 } else {
                     SummaryView(record: record, turns: turns, cast: cast, notes: notes, width: width, edit: edit, showInText: { at in
@@ -1424,6 +1515,12 @@ struct MeetingView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // ⌘F: "Sök i mötet", in the text (the page's own search is on the list).
+        .background {
+            Button("") { openFind() }.keyboardShortcut("f", modifiers: .command)
+                .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
+        }
+        .animation(.easeOut(duration: 0.2), value: finding)
         .onDisappear {
             // A title being typed when the page goes (⌘[, the meeting ending) is kept.
             if editingTitle { commitTitle() }
@@ -1442,6 +1539,12 @@ struct MeetingView: View {
             }
             #if DEBUG
             if CommandLine.arguments.contains("--meeting-text") { tab = .transcript }
+            // Renders: `--find-query "ord"`, the search open with that typed.
+            if let i = CommandLine.arguments.firstIndex(of: "--find-query"), i + 1 < CommandLine.arguments.count {
+                openFind()
+                findQuery = CommandLine.arguments[i + 1]
+                findIndex = 1
+            }
             #endif
         }
         .onChange(of: record.title) { _, t in if !editingTitle { title = t } }
@@ -1535,6 +1638,8 @@ struct MeetingView: View {
             }
             healLine
             banner
+            // While it runs: is it over, a new voice, many voices, which of them is you.
+            if let session { LiveNotices(session: session, record: record, cast: cast, edit: edit) }
             SaveProblemLine()
             if !live { FolderSuggestion(record: record) }
             // "Fortsätt mötet" couldn't: why, here where you pressed it.
@@ -1554,6 +1659,18 @@ struct MeetingView: View {
     private func commitTitle() {
         let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.isEmpty { title = record.title } else { edit.rename(t) }
+    }
+
+    /// ⌘F: the text, with the field to search it.
+    private func openFind() {
+        if !live, tab != .transcript { withAnimation(.spring(duration: 0.35, bounce: 0.15)) { tab = .transcript } }
+        finding = true
+    }
+
+    private func closeFind() {
+        finding = false
+        findQuery = ""
+        findIndex = 0
     }
 
     private var meta: String {
@@ -1644,6 +1761,25 @@ struct MeetingView: View {
                 .buttonStyle(.plain)
                 .help("Mötet fortsätter i en liten panel bredvid det du gör")
             }
+            // The summary for a mail: headings and lists that Mail and Outlook keep.
+            if !live, record.summary != nil {
+                Button {
+                    MeetingExport.copyForMail(record)
+                    mailCopied = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { mailCopied = false }
+                } label: {
+                    Label(mailCopied ? String(localized: "Kopierat") : String(localized: "Kopiera till mejl"),
+                          systemImage: mailCopied ? "checkmark" : "envelope")
+                        .contentTransition(.symbolEffect(.replace))
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .padding(.horizontal, 12)
+                        .frame(height: 30)
+                        .background(Capsule().fill(DS.Colors.chip))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .help("Kopierar sammanfattningen med rubriker och listor, redo att klistra in i ett mejl")
+            }
             if !live { ExportMenu(record: record) }
             Button(action: copy) {
                 Image(systemName: copied ? "checkmark" : "doc.on.doc")
@@ -1723,7 +1859,11 @@ struct MeetingView: View {
     }
 
     private func copy() {
-        put(!live && tab == .summary && record.summary != nil ? MeetingNotes.markdown(record) : MeetingText.plain(record))
+        if !live, tab == .summary, record.summary != nil {
+            MeetingExport.copySummary(record)
+        } else {
+            put(MeetingText.plain(record))
+        }
         copied = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
     }
@@ -1782,6 +1922,9 @@ private struct TranscriptView: View {
     @Binding var focusTurn: Int?
     @Binding var focusNote: Int?
     var changed: Set<Int> = []
+    /// ⌘F: what's searched for ("" when nothing), and the place you're at.
+    var finding = ""
+    var findHit: MeetingFind.Hit? = nil
     /// Renders: the rows in a plain stack, no scroll view (ImageRenderer draws none).
     var flat = false
     @ObservedObject private var player = MeetingPlayer.shared
@@ -1819,6 +1962,8 @@ private struct TranscriptView: View {
                     firstIndex: turn.id,
                     changed: changed,
                     karaoke: playing ? player.time : nil,
+                    finding: finding,
+                    findCurrent: findHit?.turn == turn.id ? findHit?.index : nil,
                     focused: focusTurn == turn.id,
                     play: live || !record.hasAudio ? nil : { player.play(record.id, from: turn.start) },
                     move: turn.id < end && turn.pending.isEmpty
@@ -1883,6 +2028,12 @@ private struct TranscriptView: View {
             .onChange(of: playingTurn) { _, id in
                 guard let id, player.isPlaying else { return }
                 withAnimation(.smooth(duration: 0.6)) { proxy.scrollTo(id, anchor: .center) }
+            }
+            // ⌘F: the place you're at, in the middle of the view.
+            .onChange(of: findHit, initial: true) { _, hit in
+                guard let hit else { return }
+                following = false
+                withAnimation(.smooth(duration: 0.35)) { proxy.scrollTo(hit.turn, anchor: .center) }
             }
             .onChange(of: focusTurn, initial: true) { _, id in
                 guard let id else { return }
@@ -1992,6 +2143,9 @@ private struct TurnRow: View {
     var changed: Set<Int> = []
     /// Listening: how far the voice has come.
     var karaoke: Double? = nil
+    /// ⌘F: what's searched for, and which of its places here is the one you're at.
+    var finding = ""
+    var findCurrent: Int? = nil
     let focused: Bool
     let play: (() -> Void)?
     let move: ((Int) -> Void)?
@@ -2105,6 +2259,9 @@ private struct TurnRow: View {
                     let on = Int(context.date.timeIntervalSinceReferenceDate / 0.5) % 2 == 0
                     text(cursor: turn.pending.isEmpty ? nil : on)
                 }
+            } else if !finding.trimmingCharacters(in: .whitespaces).isEmpty,
+                      !MeetingFind.ranges(of: finding, in: turn.text).isEmpty {
+                Text(turn.spoken(cast: cast, finding: finding, current: findCurrent))
             } else if !words.isEmpty, karaoke != nil || showsChanges {
                 Text(wordByWord)
             } else {
@@ -2524,7 +2681,7 @@ private struct NotesList: View {
                     .help("Du markerade det här under mötet")
                     .accessibilityLabel("Markerat av dig")
             }
-            if let owner = item.owner { OwnerTag(name: owner, cast: cast) }
+            if let owner = item.owner { OwnerTag(name: owner, shown: record.shownOwner(owner), cast: cast) }
             if let at = item.at {
                 Receipt(at: at, record: record, cast: cast, turns: turns, showInText: showInText)
             }
@@ -2566,16 +2723,18 @@ private struct NotesList: View {
     }
 }
 
-/// Who does it — their mark and name, if they're one of the speakers.
+/// Who does it — their mark and name, if they're one of the speakers; "Du" when it's you.
 private struct OwnerTag: View {
     let name: String
+    /// As shown: the name, or "Du".
+    let shown: String
     let cast: Cast
 
     var body: some View {
         let speaker = cast.order.first { cast.name(of: $0).caseInsensitiveCompare(name) == .orderedSame }
         HStack(spacing: 5) {
             if let speaker { SpeakerMark(speaker: speaker, cast: cast, size: 18) }
-            Text(name).font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
+            Text(shown).font(.system(size: 12.5, weight: .medium)).foregroundStyle(DS.Colors.muted)
                 .lineLimit(1).frame(maxWidth: 120, alignment: .trailing).fixedSize()
         }
     }
@@ -2814,7 +2973,7 @@ private struct LiveBar: View {
         }
         .buttonStyle(.plain)
         .help("Avsluta mötet. Du kan ångra i några sekunder.")
-        .accessibilityLabel("Avsluta mötet")
+        .accessibilityLabel("meeting|Avsluta")
     }
 }
 
@@ -2866,16 +3025,19 @@ private struct ReviewBar: View {
     @ObservedObject private var player = MeetingPlayer.shared
     @State private var question = ""
     @FocusState private var focused: Bool
+    /// The pointer over the suggestions: they stay while you reach for one.
+    @State private var overSuggestions = false
 
     private var busy: Bool { notes.answering.contains(record.id) }
     private var empty: Bool { question.trimmingCharacters(in: .whitespaces).isEmpty }
-    private static let suggestions: [LocalizedStringResource] = ["Vad bestämdes?", "Vem gör vad?", "Vad var det viktigaste?"]
+    private static let suggestions: [LocalizedStringResource] = ["Vad lovade jag?", "Skriv ett mejl till deltagarna", "Vad bestämdes?"]
 
     var body: some View {
         VStack(spacing: 10) {
             if player.meeting == record.id {
                 PlayerBar(player: player).transition(.move(edge: .bottom).combined(with: .opacity))
-            } else if MeetingNotes.isAvailable, record.answers.isEmpty, empty, !busy {
+            } else if MeetingNotes.isAvailable, focused || overSuggestions, empty, !busy {
+                // Only once you're in the field: then they don't cover the notes.
                 HStack(spacing: 8) {
                     ForEach(Self.suggestions, id: \.key) { s in
                         Button { ask(String(localized: s)) } label: {
@@ -2890,12 +3052,14 @@ private struct ReviewBar: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .transition(.opacity)
+                .onHover { overSuggestions = $0 }
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
             // Nothing here can answer: the field stays, greyed, and says what it needs.
             field.disabled(!MeetingNotes.isAvailable).opacity(MeetingNotes.isAvailable ? 1 : 0.6)
         }
         .animation(.spring(duration: 0.35, bounce: 0.15), value: player.meeting)
+        .animation(.spring(duration: 0.3, bounce: 0.15), value: focused)
         .padding(.bottom, 20)
         .pageColumn(width)
     }

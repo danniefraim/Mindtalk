@@ -411,11 +411,11 @@ struct VoiceScanner: View {
             // waits until it has flown down.
             let hidden = big == nil || revealing != nil
             return VStack(spacing: 12) {
-                Text(big ?? " ")
-                    .font(.system(size: min(88, max(52, width * 0.075)), weight: .regular, design: .serif)).italic()
-                    .foregroundStyle(.white)
-                    .lineLimit(1).minimumScaleFactor(0.5)
-                    .frame(maxWidth: max(200, width - 2 * 340))
+                // Clear of "I rummet" on the left and the name card on the right. A long
+                // line ("Välkommen tillbaka, Kristoffer") gets smaller rather than cut,
+                // and only as a last resort goes onto two lines, broken between words.
+                BigLine(text: big ?? " ", size: min(88, max(52, width * 0.075)))
+                    .frame(maxWidth: max(320, width - 2 * 270))
                     .opacity(hidden ? 0 : 1)
                     .blur(radius: hidden ? 14 : 0)
                     .animation(.easeOut(duration: 0.35), value: hidden)
@@ -445,6 +445,36 @@ struct VoiceScanner: View {
         }
 
         static let night = DS.Colors.night
+
+        /// The big line: whole at its size if it fits, else a little smaller, else
+        /// smaller still; failing that, two lines. Never cut short, never mid-word.
+        private struct BigLine: View {
+            let text: String
+            let size: CGFloat
+
+            var body: some View {
+                ViewThatFits(in: .horizontal) {
+                    line(size)
+                    line(size * 0.82)
+                    line(size * 0.66)
+                    line(size * 0.52)
+                    Text(text)
+                        .font(.system(size: size * 0.52, weight: .regular, design: .serif)).italic()
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            private func line(_ size: CGFloat) -> some View {
+                Text(text)
+                    .font(.system(size: size, weight: .regular, design: .serif)).italic()
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+        }
 
         /// The reveal's capture: the one it was made for, or (a known voice, whose
         /// capture comes a moment after the greeting) the one in its colour.

@@ -676,7 +676,11 @@ final class IntroRound: ObservableObject {
             figure = VoiceFigure.from(seed: "sara")
             progress = 0.6
             set(.listening)
-        case "known": figure = VoiceFigure.from(seed: "erik"); progress = 1; knownMatch = ("Erik", 0.8); set(.known("Erik"))
+        case "known":
+            // `--round-name "Kristoffer"`: a longer name, to see the greeting fit.
+            let name = CommandLine.arguments.firstIndex(of: "--round-name")
+                .flatMap { $0 + 1 < CommandLine.arguments.count ? CommandLine.arguments[$0 + 1] : nil } ?? "Erik"
+            figure = VoiceFigure.from(seed: name.lowercased()); progress = 1; knownMatch = (name, 0.8); set(.known(name))
         case "new":
             figure = VoiceFigure.from(seed: "sara"); progress = 1; draft = "Sara"
             formingPrint = VoiceMemory.demoPrint("sara")

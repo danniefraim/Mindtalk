@@ -38,7 +38,7 @@ final class VoiceModels: ObservableObject {
     static let final = Nemotron3Config.fast128
     /// Both bundles, rounded — shown before downloading.
     static let sizeText = "400 MB"
-    private static let downloadBytes: Int64 = 400_000_000
+    static let downloadBytes: Int64 = 400_000_000
     /// The commit of FluidInference/nemotron-3-diarization-coreml that's fetched (pinned
     /// at launch, `ModelPins`): a changed upstream branch can't slip in other weights.
     static let revision = "25a90f97f254428d4b30374b76af9c74fdee8327"

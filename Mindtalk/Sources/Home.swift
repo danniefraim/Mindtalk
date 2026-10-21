@@ -126,7 +126,9 @@ struct HomeHero: View {
             if session.isRecording {
                 LiveMeeting(session: session, ink: ink)
             } else if case .finishing(let what) = session.phase {
-                Text("Mötet är slut").font(.system(size: 40, weight: .regular, design: .serif)).foregroundStyle(ink)
+                Text(verbatim: MeetingSession.endedSentence())
+                    .font(.system(size: 30, weight: .regular, design: .serif)).foregroundStyle(ink)
+                    .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 10) {
                     SettlingLine(color: ink).frame(width: 48)
                     Text(what).font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
