@@ -683,7 +683,15 @@ struct SettingsPage: View {
     @ViewBuilder private var meetingsSection: some View {
         // Meetings can't be recorded without it: first, until it's here.
         if voices.state != .ready { VoiceModelSettingsCard() }
-        meetingKeyRow(title: "Starta ett möte").card()
+        VStack(spacing: 0) {
+            meetingKeyRow(title: "Starta ett möte")
+            CardDivider()
+            CardRow(title: "Visa panelen när du lämnar Mindtalk",
+                    detail: "Under ett möte syns panelen ovanpå det du jobbar med. Den går undan när du kommer tillbaka.") {
+                InkToggle(label: "Visa panelen när du lämnar Mindtalk", isOn: $prefs.panelWhenAway)
+            }
+        }
+        .card()
         MeetingStorageCard()
         VoiceMemoryCard(memory: .shared)
         SummaryWritersCard().id(SettingsAnchor.summaries)

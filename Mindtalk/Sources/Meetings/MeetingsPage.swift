@@ -1702,6 +1702,22 @@ struct MeetingView: View {
     /// it as a panel and copying the text are under a small ⋯ at its end.
     private func liveHeader(_ session: MeetingSession, _ cast: Cast, column: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 8) {
+            // The meeting beside your work: a button you see, where Dela stands afterwards.
+            HStack {
+                Spacer()
+                Button { MeetingPanel.shared.collapse() } label: {
+                    Label("Visa som panel", systemImage: "rectangle.portrait.on.rectangle.portrait")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .padding(.horizontal, 12)
+                        .frame(height: 30)
+                        .background(Capsule().fill(DS.Colors.chip))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(!session.isBusy || session.introducing)
+                .help("Mötet i en liten panel ovanpå det du jobbar med")
+            }
+            .frame(height: 30)
             titleField
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 metaLine(cast, lead: liveStatus(session))
@@ -1723,8 +1739,6 @@ struct MeetingView: View {
     /// The meeting beside your work (as closing the window does), and the text copied.
     private func liveMore(_ session: MeetingSession) -> some View {
         Menu {
-            Button("Visa som panel") { MeetingPanel.shared.collapse() }
-                .disabled(!session.isBusy)
             Button("Kopiera texten", action: copy)
                 .disabled(record.words.isEmpty)
         } label: {

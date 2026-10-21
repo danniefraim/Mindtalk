@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import SwiftUI
 import UserNotifications
+import os
 
 // MARK: - The meeting panel
 //
@@ -19,6 +20,7 @@ import UserNotifications
 @MainActor
 final class MeetingPanel: ObservableObject {
     static let shared = MeetingPanel()
+    private static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "Meeting")
 
     /// Where the meeting is shown while it runs.
     enum Home { case panel, window }
@@ -62,6 +64,10 @@ final class MeetingPanel: ObservableObject {
     private var watchingRound: AnyCancellable?
     /// The move to the panel, a moment after a meeting started from elsewhere.
     private var handOff: Task<Void, Never>?
+    /// Shown because you turned to another app while the meeting was in the window:
+    /// it goes again when you come back to Mindtalk.
+    private var away = false
+    private var watchingApp: [AnyCancellable] = []
 
     private init() {}
 
@@ -78,6 +84,35 @@ final class MeetingPanel: ObservableObject {
             .removeDuplicates()
             .receive(on: RunLoop.main)
             .sink { [weak self] on in self?.roundChanged(on) }
+        watchingApp = [
+            NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.leftMindtalk() },
+            NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.backInMindtalk() },
+        ]
+    }
+
+    /// Another app in front while the meeting is in the window: the panel over your
+    /// work, so the meeting is still in sight. Not during the round (it needs the
+    /// window), nor once the meeting is being written out.
+    private func leftMindtalk() {
+        let session = MeetingSession.shared
+        guard Settings.panelWhenAway, home == .window, !isVisible, session.isBusy, !session.stopping,
+              !session.introducing, AppDelegate.mainWindowVisible, !AppDelegate.isQuitting else { return }
+        if case .finishing = session.phase { return }
+        away = true
+        show()
+        Self.log.notice("panel: shown while away from Mindtalk")
+    }
+
+    /// Back in Mindtalk: the panel that came by itself goes again (the window has the meeting).
+    private func backInMindtalk() {
+        guard away else { return }
+        away = false
+        guard home == .window else { return }
+        hide()
     }
 
     /// "Presentationsrunda" from the panel: the round needs the room's screen.
@@ -136,7 +171,8 @@ final class MeetingPanel: ObservableObject {
     /// where the meeting was; the panel says it's done; put away, a notification does.
     private func finished(_ id: UUID?) {
         guard !AppDelegate.isQuitting else { return }
-        if home == .window, AppDelegate.mainWindowVisible { return }
+        // Away in another app with the panel up: it says the meeting is done, as the panel does.
+        if home == .window, AppDelegate.mainWindowVisible, !away { return }
         let record = id.flatMap { id in MeetingStore.shared.meetings.first { $0.id == id } }
         done = record.map { .meeting(id: $0.id, title: $0.title) } ?? .nothingHeard
         if isVisible { return }

@@ -223,6 +223,13 @@ extension Settings {
         set { Settings.keep(newValue.rawValue, forKey: "mediaMode") }
     }
 
+    /// During a meeting, the panel comes over your work when you turn to another app,
+    /// and goes again when you come back. On unless turned off.
+    static var panelWhenAway: Bool {
+        get { UserDefaults.standard.object(forKey: "meetingPanelWhenAway") as? Bool ?? true }
+        set { Settings.keep(newValue, forKey: "meetingPanelWhenAway") }
+    }
+
     /// A soft sound when dictation starts and when the text is pasted.
     static var sounds: Bool {
         get { UserDefaults.standard.object(forKey: "sounds") as? Bool ?? true }
@@ -255,6 +262,9 @@ final class AppPrefs: ObservableObject {
     }
     @Published var keepInClipboard = Settings.keepInClipboard {
         didSet { Settings.keepInClipboard = keepInClipboard }
+    }
+    @Published var panelWhenAway = Settings.panelWhenAway {
+        didSet { Settings.panelWhenAway = panelWhenAway }
     }
     @Published var aiPolish = Settings.aiPolish {
         didSet {

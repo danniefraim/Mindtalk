@@ -22646,6 +22646,22 @@
         }
       }
     },
+    "Mötet i en liten panel ovanpå det du jobbar med": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting in a small panel over whatever you are working in"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet i en liten panel ovanpå det du jobbar med"
+          }
+        }
+      }
+    },
     "Mötet kunde inte exporteras": {
       "localizations": {
         "en": {
@@ -33248,6 +33264,22 @@
         }
       }
     },
+    "Under ett möte syns panelen ovanpå det du jobbar med. Den går undan när du kommer tillbaka.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "During a meeting, the panel shows over whatever you are working in. It goes away when you come back."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Under ett möte syns panelen ovanpå det du jobbar med. Den går undan när du kommer tillbaka."
+          }
+        }
+      }
+    },
     "Under mötet går frågor bara med Apple Intelligence. Fråga igen när mötet är klart.": {
       "localizations": {
         "en": {
@@ -34840,6 +34872,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa mötet i panelen"
+          }
+        }
+      }
+    },
+    "Visa panelen när du lämnar Mindtalk": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the panel when you leave Mindtalk"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa panelen när du lämnar Mindtalk"
           }
         }
       }
