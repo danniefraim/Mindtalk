@@ -65,7 +65,7 @@ struct VoiceScanner: View {
         @State private var reveal: Reveal?
         /// When the reveal came up: it stands at least this long.
         @State private var shownAt: Date?
-        static let hold = 3.0
+        static let hold = 1.8
         /// The ring's single pulse.
         @State private var pulse = false
         @State private var revealTask: Task<Void, Never>?
@@ -149,6 +149,7 @@ struct VoiceScanner: View {
                     var transaction = Transaction()
                     transaction.disablesAnimations = true
                     withTransaction(transaction) { reveal?.capture = c.id }
+                    moveOn()
                 }
             }
             // The next person's voice: the reveal has had its time, down it goes.
@@ -159,9 +160,9 @@ struct VoiceScanner: View {
         // MARK: The moment
 
         /// All of it over the round going on: the ring closes and pulses once, and the
-        /// figure and the name stand under the cloud. It stays at least three seconds,
-        /// and then until the next person is heard (`moveOn`). With Reduce Motion it
-        /// fades in and out instead.
+        /// figure and the name stand under the cloud for a moment (`hold`), then fly
+        /// into "I rummet" on their own (`moveOn`), so the stage is the next person's.
+        /// With Reduce Motion it fades in and out instead.
         private func show(_ r: Reveal) {
             revealTask?.cancel()
             pulse = false
@@ -179,14 +180,14 @@ struct VoiceScanner: View {
             }
         }
 
-        /// The reveal flies down into "I rummet" once it has stood its time and the
-        /// next person has begun to talk (a third of a second of speech in the next
-        /// turn), or the round is closing. Until then it stays: the room gets to see it.
+        /// The reveal flies down into "I rummet" as soon as it has stood its time: the
+        /// name is settled, the room has seen it, and the stage is the next person's.
+        /// A known voice joins "I rummet" when they stop talking (or after four seconds):
+        /// its name waits for that row, so it lands on it.
         private func moveOn() {
             guard let r = reveal, !r.flying, let at = shownAt, Date().timeIntervalSince(at) >= Self.hold else { return }
-            let nextVoice = round.turn > r.turn && round.progress >= 0.1
             let closing = { if case .closing = round.phase { return true }; return round.wantsToEnd }()
-            guard nextVoice || closing else { return }
+            guard r.capture != nil || closing else { return }
             fly(r)
         }
 
@@ -375,11 +376,7 @@ struct VoiceScanner: View {
                 // and for as long as their name stands on the cloud, so the room knows it
                 // can go on.
                 case .ready, .listening where round.progress == 0:
-                    if let last = round.captures.last,
-                       revealing != nil || round.thankedAt.map({ Date().timeIntervalSince($0) < 2.5 }) == true {
-                        return (String(localized: "Person \(round.turn)"), String(localized: "Tack, \(last.name)"),
-                                String(localized: "Nästa person: ”Hej, jag heter …”"))
-                    }
+                    // The name flying into "I rummet" is the thanks: then straight to the next person.
                     return round.turn == 1
                         ? (String(localized: "Person 1"), String(localized: "”Hej, jag heter …”"), String(localized: "Säg det med ditt namn. En i taget, vem som helst kan börja."))
                         : (String(localized: "Person \(round.turn)"), String(localized: "Nästa: ”Hej, jag heter …”"), String(localized: "Det räcker med hej och ditt namn."))
@@ -407,9 +404,10 @@ struct VoiceScanner: View {
             let accent = Constellation.rgb(SpeakerMark.fill(round.captures.count))
             let tint = Color(red: accent.x, green: accent.y, blue: accent.z)
 
-            // The name stands over the cloud for a moment (the reveal): the big line
-            // waits until it has flown down.
-            let hidden = big == nil || revealing != nil
+            // The name stands under the cloud for a moment (the reveal): the words and
+            // the button wait until it has flown down, so nothing lies under it.
+            let veiled = revealing != nil
+            let hidden = big == nil || veiled
             return VStack(spacing: 12) {
                 // Clear of "I rummet" on the left and the name card on the right. A long
                 // line ("Välkommen tillbaka, Kristoffer") gets smaller rather than cut,
@@ -421,7 +419,9 @@ struct VoiceScanner: View {
                     .animation(.easeOut(duration: 0.35), value: hidden)
                     .contentTransition(.opacity)
                 Text(line).font(.system(size: 16)).foregroundStyle(.white.opacity(0.75))
-                if round.phase == .listening || { if case .known = round.phase { return true }; return false }() {
+                    .opacity(veiled ? 0 : 1)
+                    .animation(.easeOut(duration: 0.35), value: veiled)
+                if !veiled, round.phase == .listening || { if case .known = round.phase { return true }; return false }() {
                     Button { round.next() } label: {
                         Text("Nästa").font(.system(size: 12.5, weight: .semibold)).padding(.horizontal, 6)
                     }
