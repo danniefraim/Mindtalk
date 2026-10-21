@@ -229,20 +229,26 @@ struct SummaryWritersCard: View {
             : String(localized: "Välj vem som skriver dem.")
     }
 
-    /// The one Gemma shown with Apple Intelligence: the one that suits this Mac, or the
-    /// smaller when neither runs here (its row says why).
-    static var primaryGemma: NotesModel { NotesModel.recommended ?? .small }
-    /// The rest, under "Fler alternativ".
-    static var otherGemmas: [NotesModel] { NotesModel.allCases.filter { $0 != primaryGemma } }
+    /// The one Gemma shown with Apple Intelligence: the one you chose, else the one that
+    /// suits this Mac, or the smaller when neither runs here (its row says why). The
+    /// chosen one first: with the disk nearly full the larger one is "recommended" though
+    /// it doesn't fit, and yours would sit folded away under it.
+    @MainActor static var primaryGemma: NotesModel { BetterNotes.shared.chosen ?? NotesModel.recommended ?? .small }
 
     @State private var summaryLanguage = SummaryLanguage.chosen
     /// "Fler alternativ": the other Gemma and the writers in other programs, folded unless
     /// one of them writes now.
     @State private var more: Bool
+    /// Settled when the card appears: choosing the other Gemma doesn't move the rows.
+    @State private var primary: NotesModel
+    /// The rest, under "Fler alternativ".
+    private var otherGemmas: [NotesModel] { NotesModel.allCases.filter { $0 != primary } }
 
     init() {
         let notes = BetterNotes.shared
-        _more = State(initialValue: notes.server != nil || Self.otherGemmas.contains { notes.chosen == $0 })
+        let primary = Self.primaryGemma
+        _primary = State(initialValue: primary)
+        _more = State(initialValue: notes.server != nil || (notes.chosen != nil && notes.chosen != primary))
     }
 
     var body: some View {
@@ -251,7 +257,7 @@ struct SummaryWritersCard: View {
             CardDivider()
             appleRow
             CardDivider()
-            notesRow(Self.primaryGemma, primary: true)
+            notesRow(primary, primary: true)
             CardDivider()
             // The language they're written in, whoever writes them.
             CardRow(title: "Språk", detail: "Sammanfattningen skrivs på mötets språk om du inte väljer ett annat.") {
@@ -260,12 +266,12 @@ struct SummaryWritersCard: View {
             }
             CardDivider()
             FoldRow(title: String(localized: "Fler alternativ"),
-                    detail: Self.primaryGemma == .small
+                    detail: primary == .small
                         ? String(localized: "En större Gemma, eller en modell du redan kör i Ollama eller LM Studio.")
                         : String(localized: "En mindre Gemma, eller en modell du redan kör i Ollama eller LM Studio."),
                     open: $more)
             if more {
-                ForEach(Self.otherGemmas) { m in
+                ForEach(otherGemmas) { m in
                     CardDivider()
                     notesRow(m, primary: false)
                 }
@@ -276,7 +282,7 @@ struct SummaryWritersCard: View {
         .card()
         // Chosen elsewhere meanwhile (the menu bar, a test): shown where it is.
         .onChange(of: notes.choice) { _, now in
-            if notes.server != nil || Self.otherGemmas.contains(where: { now == .gemma($0) }) { more = true }
+            if notes.server != nil || otherGemmas.contains(where: { now == .gemma($0) }) { more = true }
         }
         .task(id: NotesModel.allCases.map { "\($0.isInstalled)" }.joined()) {
             onDisk = await DiskSize.measure(NotesModel.allCases.map(\.directory))

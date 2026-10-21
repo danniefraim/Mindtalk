@@ -44,6 +44,8 @@ enum WindowRender {
         MainView.startPage = value("--page").flatMap { pages[$0] } ?? .dictation
         MainView.rendering = true
         SettingsSection.preview = value("--section").flatMap(SettingsSection.init(rawValue:)) ?? .general
+        // `--anchor summaries`: Settings scrolled to that card, as a link to it does.
+        SettingsPage.pendingAnchor = value("--anchor").flatMap(SettingsAnchor.init(rawValue:))
         if Demo.on { WindowDemo.fill(openMeeting: args.contains("--open-meeting")) }
         if args.contains("--tried"), Demo.on, var first = MeetingStore.shared.meetings.first, var summary = first.summary {
             summary.writer = NotesModel.small.name
