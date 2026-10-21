@@ -11051,6 +11051,22 @@
         }
       }
     },
+    "Gäller diktering och möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For dictation and meetings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gäller diktering och möten."
+          }
+        }
+      }
+    },
     "Gå till": {
       "extractionState": "stale",
       "localizations": {
@@ -15089,6 +15105,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Jag lyssnar…"
+          }
+        }
+      }
+    },
+    "Jag pratar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I speak"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jag pratar"
           }
         }
       }
@@ -35867,6 +35899,23 @@
         }
       }
     },
+    "flera språk": {
+      "comment": "The multilingual speech model, mid-sentence",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "several languages"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "flera språk"
+          }
+        }
+      }
+    },
     "flerspråkig": {
       "comment": "The multilingual speech model, mid-sentence",
       "localizations": {
@@ -38695,6 +38744,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "⌘1 och ⌘2 byter språk"
+          }
+        }
+      }
+    },
+    "⌘1 och ⌘2 byter talmodell": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘1 and ⌘2 switch the speech model"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘1 och ⌘2 byter talmodell"
           }
         }
       }

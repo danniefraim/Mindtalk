@@ -202,6 +202,7 @@ struct StatusPanelView: View {
             PanelRow(title: "Öppna Mindtalk", icon: "house") { go(.dictation) }
             PanelSeparator()
             language
+            appearance
             PanelSeparator()
             PanelRow(title: "Inställningar…", shortcut: "⌘,") { go(.settings) }
             PanelRow(title: "Avsluta Mindtalk", shortcut: "⌘Q") { NSApp.terminate(nil) }
@@ -435,16 +436,21 @@ struct StatusPanelView: View {
     private var language: some View {
         let downloading = SpeechModel.allCases.first { dictation.downloads[$0] != nil }
         return VStack(alignment: .leading, spacing: 0) {
+            // Not the app's own language: which speech model listens, for dictation and meetings.
             HStack(spacing: 12) {
-                Text("Språk").font(.system(size: 14))
+                Text("Jag pratar").font(.system(size: 14)).lineLimit(1).fixedSize()
                 Spacer(minLength: 8)
                 PillPicker(options: SpeechModel.allCases.map { (value: $0, title: $0.title) },
                            selection: Binding(get: { dictation.engine }, set: { pick($0) }))
                     .disabled(meeting.isBusy)
-                    .help("⌘1 och ⌘2 byter språk")
+                    .help("⌘1 och ⌘2 byter talmodell")
             }
             .padding(.horizontal, PanelMetrics.inset)
-            .frame(minHeight: 42)
+            .frame(minHeight: 40)
+            Text("Gäller diktering och möten.")
+                .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
+                .padding(.horizontal, PanelMetrics.inset)
+                .padding(.top, -4).padding(.bottom, 4)
             // A language that isn't on the Mac yet: say how big, and let a click fetch it.
             if let m = confirming ?? downloading {
                 LanguageRow(model: m, index: (SpeechModel.allCases.firstIndex(of: m) ?? 0) + 1, selected: dictation.engine == m,
@@ -459,6 +465,66 @@ struct StatusPanelView: View {
             }
         }
         .animation(.easeOut(duration: 0.18), value: confirming)
+    }
+
+    // MARK: Appearance
+
+    /// Light, dark or following the Mac, straight from the menu bar.
+    private var appearance: some View {
+        HStack(spacing: 12) {
+            Text("Utseende").font(.system(size: 14))
+            Spacer(minLength: 8)
+            AppearancePicker(prefs: .shared)
+        }
+        .padding(.horizontal, PanelMetrics.inset)
+        .frame(minHeight: 40)
+    }
+}
+
+/// Three symbols in a pill: sun, moon, and half a circle for following the Mac.
+private struct AppearancePicker: View {
+    @ObservedObject var prefs: AppPrefs
+    @Namespace private var pill
+
+    private func symbol(_ a: Appearance) -> String {
+        switch a {
+        case .light: return "sun.max"
+        case .dark: return "moon"
+        case .system: return "circle.lefthalf.filled"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Appearance.allCases) { a in
+                let selected = prefs.appearance == a
+                Button {
+                    withAnimation(.spring(duration: 0.35, bounce: 0.2)) { prefs.appearance = a }
+                } label: {
+                    Image(systemName: symbol(a))
+                        .font(.system(size: 12.5, weight: selected ? .semibold : .medium))
+                        .foregroundStyle(selected ? AnyShapeStyle(.primary) : AnyShapeStyle(DS.Colors.muted))
+                        .frame(width: 34, height: 28)
+                        .background {
+                            if selected {
+                                Capsule()
+                                    .fill(DS.Colors.pill)
+                                    .shadow(color: .black.opacity(0.14), radius: 3, y: 1)
+                                    .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke.opacity(0.6), lineWidth: 0.5))
+                                    .matchedGeometryEffect(id: "pill", in: pill)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .help(a.title)
+                .accessibilityLabel(a.title)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+        .padding(3)
+        .background(Capsule().fill(DS.Colors.chip))
+        .fixedSize()
     }
 }
 

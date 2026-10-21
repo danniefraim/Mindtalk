@@ -28,7 +28,7 @@ enum SpeechModel: String, CaseIterable, Identifiable, Codable, Sendable {
     var title: String {
         switch self {
         case .swedish: return String(localized: "Svenska")
-        case .multilingual: return String(localized: "Flerspråkig")
+        case .multilingual: return String(localized: "Flera språk")
         }
     }
 
@@ -36,7 +36,7 @@ enum SpeechModel: String, CaseIterable, Identifiable, Codable, Sendable {
     var inlineTitle: String {
         switch self {
         case .swedish: return String(localized: "svenska", comment: "The Swedish speech model, mid-sentence")
-        case .multilingual: return String(localized: "flerspråkig", comment: "The multilingual speech model, mid-sentence")
+        case .multilingual: return String(localized: "flera språk", comment: "The multilingual speech model, mid-sentence")
         }
     }
 
