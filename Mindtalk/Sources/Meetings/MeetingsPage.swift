@@ -1630,8 +1630,12 @@ struct MeetingView: View {
                                 notes.summarize(record.id, in: choice)
                             }
                         }
+                        .disabled(!MeetingNotes.isAvailable)
+                        Section("Sammanfatta igen med") {
+                            SummarizeAgainItems(record: record)
+                        }
                     }
-                    .disabled(!MeetingNotes.isAvailable || notes.writing.contains(record.id))
+                    .disabled(notes.writing.contains(record.id))
                     if record.source != nil { Button("Ändra datum…") { changingDate = true } }
                     if record.hasAudio {
                         Button("Spela in mer") { AppDelegate.continueMeeting(record.id) }
@@ -2242,7 +2246,8 @@ private struct SummaryView: View {
         if let summary = record.summary {
             VStack(alignment: .leading, spacing: 32) {
             if writing || justRewritten {
-                RewriteBanner(writing: writing, cancel: BetterNotes.shared.server == nil ? nil : { notes.cancelSummary(record.id) })
+                RewriteBanner(writing: writing, writer: notes.writerSentenceName(for: record.id),
+                              cancel: (notes.writers[record.id] ?? BetterNotes.shared.choice).isServer ? { notes.cancelSummary(record.id) } : nil)
                     .transition(.move(edge: .top).combined(with: .opacity))
             } else if notesChanged {
                 NotesChangedRow { notes.summarize(record.id) }
@@ -2287,19 +2292,35 @@ private struct SummaryView: View {
                         Text("Stämmer något inte? Klicka på en tid och lyssna själv.")
                     }
                     Spacer(minLength: 16)
-                    if MeetingNotes.isAvailable {
-                        Button {
-                            notes.summarize(record.id)
-                        } label: {
-                            Label("Sammanfatta igen", systemImage: "arrow.clockwise")
-                        }
-                        .buttonStyle(.soft)
-                        .disabled(writing)
+                    // Again, with the writer chosen for all, or with another one for this
+                    // meeting only (the first item is the one chosen for all).
+                    Menu {
+                        SummarizeAgainItems(record: record)
+                    } label: {
+                        Label("Sammanfatta igen med", systemImage: "arrow.clockwise")
                     }
+                    .menuStyle(.button)
+                    .buttonStyle(.soft)
+                    .fixedSize()
+                    .disabled(writing)
+                    .help("Sammanfatta mötet igen, med den som skriver alla sammanfattningar eller en annan för det här mötet.")
                 }
                 .font(.system(size: 11.5))
                 .foregroundStyle(DS.Colors.muted)
                 .staggered(4)
+                // Another writer than the one chosen for all wrote this one: keep it for all?
+                if let picked = notes.tried[record.id] {
+                    HStack(spacing: 12) {
+                        Text("Använd \(picked.name) i alla möten?")
+                        Button("Ja") { notes.keepTried(record.id, true) }
+                            .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.accent)
+                        Button("Nej") { notes.keepTried(record.id, false) }
+                            .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.accent)
+                    }
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(DS.Colors.muted)
+                    .transition(.opacity)
+                }
                 // Written by Apple Intelligence: once, the Gemma that suits this Mac.
                 if summary.writer == nil, MeetingSession.shared.record?.id != record.id { NotesModelOffer().staggered(5) }
             }
@@ -2311,7 +2332,8 @@ private struct SummaryView: View {
             }
             .animation(.spring(duration: 0.4, bounce: 0.12), value: writing || justRewritten)
         } else if writing {
-            WritingPlaceholder(cancel: BetterNotes.shared.server == nil ? nil : { notes.cancelSummary(record.id) })
+            WritingPlaceholder(writer: notes.writers[record.id] ?? BetterNotes.shared.choice,
+                               cancel: (notes.writers[record.id] ?? BetterNotes.shared.choice).isServer ? { notes.cancelSummary(record.id) } : nil)
         } else if !MeetingNotes.isAvailable {
             unavailable
         } else {
@@ -2592,6 +2614,8 @@ private struct Receipt: View {
 
 /// While the notes are being written: the shape of what's coming.
 private struct WritingPlaceholder: View {
+    /// Who writes: the one picked for this meeting, else the one chosen for all.
+    let writer: SummaryWriterChoice
     /// Your own model in Ollama or LM Studio can be stopped.
     var cancel: (() -> Void)? = nil
     @State private var sweep = false
@@ -2604,8 +2628,8 @@ private struct WritingPlaceholder: View {
             HStack(spacing: 8) {
                 SettlingLine(color: DS.Colors.ink).scaleEffect(0.8)
                 Text(servers.progress
-                     ?? (BetterNotes.shared.isActive ? String(localized: "\(BetterNotes.shared.writerSentenceName) skriver sammanfattningen…")
-                                                     : String(localized: "Skriver sammanfattningen…")))
+                     ?? (writer != .apple ? String(localized: "\(writer.sentenceName) skriver sammanfattningen…")
+                                          : String(localized: "Skriver sammanfattningen…")))
                 if let cancel {
                     Button("Avbryt", action: cancel).buttonStyle(.soft).controlSize(.small).padding(.leading, 6)
                 }
@@ -2940,15 +2964,77 @@ private struct PlayerBar: View {
     }
 }
 
+/// The items of "Sammanfatta igen med": every writer, the one chosen for all first and
+/// ticked. One that can't write now is there but grey, with why under it. Built from
+/// what Mindtalk already knows (the Gemmas on the disk, the models Ollama and LM
+/// Studio listed last time): nothing is asked over the network for the menu.
+struct SummarizeAgainItems: View {
+    let record: MeetingRecord
+    @ObservedObject private var notes = MeetingNotes.shared
+    @ObservedObject private var better = BetterNotes.shared
+    @ObservedObject private var servers = LocalServers.shared
+
+    /// Every writer, the one chosen for all first; a reason when one can't write now.
+    private var items: [(choice: SummaryWriterChoice, reason: String?)] {
+        var all: [(choice: SummaryWriterChoice, reason: String?)] = [(.apple, Self.appleReason)]
+        for m in NotesModel.allCases { all.append((.gemma(m), gemmaReason(m))) }
+        for b in ServerBackend.allCases where servers.states[b] != .notInstalled {
+            for model in servers.models[b] ?? [] { all.append((.server(b, model.id), nil)) }
+        }
+        // The one chosen, also when it's a server model that isn't in the list any more.
+        if let i = all.firstIndex(where: { $0.choice == better.choice }) {
+            all.insert(all.remove(at: i), at: 0)
+        } else {
+            all.insert((better.choice, nil), at: 0)
+        }
+        return all
+    }
+
+    private static var appleReason: String? {
+        switch Polisher.status {
+        case .available: return nil
+        case .notEnabled: return String(localized: "Avstängd i Systeminställningar")
+        case .notReady: return String(localized: "macOS laddar fortfarande ned den")
+        case .unsupported: return String(localized: "Finns inte på den här Macen")
+        }
+    }
+
+    private func gemmaReason(_ m: NotesModel) -> String? {
+        switch better.state(m) {
+        case .ready where m.isInstalled: return nil
+        case .downloading: return String(localized: "Laddas ned")
+        case .unsupported: return String(localized: "Kräver minst \(m.minimumMemoryGB) GB minne")
+        default: return String(localized: "Ladda ned under Inställningar")
+        }
+    }
+
+    var body: some View {
+        ForEach(Array(items.enumerated()), id: \.offset) { i, item in
+            Button {
+                notes.summarize(record.id, with: i == 0 ? nil : item.choice)
+            } label: {
+                if i == 0 {
+                    Label(item.choice.name, systemImage: "checkmark")
+                } else {
+                    Text(item.choice.name)
+                }
+                if let reason = item.reason { Text(reason) }
+            }
+            .disabled(item.reason != nil)
+        }
+    }
+}
+
 /// Writing the notes again: clearly at the top, with who writes them and for how
 /// long — then, for a moment, that it's done.
 private struct RewriteBanner: View {
     let writing: Bool
+    /// Who writes, in a sentence: the one picked for this meeting, else the one chosen for all.
+    let writer: String
     /// Your own model in Ollama or LM Studio can be stopped.
     var cancel: (() -> Void)? = nil
     @State private var started = Date()
 
-    private var writer: String { BetterNotes.shared.writerSentenceName }
     @ObservedObject private var servers = LocalServers.shared
 
     var body: some View {

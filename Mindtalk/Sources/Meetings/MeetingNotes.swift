@@ -123,27 +123,53 @@ final class MeetingNotes: ObservableObject {
     /// Apple Intelligence — or Gemma 4, or your own model in Ollama or LM Studio, when chosen.
     static var isAvailable: Bool { Polisher.status == .available || BetterNotes.shared.isActive }
 
-    /// Writes (or rewrites) the notes for a saved meeting.
-    func summarize(_ id: UUID, in choice: SummaryLanguage = .chosen) {
-        guard Self.isAvailable else { return }
+    /// Whether `choice` can be asked to write: Apple Intelligence only when it is on;
+    /// the others are asked, and say so themselves when they can't.
+    static func canWrite(_ choice: SummaryWriterChoice) -> Bool { choice != .apple || Polisher.status == .available }
+
+    /// A writer picked for one meeting ("Sammanfatta igen med"), by meeting, while its
+    /// notes are being written. The setting is left as it is.
+    @Published private(set) var writers: [UUID: SummaryWriterChoice] = [:]
+    /// A writer picked for one meeting wrote its notes, and isn't the one chosen for all:
+    /// the page asks whether it should be (`keepTried`).
+    @Published private(set) var tried: [UUID: SummaryWriterChoice] = [:]
+
+    /// Who writes (or is writing) this meeting's notes, in a sentence: the one picked
+    /// for it, else the one chosen for all.
+    func writerSentenceName(for id: UUID) -> String { (writers[id] ?? BetterNotes.shared.choice).sentenceName }
+
+    /// "Använd Gemma 4 E4B i alla möten?" answered: Ja makes it the choice for all.
+    func keepTried(_ id: UUID, _ keep: Bool) {
+        guard let choice = tried.removeValue(forKey: id) else { return }
+        if keep { BetterNotes.shared.choice = choice }
+    }
+
+    /// Writes (or rewrites) the notes for a saved meeting. `pick`: a writer for this
+    /// meeting only; nil for the one chosen under Inställningar.
+    func summarize(_ id: UUID, in choice: SummaryLanguage = .chosen, with pick: SummaryWriterChoice? = nil) {
+        guard pick.map(Self.canWrite) ?? Self.isAvailable else { return }
         // Asked again while they're being written: written again after, from the
         // meeting as it is then.
-        if writing.contains(id) { again[id] = choice; return }
+        if writing.contains(id) { again[id] = (choice, pick); return }
         guard let record = MeetingStore.shared.meetings.first(where: { $0.id == id }), !record.words.isEmpty else { return }
         writing.insert(id)
         failed[id] = nil
         failedServer[id] = nil
+        tried[id] = nil
+        writers[id] = pick
         var lines = Lines(record)
         if let name = choice.name { lines.write(in: name) }
-        let writer = BetterNotes.shared.writer
-        Self.logStart("summary", writer: writer, reason: "chosen")
+        let picked = pick ?? BetterNotes.shared.choice
+        let writer = picked.writer
+        Self.logStart("summary", writer: writer, reason: pick == nil ? "chosen" : "picked:\(picked.stored)")
         let written = (words: record.words.count, duration: record.duration)
         let notesFrom = record.notesFingerprint
         summaryTasks[id] = Task {
             defer {
                 writing.remove(id)
+                writers[id] = nil
                 summaryTasks[id] = nil
-                if let next = again.removeValue(forKey: id) { summarize(id, in: next) }
+                if let next = again.removeValue(forKey: id) { summarize(id, in: next.language, with: next.writer) }
             }
             // Not while a meeting is being recorded: the live words come first.
             while MeetingSession.shared.isRecording { try? await Task.sleep(for: .seconds(2)) }
@@ -164,7 +190,7 @@ final class MeetingNotes: ObservableObject {
                 }
                 guard var latest = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
                 if latest.duration > written.duration + 1 || latest.words.count != written.words, again[id] == nil {
-                    again[id] = choice
+                    again[id] = (choice, pick)
                     return
                 }
                 // Written again (a continued meeting, "Sammanfatta igen"): the tasks you
@@ -178,6 +204,8 @@ final class MeetingNotes: ObservableObject {
                 latest.summary = summary
                 if !latest.userTitled, let title = summary.title, !title.isEmpty { latest.title = title }
                 MeetingStore.shared.save(latest)
+                // Written by one picked for this meeting: offered for all, once it's done.
+                if let pick, pick != BetterNotes.shared.choice, again[id] == nil { tried[id] = pick }
                 Self.log.info("notes written in \(Date().timeIntervalSince(t0), format: .fixed(precision: 1)) s")
             } catch is CancellationError {
                 // Avbryt pressed: no notes, and nothing to explain.
@@ -200,8 +228,9 @@ final class MeetingNotes: ObservableObject {
 
     func cancelAnswer(_ id: UUID) { answerTasks[id]?.cancel() }
 
-    /// Notes asked for again while they were being written.
-    private var again: [UUID: SummaryLanguage] = [:]
+    /// Notes asked for again while they were being written: in which language, and by
+    /// which writer picked for the meeting (nil: the one chosen for all).
+    private var again: [UUID: (language: SummaryLanguage, writer: SummaryWriterChoice?)] = [:]
     /// Notes put aside because the meeting was being recorded or listened to again —
     /// written when it's done (MeetingSession.done).
     private var afterMeeting: Set<UUID> = []

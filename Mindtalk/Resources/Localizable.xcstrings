@@ -3372,6 +3372,22 @@
         }
       }
     },
+    "Använd %@ i alla möten?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use %@ in all meetings?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Använd %@ i alla möten?"
+          }
+        }
+      }
+    },
     "Använd Mindtalk i Terminalen": {
       "localizations": {
         "en": {
@@ -4389,6 +4405,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Avslutas strax, ångra"
+          }
+        }
+      }
+    },
+    "Avstängd i Systeminställningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turned off in System Settings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avstängd i Systeminställningar"
           }
         }
       }
@@ -8787,6 +8819,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Finns inte"
+          }
+        }
+      }
+    },
+    "Finns inte på den här Macen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not available on this Mac"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finns inte på den här Macen"
           }
         }
       }
@@ -14580,6 +14628,22 @@
         }
       }
     },
+    "Ja": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ja"
+          }
+        }
+      }
+    },
     "Ja, om testerna är klara på fredag. Annars blir det veckan efter.": {
       "localizations": {
         "en": {
@@ -16164,6 +16228,22 @@
         }
       }
     },
+    "Kräver minst %lld GB minne": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs at least %lld GB of memory"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kräver minst %lld GB minne"
+          }
+        }
+      }
+    },
     "Kräver minst %lld GB minne. Den här Macen har %lld GB.": {
       "localizations": {
         "en": {
@@ -16885,6 +16965,22 @@
         }
       }
     },
+    "Ladda ned under Inställningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download under Settings"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda ned under Inställningar"
+          }
+        }
+      }
+    },
     "Ladda om": {
       "extractionState": "stale",
       "localizations": {
@@ -17159,6 +17255,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Laddar ned talmodellen · %lld %%"
+          }
+        }
+      }
+    },
+    "Laddas ned": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddas ned"
           }
         }
       }
@@ -22539,6 +22651,22 @@
         }
       }
     },
+    "Nej": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nej"
+          }
+        }
+      }
+    },
     "Nemotron 3": {
       "localizations": {
         "en": {
@@ -25234,6 +25362,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sammanfatta igen"
+          }
+        }
+      }
+    },
+    "Sammanfatta igen med": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summarize again with"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfatta igen med"
+          }
+        }
+      }
+    },
+    "Sammanfatta mötet igen, med den som skriver alla sammanfattningar eller en annan för det här mötet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summarize the meeting again, with the writer of all summaries or another one for this meeting."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfatta mötet igen, med den som skriver alla sammanfattningar eller en annan för det här mötet."
           }
         }
       }
@@ -35280,6 +35440,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "macOS laddar fortfarande ned Apple Intelligence. Det brukar ta några minuter."
+          }
+        }
+      }
+    },
+    "macOS laddar fortfarande ned den": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS is still downloading it"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS laddar fortfarande ned den"
           }
         }
       }

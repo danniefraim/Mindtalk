@@ -69,6 +69,21 @@ enum SummaryWriterChoice: Equatable, Sendable {
 
     var isServer: Bool { if case .server = self { return true }; return false }
 
+    /// The writer it names, unless it's Apple Intelligence (nil). The one named,
+    /// whether it can write right now or not: a Gemma moved to the Trash, or a server
+    /// that isn't running, says so when asked to write. Never another writer instead.
+    @MainActor var writer: (any SummaryWriter)? {
+        switch self {
+        case .apple: return nil
+        case .gemma(let m): return GemmaWriter(model: m)
+        case .server(let b, let m): return LocalServerWriter(backend: b, model: m)
+        }
+    }
+    /// "Gemma 4 E4B", "Ollama · qwen3.5:9b", or "Apple Intelligence".
+    @MainActor var name: String { writer?.name ?? "Apple Intelligence" }
+    /// The same in a sentence: "qwen3.5:9b i Ollama".
+    @MainActor var sentenceName: String { writer?.sentenceName ?? "Apple Intelligence" }
+
     #if DEBUG
     /// `Mindtalk --writer-test`: every choice through `stored` and back, including
     /// server models whose ids have "/" and ":" in them, and strings that must not parse.

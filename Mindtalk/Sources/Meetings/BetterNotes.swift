@@ -183,13 +183,7 @@ final class BetterNotes: ObservableObject {
     /// Who writes the next notes, unless it's Apple Intelligence (nil). The one chosen,
     /// whether it can write right now or not: a Gemma moved to the Trash, or a server
     /// that isn't running, says so when asked to write. Never another writer instead.
-    var writer: (any SummaryWriter)? {
-        switch choice {
-        case .apple: return nil
-        case .gemma(let m): return GemmaWriter(model: m)
-        case .server(let b, let m): return LocalServerWriter(backend: b, model: m)
-        }
-    }
+    var writer: (any SummaryWriter)? { choice.writer }
     /// Something other than Apple Intelligence is chosen to write.
     var isActive: Bool { choice != .apple }
     /// "Gemma 4 E4B", "Ollama · qwen3.5:9b", or "Apple Intelligence".
