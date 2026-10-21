@@ -4903,6 +4903,22 @@
         }
       }
     },
+    "Byt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Byt"
+          }
+        }
+      }
+    },
     "Byt modell": {
       "localizations": {
         "en": {
@@ -25442,6 +25458,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sammanfattad av %@."
+          }
+        }
+      }
+    },
+    "Sammanfattas av %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summarized by %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfattas av %@"
           }
         }
       }

@@ -478,6 +478,8 @@ struct StartCard: View {
     @ObservedObject private var folders = MeetingFolders.shared
     @ObservedObject private var importer = MeetingImport.shared
     @ObservedObject private var memory = VoiceMemory.shared
+    /// Who writes the summaries: the foot of the card follows a change.
+    @ObservedObject private var better = BetterNotes.shared
     /// Room for the two side by side.
     @State private var wide = true
     /// The card is in view: the sphere only turns while someone can see it.
@@ -618,17 +620,24 @@ struct StartCard: View {
                 .toggleStyle(InkCheckboxStyle())
                 .padding(.top, 20)
             }
-            // The shortcut, what it runs on, and where a new one goes — quietly, at the foot.
+            // The shortcut, who writes the summary (with Byt to where it's chosen), and
+            // where a new meeting goes — quietly, at the foot. (The speech model is under Språk.)
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 if dictation.micGranted {
                     KeyChip(text: StatusPanelView.meetingKeys, small: true)
                         .help("Starta möte (\(StatusPanelView.meetingKeys)). Du väljer om ni tar en namnrunda eller startar direkt.")
                 }
-                if let caption {
-                    Text(verbatim: caption).font(.system(size: 12)).foregroundStyle(DS.Colors.faint)
-                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                Text(verbatim: writerLine).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                Text(verbatim: "·").accessibilityHidden(true)
+                Button("Byt") { SettingsPage.open(.meetings, scrollTo: .summaries) }
+                    .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(DS.Colors.muted)
+                    .help("Öppnar Inställningar → Möten → Sammanfattningar.")
+                if let folder = folders.folder(folders.selected) {
+                    Text(verbatim: "·").accessibilityHidden(true)
+                    Text("Sparas i \(folder.name)").lineLimit(1)
                 }
             }
+            .font(.system(size: 12)).foregroundStyle(DS.Colors.faint)
             .padding(.top, 16)
         }
         .opacity(starting ? 0 : 1)
@@ -636,11 +645,12 @@ struct StartCard: View {
         .opacity(importer.dropping ? 0.4 : 1)
     }
 
-    private var caption: String? {
-        var parts: [String] = []
-        if let note { parts.append(note) }
-        if let folder = folders.folder(folders.selected) { parts.append(String(localized: "Sparas i \(folder.name)")) }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    /// "Sammanfattas av Apple Intelligence", or that there'll be no summary without one.
+    private var writerLine: String {
+        guard MeetingNotes.isAvailable else {
+            return String(localized: "Utan Apple Intelligence eller Gemma 4 blir det text men ingen sammanfattning.")
+        }
+        return String(localized: "Sammanfattas av \(better.writerSentenceName)")
     }
 
     /// The ways in: the round of names, or straight into the meeting.
@@ -799,17 +809,6 @@ struct StartCard: View {
             voicesLine = String(localized: "För att hålla isär vem som pratar behövs Nemotron 3 från NVIDIA (\(VoiceModels.sizeText)). Den laddas ned en gång och fungerar sedan utan internet.")
         }
         return [voicesLine, speech].compactMap { $0 }.joined(separator: " ")
-    }
-
-    private var note: String? {
-        guard voices.state == .ready else { return nil }
-        if !MeetingNotes.isAvailable {
-            return String(localized: "Utan Apple Intelligence eller Gemma 4 blir det text men ingen sammanfattning.")
-        }
-        if BetterNotes.shared.isActive {
-            return String(localized: "\(dictation.engine.modelName) och \(BetterNotes.shared.writerSentenceName)")
-        }
-        return String(localized: "\(dictation.engine.modelName) och Apple Intelligence")
     }
 
     @ViewBuilder private var control: some View {
