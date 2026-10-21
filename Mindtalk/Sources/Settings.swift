@@ -16,7 +16,8 @@ enum Settings {
     /// A setting written: to the disk, unless previewing (then it's left as it is).
     nonisolated static func keep(_ value: Any?, forKey key: String) {
         guard !previewing else { return }
-        Settings.keep(value, forKey: key)
+        // To the defaults themselves: never back through keep (that loops forever).
+        defaults.set(value, forKey: key)
     }
 
     static var hotkey: Hotkey {
