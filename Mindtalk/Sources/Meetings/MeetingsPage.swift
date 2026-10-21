@@ -2296,7 +2296,11 @@ private struct SummaryView: View {
                     Menu {
                         SummarizeAgainItems(record: record)
                     } label: {
-                        Label("Sammanfatta igen med", systemImage: "arrow.clockwise")
+                        // The soft style draws no menu arrow: one of our own, so it reads as a choice.
+                        HStack(spacing: 6) {
+                            Label("Sammanfatta igen med", systemImage: "arrow.clockwise")
+                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                        }
                     }
                     .menuStyle(.button)
                     .buttonStyle(.soft)
