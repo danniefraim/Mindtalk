@@ -49,6 +49,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             NSApplication.shared.run()
             return
         }
+        // `Mindtalk --render-perf <meeting id>`: a long meeting opened, scrolled and its tabs
+        // switched, timed (WindowRender.swift, WindowPerf).
+        if let i = args.firstIndex(of: "--render-perf"), i + 1 < args.count {
+            NSApplication.shared.setActivationPolicy(.accessory)
+            Task { @MainActor in
+                await WindowPerf.run(id: args[i + 1], args: args)
+                PreviewDefaults.restore()
+                exit(0)
+            }
+            NSApplication.shared.run()
+            return
+        }
         // `Mindtalk --render-window out.png --page settings [--section language] [--dark]
         // [--size 1000x620]`: the whole window's content as drawn (WindowRender.swift).
         if let i = args.firstIndex(of: "--render-window"), i + 1 < args.count {
@@ -1223,6 +1235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 .padding(28)
                 .frame(width: 720)
                 .background(DS.Colors.paper)
+                .environment(\.colorScheme, args.contains("--dark") ? .dark : .light)
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2
                 if let image = renderer.nsImage, let tiff = image.tiffRepresentation,

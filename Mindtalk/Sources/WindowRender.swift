@@ -90,6 +90,124 @@ enum WindowRender {
     }
 }
 
+// MARK: - `Mindtalk --render-perf <meeting id> [--size 1000x700]`
+//
+// A long meeting opened in the main window (never on screen, nothing saved) and timed:
+// opening it, scrolling its summary and its text a screen at a time, and switching
+// between the two tabs. Each step is the scroll (or the switch) and the window drawn
+// once, on the main thread — what a frame costs. Prints one line per part.
+
+@MainActor
+enum WindowPerf {
+    static func run(id: String, args: [String]) async {
+        let size: CGSize = {
+            guard let i = args.firstIndex(of: "--size"), i + 1 < args.count else { return CGSize(width: 1000, height: 700) }
+            let p = args[i + 1].lowercased().split(separator: "x").compactMap { Double($0) }
+            return p.count == 2 ? CGSize(width: p[0], height: p[1]) : CGSize(width: 1000, height: 700)
+        }()
+        MeetingStore.shared.loadNow()
+        guard let record = MeetingStore.shared.meetings.first(where: { $0.id.uuidString.hasPrefix(id.uppercased()) }) else {
+            return print("PERF fel: inget möte \(id)")
+        }
+        print("PERF möte: \(record.words.count) ord, \(Int(record.duration)) s, sammanfattning: \(record.summary != nil)")
+        MainView.startPage = .meetings
+        MainView.rendering = true
+        MeetingsPage.lastOpen = record.id
+        let window = NSWindow(contentRect: NSRect(origin: CGPoint(x: -40_000, y: -40_000), size: size),
+                              styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        let t0 = Date()
+        let host = NSHostingView(rootView: MainView(dictation: .shared, prefs: .shared))
+        window.contentView = host
+        window.orderFrontRegardless()
+        host.layoutSubtreeIfNeeded()
+        window.displayIfNeeded()
+        let first = Date().timeIntervalSince(t0)
+        // Then whatever the page does by itself once open (its entrance, tasks), until quiet.
+        let settle = await stalls(for: 2.0)
+        print(String(format: "PERF öppna: första bilden %.0f ms; sedan %@", first * 1000, settle))
+
+        for (name, tab) in [("Sammanfattning", MeetingView.Tab.summary), ("Text", MeetingView.Tab.transcript)] {
+            let s0 = Date()
+            NotificationCenter.default.post(name: MeetingView.perfTab, object: tab)
+            host.layoutSubtreeIfNeeded()
+            window.displayIfNeeded()
+            let switched = Date().timeIntervalSince(s0)
+            let after = await stalls(for: 1.0)
+            print(String(format: "PERF byt till %@: %.0f ms; sedan %@", name, switched * 1000, after))
+            guard let scroll = tallestScroll(in: host) else { print("PERF \(name): ingen rullningsvy"); continue }
+            let height = scroll.documentView?.frame.height ?? 0
+            var steps: [Double] = []
+            var y: CGFloat = 0
+            let page = scroll.contentView.bounds.height * 0.5
+            // Down to the end and back up, half a screen a step.
+            for direction in [1.0, -1.0] {
+                for _ in 0..<400 {
+                    y = max(0, min(y + page * direction, (scroll.documentView?.frame.height ?? 0) - scroll.contentView.bounds.height))
+                    let a = Date()
+                    scroll.contentView.scroll(to: NSPoint(x: 0, y: y))
+                    scroll.reflectScrolledClipView(scroll.contentView)
+                    host.layoutSubtreeIfNeeded()
+                    window.displayIfNeeded()
+                    steps.append(Date().timeIntervalSince(a) * 1000)
+                    if let ms = steps.last, ms > 50 {
+                        print(String(format: "PERF   långt steg %d: %.0f ms vid y %.0f av %.0f", steps.count, ms, y, scroll.documentView?.frame.height ?? 0))
+                    }
+                    // The run loop gets a turn between steps, as between frames.
+                    try? await Task.sleep(for: .milliseconds(16))
+                    if direction > 0, y >= (scroll.documentView?.frame.height ?? 0) - scroll.contentView.bounds.height - 1 { break }
+                    if direction < 0, y <= 0 { break }
+                }
+            }
+            let sorted = steps.sorted()
+            let q = { (p: Double) in sorted.isEmpty ? 0 : sorted[min(sorted.count - 1, Int(Double(sorted.count) * p))] }
+            print(String(format: "PERF rulla %@ (%.0f pt): %d steg, median %.1f ms, p95 %.1f ms, max %.1f ms, över 100 ms: %d, över 16 ms: %d",
+                         name, height, steps.count, q(0.5), q(0.95), sorted.last ?? 0,
+                         steps.filter { $0 > 100 }.count, steps.filter { $0 > 16 }.count))
+        }
+        for _ in 0..<3 {
+            for (name, tab) in [("Sammanfattning", MeetingView.Tab.summary), ("Text", MeetingView.Tab.transcript)] {
+                let s0 = Date()
+                NotificationCenter.default.post(name: MeetingView.perfTab, object: tab)
+                host.layoutSubtreeIfNeeded()
+                window.displayIfNeeded()
+                let switched = Date().timeIntervalSince(s0)
+                let after = await stalls(for: 0.6)
+                print(String(format: "PERF byt igen till %@: %.0f ms; sedan %@", name, switched * 1000, after))
+            }
+        }
+        window.close()
+    }
+
+    /// The scroll view with the most to scroll: the page's own.
+    private static func tallestScroll(in view: NSView) -> NSScrollView? {
+        var best: NSScrollView?
+        func walk(_ v: NSView) {
+            if let s = v as? NSScrollView, (s.documentView?.frame.height ?? 0) > (best?.documentView?.frame.height ?? 0) { best = s }
+            v.subviews.forEach(walk)
+        }
+        walk(view)
+        return best
+    }
+
+    /// How the main thread kept up for a while: ticks asked for every 8 ms, and the
+    /// longest gap between two (a gap is the main thread busy).
+    private static func stalls(for seconds: Double) async -> String {
+        var last = Date(), worst = 0.0, over = 0, busy = 0.0
+        let end = Date().addingTimeInterval(seconds)
+        while Date() < end {
+            try? await Task.sleep(for: .milliseconds(8))
+            let now = Date()
+            let gap = now.timeIntervalSince(last) * 1000
+            worst = max(worst, gap)
+            if gap > 100 { over += 1 }
+            busy += max(0, gap - 8)
+            last = now
+        }
+        return String(format: "längsta glapp %.0f ms, glapp över 100 ms: %d, upptaget ~%.0f ms av %.0f", worst, over, busy, seconds * 1000)
+    }
+}
+
 // MARK: - `--demo`: what the pages show, all made up
 
 /// Meetings with a summary, thoughts, folders and an MCP log for `--render-window

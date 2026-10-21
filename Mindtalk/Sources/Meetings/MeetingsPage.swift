@@ -1470,6 +1470,9 @@ struct MeetingView: View {
     @FocusState private var editingTitle: Bool
 
     enum Tab: Hashable { case summary, transcript }
+    #if DEBUG
+    static let perfTab = Notification.Name("MeetingView.perfTab")
+    #endif
 
     private var live: Bool { session != nil }
 
@@ -1678,6 +1681,12 @@ struct MeetingView: View {
                 metaLine(cast)
                 Spacer(minLength: 12)
                 PillPicker(options: [(Tab.summary, "Sammanfattning"), (Tab.transcript, "Text")], selection: $tab)
+                    #if DEBUG
+                    // `--render-perf`: the tabs switched as if pressed, to time it.
+                    .onReceive(NotificationCenter.default.publisher(for: MeetingView.perfTab)) { note in
+                        if let t = note.object as? Tab { tab = t }
+                    }
+                    #endif
             }
             // The timeline belongs to the text, where it steers what you hear.
             if !segments.isEmpty, tab == .transcript {
