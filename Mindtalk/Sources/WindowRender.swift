@@ -11,7 +11,7 @@ import SwiftUI
 // window is never on screen.
 //   --setup        Hem as before anything is allowed (microphone, Hjälpmedel)
 //   --asked        … and Tillåt for Hjälpmedel already pressed
-//   --ready        everything allowed and the speech model ready
+//   --ready        everything allowed, the speech model ready and the start card not preparing
 //   --demo         made-up meetings, thoughts, folders and an MCP log, in memory only
 //                  (Demo.on gives the dictations and the statistics); the greeting
 //                  says a made-up name
@@ -40,6 +40,8 @@ enum WindowRender {
             Dictation.shared.preview(mic: false, accessibility: false, asked: args.contains("--asked"))
         } else if args.contains("--ready") {
             Dictation.shared.preview(mic: true, accessibility: true, asked: false, model: .ready)
+            // Möten's start card as ready: the voices counted as warm, nothing loaded.
+            MeetingSession.previewPreparing = false
         }
 
         let window = NSWindow(contentRect: NSRect(origin: CGPoint(x: -40_000, y: -40_000), size: size),

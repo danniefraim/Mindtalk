@@ -712,7 +712,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
         #endif
         // `Mindtalk --render-panel out.png [--dark]`: the menu bar panel, with your figures.
-        // `Mindtalk --render-round-intro out.png [--armed]`: the start card ("Nytt möte"), waiting
+        // `Mindtalk --render-round-intro out.png [--armed] [--dark]`: the start card ("Nytt möte"), waiting
         // for a press when opened from the menu bar, over the offer to save the voices.
         if let i = args.firstIndex(of: "--render-round-intro"), i + 1 < args.count {
             // The start card asks NSApp about the main window: it must be there.
@@ -722,12 +722,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 demo.names = ["0": "Anna", "1": "Erik"]
                 MeetingSession.shared.armed = args.contains("--armed")
                 MeetingSession.previewPreparing = args.contains("--preparing")
+                NSApplication.shared.appearance = NSAppearance(named: args.contains("--dark") ? .darkAqua : .aqua)
                 let view = VStack(spacing: 30) {
                     StartCard(session: .shared, voices: .shared, dictation: .shared)
                         .padding(30).frame(width: 900)
                     RememberVoicesOffer(record: demo, live: false, preview: true).frame(width: 760).padding(30)
                 }
                 .background(DS.Colors.paper)
+                .environment(\.colorScheme, args.contains("--dark") ? .dark : .light)
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2
                 if let image = renderer.nsImage, let tiff = image.tiffRepresentation,

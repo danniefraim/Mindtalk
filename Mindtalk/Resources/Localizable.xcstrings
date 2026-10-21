@@ -2894,6 +2894,22 @@
         }
       }
     },
+    "Alla säger sitt namn, så står rätt namn i texten. En halv minut.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everyone says their name, so the right names are in the text. Half a minute."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alla säger sitt namn, så står rätt namn i texten. En halv minut."
+          }
+        }
+      }
+    },
     "Alla tankar": {
       "localizations": {
         "en": {
@@ -7421,6 +7437,22 @@
         }
       }
     },
+    "Dra hit en ljud- eller videofil.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop an audio or video file here."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dra hit en ljud- eller videofil."
+          }
+        }
+      }
+    },
     "Dra in en inspelning här": {
       "extractionState": "stale",
       "localizations": {
@@ -11137,6 +11169,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Har du kopplat LM Studio till en annan dator (LM Link) kan den skicka mötet dit. Koppla bort den för möten som ska stanna här."
+          }
+        }
+      }
+    },
+    "Har du redan en inspelning?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Already have a recording?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Har du redan en inspelning?"
           }
         }
       }
@@ -15542,6 +15590,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kom ihåg röster"
+          }
+        }
+      }
+    },
+    "Kom ihåg rösterna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remember voices"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kom ihåg rösterna"
           }
         }
       }
@@ -20026,6 +20090,22 @@
         }
       }
     },
+    "Med namnrunda": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With a round of names"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Med namnrunda"
+          }
+        }
+      }
+    },
     "Med presentation": {
       "extractionState": "stale",
       "localizations": {
@@ -23562,6 +23642,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Om Mindtalk %@"
+          }
+        }
+      }
+    },
+    "Om att komma ihåg rösterna": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About remembering voices"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Om att komma ihåg rösterna"
           }
         }
       }

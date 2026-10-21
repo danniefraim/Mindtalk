@@ -17,7 +17,7 @@ private struct ImportDrop: ViewModifier {
     func body(content: Content) -> some View {
         content
             .overlay {
-                // With the start card on screen, its zone lights up instead (StartCard).
+                // With the start card's import strip on screen, it lights up instead (ImportZone).
                 if targeted && !importer.zoneVisible {
                     DropSign(folder: folders.folder(folders.selected)?.name, later: session.isBusy,
                              missing: !MeetingImport.shared.ready)
@@ -431,80 +431,60 @@ struct RecordGlyph: View {
     }
 }
 
-/// A dashed place to drop a recording, at the foot of the start card: the whole of it
-/// also opens a file, and "Välj fil…" is there for those who'd rather choose.
+/// A dashed strip under the start card, for a recording you already have: drop it
+/// here (or anywhere on the page), or "Välj fil…". The whole strip also opens a file.
+/// On screen, a file dragged over the page lights this strip rather than covering the page.
 struct ImportZone: View {
     let folder: UUID?
-    /// One row (under the ways in), rather than a block.
-    var compact = false
     @ObservedObject private var importer = MeetingImport.shared
     @State private var hovering = false
     @State private var targeted = false
 
     var body: some View {
         let dropping = importer.dropping
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
-        ZStack {
-            shape.fill(DS.Colors.chip.opacity(dropping ? 0.7 : hovering ? 0.45 : 0))
-            shape.strokeBorder(dropping ? DS.Colors.ink : DS.Colors.fieldStroke.opacity(hovering ? 1 : 0.8),
-                               style: dropping ? StrokeStyle(lineWidth: 1.5) : StrokeStyle(lineWidth: 1, dash: [5, 4]))
-            content(dropping)
-                .padding(.horizontal, compact ? 14 : 18)
-                .padding(.vertical, compact ? 10 : 18)
-                .foregroundStyle(.primary)
+        let shape = RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+        HStack(spacing: 14) {
+            glyph
+            VStack(alignment: .leading, spacing: 2) {
+                Text(dropping ? "Släpp så skrivs den ned" : "Har du redan en inspelning?")
+                    .font(.system(size: 13.5, weight: .semibold))
+                    .foregroundStyle(.primary)
+                if !dropping {
+                    Text("Dra hit en ljud- eller videofil.").font(.system(size: 12.5))
+                        .foregroundStyle(DS.Colors.muted)
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 8)
+            if !dropping { chooseButton }
         }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .frame(minHeight: 66)
+        .background(shape.fill(DS.Colors.chip.opacity(dropping ? 0.7 : hovering ? 0.35 : 0)))
+        .overlay(shape.strokeBorder(dropping ? DS.Colors.ink : DS.Colors.fieldStroke.opacity(hovering ? 1 : 0.85),
+                                    style: dropping ? StrokeStyle(lineWidth: 1.5) : StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
         .contentShape(shape)
         .onTapGesture { importer.choose(folder: folder) }
         .onHover { inside in withAnimation(.easeOut(duration: 0.15)) { hovering = inside } }
         .modifier(DropTarget(targeted: $targeted) { providers in importer.take(providers, folder: folder) })
         .onChange(of: targeted) { _, now in importer.zoneTargeted = now }
+        .onScrollVisibilityChange(threshold: 0.4) { visible in importer.zoneVisible = visible }
+        .onDisappear { importer.zoneVisible = false }
         .animation(.spring(duration: 0.3, bounce: 0.15), value: dropping)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Dra hit en inspelning, eller välj en fil")
     }
 
-    @ViewBuilder private func content(_ dropping: Bool) -> some View {
-        if compact {
-            HStack(spacing: 12) {
-                glyph
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(dropping ? "Släpp så skrivs den ned" : "Dra hit en inspelning")
-                        .font(.system(size: 13.5, weight: .semibold))
-                    if !dropping {
-                        Text("Ljud eller video, till exempel mp3, m4a eller mp4").font(.system(size: 12))
-                            .foregroundStyle(DS.Colors.muted)
-                    }
-                }
-                Spacer(minLength: 8)
-                if !dropping { chooseButton }
-            }
-        } else {
-            VStack(spacing: 10) {
-                glyph
-                if dropping {
-                    Text("Släpp så skrivs den ned").font(.system(size: 20, design: .serif))
-                } else {
-                    VStack(spacing: 3) {
-                        Text("Dra hit en inspelning").font(.system(size: 15, weight: .semibold))
-                        Text("Ljud eller video, till exempel mp3, m4a eller mp4").font(.system(size: 13))
-                            .foregroundStyle(DS.Colors.muted)
-                    }
-                    chooseButton.padding(.top, 4)
-                }
-            }
-            .multilineTextAlignment(.center)
-        }
-    }
-
     private var glyph: some View {
         ZStack {
-            Circle().fill(DS.Colors.chip)
+            RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous).fill(DS.Colors.card)
             Image(systemName: "waveform.badge.plus")
-                .font(.system(size: compact ? 15 : 18, weight: .medium))
+                .font(.system(size: 15, weight: .medium))
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(DS.Colors.ink)
         }
-        .frame(width: compact ? 36 : 44, height: compact ? 36 : 44)
+        .frame(width: 34, height: 34)
         .accessibilityHidden(true)
     }
 
@@ -515,5 +495,6 @@ struct ImportZone: View {
                 .help("Välj en ljud- eller videofil (⌘O)")
             KeyChip(text: "⌘O", small: true)
         }
+        .fixedSize()
     }
 }

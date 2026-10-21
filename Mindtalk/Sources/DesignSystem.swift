@@ -437,6 +437,8 @@ struct CapsLabel: View {
 }
 
 struct InkSwitchStyle: ToggleStyle {
+    /// A smaller switch, for a quiet line at the foot of a card.
+    var small = false
     @Environment(\.isEnabled) private var enabled
 
     func makeBody(configuration: Configuration) -> some View {
@@ -450,9 +452,9 @@ struct InkSwitchStyle: ToggleStyle {
                 Circle()
                     .fill(configuration.isOn ? DS.Colors.onInk : DS.Colors.switchKnob)
                     .shadow(color: .black.opacity(0.18), radius: 1.5, y: 1)
-                    .padding(2.5)
+                    .padding(small ? 2 : 2.5)
             }
-            .frame(width: 38, height: 22)
+            .frame(width: small ? 30 : 38, height: small ? 18 : 22)
             .opacity(enabled ? 1 : 0.45)
             .contentShape(Capsule())
         }
