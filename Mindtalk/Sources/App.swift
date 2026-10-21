@@ -1346,6 +1346,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if args.contains("--defaults-test") {
             exit(PreviewDefaults.selfTest())
         }
+        // `Mindtalk --round-test`: the round's names onto the voices (RoundPlacement), on
+        // made-up words, turns and prints — no audio, nothing read or written.
+        if args.contains("--round-test") {
+            exit(RoundPlacementTest.run())
+        }
+        // `Mindtalk --print-length-test --models-dir <tmp>/models`: how prints of 1.5–10 s
+        // compare with the people you know, on the meetings in that folder's store (a copy).
+        if args.contains("--print-length-test") {
+            Task { @MainActor in exit(await PrintLengthTest.run()) }
+            RunLoop.main.run()
+        }
         if args.contains("--matcher-test") {
             let m = VocabularyMatcher(entries: [
                 (word: "Mindtalk", heardAs: []), (word: "Mindact", heardAs: ["min dakt"]), (word: "AI", heardAs: []),
@@ -1543,6 +1554,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if let i = args.firstIndex(of: "--relisten"), i + 1 < args.count {
             Task { @MainActor in
                 await MeetingSession.shared.relistenTest(title: args[i + 1])
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
+        // `Mindtalk --round-replay-test file.wav [--people People.json] [--learn-people out.json]
+        // [--end-round-at s]`: a recorded round played in as the microphone, the guided round
+        // on from the start, and the names each voice ended with printed (ROUND-RESULT). A
+        // self-test: nothing is kept (Settings.previewing, the meeting removed after); known
+        // voices come only from --people, in memory, and --learn-people writes what the
+        // meeting taught to that file only (scripts/round-replay.sh).
+        if let i = args.firstIndex(of: "--round-replay-test"), i + 1 < args.count {
+            let file = { (flag: String) in args.firstIndex(of: flag).flatMap { $0 + 1 < args.count ? URL(fileURLWithPath: args[$0 + 1]) : nil } }
+            Task {
+                await VoiceMemory.shared.test(people: file("--people"))
+                await MeetingSession.shared.simulate(file: URL(fileURLWithPath: args[i + 1]), language: .swedish, speed: 1, round: true)
+                if let out = file("--learn-people") { VoiceMemory.shared.export(to: out) }
                 exit(0)
             }
             RunLoop.main.run()

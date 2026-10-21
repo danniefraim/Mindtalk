@@ -13,8 +13,9 @@ import os
 // silence after someone has spoken moves the round on by itself; "Nästa" is there
 // to skip the wait. When nobody new speaks, it counts down and ends.
 //
-// After the round, each turn is matched to the voice the live separation heard in
-// that stretch, and the names go there.
+// After the round, each name goes to the voice that said it (RoundPlacement): the voice
+// of the name word, never a voice heard through the whole round (a TV, the next table),
+// and — for someone you know — never a voice that clearly isn't them.
 //
 // Measured on real meetings (scripts in the scratchpad bench): recognition is safe
 // from 1.5 s of speech with the usual thresholds (0.60, lead 0.10) — strangers never
@@ -37,11 +38,26 @@ final class IntroRound: ObservableObject {
         let name: String
         let known: Bool
         let score: Float?
+        /// Where the name was heard (the name and the words leading up to it) — or, not
+        /// heard said, the turn.
         let from: Double
         let to: Double
         var print: [Float]?
         let figure: VoiceFigure
         let colour: Int
+        /// The whole turn, from its first sound to when it was done…
+        var turnFrom: Double? = nil
+        var turnTo: Double? = nil
+        /// …the name word itself (nil: typed, or the voice recognised)…
+        var said: ClosedRange<Double>? = nil
+        /// …and typed by hand in the name card.
+        var typed = false
+
+        /// The turn as the placement sees it (RoundPlacement).
+        var turn: RoundPlacement.Turn {
+            RoundPlacement.Turn(name: name, from: min(turnFrom ?? from, from), to: max(turnTo ?? to, to), said: said,
+                                known: known, score: score, typed: typed)
+        }
     }
 
     @Published private(set) var turn = 1
@@ -83,6 +99,10 @@ final class IntroRound: ObservableObject {
     private var turnStart = 0
     private var cursor = 0
     private var speechStart: Int?
+    /// Where this turn's speech began — kept while the name card listens afresh.
+    private var turnSpeech: Int?
+    /// The name word heard in the name card ("Anna", "det är Anna"), and where it was said.
+    private var draftSaid: ClosedRange<Double>?
     private var voiced = 0.0
     private var silence = 0.0
     private var lastSpeech = Date()
@@ -123,7 +143,7 @@ final class IntroRound: ObservableObject {
 
     var recognitionOn: Bool {
         let memory = VoiceMemory.shared
-        return memory.enabled && memory.state == .ready && memory.people.contains { !$0.prints.isEmpty }
+        return memory.isOn && memory.state == .ready && memory.people.contains { !$0.prints.isEmpty }
     }
 
     // MARK: Turns
@@ -132,6 +152,8 @@ final class IntroRound: ObservableObject {
         session?.keepRoundAudio()
         turnStart = cursor
         speechStart = nil
+        turnSpeech = nil
+        draftSaid = nil
         voiced = 0
         silence = 0
         inSpeech = false
@@ -188,8 +210,12 @@ final class IntroRound: ObservableObject {
         guard !name.isEmpty else { return }
         let colour = captures.count
         let fig = figure ?? VoiceFigure.from(seed: "\(name)-\(colour)")
+        // Said aloud: where (the name goes to whoever said it). Typed: the turn decides.
+        let spoken = !typed || name == spokenDraft
         captures.append(Capture(name: name, known: false, score: nil, from: seconds(speechStart ?? turnStart),
-                                to: seconds(cursor), print: turnPrint, figure: fig, colour: colour))
+                                to: seconds(cursor), print: turnPrint, figure: fig, colour: colour,
+                                turnFrom: seconds(turnSpeech ?? turnStart), turnTo: seconds(cursor),
+                                said: spoken ? draftSaid : nil, typed: !spoken))
         VoiceMemory.shared.reserve(fig, for: name)
         Self.log.notice("round: turn \(self.turn) named after \(Int(Date().timeIntervalSince(self.phaseSince))) s")
         turn += 1
@@ -217,7 +243,8 @@ final class IntroRound: ObservableObject {
         let fig = VoiceFigure.remembered(knownMatch.name) ?? VoiceFigure.from(seed: knownMatch.name)
         captures.append(Capture(name: knownMatch.name, known: true, score: knownMatch.score,
                                 from: seconds(speechStart ?? turnStart), to: seconds(cursor),
-                                print: turnPrint, figure: fig, colour: colour))
+                                print: turnPrint, figure: fig, colour: colour,
+                                turnFrom: seconds(turnSpeech ?? turnStart), turnTo: seconds(cursor)))
         turn += 1
         beginTurn()
     }
@@ -271,7 +298,7 @@ final class IntroRound: ObservableObject {
                     figure = again.figure
                     set(.same(again.name))
                 } else {
-                    captureHeard(heard.name, from: heard.from, to: heard.to)
+                    captureHeard(heard.name, from: heard.from, to: heard.to, said: heard.said)
                 }
                 return
             }
@@ -295,13 +322,13 @@ final class IntroRound: ObservableObject {
                 guard case .new = phase else { return }
             }
             // Someone says the name ("Anna", "det är Anna"): it fills in, and saves itself.
-            if !typed, let name = heardName(), settled(on: name) {
-                if let again = captures.first(where: { Self.sameName($0.name, name) }) {
+            if !typed, let heard = heardName(), settled(on: heard.name) {
+                if let again = captures.first(where: { Self.sameName($0.name, heard.name) }) {
                     figure = again.figure
                     set(.same(again.name))
                     return
                 }
-                propose(name, saveIn: 1.2)
+                propose(heard.name, saveIn: 1.2, said: heard.said)
             }
             if let at = autoSaveAt, Date() >= at { save() }
             // No name in twenty seconds: on without one ("Talare 2" — named later in the text).
@@ -343,6 +370,7 @@ final class IntroRound: ObservableObject {
             if silent { inSpeech = false }
             if inSpeech, speechStart == nil, phase == .listening || phase == .new {
                 speechStart = max(turnStart, cursor + i - 10 * Self.frame - 1_600)
+                if turnSpeech == nil { turnSpeech = speechStart }
             }
             if case .ready = phase { i += Self.frame; continue }
             if inSpeech {
@@ -418,8 +446,8 @@ final class IntroRound: ObservableObject {
         figure = finalFigure(from: turnPrint) ?? VoiceFigure.from(seed: "turn-\(turn)-\(session.record?.id.uuidString ?? "")")
         // "Jag heter Erik": the name from what was said in this turn.
         let from = seconds(start) - 0.3, to = seconds(cursor) + 0.3
-        let said = ((session.record?.words ?? []) + session.pending)
-            .filter { $0.end > from && $0.start < to }.map(\.text).joined(separator: " ")
+        let turnWords = ((session.record?.words ?? []) + session.pending).filter { $0.end > from && $0.start < to }
+        let said = turnWords.map(\.text).joined(separator: " ")
         askedAt = seconds(cursor)
         // Listened to afresh while asking: whoever answers.
         candidate = nil
@@ -428,7 +456,9 @@ final class IntroRound: ObservableObject {
         silence = 0
         lastCheck = 0
         set(.new)
-        if let name = Self.name(in: MeetingText.clean(said), whole: false) { propose(name, saveIn: 1.5) }
+        if let name = Self.name(in: MeetingText.clean(said), whole: false) {
+            propose(name, saveIn: 1.5, said: Self.whereSaid(name, in: turnWords))
+        }
     }
 
     /// A name heard is taken once the person has stopped talking and the speech model
@@ -505,7 +535,7 @@ final class IntroRound: ObservableObject {
 
     /// A name said in this turn, with where it was said. Only once half a second of
     /// sound has followed it: the speech model can still be finishing the word.
-    private func nameInTurn() -> (name: String, from: Double, to: Double)? {
+    private func nameInTurn() -> (name: String, from: Double, to: Double, said: ClosedRange<Double>?)? {
         let heardTo = seconds(cursor)
         let here = Set(captures.compactMap { voice(from: $0.from, to: $0.to) })
         for run in Self.utterances(turnWords()).reversed() {
@@ -522,9 +552,23 @@ final class IntroRound: ObservableObject {
             let key = name.split(separator: " ").first.map { $0.lowercased() } ?? ""
             let at = run.lastIndex { $0.text.lowercased().filter(\.isLetter).hasPrefix(key) } ?? (run.count - 1)
             let from = max(first.start, run[at].start - 1.2)
-            return (name, from - 0.1, min(run[at].end, run[at].start + 1.2) + 0.1)
+            return (name, from - 0.1, min(run[at].end, run[at].start + 1.2) + 0.1, Self.whereSaid(name, in: run))
         }
         return nil
+    }
+
+    /// Where a name was said among some words: the word that is it (and the surname
+    /// after it, "Anna Svensson") — the last time it was said. nil: not among them.
+    static func whereSaid(_ name: String, in words: [MeetingWord]) -> ClosedRange<Double>? {
+        let parts = name.split(separator: " ").map { $0.lowercased() }
+        let letters = { (w: MeetingWord) in w.text.lowercased().filter { $0.isLetter || $0 == "-" } }
+        guard let first = parts.first, let at = words.lastIndex(where: { RoundPlacement.isNameWord($0.text, first) })
+        else { return nil }
+        var end = words[at].end
+        if parts.count > 1, at + 1 < words.count, letters(words[at + 1]).hasPrefix(parts[1]) {
+            end = words[at + 1].end
+        }
+        return words[at].start...max(end, words[at].start)
     }
 
     /// Some words said and then a pause, none of them a name: time to ask.
@@ -535,12 +579,14 @@ final class IntroRound: ObservableObject {
     }
 
     /// A new person by the name they said — no card, no waiting.
-    private func captureHeard(_ name: String, from: Double, to: Double) {
+    private func captureHeard(_ name: String, from: Double, to: Double, said: ClosedRange<Double>?) {
         let colour = captures.count
         let remembered = VoiceFigure.remembered(name)
         let fig = remembered ?? finalFigure(from: turnPrint) ?? VoiceFigure.from(seed: "\(name)-\(colour)")
         captures.append(Capture(name: name, known: false, score: nil, from: from, to: to, print: turnPrint,
-                                figure: fig, colour: colour))
+                                figure: fig, colour: colour,
+                                turnFrom: min(from, seconds(turnSpeech ?? speechStart ?? turnStart)),
+                                turnTo: max(to, seconds(cursor)), said: said))
         if remembered == nil { VoiceMemory.shared.reserve(fig, for: name) }
         // Its voice, from what it said this turn (when that was long enough): so someone
         // talking on in the next turn is heard as them, not as a new person.
@@ -559,16 +605,18 @@ final class IntroRound: ObservableObject {
         beginTurn()
     }
 
-    private func propose(_ name: String, saveIn seconds: Double) {
+    private func propose(_ name: String, saveIn seconds: Double, said: ClosedRange<Double>?) {
         guard name != draft, !captures.contains(where: { Self.sameName($0.name, name) }) else { return }
         draft = name
         spokenDraft = name
+        draftSaid = said
         autoSaveAt = Date().addingTimeInterval(seconds)
         Self.log.notice("round: turn \(self.turn) heard its name")
     }
 
-    /// What was said since the card asked — the latest short utterance, if it names someone.
-    private func heardName() -> String? {
+    /// What was said since the card asked — the latest short utterance, if it names
+    /// someone — and where the name was said.
+    private func heardName() -> (name: String, said: ClosedRange<Double>?)? {
         guard let session else { return nil }
         let words = ((session.record?.words ?? []) + session.pending).filter { $0.start >= askedAt - 0.2 }
         guard !words.isEmpty else { return nil }
@@ -578,7 +626,8 @@ final class IntroRound: ObservableObject {
             if let p = last.last, w.start - p.end > 0.8 { last = [] }
             last.append(w)
         }
-        return Self.name(in: MeetingText.clean(last.map(\.text).joined(separator: " ")), whole: true)
+        guard let name = Self.name(in: MeetingText.clean(last.map(\.text).joined(separator: " ")), whole: true) else { return nil }
+        return (name, Self.whereSaid(name, in: last))
     }
 
     /// A name in what was said: "jag heter Anna", "det är Anna", "Anna här" — or, said
@@ -627,32 +676,10 @@ final class IntroRound: ObservableObject {
     }
 
     // MARK: After the round
-
-    /// Each turn to the voice the live separation heard most in its stretch — the name
-    /// goes there (a known voice also marked as recognised). Returns the turns not
-    /// placed yet (their words may still be settling).
-    static func bind(_ captures: [Capture], into record: inout MeetingRecord, words: [MeetingWord]) -> [Capture] {
-        var left: [Capture] = []
-        for c in captures {
-            var share: [Int: Double] = [:]
-            for w in words where w.end > c.from && w.start < c.to {
-                guard let s = w.speaker, s >= 0 else { continue }
-                share[s, default: 0] += min(w.end, c.to) - max(w.start, c.from)
-            }
-            // A name said on its own is half a second: enough to place it.
-            guard let speaker = share.max(by: { $0.value < $1.value })?.key, share[speaker, default: 0] >= 0.35 else {
-                left.append(c)
-                continue
-            }
-            let key = String(speaker)
-            // Two turns heard as one voice: the first keeps it.
-            guard (record.names[key] ?? "").isEmpty || record.names[key] == c.name else { continue }
-            if record.names.values.contains(c.name), record.names[key] != c.name { continue }
-            record.names[key] = c.name
-            if c.known, let score = c.score { record.recognized[key] = score }
-        }
-        return left
-    }
+    //
+    // Which voice each turn's name goes on is RoundPlacement's: by the voice that said the
+    // name, never a voice heard through the whole round, checked against the voices you
+    // know (MeetingSession.placeRound asks it again as the words settle, and at the end).
 
     #if DEBUG
     /// Screenshots: the moment a name is settled, held still (`--demo-phase reveal`):

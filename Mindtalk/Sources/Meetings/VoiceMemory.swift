@@ -53,7 +53,7 @@ final class VoiceMemory: ObservableObject {
     }
     @Published private(set) var people: [Person] = []
     /// On — switched on in Settings, or for a self-test (never saved then).
-    private var isOn: Bool { enabled || testing }
+    var isOn: Bool { enabled || testing }
     private var testing = false
     @Published private(set) var state: State = .missing
 
@@ -247,6 +247,22 @@ final class VoiceMemory: ObservableObject {
         }
         print("Röster från \(titles.joined(separator: ", ")): \(people.map { "\($0.name) (\($0.prints.count))" }.joined(separator: ", "))")
     }
+
+    /// Self-test (`--round-replay-test`): on for this run only, knowing just the people in
+    /// `url` (nobody without one) — your own list and setting are left alone.
+    func test(people url: URL?) async {
+        testing = true
+        people = url.flatMap { try? JSONDecoder().decode([Person].self, from: Data(contentsOf: $0)) } ?? []
+        if (try? await VoicePrints.shared.load()) != nil { state = .ready }
+        print("Kända röster i provet: \(people.map { "\($0.name) (\($0.prints.count))" }.joined(separator: ", "))")
+    }
+
+    /// What a self-test learned, into the file it names (`--learn-people`) — never People.json.
+    func export(to url: URL) {
+        guard testing else { return }
+        try? JSONEncoder().encode(people).write(to: url, options: [.atomic])
+        print("Lärde: \(people.map { "\($0.name) (\($0.prints.count))" }.joined(separator: ", ")) → \(url.path)")
+    }
     #endif
 
     func forget(_ person: Person) {
@@ -404,33 +420,61 @@ final class VoiceMemory: ObservableObject {
     /// ones is probably someone else's voice (speakers mixed up in that meeting).
     nonisolated static let notThem: Float = 0.5
 
+    /// The people you've named, as RoundPlacement compares voices with them (nobody while
+    /// switched off, or before the model is ready).
+    var known: [RoundPlacement.Known] {
+        guard isOn, state == .ready else { return [] }
+        return people.filter { !$0.prints.isEmpty }.map { RoundPlacement.Known(name: $0.name, prints: $0.prints) }
+    }
+
+    /// Prints of a meeting's voices from its recording — each from six seconds of its
+    /// speech up (VoicePrints.minimumSpeech) — with how much speech each was made from.
+    func prints(words: [MeetingWord], audio url: URL, only: Set<Int>? = nil) async -> [Int: RoundPlacement.Voice] {
+        guard isOn, state == .ready else { return [:] }
+        var out: [Int: RoundPlacement.Voice] = [:]
+        for speaker in Set(words.compactMap(\.speaker).filter { $0 >= 0 }).sorted() where only?.contains(speaker) ?? true {
+            guard let print = await VoicePrints.shared.print(of: speaker, in: words, audio: url) else { continue }
+            let seconds = VoicePrints.stretches(of: speaker, in: words).reduce(0) { $0 + $1.end - $1.start }
+            out[speaker] = RoundPlacement.Voice(print: print, seconds: min(seconds, VoicePrints.maximumSpeech))
+        }
+        return out
+    }
+
     /// Who the unnamed voices of a meeting are, among the people you've named. Each
-    /// person at most once, the clearest matches first. Returns speaker → (name, score).
+    /// person at most once, the clearest matches first (RoundPlacement.recognise). A name on
+    /// a voice in `movable` (Mindtalk's own: placed by the round or recognised) that is
+    /// clearly not that person can move to the voice that surely is.
+    func recognise(voices: [Int: RoundPlacement.Voice], names: [String: String], rejected: [String: [String]] = [:],
+                   movable: Set<Int> = []) -> [RoundPlacement.Recognition] {
+        let known = self.known
+        guard !known.isEmpty else { return [] }
+        var given: [Int: String] = [:]
+        for (key, name) in names where Self.isRealName(name) { if let s = Int(key) { given[s] = name } }
+        let unnamed = voices.filter { given[$0.key] == nil }
+        for (speaker, voice) in unnamed.sorted(by: { $0.key < $1.key }) {
+            let ranked = known.map { ($0.name, RoundPlacement.similarity(voice.print, $0.prints)) }.sorted { $0.1 > $1.1 }
+            guard let best = ranked.first else { continue }
+            let lead = best.1 - (ranked.dropFirst().first?.1 ?? -1)
+            Self.log.info("voice \(speaker): best \(best.0, privacy: .private) \(best.1, format: .fixed(precision: 2)), lead \(lead, format: .fixed(precision: 2))")
+        }
+        var wrong: [Int: Set<String>] = [:]
+        for (key, names) in rejected { if let s = Int(key) { wrong[s, default: []].formUnion(names) } }
+        let (found, notes) = RoundPlacement.recognise(unnamed: unnamed, holders: voices.filter { movable.contains($0.key) },
+                                                      names: given, movable: movable, people: known, rejected: wrong)
+        for note in notes { Self.log.notice("voices: \(note, privacy: .public)") }
+        return found
+    }
+
+    /// The same for a meeting read in from a file (nothing named yet, nothing to move).
     func recognise(words: [MeetingWord], audio url: URL, names: [String: String],
                    rejected: [String: [String]] = [:]) async -> [Int: (name: String, score: Float)] {
         guard isOn, state == .ready, !people.isEmpty else { return [:] }
         let unnamed = Set(words.compactMap(\.speaker).filter { $0 >= 0 && !(names[String($0)].map(Self.isRealName) ?? false) })
         guard !unnamed.isEmpty else { return [:] }
-        let taken = Set(names.values.filter(Self.isRealName).map(Self.key))
-        let candidates = people.filter { !taken.contains(Self.key($0.name)) }
-        var scores: [(speaker: Int, person: Person, score: Float, lead: Float)] = []
-        for speaker in unnamed {
-            guard let print = await VoicePrints.shared.print(of: speaker, in: words, audio: url) else { continue }
-            // Not someone you said this voice isn't.
-            let wrong = Set((rejected[String(speaker)] ?? []).map(Self.key))
-            let ranked = candidates.filter { !wrong.contains(Self.key($0.name)) }
-                .map { ($0, Self.similarity(print, $0)) }.sorted { $0.1 > $1.1 }
-            guard let best = ranked.first else { continue }
-            let lead = best.1 - (ranked.dropFirst().first?.1 ?? -1)
-            Self.log.info("voice \(speaker): best \(best.0.name, privacy: .private) \(best.1, format: .fixed(precision: 2)), lead \(lead, format: .fixed(precision: 2))")
-            scores.append((speaker, best.0, best.1, lead))
-        }
+        let voices = await prints(words: words, audio: url, only: unnamed)
         var out: [Int: (name: String, score: Float)] = [:]
-        var used = Set<UUID>()
-        for s in scores.sorted(by: { $0.score > $1.score }) where s.score >= Self.sameVoice && s.lead >= Self.margin {
-            guard !used.contains(s.person.id), out[s.speaker] == nil else { continue }
-            used.insert(s.person.id)
-            out[s.speaker] = (s.person.name, s.score)
+        for case .name(let speaker, let name, let score) in recognise(voices: voices, names: names, rejected: rejected) {
+            out[speaker] = (name, score)
         }
         return out
     }

@@ -369,7 +369,10 @@ final class MeetingSession: ObservableObject {
         try? FileManager.default.removeItem(at: MeetingStore.folder(for: copy.id))
     }
 
-    func simulate(file: URL, language: SpeechModel, speed: Double) async {
+    /// `round`: `--round-replay-test` — the guided round from the first second, the audio
+    /// held back until the models are ready (as a real round waits for them), and the
+    /// names the meeting ended with printed as one line of JSON (ROUND-RESULT).
+    func simulate(file: URL, language: SpeechModel, speed: Double, round replay: Bool = false) async {
         setvbuf(stdout, nil, _IOLBF, 0)        // each line out at once, also into a file
         if !VoiceModels.isInstalled {
             print("Hämtar röstmodellen…")
@@ -388,7 +391,13 @@ final class MeetingSession: ObservableObject {
         phase = .starting
         simulation = (Date(), speed)
         loop = Task { await self.run() }
-        if CommandLine.arguments.contains("--introduce") { beginIntroduction() }
+        if CommandLine.arguments.contains("--introduce") || replay { beginIntroduction() }
+        if replay {
+            let t0 = Date()
+            while phase == .starting { try? await Task.sleep(for: .milliseconds(200)) }
+            print("Modellerna redo efter \(Int(Date().timeIntervalSince(t0))) s")
+            startedAt = Date()
+        }
         do {
             let source = try AudioChunks(url: file)
             // `--introduce-at 20`: "Presentationsrunda" pressed that many seconds in.
@@ -407,6 +416,10 @@ final class MeetingSession: ObservableObject {
                     print("Rundan slut vid \(Int(elapsed)) s, ord hittills: \(record?.words.count ?? 0)")
                     endIntroduction()
                 }
+                if let round {
+                    let state = "tur \(round.turn) \(round.phase) · i rummet \(round.captures.map(\.name))"
+                    if state != lastRoundState { lastRoundState = state; print("[\(String(format: "%.1f", elapsed)) s] \(state)") }
+                }
                 try? await Task.sleep(for: .milliseconds(Int(100 / speed)))
             }
         } catch { print("Fel: \(error.localizedDescription)") }
@@ -420,11 +433,26 @@ final class MeetingSession: ObservableObject {
         if let id = finished {
             if let saved = MeetingStore.shared.meetings.first(where: { $0.id == id }) {
                 print("\n=== Efter genomgången (\(saved.speakers.count) talare) ===\n" + MeetingText.plain(saved))
+                if replay { printRoundResult(saved) }
                 if let heal = saved.heal { print("\n" + MeetingView.healText(heal) + " – ändrade ord: " + heal.changed.map { saved.words[$0].text }.joined(separator: ", ")) }
             }
             // `--keep`: left in Möten, to look at afterwards.
             if !CommandLine.arguments.contains("--keep") { MeetingStore.shared.delete(id, quietly: true) } else { print("Sparat: \(id.uuidString)") }
         }
+    }
+
+    /// The round's turns as they were when it ended (`--round-replay-test` prints them).
+    private var replayTurns: [IntroRound.Capture] = []
+
+    /// One line a script can read: the names each voice ended with, which of them were
+    /// recognised, the round's turns and every word with its voice.
+    private func printRoundResult(_ saved: MeetingRecord) {
+        let turns: [[String: Any]] = replayTurns.map { ["name": $0.name, "from": $0.from, "to": $0.to, "known": $0.known] }
+        let words: [[Any]] = saved.words.map { [$0.start, $0.end, $0.speaker ?? -2, $0.text] }
+        let out: [String: Any] = ["names": saved.names, "recognized": saved.recognized.mapValues { Double($0) },
+                                  "turns": turns, "words": words]
+        if let data = try? JSONSerialization.data(withJSONObject: out, options: [.sortedKeys]),
+           let line = String(data: data, encoding: .utf8) { print("ROUND-RESULT " + line) }
     }
 
     /// Screenshots: a meeting twelve minutes in, three people, one of them named.
@@ -543,7 +571,7 @@ final class MeetingSession: ObservableObject {
         NoteDraft.shared.text = ""
         steps = 0
         // A round from a meeting before is never this one's.
-        roundLeft = []
+        resetRound()
         roundMeeting = nil
         language = dictation.engine
         let date = Date()
@@ -863,8 +891,9 @@ final class MeetingSession: ObservableObject {
         introducing = true
         introChecked = []
         introFigures = [:]
-        roundLeft = []
+        resetRound()
         roundMeeting = record?.id
+        roundSpan = (elapsed, nil)
         // The guided round: one person at a time (IntroRound).
         let round = IntroRound(session: self)
         self.round = round
@@ -878,10 +907,36 @@ final class MeetingSession: ObservableObject {
 
     /// The guided round while it runs.
     @Published private(set) var round: IntroRound?
-    /// Turns not yet placed on a voice (their words were still settling).
-    private var roundLeft: [IntroRound.Capture] = []
+    /// The round's turns, kept after it ends: their names are placed again, from scratch,
+    /// whenever the evidence is better — the words settled, the final pass (RoundPlacement).
+    private var roundTurns: [IntroRound.Capture] = []
+    /// Names the round put on voices (speaker → name), while they're still there as it put
+    /// them: a name you change is yours, and the round leaves that voice alone after.
+    private var roundPlaced: [String: String] = [:]
+    /// Names you took off (or changed) where the round had put them: not put back there.
+    private var roundRefused: [String: Set<String>] = [:]
+    /// Voices Mindtalk itself named in this recording by their print: its own to correct.
+    private var recognisedHere: [String: String] = [:]
+    /// What the log last said about each turn — each decision is logged once.
+    private var roundLogged: [Int: String] = [:]
+    /// Prints of the voices heard so far, from the opening audio, with the speech they
+    /// were made from — made again as a voice says more (up to forty seconds).
+    private var livePrints: [Int: RoundPlacement.Voice] = [:]
     /// The meeting those turns belong to — a later meeting never gets its names.
     private var roundMeeting: UUID?
+    /// When the round began and ended (seconds into the meeting): a voice talking through
+    /// it outside the turns is background (RoundPlacement.outsideTurns).
+    private var roundSpan: (from: Double, to: Double?)?
+
+    private func resetRound() {
+        roundSpan = nil
+        roundTurns = []
+        roundPlaced = [:]
+        roundRefused = [:]
+        recognisedHere = [:]
+        roundLogged = [:]
+        livePrints = [:]
+    }
 
     var openingCountForRound: Int { intake?.openingCount ?? 0 }
     func keepRoundAudio() { intake?.keepOpening(seconds: 180) }
@@ -890,17 +945,103 @@ final class MeetingSession: ObservableObject {
         return intake.opening(from: start, to: end ?? intake.openingCount)
     }
 
-    /// The round's names onto the voices — now, and again as the words settle.
-    private func placeRound(_ captures: [IntroRound.Capture]) {
-        // Only into the meeting the round was in — a later meeting never gets its names.
-        guard var latest = record, !captures.isEmpty, roundMeeting == latest.id else { return }
-        let before = latest.names
-        roundLeft = IntroRound.bind(captures, into: &latest, words: latest.words + pending)
-        if latest.names != before {
+    /// The round's names onto the voices: when it ends, again as the words settle, once
+    /// more when the meeting ends and on the final pass's words. Worked out anew each time
+    /// (RoundPlacement.place): a name the round put on a voice that the evidence no longer
+    /// supports comes off it again; a name you changed meanwhile is yours. Returns whether
+    /// some turn still waits (for words to settle, or a voice to be heard).
+    @discardableResult
+    private func placeRound(final: (words: [MeetingWord], voices: [Int: RoundPlacement.Voice])? = nil) async -> Bool {
+        guard let id = record?.id, roundMeeting == id, !roundTurns.isEmpty else { return false }
+        let people = VoiceMemory.shared.known
+        // The voices' prints — only needed to check names of people you know.
+        let voices: [Int: RoundPlacement.Voice]
+        if let final { voices = final.voices } else if people.isEmpty { voices = [:] } else {
+            voices = await refreshLivePrints(words: (record?.words ?? []) + pending)
+        }
+        // From here on nothing waits: the record is read and written in one go.
+        guard var latest = record, latest.id == id else { return false }
+        let words = final?.words ?? (latest.words + pending)
+        // Changed by you since the round put it there: yours, and not put back on that voice.
+        for (key, name) in roundPlaced where latest.names[key] != name {
+            roundPlaced[key] = nil
+            roundRefused[key, default: []].insert(name)
+        }
+        var fixed: [Int: String] = [:]
+        for (key, name) in latest.names where !name.isEmpty && roundPlaced[key] == nil {
+            if let s = Int(key) { fixed[s] = name }
+        }
+        var refused: [Int: Set<String>] = [:]
+        for (key, names) in latest.rejected { if let s = Int(key) { refused[s, default: []].formUnion(names) } }
+        for (key, names) in roundRefused { if let s = Int(key) { refused[s, default: []].formUnion(names) } }
+        let span = roundSpan.flatMap { s in s.to.map { s.from...$0 } }
+        let decisions = RoundPlacement.place(roundTurns.map(\.turn), words: words, voices: voices, people: people,
+                                             fixed: fixed, rejected: refused, round: span, final: final != nil)
+        var wanted: [String: IntroRound.Capture] = [:]
+        for (d, turn) in zip(decisions, roundTurns) { if case .placed(let v) = d.outcome { wanted[String(v)] = turn } }
+        for (key, name) in roundPlaced where wanted[key]?.name != name {
+            latest.names.removeValue(forKey: key)
+            latest.recognized[key] = nil
+            roundPlaced[key] = nil
+        }
+        for (key, turn) in wanted where latest.names[key] != turn.name {
+            latest.names[key] = turn.name
+            latest.recognized[key] = turn.known ? turn.score : nil
+            roundPlaced[key] = turn.name
+        }
+        for d in decisions {
+            let line = "\(d.outcome) · \(d.why)"
+            guard roundLogged[d.turn] != line else { continue }
+            roundLogged[d.turn] = line
+            noteRound("round: turn \(d.turn)\(final != nil ? " (final pass)" : ""): \(line)")
+        }
+        if latest.names != record?.names || latest.recognized != record?.recognized {
             record = latest
             MeetingStore.shared.save(latest)
         }
-        Self.log.notice("round: \(captures.count - self.roundLeft.count) of \(captures.count) turns placed on voices")
+        return decisions.contains { $0.outcome == .waiting }
+    }
+
+    /// A decision about who's who, into the log (`log show --predicate 'subsystem ==
+    /// "ai.mindact.mindtalk"'`) — and printed, in a replay.
+    private func noteRound(_ line: String) {
+        Self.log.notice("\(line, privacy: .public)")
+        #if DEBUG
+        if simulation != nil { print("[\(String(format: "%.1f", elapsed)) s] \(line)") }
+        #endif
+    }
+
+    /// Voices this recording's round or recognition named, and that are still as it named
+    /// them: Mindtalk's own, so a sure voice match may move them. Never a name typed in
+    /// the round, given by hand or from a continued meeting's part before.
+    private func movableVoices(in record: MeetingRecord) -> Set<Int> {
+        var out = Set<Int>()
+        for (key, name) in roundPlaced where record.names[key] == name {
+            if roundTurns.first(where: { $0.name == name })?.typed == true { continue }
+            if let s = Int(key) { out.insert(s) }
+        }
+        for (key, name) in recognisedHere where record.names[key] == name && record.recognized[key] != nil {
+            if let s = Int(key) { out.insert(s) }
+        }
+        return out
+    }
+
+    /// Prints of the voices heard so far, from the opening audio kept in memory: made from
+    /// two seconds of a voice's speech, again each time it has said two seconds more, up
+    /// to forty.
+    private func refreshLivePrints(words: [MeetingWord]) async -> [Int: RoundPlacement.Voice] {
+        guard let intake else { return livePrints }
+        var speech: [Int: Double] = [:]
+        for w in words { if let s = w.speaker, s >= 0 { speech[s, default: 0] += w.end - w.start } }
+        let audio = intake.openingSamples()
+        let origin = Double(intake.start) / Double(Self.rate)
+        for (speaker, heard) in speech.sorted(by: { $0.key < $1.key }) where heard >= RoundPlacement.shortestPrint {
+            if let had = livePrints[speaker], heard - had.seconds < 2 || had.seconds >= 40 { continue }
+            guard let print = await VoicePrints.shared.print(of: speaker, in: words, samples: audio,
+                                                             minimum: RoundPlacement.shortestPrint, origin: origin) else { continue }
+            livePrints[speaker] = RoundPlacement.Voice(print: print, seconds: min(heard, 40))
+        }
+        return livePrints
     }
 
     /// The voices heard so far that you've named before, named — from two seconds of
@@ -909,51 +1050,69 @@ final class MeetingSession: ObservableObject {
     /// when the meeting is written out.)
     private func recogniseIntroduced(_ checked: inout [Int: Double]) async {
         // Not before the voice model is ready: a check then would call every voice new.
-        guard let record, let intake, VoiceMemory.shared.enabled, VoiceMemory.shared.state == .ready,
+        guard let record, VoiceMemory.shared.isOn, VoiceMemory.shared.state == .ready,
               !VoiceMemory.shared.people.isEmpty else { return }
         // The words still being written count too: their speaker is known before they settle.
         let words = record.words + pending
         var speech: [Int: Double] = [:]
         for w in words { if let s = w.speaker, s >= 0 { speech[s, default: 0] += w.end - w.start } }
         let named = Set(record.names.compactMap { $0.value.isEmpty ? nil : $0.key })
-        let audio = intake.openingSamples()
-        let origin = Double(intake.start) / Double(Self.rate)       // continued: where this part begins
-        for (speaker, heard) in speech where !named.contains(String(speaker)) && heard >= 2
-            && heard - (checked[speaker] ?? 0) >= 2 && heard <= 40 {
-            guard let print = await VoicePrints.shared.print(of: speaker, in: words, samples: audio, minimum: 2,
-                                                             origin: origin) else { continue }
+        let due = speech.filter { !named.contains(String($0.key)) && $0.value >= 2 && $0.value - (checked[$0.key] ?? 0) >= 2 && $0.value <= 40 }
+        guard !due.isEmpty else { return }
+        // Every voice's print, as far as it has been heard: the one to check, and those
+        // holding a name Mindtalk gave that a sure match might move.
+        let prints = await refreshLivePrints(words: words)
+        for (speaker, heard) in due.sorted(by: { $0.key < $1.key }) {
+            guard let voice = prints[speaker] else { continue }
             checked[speaker] = heard
             defer { introChecked.insert(speaker) }
+            guard var latest = self.record, (latest.names[String(speaker)] ?? "").isEmpty else { continue }
+            VoiceMemory.shared.logBest(voice.print, speaker: speaker, heard: heard)
             // Continued: a name from the first part isn't taken by someone else — a voice
             // now that is that person is them (merged below), not the next best match.
-            let namesNow = (self.record?.names ?? [:]).filter { !continuing || (Int($0.key) ?? 0) >= speakerBase }
-            let taken = Set(namesNow.values.filter { !$0.isEmpty })
-                .union(self.record?.rejected[String(speaker)] ?? [])
-            VoiceMemory.shared.logBest(print, speaker: speaker, heard: heard)
-            // From under four seconds of speech, a little surer than at the end of the
-            // meeting: short prints sit closer together.
-            guard let match = VoiceMemory.shared.match(print, excluding: taken),
-                  heard >= 4 || match.score >= 0.65,
-                  var latest = self.record, (latest.names[String(speaker)] ?? "").isEmpty else {
+            var names: [Int: String] = [:], earlier: [Int: String] = [:]
+            for (key, name) in latest.names where !name.isEmpty {
+                guard let s = Int(key) else { continue }
+                if continuing, s < speakerBase { earlier[s] = name } else { names[s] = name }
+            }
+            let movable = movableVoices(in: latest)
+            let (found, notes) = RoundPlacement.recognise(
+                unnamed: [speaker: voice], holders: prints.filter { movable.contains($0.key) }, names: names,
+                movable: movable, people: VoiceMemory.shared.known,
+                rejected: [speaker: Set(latest.rejected[String(speaker)] ?? [])], earlier: earlier)
+            for note in notes { noteRound("voices: \(note)") }
+            switch found.first {
+            case .merge(_, let earlierSpeaker, let score):
+                noteRound("continued: voice \(speaker) is \(earlierSpeaker) of the first part, by the voice you named (\(RoundPlacement.fmt(score)))")
+                merge(speaker, into: aliases[earlierSpeaker] ?? earlierSpeaker)
+            case .name(_, let name, let score):
+                latest.names[String(speaker)] = name
+                latest.recognized[String(speaker)] = score
+                recognisedHere[String(speaker)] = name
+                self.record = latest
+                MeetingStore.shared.save(latest)
+                noteRound("voices: speaker \(speaker) recognised after \(RoundPlacement.fmt(heard)) s of speech (\(RoundPlacement.fmt(score)))")
+            case .move(let name, let from, _, let score, let holder):
+                moveName(name, from: from, to: speaker, score: score, in: &latest)
+                self.record = latest
+                MeetingStore.shared.save(latest)
+                noteRound("voices: a name moved from voice \(from) (clearly not them, \(RoundPlacement.fmt(holder))) to voice \(speaker) (\(RoundPlacement.fmt(score)) after \(RoundPlacement.fmt(heard)) s)")
+            case nil:
                 // A new voice: its figure, once, unlike the others in the room.
                 if introFigures[speaker] == nil {
-                    introFigures[speaker] = VoiceMemory.shared.figureForNew(print, alsoAvoiding: Set(introFigures.values.map(\.rhythm)))
+                    introFigures[speaker] = VoiceMemory.shared.figureForNew(voice.print, alsoAvoiding: Set(introFigures.values.map(\.rhythm)))
                 }
-                continue
             }
-            if continuing, let before = latest.names.first(where: {
-                (Int($0.key) ?? -1) < speakerBase && $0.value.lowercased() == match.name.lowercased() })?.key,
-               let earlierSpeaker = Int(before) {
-                Self.log.notice("continued: voice \(speaker) is \(earlierSpeaker) of the first part, by the voice you named (\(match.score, format: .fixed(precision: 2)))")
-                merge(speaker, into: aliases[earlierSpeaker] ?? earlierSpeaker)
-                continue
-            }
-            latest.names[String(speaker)] = match.name
-            latest.recognized[String(speaker)] = match.score
-            self.record = latest
-            MeetingStore.shared.save(latest)
-            Self.log.notice("voices: speaker \(speaker) recognised after \(heard, format: .fixed(precision: 1)) s of speech (\(match.score, format: .fixed(precision: 2)))")
         }
+    }
+
+    /// A name off a voice that clearly isn't that person ("Talare N" again), onto the one
+    /// that surely is — marked as recognised, so it's shown as Mindtalk's guess.
+    private func moveName(_ name: String, from: Int, to: Int, score: Float, in record: inout MeetingRecord) {
+        RoundPlacement.move(name, from: from, to: to, score: score, in: &record)
+        roundPlaced[String(from)] = nil
+        recognisedHere[String(from)] = nil
+        recognisedHere[String(to)] = name
     }
 
     /// "Alla är här": on with the meeting.
@@ -964,7 +1123,11 @@ final class MeetingSession: ObservableObject {
         introductionHeld = true
         if let round {
             round.stop()
-            placeRound(round.captures)
+            #if DEBUG
+            replayTurns = round.captures
+            #endif
+            roundTurns = round.captures
+            if let span = roundSpan { roundSpan = (span.from, max(span.from, elapsed)) }
             // Who's here is known now: a voice heard first after this is someone new.
             if !round.captures.isEmpty {
                 newVoicesAfter = elapsed
@@ -972,15 +1135,14 @@ final class MeetingSession: ObservableObject {
             }
             if round.captures.count > VoiceTracker.speakers, !manyVoicesNoted { noteManyVoices() }
             self.round = nil
-            // Words still settling: try the rest again a few times.
-            if !roundLeft.isEmpty {
-                let meeting = record?.id
-                Task { @MainActor [weak self] in
-                    for _ in 0..<12 {
-                        try? await Task.sleep(for: .seconds(3))
-                        guard let self, self.isRecording, self.record?.id == meeting, !self.roundLeft.isEmpty else { return }
-                        self.placeRound(self.roundLeft)
-                    }
+            // The names onto the voices now — and, while some turn waits for its words to
+            // settle (or for a voice to be heard), again every three seconds for a while.
+            let meeting = record?.id
+            Task { @MainActor [weak self] in
+                guard let self, await self.placeRound() else { return }
+                for _ in 0..<20 {
+                    try? await Task.sleep(for: .seconds(3))
+                    guard self.isRecording, self.record?.id == meeting, await self.placeRound() else { return }
                 }
             }
         }
@@ -1762,8 +1924,8 @@ final class MeetingSession: ObservableObject {
         if let rest = try? await tracker?.finish() { scores += rest }
         if let rest = try? await steady?.finish() { steadyScores += rest }
         resolveSpeakers(final: true)
-        // Names from the round that found no voice yet: one last try, now that every word is in.
-        if !roundLeft.isEmpty { placeRound(roundLeft) }
+        // The round's names once more, now that every word is in.
+        await placeRound()
         guard var record else { return done() }
         record.words += pending
         pending = []
@@ -1898,18 +2060,24 @@ final class MeetingSession: ObservableObject {
             if match.isEmpty, let old = record?.words, old.contains(where: { ($0.speaker ?? -1) >= 0 }) {
                 Self.carryOver(from: old, to: &words, before: record?.continuedAt)
             }
-            // Voices you've named in earlier meetings, named here too (when switched on).
             MeetingRecord.apply(record?.moves ?? [], to: &words)
-            let found = await VoiceMemory.shared.recognise(words: words, audio: url, names: record?.names ?? [:],
-                                                           rejected: record?.rejected ?? [:])
+            // The voices' prints from the whole recording (from six seconds of speech; a voice
+            // with less keeps the one made while the meeting ran — the final voices are
+            // numbered as the live ones), for the names of people you know.
+            var prints: [Int: RoundPlacement.Voice] = [:]
+            if !VoiceMemory.shared.known.isEmpty {
+                prints = livePrints
+                for (speaker, voice) in await VoiceMemory.shared.prints(words: words, audio: url) { prints[speaker] = voice }
+            }
+            // The round's names once more, on the final pass's voices: they cover every word.
+            await placeRound(final: (words, prints))
+            // Voices you've named in earlier meetings, named here too (when switched on) — and
+            // a name Mindtalk put on a voice that clearly isn't them moved to the one that is.
+            let found = VoiceMemory.shared.recognise(voices: prints, names: record?.names ?? [:],
+                                                     rejected: record?.rejected ?? [:],
+                                                     movable: record.map(movableVoices) ?? [])
             guard var updated = record else { return }       // names may have changed meanwhile
             MeetingRecord.apply(updated.moves, to: &words)
-            for (speaker, match) in found where (updated.names[String(speaker)] ?? "").isEmpty
-                && !updated.names.values.contains(match.name)
-                && !(updated.rejected[String(speaker)] ?? []).contains(match.name) {
-                updated.names[String(speaker)] = match.name
-                updated.recognized[String(speaker)] = match.score
-            }
             // What the final pass changed — worked out off the main thread (a long meeting
             // that differs a lot takes a while), and not at all past a size where it
             // would take too long to be worth it.
@@ -1920,27 +2088,32 @@ final class MeetingSession: ObservableObject {
             // Named, merged or marked meanwhile (the window works during the final pass):
             // kept — only what this pass made is put in.
             if var latest = record {
-                for (key, name) in updated.names where (latest.names[key] ?? "").isEmpty && updated.recognized[key] != nil
-                    && !latest.names.values.contains(name) && !(latest.rejected[key] ?? []).contains(name) {
-                    latest.names[key] = name
-                    latest.recognized[key] = updated.recognized[key]
-                }
                 latest.heal = updated.heal
                 updated = latest
                 MeetingRecord.apply(updated.moves, to: &words)     // moves made meanwhile too
             }
+            for r in found {
+                switch r {
+                case .name(let speaker, let name, let score):
+                    let key = String(speaker)
+                    guard (updated.names[key] ?? "").isEmpty, !updated.names.values.contains(name),
+                          !(updated.rejected[key] ?? []).contains(name) else { continue }
+                    updated.names[key] = name
+                    updated.recognized[key] = score
+                    recognisedHere[key] = name
+                case .move(let name, let from, let to, let score, let holder):
+                    guard updated.names[String(from)] == name, movableVoices(in: updated).contains(from),
+                          (updated.names[String(to)] ?? "").isEmpty,
+                          !(updated.rejected[String(to)] ?? []).contains(name) else { continue }
+                    moveName(name, from: from, to: to, score: score, in: &updated)
+                    noteRound("voices (final pass): a name moved from voice \(from) (clearly not them, \(RoundPlacement.fmt(holder))) to voice \(to) (\(RoundPlacement.fmt(score)))")
+                case .merge:
+                    break                  // continued: the voices are carried over by time instead
+                }
+            }
             // Voices merged while this pass ran (in the text's numbering).
             if !aliases.isEmpty {
                 for i in words.indices { if let s = words[i].speaker, let to = aliases[s] { words[i].speaker = to } }
-            }
-            // Names from the round that still had no voice when the meeting ended (the live
-            // voices lag a few seconds behind; a short meeting can end before they catch
-            // up): placed on the final pass's voices, which cover every word.
-            if !roundLeft.isEmpty, roundMeeting == updated.id {
-                let before = roundLeft.count
-                roundLeft = IntroRound.bind(roundLeft, into: &updated, words: words)
-                Self.log.notice("round: \(before - self.roundLeft.count) of \(before) turns placed on the final voices")
-                roundLeft = []
             }
             updated.words = words
             updated.refined = true
@@ -1948,10 +2121,14 @@ final class MeetingSession: ObservableObject {
             record = updated
             MeetingStore.shared.save(updated)
             Self.log.info("meeting refined: \(words.count) words, \(found.count) voices recognised")
-            // The names you gave, remembered — not the ones Mindtalk gave itself.
+            // The names you gave, remembered — not the ones Mindtalk gave itself — as they are
+            // now: a name moved off a voice that wasn't them is learned from neither.
             let given = updated.names.filter { updated.recognized[$0.key] == nil }
             #if DEBUG
-            if simulation == nil { await VoiceMemory.shared.learn(words: words, audio: url, names: given) }
+            // (A replay with `--learn-people` learns too: into its own file, never People.json.)
+            if simulation == nil || CommandLine.arguments.contains("--learn-people") {
+                await VoiceMemory.shared.learn(words: words, audio: url, names: given)
+            }
             #else
             await VoiceMemory.shared.learn(words: words, audio: url, names: given)
             #endif
@@ -2079,7 +2256,7 @@ final class MeetingSession: ObservableObject {
         keepUnfinished = false
         before = nil
         continuing = false
-        roundLeft = []
+        resetRound()
         roundMeeting = nil
         speakerBase = 0
         earlier = [:]
