@@ -4,13 +4,13 @@ import os
 enum Settings {
     private static let defaults = UserDefaults.standard
 
-    /// Drawing a picture (`--render-…`), running a self-test (`--…-test`) or showing
-    /// made-up data (`--demo`): nothing such a run chooses is kept. The settings that
+    /// Drawing a picture (`--render-…`), running a self-test (`--…-test`, `--notes`) or
+    /// showing made-up data (`--demo`): nothing such a run chooses is kept. The settings that
     /// matter most are written through `keep`, which skips the disk then; and whatever
     /// else gets written is put back as it was when the run ends (PreviewDefaults). So
     /// a render never changes who writes the summaries on this Mac.
     nonisolated static let previewing: Bool = CommandLine.arguments.contains {
-        $0.hasPrefix("--render-") || ($0.hasPrefix("--") && $0.hasSuffix("-test")) || $0 == "--demo"
+        $0.hasPrefix("--render-") || ($0.hasPrefix("--") && $0.hasSuffix("-test")) || $0 == "--demo" || $0 == "--notes"
     }
 
     /// A setting written: to the disk, unless previewing (then it's left as it is).
