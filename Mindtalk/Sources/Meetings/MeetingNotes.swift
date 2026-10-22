@@ -349,7 +349,7 @@ final class MeetingNotes: ObservableObject {
             print(String(format: "\n(%.1f s)\nTitel: %@\nÖversikt: %@", Date().timeIntervalSince(t0), s.title ?? "•", s.overview))
             let show = { (title: String, items: [MeetingSummary.Item]) in
                 print(title)
-                for i in items { print("  - \(i.marked == true ? "⚑ " : "")\(i.text)\(i.owner.map { " (\($0))" } ?? "")  [\(i.at.map { MeetingView.duration($0) } ?? "ingen källa")]") }
+                for i in items { print("  - \(i.topic.map { "{\($0)} " } ?? "")\(i.marked == true ? "⚑ " : "")\(i.text)\(i.owner.map { " (\($0))" } ?? "")  [\(i.at.map { MeetingView.duration($0) } ?? "ingen källa")]") }
             }
             show("Beslut:", s.decisions); show("Att göra:", s.tasks); show("Viktigt:", s.points)
             let t1 = Date()
@@ -726,8 +726,8 @@ final class MeetingNotes: ObservableObject {
     nonisolated private static func finish(_ lines: Lines, outcomes: [Outcomes], overviews: [Overview],
                                            topics: [[String?]] = []) -> MeetingSummary {
         let overview = overviews.first?.summary ?? ""
-        var summary = MeetingSummary(overview: Self.tidy(overview))
-        summary.title = overviews.first.map { Self.cleanTitle($0.title) }
+        var summary = MeetingSummary(overview: Self.swedishOverview(Self.tidy(overview), lines))
+        summary.title = overviews.first.map { Self.sentenceCase(Self.cleanTitle($0.title), lines) }
         // A decision or task must be found in what was said — in a line where someone
         // decides, or says they'll do something. Otherwise it's left out: the small
         // model likes to turn what a meeting is about into things to do.
@@ -759,7 +759,7 @@ final class MeetingNotes: ObservableObject {
         // subjects, a short talk keeps few points, where the model otherwise pads.
         let grouped = summary.points.contains { $0.topic != nil }
         let most = grouped ? (words < 150 ? 3 : words < 400 ? 8 : words < 2000 ? 14 : 20) : (words < 150 ? 0 : words < 400 ? 2 : 8)
-        summary.points = Array(Self.unique(summary.points).prefix(most))
+        summary.points = Array(Self.sameMoment(Self.unique(summary.points), lines).prefix(most))
         return summary
     }
 
@@ -1056,6 +1056,42 @@ final class MeetingNotes: ObservableObject {
     /// What went wrong, in words for the person asking.
     static func explainError(_ error: Error) -> String { explain(error) }
 
+    /// A Swedish title written as a sentence: the models capitalise every word, English
+    /// style ("Möte Om Affärsplaner", "AI AGENTER OCH IoT"). Kept: the first word, short
+    /// abbreviations (AI, IoT), and names as they're written in what was said.
+    nonisolated static func sentenceCase(_ title: String, _ lines: Lines) -> String {
+        guard lines.language == "Swedish" else { return title }
+        let said = Set(lines.lines.flatMap { $0.text.split(separator: " ").dropFirst() }
+            .map { $0.trimmingCharacters(in: .punctuationCharacters) }.filter { $0.first?.isUppercase == true })
+        return sentenceCase(title, names: said)
+    }
+
+    nonisolated static func sentenceCase(_ title: String, names: Set<String>) -> String {
+        let words = title.split(separator: " ").map(String.init)
+        let fixed = words.enumerated().map { i, word -> String in
+            let letters = word.filter(\.isLetter)
+            let allCaps = !letters.isEmpty && letters.allSatisfy(\.isUppercase)
+            let mixed = letters.dropFirst().contains(where: \.isUppercase) && !allCaps      // IoT, iPhone
+            // AI, EU, KPI, but not "I" or a small word shouted with the rest ("OCH").
+            if allCaps, (2...3).contains(letters.count), !smallWords.contains(letters.lowercased()) { return word }
+            if mixed { return word }
+            if i > 0, names.contains(word.trimmingCharacters(in: .punctuationCharacters)) { return word }
+            let lower = word.lowercased()
+            return i == 0 ? lower.prefix(1).uppercased() + lower.dropFirst() : lower
+        }
+        return fixed.joined(separator: " ")
+    }
+
+    nonisolated private static let smallWords: Set<String> = ["och", "om", "på", "med", "för", "till", "av", "en", "ett", "det",
+                                                              "som", "vid", "hos", "ur", "nya", "inför", "mot", "and", "the", "for",
+                                                              "of", "on", "to", "in", "at", "a", "an", "new"]
+
+    /// "Möten diskuterade …" (the models' slip for one meeting): "Mötet diskuterade …".
+    nonisolated static func swedishOverview(_ text: String, _ lines: Lines) -> String {
+        guard lines.language == "Swedish", text.hasPrefix("Möten ") else { return text }
+        return "Mötet " + text.dropFirst("Möten ".count)
+    }
+
     nonisolated private static func cleanTitle(_ raw: String) -> String {
         var t = raw.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'”“«».")))
         if t.count > 60 { t = String(t.prefix(60)) }
@@ -1128,14 +1164,17 @@ final class MeetingNotes: ObservableObject {
         words, as clear notes someone who missed the meeting would want. Only use what was actually said: never \
         invent names, numbers, dates or decisions. Refer to people only by the names written before the colon. \
         Answer in exactly this format, one item per line, every line starting with its label, and nothing else:
-        TITLE: a title of two to five words
+        TITLE: a title of two to five words, capitalised as a sentence in that language (only the first word and names)
         SUMMARY: two to four sentences about what the meeting was about, what was discussed and what came out of it
-        TOPIC: a short heading, two to five words, for one subject that was discussed
-        POINT: one thing that was said about that subject, in one sentence, naming who said it when that matters [n]
         DECISION: a decision that was actually made [n]
         TASK: a concrete action someone will do after the meeting | who will do it [n]
-        Give two to four TOPIC lines (one for a short talk), each followed by its two to four POINT lines. Leave out \
-        DECISION or TASK lines when there are none. Thoughts or what the meeting is about are not tasks.
+        TOPIC: a short heading, two to five words, for one subject that was discussed
+        POINT: one thing that was said about that subject, in one sentence, naming who said it when that matters [n]
+        Write the DECISION and TASK lines first. Every time someone says they will do something after the meeting \
+        ("Erik tar fram en tidsplan", "Anna bokar lokalen", "I'll send it"), that is a TASK line, not a POINT. Every time \
+        something is decided or agreed, that is a DECISION line. Leave them out only when there are none. Thoughts or \
+        what the meeting is about are not tasks. People saying who they are ("Hej, jag heter Anna") is not a point. Then give two to four TOPIC lines (one for a short talk), each \
+        followed by its two to four POINT lines, without repeating the decisions and tasks.
         """
     }
 
@@ -1221,6 +1260,9 @@ final class MeetingNotes: ObservableObject {
         check("a stray line after the labels is left out", afterLabels.summary == "Kort.")
         let bold = parsePlain("**TITLE:** Budget\n**SUMMARY:** Kort.")
         check("bold labels", bold.title == "Budget" && bold.summary == "Kort.")
+        check("sentence case", sentenceCase("Möte Om Affärsplaner", names: []) == "Möte om affärsplaner")
+        check("abbreviations kept", sentenceCase("AI AGENTER OCH IoT", names: []) == "AI agenter och IoT")
+        check("names kept", sentenceCase("Budget Med Klang I Göteborg", names: ["Klang", "Göteborg"]) == "Budget med Klang i Göteborg")
         let topics = parsePlain("""
             TITLE: Höstens planer
             SUMMARY: Vi pratade om budget och lansering.
@@ -1233,7 +1275,7 @@ final class MeetingNotes: ObservableObject {
             """)
         check("points keep their subject", topics.pointTopics == [nil, "Budgeten", "Budgeten", "Lanseringen"])
         check("subjects and points in step", topics.points.count == topics.pointTopics.count)
-        print(failed == 0 ? "plain: 11 of 11 pass" : "plain: \(failed) failed")
+        print(failed == 0 ? "plain: 14 of 14 pass" : "plain: \(failed) failed")
         return failed == 0 ? 0 : 1
     }
 
@@ -1299,6 +1341,22 @@ final class MeetingNotes: ObservableObject {
             if seen.insert(s.lowercased()).inserted { out.append(s) }
         }
         return out.joined(separator: " ")
+    }
+
+    /// One point for one thing said: a second that says the same at the same moment, with
+    /// another name in front ("Erik tycker…", "Talare 4 sa…"), is dropped.
+    nonisolated private static func sameMoment(_ items: [MeetingSummary.Item], _ lines: Lines) -> [MeetingSummary.Item] {
+        var kept: [MeetingSummary.Item] = []
+        for item in items {
+            let about = lines.content(item.text)
+            let twin = kept.contains { other in
+                guard let a = other.at, let b = item.at, abs(a - b) < 1 else { return false }
+                let theirs = lines.content(other.text)
+                return Lines.overlap(about, theirs) >= 0.6 || Lines.overlap(theirs, about) >= 0.6
+            }
+            if !twin { kept.append(item) }
+        }
+        return kept
     }
 
     nonisolated private static func unique(_ items: [MeetingSummary.Item]) -> [MeetingSummary.Item] {
@@ -1499,8 +1557,9 @@ struct Lines: Sendable {
                     "let's", "we'll go", "we will", "go with", "settled"],
         .intent: ["ska ", "ska jag", "jag tar", "jag fixar", "jag kollar", "jag skickar", "jag bokar", "jag gör", "jag ringer",
                   "kan du", "kan ni", "fixar", "tar hand om", "kommer att", "måste", "behöver", "lovar", "bokar", "skickar",
-                  "ringer", "gör det", "i'll", "i will", "i can", "can you", "could you", "will you", "we'll", "need to",
-                  "going to", "take care"],
+                  "ringer", "gör det", "tar fram", "ser över", "sätter upp", "tar ansvar", "ordnar", "kollar upp",
+                  "återkommer", "hör av", "mejlar", "bjuder in", "i'll", "i will", "i can", "can you", "could you",
+                  "will you", "we'll", "need to", "going to", "take care", "follow up", "set up", "look into"],
     ]
 
     /// Whether the line said at `at` (or the one right after, where the reply often is)
