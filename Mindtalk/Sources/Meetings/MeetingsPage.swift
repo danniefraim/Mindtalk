@@ -1340,10 +1340,14 @@ struct MeetingRow: View {
     /// its subjects; on the right the voices that were there, their names and how long.
     private func full(_ cast: Cast) -> some View {
         HStack(alignment: .top, spacing: 18) {
+            // One column, the time only, so every title starts at the same place; the day
+            // (when the heading doesn't say it) goes under the title.
             Text(verbatim: clock)
                 .font(.system(size: 12.5, design: .monospaced))
                 .foregroundStyle(DS.Colors.faint)
-                .frame(width: timeOnly ? 52 : 92, alignment: .leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(width: 64, alignment: .leading)
                 .padding(.top, 7)
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -1364,6 +1368,8 @@ struct MeetingRow: View {
                 }
                 if let imported = record.importMeta(at: now) {
                     Text(verbatim: imported).font(.system(size: 12)).foregroundStyle(DS.Colors.faint)
+                } else if let day {
+                    Text(verbatim: day).font(.system(size: 12)).foregroundStyle(DS.Colors.faint)
                 }
                 let subjects = Array((record.summary?.topics ?? []).prefix(3).map(\.title))
                 if !subjects.isEmpty || folder != nil {
@@ -1406,9 +1412,19 @@ struct MeetingRow: View {
 
     /// "9:30" under a day's heading, else "I går 9:30"; "Datum okänt" for a file without one.
     private var clock: String {
+        if record.source?.dateKnown == false { return "" }
+        return record.date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale))
+    }
+
+    /// "Tisdag 14 oktober" under the title when the heading above doesn't say the day;
+    /// "Datum okänt" for a file without one.
+    private var day: String? {
         if record.source?.dateKnown == false { return String(localized: "Datum okänt") }
-        if timeOnly { return record.date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale)) }
-        return MeetingRecord.when(record.date)
+        guard !timeOnly else { return nil }
+        let sameYear = Calendar.current.isDate(record.date, equalTo: now, toGranularity: .year)
+        let style = sameYear ? Date.FormatStyle().weekday(.wide).day().month(.wide) : Date.FormatStyle().day().month(.wide).year()
+        let text = record.date.formatted(style.locale(AppLanguage.locale))
+        return text.prefix(1).uppercased() + text.dropFirst()
     }
 
     /// What it was about: the overview, two lines at most in the list.
