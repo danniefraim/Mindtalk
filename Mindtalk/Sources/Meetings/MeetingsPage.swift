@@ -697,17 +697,17 @@ struct StartCard: View {
                 // The sphere from Hem, turning while the card waits for you. (The cloud is
                 // about two thirds of its frame: the rest is let go.)
                 DotSphere(paused: importer.dropping || starting || offscreen)
-                    .frame(width: 190, height: 190)
+                    .frame(width: 164, height: 164)
                     .frame(maxWidth: .infinity)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
-                    .padding(.top, 14)
-                roomControl.padding(.top, 14)
-                if dictation.micGranted { foot.padding(.top, 20) }
+                    .padding(.top, 8)
+                roomControl.padding(.top, 12)
+                if dictation.micGranted { foot.padding(.top, 16) }
             }
         }
         .padding(.horizontal, 26)
-        .padding(.vertical, 24)
+        .padding(.vertical, 20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .opacity(starting ? 0.5 : importer.dropping ? 0.4 : 1)
         .animation(.easeOut(duration: 0.3), value: starting)
@@ -937,7 +937,7 @@ struct StartCard: View {
                 configuration.label
                     .foregroundStyle(primary ? AnyShapeStyle(DS.Colors.onInk) : AnyShapeStyle(.primary))
                     .padding(.horizontal, 22)
-                    .frame(minHeight: 58)
+                    .frame(minHeight: 52)
                     .background(shape.fill(primary ? DS.Colors.ink : DS.Colors.control)
                         .shadow(color: .black.opacity(lifted ? 0.10 : 0.04), radius: lifted ? 6 : 1, y: lifted ? 3 : 1))
                     .overlay(shape.strokeBorder(primary ? Color.clear : (lifted ? DS.Colors.fieldStroke : DS.Colors.divider),
