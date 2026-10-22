@@ -79,6 +79,11 @@ enum WindowRender {
         window.orderFrontRegardless()
         // The page's entrance and the model sizes being counted.
         try? await Task.sleep(for: .seconds(2.5))
+        // The voice memory loads from disk after launch and would put back the made-up
+        // people and the switch: set again now, then let the page draw them.
+        if Demo.on { VoiceMemory.shared.showDemoPeople() }
+        if args.contains("--voices-off") { VoiceMemory.shared.enabled = false }
+        try? await Task.sleep(for: .seconds(0.4))
         host.layoutSubtreeIfNeeded()
         // `--scroll 600`: the page scrolled down that far, to draw what's below the fold.
         if let down = value("--scroll").flatMap(Double.init), let scroll = WindowPerf.tallestScroll(in: host) {

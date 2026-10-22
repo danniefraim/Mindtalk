@@ -5999,6 +5999,22 @@
         }
       }
     },
+    "Den känner igen era röster.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It knows your voices."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den känner igen era röster."
+          }
+        }
+      }
+    },
     "Den laddas ned i bakgrunden medan du använder Mindtalk och fungerar sedan utan internet. Du har %@ ledigt.": {
       "localizations": {
         "en": {
@@ -8147,6 +8163,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "E4B-it"
+          }
+        }
+      }
+    },
+    "Efter första namnrundan känner Mindtalk igen er nästa gång. Inget ljud sparas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After the first round of names, Mindtalk knows you next time. No audio is kept."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Efter första namnrundan känner Mindtalk igen er nästa gång. Inget ljud sparas."
           }
         }
       }
@@ -17048,6 +17080,38 @@
         }
       }
     },
+    "Känner igen %lld röster. Inget ljud sparas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Knows %lld voices. No audio is kept."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Känner igen %lld röster. Inget ljud sparas."
+          }
+        }
+      }
+    },
+    "Känner igen 1 röst. Inget ljud sparas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Knows 1 voice. No audio is kept."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Känner igen 1 röst. Inget ljud sparas."
+          }
+        }
+      }
+    },
     "Känner igen rösten…": {
       "localizations": {
         "en": {
@@ -25902,6 +25966,22 @@
         }
       }
     },
+    "Rösterna hålls isär ändå. Namnge dem när du vill.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The voices are told apart anyway. Name them when you like."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rösterna hålls isär ändå. Namnge dem när du vill."
+          }
+        }
+      }
+    },
     "Röstkommandon": {
       "extractionState": "stale",
       "localizations": {
@@ -27974,6 +28054,22 @@
         }
       }
     },
+    "Slå på Kom ihåg rösterna, så känner Mindtalk igen er nästa gång.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn on Remember voices, and Mindtalk will know you next time."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slå på Kom ihåg rösterna, så känner Mindtalk igen er nästa gång."
+          }
+        }
+      }
+    },
     "Slå på MCP?": {
       "localizations": {
         "en": {
@@ -29999,6 +30095,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Säg hej och ditt namn, en i taget."
+          }
+        }
+      }
+    },
+    "Säg hej och ditt namn. Sedan vet Mindtalk vem som pratar, i hela mötet och nästa gång.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Say hello and your name. Then Mindtalk knows who is speaking, all through the meeting and next time."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Säg hej och ditt namn. Sedan vet Mindtalk vem som pratar, i hela mötet och nästa gång."
+          }
+        }
+      }
+    },
+    "Säg hej och ditt namn. Sedan vet Mindtalk vem som pratar, i hela mötet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Say hello and your name. Then Mindtalk knows who is speaking, all through the meeting."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Säg hej och ditt namn. Sedan vet Mindtalk vem som pratar, i hela mötet."
           }
         }
       }

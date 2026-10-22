@@ -111,7 +111,7 @@ final class VoiceMemory: ObservableObject {
     #if DEBUG
     /// Screenshots: three people with made-up prints, in memory only — nothing saved.
     func showDemoPeople() {
-        people = ["Anna", "Erik", "Sara"].map { name in
+        people = ["Anna", "Erik", "Sara", "Johan", "Liz", "Markus", "Karin"].map { name in
             Person(name: name, prints: [Self.demoPrint(name.lowercased())], figure: VoiceFigure.from(seed: name.lowercased()),
                    model: Self.modelID)
         }
