@@ -1729,6 +1729,22 @@
         }
       }
     },
+    "%lld personer till": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld more people"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld personer till"
+          }
+        }
+      }
+    },
     "%lld procent": {
       "localizations": {
         "en": {
@@ -7434,6 +7450,22 @@
         }
       }
     },
+    "Direkt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right away"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direkt"
+          }
+        }
+      }
+    },
     "Ditt första ord": {
       "localizations": {
         "en": {
@@ -8382,6 +8414,22 @@
         }
       }
     },
+    "En person till": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One more person"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En person till"
+          }
+        }
+      }
+    },
     "En större Gemma, eller en modell du redan kör i Ollama eller LM Studio.": {
       "localizations": {
         "en": {
@@ -9128,6 +9176,22 @@
         }
       }
     },
+    "Fler personer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More people"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fler personer"
+          }
+        }
+      }
+    },
     "Fler val": {
       "extractionState": "stale",
       "localizations": {
@@ -9190,6 +9254,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Flerspråkig"
+          }
+        }
+      }
+    },
+    "Fler…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fler…"
           }
         }
       }
@@ -13820,6 +13900,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inga möten i %@ än"
+          }
+        }
+      }
+    },
+    "Inga möten med %@ i den här mappen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No meetings with %@ in this folder."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inga möten med %@ i den här mappen."
+          }
+        }
+      }
+    },
+    "Inga möten med %@ än.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No meetings with %@ yet."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inga möten med %@ än."
           }
         }
       }
@@ -24559,6 +24671,22 @@
         }
       }
     },
+    "Personer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "People"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personer"
+          }
+        }
+      }
+    },
     "Port för %@": {
       "localizations": {
         "en": {
@@ -34661,6 +34789,22 @@
         }
       }
     },
+    "Visa alla mappar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show all folders"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa alla mappar"
+          }
+        }
+      }
+    },
     "Visa alla möten": {
       "localizations": {
         "en": {
@@ -34673,6 +34817,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa alla möten"
+          }
+        }
+      }
+    },
+    "Visa alla möten igen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show all meetings again"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa alla möten igen"
           }
         }
       }
@@ -34690,6 +34850,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa alla…"
+          }
+        }
+      }
+    },
+    "Visa bara möten med %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show only meetings with %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa bara möten med %@"
           }
         }
       }
@@ -35210,6 +35386,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visar Kom igång på Hem."
+          }
+        }
+      }
+    },
+    "Visar alla möten igen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows all meetings again"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visar alla möten igen"
+          }
+        }
+      }
+    },
+    "Visar bara möten med %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows only meetings with %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visar bara möten med %@"
           }
         }
       }

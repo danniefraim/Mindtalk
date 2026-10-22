@@ -16,6 +16,8 @@ import SwiftUI
 //                  (Demo.on gives the dictations and the statistics); the greeting
 //                  says a made-up name
 //   --open-meeting with --demo: Möten showing the demo meeting, its summary open
+//   --person "Anna"  with --demo: Möten's list narrowed to her meetings (Personer)
+//   --show-folder "Kunder"  with --demo: Möten's list in that folder
 //   --find-query "ord"  with --open-meeting: ⌘F open in the meeting, that searched for
 //   --meeting-state silence|latecomer|manyvoices|whoareyou|paused|scrolled: a meeting
 //                  being recorded, at that moment (scrolled: read back, "Till det senaste");
@@ -348,7 +350,40 @@ enum WindowDemo {
         budget.summary = MeetingSummary(overview: en
             ? "The autumn budget holds, apart from marketing, which is decided at the weekly meeting."
             : "Höstbudgeten håller, förutom marknadsföringen, som avgörs på veckomötet.")
-        return [weekly, customer, budget]
+        return [weekly, customer, budget] + older()
+    }
+
+    /// Older meetings, a line or two each: enough people and meetings for the row of
+    /// Personer, and folded months below the recent ones.
+    private static func older() -> [MeetingRecord] {
+        let en = english
+        let folders = MeetingFolders.shared.folders
+        func short(_ title: String, _ daysAgo: Int, _ hour: Int, names: [String], minutes: Double, folder: Int? = nil,
+                   overview: String) -> MeetingRecord {
+            let said = en ? ["Let's begin with where we are.", "That sounds right to me.", "I'll follow up on it this week.",
+                             "Good, then we agree."]
+                          : ["Vi börjar med läget.", "Det låter rätt tycker jag.", "Jag följer upp det i veckan.", "Bra, då är vi överens."]
+            var (r, _) = meeting(title, date: at(daysAgo: daysAgo, hour, 0), names: names,
+                                 lines: names.indices.map { ($0, $0 == 0 ? 0 : 60, said[$0 % said.count]) })
+            r.duration = minutes * 60
+            r.folder = folder.map { folders[$0].id }
+            r.summary = MeetingSummary(overview: overview)
+            return r
+        }
+        return [
+            short(en ? "Board meeting before the autumn" : "Styrelsemöte inför hösten", 8, 15, names: ["Anna", "Johan", "Liz"],
+                  minutes: 64, folder: 1, overview: en ? "The board approved the autumn plan." : "Styrelsen godkände planen för hösten."),
+            short(en ? "Supplier check-in" : "Avstämning med leverantören", 12, 10, names: ["Erik", "Markus"], minutes: 28, folder: 2,
+                  overview: en ? "Deliveries move to every other week." : "Leveranserna går över till varannan vecka."),
+            short(en ? "Planning the kickoff" : "Planering av kickoffen", 20, 13, names: ["Anna", "Sara", "Liz"], minutes: 45,
+                  overview: en ? "The kickoff is in November, in Uppsala." : "Kickoffen blir i november, i Uppsala."),
+            short(en ? "Customer meeting, follow-up" : "Kundmöte, uppföljning", 33, 9, names: ["Johan", "Anna"], minutes: 38, folder: 0,
+                  overview: en ? "The pilot goes ahead with two teams." : "Piloten går vidare med två team."),
+            short(en ? "Weekly meeting" : "Veckomöte", 40, 9, names: ["Anna", "Erik", "Sara", "Markus"], minutes: 51,
+                  overview: en ? "The release moves a week." : "Releasen flyttas en vecka."),
+            short(en ? "Workshop about support" : "Workshop om supporten", 50, 13, names: ["Sara", "Karin", "Olle", "Nils"], minutes: 92,
+                  overview: en ? "Support answers in English from now on." : "Supporten svarar på engelska från och med nu."),
+        ]
     }
 
     private static func thoughts() -> [Thought] {

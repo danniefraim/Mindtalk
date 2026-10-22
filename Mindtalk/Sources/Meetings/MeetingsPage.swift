@@ -156,6 +156,7 @@ private struct MeetingList: View {
     @ObservedObject private var library = MeetingLibrary.shared
     @ObservedObject private var folders = MeetingFolders.shared
     @ObservedObject private var archiveOpen = ArchiveOpen.shared
+    @ObservedObject private var people = MeetingPeople.shared
     let open: (UUID, Double?) -> Void
     @State private var confirmDelete: MeetingRecord?
     /// Several chosen and "Ta bort" pressed: asked once for all of them.
@@ -168,6 +169,10 @@ private struct MeetingList: View {
     @State private var matches: [MeetingMatch] = []
     /// The page has come in: from then on, what scrolls back into view stays still.
     @State private var entered = false
+    /// The start card has scrolled out of view: the start bar is in the pinned header.
+    @State private var cardAway = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private static let cardID = "startCard"
 
     /// From two letters: one finds nearly every meeting and only makes the list jump.
     private var searching: Bool { query.trimmingCharacters(in: .whitespaces).count >= 2 }
@@ -182,79 +187,103 @@ private struct MeetingList: View {
 
     var body: some View {
         let sections = ArchiveSection.sections(shown.filter { $0.id != session.record?.id })
-        // Lazy, so the search field and the folders can stay pinned at the top as the
-        // list scrolls — a meeting far down can still be dragged onto a folder.
-        LazyVStack(alignment: .leading, spacing: 20, pinnedViews: [.sectionHeaders]) {
-            // The title; what the page is for only while there's nothing in it yet.
-            PageHeader(title: "Möten",
-                       subtitle: store.meetings.isEmpty
-                           ? "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får en sammanfattning."
-                           : nil)
-                .staggered(0)
-            SaveProblemLine()
-            StartCard(session: session, voices: voices, dictation: dictation).staggered(1)
-            ImportCards { id in open(id, nil) }
-            if !searching {
-                // In a folder: its week, summed up from its meetings.
-                WeekRecap(meetings: shown.filter { $0.id != session.record?.id }, all: store.meetings,
-                          folder: folders.folder(folders.selected)?.name)
-                    .staggered(2)
-            }
-            if store.meetings.isEmpty {
-                EmptyArchive().staggered(2)
-            } else {
-                Section {
-                    LibraryAnswers(library: library, open: open)
-                    if searching {
-                        SearchResults(matches: matches, query: query, folder: folders.folder(folders.selected)?.name,
-                                      showAll: { withAnimation(.snappy) { folders.selected = nil } }, open: open)
-                    } else if sections.isEmpty, let folder = folders.folder(folders.selected) {
-                        emptyFolder(folder)
-                    } else {
-                        let order = visibleOrder(sections)
-                        ForEach(Array(sections.enumerated()), id: \.element.id) { n, section in
-                            archive(section, order: order)
-                                .staggered(2 + min(n, 3))
-                        }
-                    }
-                } header: {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 14) {
-                            LibrarySearchField(query: $query, folder: folders.folder(folders.selected)?.name)
-                                .frame(width: showsFolders ? 260 : nil)
-                                .frame(maxWidth: showsFolders ? nil : .infinity)
-                            if showsFolders {
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    FolderBar(folders: folders, store: store, live: session.record?.id, oneRow: true)
-                                        .padding(.vertical, 2)
-                                        // The pinned row kept an old count after a delete until the
-                                        // page was opened again: drawn anew whenever a count changes.
-                                        .id(folderCounts)
-                                }
+        // To bring the card back into view: the start bar pressed for a start that asks first.
+        ScrollViewReader { scroller in
+            // Lazy, so the search field and the folders can stay pinned at the top as the
+            // list scrolls — a meeting far down can still be dragged onto a folder.
+            LazyVStack(alignment: .leading, spacing: 20, pinnedViews: [.sectionHeaders]) {
+                // The title; what the page is for only while there's nothing in it yet.
+                PageHeader(title: "Möten",
+                           subtitle: store.meetings.isEmpty
+                               ? "Spela in ett möte i rummet, eller gör text av en inspelning du redan har. Du ser vem som sa vad och får en sammanfattning."
+                               : nil)
+                    .staggered(0)
+                SaveProblemLine()
+                StartCard(session: session, voices: voices, dictation: dictation, offscreen: cardAway)
+                    .staggered(1)
+                    .id(Self.cardID)
+                ImportCards { id in open(id, nil) }
+                if !searching {
+                    // In a folder: its week, summed up from its meetings.
+                    WeekRecap(meetings: shown.filter { $0.id != session.record?.id }, all: store.meetings,
+                              folder: folders.folder(folders.selected)?.name, person: people.chosen?.name)
+                        .staggered(2)
+                }
+                if store.meetings.isEmpty {
+                    EmptyArchive().staggered(2)
+                } else {
+                    Section {
+                        LibraryAnswers(library: library, open: open)
+                        if searching {
+                            SearchResults(matches: matches, query: query, folder: folders.folder(folders.selected)?.name,
+                                          showAll: { withAnimation(.snappy) { folders.selected = nil } }, open: open)
+                        } else if sections.isEmpty, let person = people.chosen {
+                            emptyPerson(person)
+                        } else if sections.isEmpty, let folder = folders.folder(folders.selected) {
+                            emptyFolder(folder)
+                        } else {
+                            let order = visibleOrder(sections)
+                            ForEach(Array(sections.enumerated()), id: \.element.id) { n, section in
+                                archive(section, order: order)
+                                    .staggered(2 + min(n, 3))
                             }
                         }
-                        if !selection.isEmpty { selectionBar }
-                        if let problem = folders.problem {
-                            Label(problem, systemImage: "exclamationmark.triangle.fill")
-                                .font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
+                    } header: {
+                        VStack(alignment: .leading, spacing: 10) {
+                            if cardAway, StartCard.ready(voices: voices, dictation: dictation) {
+                                StartBar(session: session, dictation: dictation) {
+                                    withAnimation(.spring(duration: 0.45, bounce: 0.12)) { scroller.scrollTo(Self.cardID, anchor: .top) }
+                                }
+                                .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+                            }
+                            HStack(spacing: 14) {
+                                LibrarySearchField(query: $query, folder: folders.folder(folders.selected)?.name)
+                                    .frame(width: showsFolders ? 260 : nil)
+                                    .frame(maxWidth: showsFolders ? nil : .infinity)
+                                if showsFolders {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        FolderBar(folders: folders, store: store, live: session.record?.id, oneRow: true)
+                                            .padding(.vertical, 2)
+                                            // The pinned row kept an old count after a delete until the
+                                            // page was opened again: drawn anew whenever a count changes.
+                                            .id(folderCounts)
+                                    }
+                                }
+                            }
+                            if people.worthShowing { PeopleBar(people: people) }
+                            if !selection.isEmpty { selectionBar }
+                            if let problem = folders.problem {
+                                Label(problem, systemImage: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
+                            }
                         }
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        // Pinned, it covers the list scrolling under it — to the window's edges.
+                        .background(DS.Colors.paper.padding(.horizontal, -DS.Layout.pageHorizontal))
+                        // Near the top, the card above is all but gone: the start bar comes in here,
+                        // and goes as the card comes back. Read from the header, not the card: the
+                        // header is always there while the list is in view, and a lazy card far up
+                        // may be let go before it says it has left. Only the crossing is acted on.
+                        .onGeometryChange(for: Bool.self) { $0.frame(in: .scrollView).minY < 64 } action: { away in
+                            guard cardAway != away else { return }
+                            withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.35, bounce: 0.15)) {
+                                cardAway = away
+                            }
+                        }
+                        .staggered(2)
                     }
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    // Pinned, it covers the list scrolling under it — to the window's edges.
-                    .background(DS.Colors.paper.padding(.horizontal, -DS.Layout.pageHorizontal))
-                    .staggered(2)
                 }
             }
+            .padding(.bottom, canAsk ? 90 : 0)
         }
-        .padding(.bottom, canAsk ? 90 : 0)
         .environment(\.entrances, !entered)
         .task {
             // Longer than the slowest entrance (six steps of 0.08 s, then 0.7 s).
             try? await Task.sleep(for: .seconds(1.5))
             entered = true
         }
-        .task(id: query + "\(store.meetings.count) \(shown.count)" + (folders.selected?.uuidString ?? "")) {
+        .task(id: query + "\(store.meetings.count) \(shown.count)" + (folders.selected?.uuidString ?? "") + (people.selected ?? "")) {
             guard searching else { matches = []; return }
             try? await Task.sleep(for: .milliseconds(120))
             guard !Task.isCancelled else { return }
@@ -269,6 +298,11 @@ private struct MeetingList: View {
             if let i = args.firstIndex(of: "--select-meetings"), i + 1 < args.count, let n = Int(args[i + 1]) {
                 selection = Set(shown.filter { $0.id != session.record?.id }.prefix(n).map(\.id))
             }
+            // `--person "Anna"`: the list narrowed to her meetings. `--show-folder "Kunder"`: that folder chosen.
+            if let i = args.firstIndex(of: "--person"), i + 1 < args.count { people.selected = args[i + 1].lowercased() }
+            if let i = args.firstIndex(of: "--show-folder"), i + 1 < args.count {
+                folders.selected = folders.folders.first { $0.name == args[i + 1] }?.id
+            }
         }
         #endif
         .pageLayout()
@@ -280,10 +314,12 @@ private struct MeetingList: View {
             .animation(.spring(duration: 0.35, bounce: 0.15), value: folders.lastMove)
         }
         .onChange(of: folders.selected) { _, _ in selection = [] }
+        .onChange(of: people.selected) { _, _ in selection = [] }
         .onChange(of: store.meetings.count) { _, _ in selection = selection.filter { id in store.meetings.contains { $0.id == id } } }
         .animation(.snappy, value: selection)
         .animation(.easeOut(duration: 0.2), value: searching)
         .animation(.spring(duration: 0.35, bounce: 0.12), value: folders.selected)
+        .animation(.spring(duration: 0.35, bounce: 0.12), value: people.selected)
         .confirmationDialog("Ta bort mötet?", isPresented: Binding(get: { confirmDelete != nil },
                                                                    set: { if !$0 { confirmDelete = nil } })) {
             Button("meeting|Ta bort", role: .destructive) {
@@ -492,14 +528,36 @@ private struct MeetingList: View {
         .transition(.opacity)
     }
 
+    /// A person chosen, and none of their meetings here (in this folder): said calmly,
+    /// with the way out.
+    private func emptyPerson(_ person: MeetingPeople.Person) -> some View {
+        let folder = folders.folder(folders.selected)
+        return VStack(spacing: 12) {
+            Text(folder == nil ? String(localized: "Inga möten med \(person.name) än.")
+                               : String(localized: "Inga möten med \(person.name) i den här mappen."))
+                .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
+                .multilineTextAlignment(.center)
+            Button(folder == nil ? "Visa alla möten" : "Visa alla mappar") {
+                withAnimation(.snappy) {
+                    if folder == nil { people.selected = nil } else { folders.selected = nil }
+                }
+            }
+            .buttonStyle(.soft)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 36)
+        .transition(.opacity)
+    }
+
     /// Folders once there's something to sort: a folder made, or six meetings. (Before
     /// that, "Ny mapp…" is in a meeting's "Flytta till".)
     private var showsFolders: Bool { !folders.folders.isEmpty || store.meetings.count >= 6 }
 
-    /// The meetings of the folder chosen — all of them under "Alla".
+    /// The meetings of the folder chosen — all of them under "Alla" — and of the person
+    /// chosen, if one is.
     private var shown: [MeetingRecord] {
-        guard let folder = folders.selected else { return store.meetings }
-        return store.meetings.filter { $0.folder == folder }
+        guard let folder = folders.selected else { return people.filter(store.meetings) }
+        return people.filter(store.meetings.filter { $0.folder == folder })
     }
 
 }
@@ -540,6 +598,8 @@ struct StartCard: View {
     @ObservedObject var session: MeetingSession
     @ObservedObject var voices: VoiceModels
     @ObservedObject var dictation: Dictation
+    /// Scrolled out of the list's view (the start bar has taken over): the sphere rests.
+    var offscreen = false
     @ObservedObject private var folders = MeetingFolders.shared
     @ObservedObject private var importer = MeetingImport.shared
     @ObservedObject private var memory = VoiceMemory.shared
@@ -569,7 +629,12 @@ struct StartCard: View {
     }
 
     /// Both doors open: the voices and the speech model are here.
-    private var ready: Bool { Self.modelsShownReady || (voices.state == .ready && dictation.engine.isInstalled) }
+    private var ready: Bool { Self.ready(voices: voices, dictation: dictation) }
+
+    /// The tiles rather than the downloads: the start bar comes only then too.
+    static func ready(voices: VoiceModels, dictation: Dictation) -> Bool {
+        modelsShownReady || (voices.state == .ready && dictation.engine.isInstalled)
+    }
 
     /// Renders with a fresh HOME have no models: `--models-ready` draws the card as if
     /// they were there (nothing is loaded).
@@ -626,6 +691,8 @@ struct StartCard: View {
         .onGeometryChange(for: Bool.self) { $0.size.width >= 680 } action: { sideBySide = $0 }
         .onDisappear { putDown() }
         .onChange(of: session.phase) { _, now in if now == .idle { starting = false } }
+        // Back in view after the start bar was used: the way it chose is the ink tile.
+        .onChange(of: offscreen) { _, away in if !away { remembered = MeetingSession.startMode } }
         .onAppear {
             if session.armed { takeKeyboard() }
             // The voices made ready now, if launch hasn't got to it yet: the round waits for them.
@@ -660,7 +727,7 @@ struct StartCard: View {
             } else {
                 // The sphere from Hem, turning while the card waits for you. (The cloud is
                 // about two thirds of its frame: the rest is let go.)
-                DotSphere(paused: importer.dropping || starting)
+                DotSphere(paused: importer.dropping || starting || offscreen)
                     .frame(width: 190, height: 190)
                     .frame(maxWidth: .infinity)
                     .allowsHitTesting(false)
@@ -1041,6 +1108,97 @@ struct StartCard: View {
     }
 }
 
+/// The start card, small, at the top of the list once the card has scrolled away: the
+/// sphere and the two ways in, nothing else. A press does what the card's tiles do.
+/// Return stays with the card, so one key never starts two things.
+private struct StartBar: View {
+    @ObservedObject var session: MeetingSession
+    @ObservedObject var dictation: Dictation
+    /// Pressed but nothing started (the question about the voices, or a start that
+    /// failed): back up to the card, where it's said.
+    let showCard: () -> Void
+    /// The card's: the way you started last time is ink.
+    @State private var remembered = MeetingSession.startMode
+    @State private var starting = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            DotSphere(paused: starting, small: true)
+                .frame(width: 38, height: 38)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            way(.round, "Med namnrunda", label: "Starta med namnrunda",
+                hint: "Alla säger sitt namn, så står rätt namn i texten. En halv minut.")
+            way(.direct, "Direkt", label: "Starta direkt", hint: "Namnge talarna under mötet om du vill.")
+            Spacer(minLength: 0)
+        }
+        .disabled(!dictation.micGranted || dictation.phase != .idle || starting)
+        .opacity(starting ? 0.5 : 1)
+        .animation(.easeOut(duration: 0.3), value: starting)
+        .onChange(of: session.phase) { _, now in if now == .idle { starting = false } }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Nytt möte")
+    }
+
+    private func way(_ mode: MeetingSession.StartMode, _ title: LocalizedStringKey, label: LocalizedStringKey,
+                     hint: LocalizedStringKey) -> some View {
+        let primary = remembered == mode
+        let waiting = MeetingSession.preparing(mode)
+        return Button { begin(mode) } label: {
+            HStack(spacing: 7) {
+                Circle().fill(DS.Colors.recording).frame(width: 7, height: 7).accessibilityHidden(true)
+                Text(title).font(.system(size: 13, weight: .semibold))
+                if waiting {
+                    Text("Förbereder…").font(.system(size: 11.5))
+                        .foregroundStyle(primary ? AnyShapeStyle(DS.Colors.onInk.opacity(0.6)) : AnyShapeStyle(DS.Colors.faint))
+                }
+            }
+            .lineLimit(1)
+            .foregroundStyle(primary ? AnyShapeStyle(DS.Colors.onInk) : AnyShapeStyle(.primary))
+            .padding(.horizontal, 14)
+            .frame(height: 32)
+            .background(Capsule().fill(primary ? DS.Colors.ink : DS.Colors.control))
+            .overlay(Capsule().strokeBorder(primary ? Color.clear : DS.Colors.divider, lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(StartBarPress())
+        .disabled(waiting)
+        .fixedSize()
+        .help(dictation.micGranted ? hint : "Mindtalk behöver mikrofonen för att spela in. Slå på den i Systeminställningar under Integritet och säkerhet.")
+        .accessibilityLabel(label)
+        .accessibilityHint(hint)
+    }
+
+    /// As the card's tiles: quieter while it can't be pressed, a little in when pressed.
+    private struct StartBarPress: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View { Pressed(configuration: configuration) }
+
+        private struct Pressed: View {
+            let configuration: ButtonStyle.Configuration
+            @Environment(\.isEnabled) private var enabled
+            var body: some View {
+                configuration.label
+                    .scaleEffect(configuration.isPressed ? 0.97 : 1)
+                    .opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
+            }
+        }
+    }
+
+    /// The card's press: the way remembered, the bar steps back, the meeting starts.
+    private func begin(_ mode: MeetingSession.StartMode) {
+        guard !MeetingSession.preparing(mode) else { return }
+        MeetingSession.startMode = mode
+        remembered = mode
+        starting = true
+        session.startFromCard(mode, folder: MeetingFolders.shared.selected)
+        guard session.phase == .idle else { return }
+        // The very first meeting asks about the voices first, on the card; a start that
+        // couldn't happen says why there too.
+        starting = false
+        showCard()
+    }
+}
+
 /// The last seven days in one quiet line: how many meetings, how long, and a way to
 /// have them summed up. Only with two or more. In a folder, its meetings.
 private struct WeekRecap: View {
@@ -1048,6 +1206,9 @@ private struct WeekRecap: View {
     let all: [MeetingRecord]
     /// The folder chosen, by name: the card and the summary are its meetings.
     var folder: String? = nil
+    /// A person chosen: the line counts their meetings. A question can't be narrowed to
+    /// them yet, so "Sammanfatta veckan" waits until everyone is shown again.
+    var person: String? = nil
     @ObservedObject private var library = MeetingLibrary.shared
     @State private var hovering = false
 
@@ -1061,7 +1222,7 @@ private struct WeekRecap: View {
                 Text(verbatim: String(localized: "Senaste veckan: \(week.count) möten, \(Stats.duration(time))"))
                     .font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
                     .lineLimit(1)
-                if MeetingNotes.isAvailable {
+                if MeetingNotes.isAvailable, person == nil {
                     Button {
                         // "den senaste veckan": the same seven days as the line counts.
                         withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
@@ -3665,13 +3826,20 @@ struct ArchivePreview: View {
 /// larger: the start card's. Still with Reduce Motion, and while `paused`.
 struct DotSphere: View {
     var paused = false
+    /// The start bar's (about 38 pt): fewer, finer points, so it stays a sphere and
+    /// not a blot.
+    var small = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// A Fibonacci lattice: points spread evenly over the sphere.
-    private static let points: [SIMD3<Double>] = (0..<760).map { i in
-        let y = 1 - Double(i) / 759 * 2, r = (1 - y * y).squareRoot(), t = Double(i) * 2.399963
-        return SIMD3(cos(t) * r, y, sin(t) * r)
+    private static func lattice(_ n: Int) -> [SIMD3<Double>] {
+        (0..<n).map { i in
+            let y = 1 - Double(i) / Double(n - 1) * 2, r = (1 - y * y).squareRoot(), t = Double(i) * 2.399963
+            return SIMD3(cos(t) * r, y, sin(t) * r)
+        }
     }
+    private static let points = lattice(760)
+    private static let fewer = lattice(190)
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 30, paused: paused || reduceMotion)) { context in
@@ -3681,11 +3849,12 @@ struct DotSphere: View {
                 let center = CGPoint(x: size.width / 2, y: size.height / 2)
                 let (ca, sa, tilt) = (cos(angle), sin(angle), 0.42)
                 let (ct, st) = (cos(tilt), sin(tilt))
-                for p in Self.points {
+                let (base, grow) = small ? (0.3, 0.6) : (0.55, 1.15)
+                for p in small ? Self.fewer : Self.points {
                     let x1 = p.x * ca - p.z * sa, z1 = p.x * sa + p.z * ca
                     let y2 = p.y * ct - z1 * st, z2 = p.y * st + z1 * ct
                     let near = (z2 + 1) / 2
-                    let dot = 0.55 + near * 1.15
+                    let dot = base + near * grow
                     let rect = CGRect(x: center.x + x1 * radius - dot, y: center.y + y2 * radius - dot, width: dot * 2, height: dot * 2)
                     g.fill(Path(ellipseIn: rect), with: .color(DS.Colors.ink.opacity(0.1 + near * 0.8)))
                 }
