@@ -156,7 +156,6 @@ private struct MeetingList: View {
     @ObservedObject private var library = MeetingLibrary.shared
     @ObservedObject private var folders = MeetingFolders.shared
     @ObservedObject private var archiveOpen = ArchiveOpen.shared
-    @ObservedObject private var people = MeetingPeople.shared
     let open: (UUID, Double?) -> Void
     @State private var confirmDelete: MeetingRecord?
     /// Several chosen and "Ta bort" pressed: asked once for all of them.
@@ -211,8 +210,6 @@ private struct MeetingList: View {
                         if searching {
                             SearchResults(matches: matches, query: query, folder: folders.folder(folders.selected)?.name,
                                           showAll: { withAnimation(.snappy) { folders.selected = nil } }, open: open)
-                        } else if sections.isEmpty, let person = people.chosen {
-                            emptyPerson(person)
                         } else if sections.isEmpty, let folder = folders.folder(folders.selected) {
                             emptyFolder(folder)
                         } else {
@@ -244,7 +241,6 @@ private struct MeetingList: View {
                                     }
                                 }
                             }
-                            if people.worthShowing { PeopleBar(people: people) }
                             if !selection.isEmpty { selectionBar }
                             if let problem = folders.problem {
                                 Label(problem, systemImage: "exclamationmark.triangle.fill")
@@ -277,7 +273,7 @@ private struct MeetingList: View {
             try? await Task.sleep(for: .seconds(1.5))
             entered = true
         }
-        .task(id: query + "\(store.meetings.count) \(shown.count)" + (folders.selected?.uuidString ?? "") + (people.selected ?? "")) {
+        .task(id: query + "\(store.meetings.count) \(shown.count)" + (folders.selected?.uuidString ?? "")) {
             guard searching else { matches = []; return }
             try? await Task.sleep(for: .milliseconds(120))
             guard !Task.isCancelled else { return }
@@ -292,8 +288,7 @@ private struct MeetingList: View {
             if let i = args.firstIndex(of: "--select-meetings"), i + 1 < args.count, let n = Int(args[i + 1]) {
                 selection = Set(shown.filter { $0.id != session.record?.id }.prefix(n).map(\.id))
             }
-            // `--person "Anna"`: the list narrowed to her meetings. `--show-folder "Kunder"`: that folder chosen.
-            if let i = args.firstIndex(of: "--person"), i + 1 < args.count { people.selected = args[i + 1].lowercased() }
+            // `--show-folder "Kunder"`: that folder chosen.
             if let i = args.firstIndex(of: "--show-folder"), i + 1 < args.count {
                 folders.selected = folders.folders.first { $0.name == args[i + 1] }?.id
             }
@@ -308,12 +303,10 @@ private struct MeetingList: View {
             .animation(.spring(duration: 0.35, bounce: 0.15), value: folders.lastMove)
         }
         .onChange(of: folders.selected) { _, _ in selection = [] }
-        .onChange(of: people.selected) { _, _ in selection = [] }
         .onChange(of: store.meetings.count) { _, _ in selection = selection.filter { id in store.meetings.contains { $0.id == id } } }
         .animation(.snappy, value: selection)
         .animation(.easeOut(duration: 0.2), value: searching)
         .animation(.spring(duration: 0.35, bounce: 0.12), value: folders.selected)
-        .animation(.spring(duration: 0.35, bounce: 0.12), value: people.selected)
         .confirmationDialog("Ta bort mötet?", isPresented: Binding(get: { confirmDelete != nil },
                                                                    set: { if !$0 { confirmDelete = nil } })) {
             Button("meeting|Ta bort", role: .destructive) {
@@ -522,36 +515,14 @@ private struct MeetingList: View {
         .transition(.opacity)
     }
 
-    /// A person chosen, and none of their meetings here (in this folder): said calmly,
-    /// with the way out.
-    private func emptyPerson(_ person: MeetingPeople.Person) -> some View {
-        let folder = folders.folder(folders.selected)
-        return VStack(spacing: 12) {
-            Text(folder == nil ? String(localized: "Inga möten med \(person.name) än.")
-                               : String(localized: "Inga möten med \(person.name) i den här mappen."))
-                .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
-                .multilineTextAlignment(.center)
-            Button(folder == nil ? "Visa alla möten" : "Visa alla mappar") {
-                withAnimation(.snappy) {
-                    if folder == nil { people.selected = nil } else { folders.selected = nil }
-                }
-            }
-            .buttonStyle(.soft)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 36)
-        .transition(.opacity)
-    }
-
     /// Folders once there's something to sort: a folder made, or six meetings. (Before
     /// that, "Ny mapp…" is in a meeting's "Flytta till".)
     private var showsFolders: Bool { !folders.folders.isEmpty || store.meetings.count >= 6 }
 
-    /// The meetings of the folder chosen — all of them under "Alla" — and of the person
-    /// chosen, if one is.
+    /// The meetings of the folder chosen; all of them under "Alla".
     private var shown: [MeetingRecord] {
-        guard let folder = folders.selected else { return people.filter(store.meetings) }
-        return people.filter(store.meetings.filter { $0.folder == folder })
+        guard let folder = folders.selected else { return store.meetings }
+        return store.meetings.filter { $0.folder == folder }
     }
 
 }
