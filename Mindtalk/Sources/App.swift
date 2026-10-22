@@ -1358,6 +1358,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if args.contains("--unquote-test") {
             exit(MeetingNotes.unquoteSelfTest())
         }
+        // `Mindtalk --plain-test`: a writer's line format read back, labels missing or not.
+        if args.contains("--plain-test") {
+            exit(MeetingNotes.plainSelfTest())
+        }
         // `Mindtalk --defaults-test`: a render or a self-test never changes the settings
         // on this Mac (Settings.previewing, PreviewDefaults).
         if args.contains("--defaults-test") {

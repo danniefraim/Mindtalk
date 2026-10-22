@@ -482,7 +482,12 @@ final class MeetingNotes: ObservableObject {
             let prompts = lines.parts(budget: writer.wordBudget).map { lines.guidance + "Transcript:\n" + $0 }
             try await writer.begin(system: system, prompts: prompts)
             for prompt in prompts {
-                let p = parsePlain(try await writer.complete(system: system, user: prompt, maxTokens: 800))
+                let reply = try await writer.complete(system: system, user: prompt, maxTokens: 800)
+                #if DEBUG
+                // `--notes … --raw`: what the writer answered, before it is read.
+                if CommandLine.arguments.contains("--raw") { print("RÅTT SVAR:\n\(reply)\n---") }
+                #endif
+                let p = parsePlain(reply)
                 outcomes.append(Outcomes(decisions: p.decisions, tasks: p.tasks))
                 overviews.append(Overview(title: p.title, summary: p.summary, points: p.points))
             }
@@ -1097,12 +1102,23 @@ final class MeetingNotes: ObservableObject {
         parsePlain(try await session(plainPrompt(language)).respond(to: text, options: options).content)
     }
 
-    nonisolated private static func parsePlain(_ reply: String) -> Plain {
+    nonisolated static func parsePlain(_ reply: String) -> Plain {
         var p = Plain()
+        // Lines without a label, before the first one: Gemma sometimes leaves out
+        // "TITLE:" and "SUMMARY:" and writes just the title, then the summary
+        // (22 October: both lost, the notes had no overview).
+        var unlabelled: [String] = []
+        var labelled = false
         for raw in reply.components(separatedBy: .newlines) {
-            let line = raw.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "-•*")))
-            guard let colon = line.firstIndex(of: ":") else { continue }
-            let key = line[..<colon].uppercased().trimmingCharacters(in: .whitespaces)
+            let line = raw.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "-•*#")))
+            guard !line.isEmpty else { continue }
+            let colon = line.firstIndex(of: ":")
+            let key = colon.map { line[..<$0].uppercased().trimmingCharacters(in: .whitespaces) } ?? ""
+            guard let colon, Self.plainKeys.contains(key) else {
+                if !labelled { unlabelled.append(Plain.unmark(line)) }
+                continue
+            }
+            labelled = true
             let value = String(line[line.index(after: colon)...])
             switch key {
             case "TITLE", "TITEL": p.title = Plain.unmark(value)
@@ -1121,7 +1137,47 @@ final class MeetingNotes: ObservableObject {
             default: continue
             }
         }
+        // A short first line without a full stop is the title; what follows, the summary.
+        var rest = unlabelled[...]
+        if p.title.isEmpty, let first = rest.first, first.split(separator: " ").count <= 8, !first.hasSuffix(".") {
+            p.title = first
+            rest = rest.dropFirst()
+        }
+        if p.summary.isEmpty, !rest.isEmpty { p.summary = rest.joined(separator: " ") }
         return p
+    }
+
+    nonisolated private static let plainKeys: Set<String> = ["TITLE", "TITEL", "SUMMARY", "SAMMANFATTNING", "DECISION", "BESLUT",
+                                                             "TASK", "UPPGIFT", "POINT", "PUNKT"]
+
+    /// `Mindtalk --plain-test`: the line format read back, also when a label is missing.
+    nonisolated static func plainSelfTest() -> Int32 {
+        var failed = 0
+        func check(_ name: String, _ ok: Bool) { if !ok { failed += 1; print("FAIL:", name) } }
+        let bare = parsePlain("""
+            AI Agenter och IoT
+            Diskussionen handlade om AI-agenter och risker med spridning.
+            POINT: En AI-agent kan hitta nya attackytor. [3]
+            """)
+        check("title without label", bare.title == "AI Agenter och IoT")
+        check("summary without label", bare.summary == "Diskussionen handlade om AI-agenter och risker med spridning.")
+        check("point after them", bare.points.count == 1 && bare.points[0].line == 3)
+        let labelled = parsePlain("""
+            TITLE: Budget för hösten
+            SUMMARY: Vi gick igenom budgeten. Den håller.
+            TASK: Skicka offerten | Anna [4]
+            """)
+        check("labelled title", labelled.title == "Budget för hösten")
+        check("labelled summary", labelled.summary == "Vi gick igenom budgeten. Den håller.")
+        check("task with owner", labelled.tasks.first?.owner == "Anna")
+        let onlySummary = parsePlain("Mötet handlade om budgeten och vem som gör vad.\nPOINT: Budgeten håller. [2]")
+        check("a sentence is not a title", onlySummary.title.isEmpty && onlySummary.summary.hasPrefix("Mötet handlade"))
+        let afterLabels = parsePlain("TITLE: Budget\nSUMMARY: Kort.\nHär kommer en rad till som inte hör hemma.")
+        check("a stray line after the labels is left out", afterLabels.summary == "Kort.")
+        let bold = parsePlain("**TITLE:** Budget\n**SUMMARY:** Kort.")
+        check("bold labels", bold.title == "Budget" && bold.summary == "Kort.")
+        print(failed == 0 ? "plain: 9 of 9 pass" : "plain: \(failed) failed")
+        return failed == 0 ? 0 : 1
     }
 
     nonisolated static func firstSentences(_ text: String, _ n: Int) -> String {
