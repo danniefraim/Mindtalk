@@ -291,8 +291,8 @@ enum WindowDemo {
                         MeetingRecord.Mark(at: starts[7] + 2, kind: .task)]
         typealias Item = MeetingSummary.Item
         var summary = MeetingSummary(overview: en
-            ? "The launch went better than expected. The meetings feature comes next, and the autumn budget is adjusted before the board meeting."
-            : "Lanseringen gick bättre än väntat. Mötesfunktionen prioriteras härnäst, och höstbudgeten justeras innan styrelsemötet.")
+            ? "The launch went better than expected, with most users in Sweden and growing interest in Norway and Denmark. The team agreed to build the meetings feature next, and the autumn budget is adjusted before the board meeting."
+            : "Lanseringen gick bättre än väntat, med flest användare i Sverige och ett växande intresse i Norge och Danmark. Teamet enades om att bygga mötesfunktionen härnäst, och höstbudgeten justeras innan styrelsemötet.")
         summary.decisions = [
             Item(text: en ? "The meetings feature is built first, before the integrations." : "Mötesfunktionen byggs först, före integrationerna.", at: starts[4] + 1, marked: true),
             Item(text: en ? "150,000 kronor of the autumn budget goes to marketing in Norway and Denmark." : "150 000 kronor av höstbudgeten går till marknadsföring i Norge och Danmark.", at: starts[7] + 2),
@@ -302,8 +302,17 @@ enum WindowDemo {
             Item(text: en ? "Compile the budget before the board meeting." : "Sammanställa budgeten inför styrelsemötet.", owner: "Sara", at: starts[7] + 1, done: false, marked: true),
         ]
         summary.points = [
+            Item(text: en ? "Erik: more downloads on the first day than in all of last month." : "Erik: fler nedladdningar första dagen än hela förra månaden.",
+                 at: starts[1] + 1, topic: en ? "The launch" : "Lanseringen"),
+            Item(text: en ? "Most users are in Sweden, but Norway and Denmark are growing." : "De flesta användarna finns i Sverige, men Norge och Danmark växer.",
+                 at: starts[3] + 1, topic: en ? "The launch" : "Lanseringen"),
+            Item(text: en ? "Support is already getting questions in English." : "Supporten får redan frågor på engelska.",
+                 at: starts[3] + 2, topic: en ? "The launch" : "Lanseringen"),
+            Item(text: en ? "Erik: the meetings feature is what people ask about most." : "Erik: mötesfunktionen är det folk frågar mest om.",
+                 at: starts[4] + 1, topic: en ? "What comes next" : "Vad som byggs härnäst"),
+            Item(text: en ? "Anna wants a plan before anything is started." : "Anna vill ha en plan innan något sätts igång.",
+                 at: starts[5] + 1, topic: en ? "What comes next" : "Vad som byggs härnäst"),
             Item(text: en ? "Next meeting: Tuesday at ten, before the board meeting." : "Nästa möte: tisdag klockan tio, innan styrelsemötet.", at: starts[8] + 1),
-            Item(text: en ? "Support is already getting questions in English." : "Supporten får redan frågor på engelska.", at: starts[3] + 1),
         ]
         summary.notesFrom = weekly.notesFingerprint
         weekly.summary = summary

@@ -6652,6 +6652,22 @@
         }
       }
     },
+    "Det här pratade ni om": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you talked about"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det här pratade ni om"
+          }
+        }
+      }
+    },
     "Det här är inte en ljud- eller videofil som macOS kan läsa.": {
       "extractionState": "stale",
       "localizations": {

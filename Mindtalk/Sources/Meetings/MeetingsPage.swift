@@ -2586,16 +2586,31 @@ private struct SummaryView: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: 620, alignment: .leading)
                     .staggered(0)
-                if !summary.tasks.isEmpty {
-                    NotesList(title: "Att göra", kind: .task, items: summary.tasks, record: record, cast: cast,
-                              turns: turns, showInText: showInText).staggered(1)
+                // What was discussed, subject by subject, as notes from someone who was there.
+                let topics = summary.topics
+                if !topics.isEmpty {
+                    VStack(alignment: .leading, spacing: 22) {
+                        Text("Det här pratade ni om").textCase(.uppercase).tracking(1.6)
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(DS.Colors.muted)
+                            .accessibilityAddTraits(.isHeader)
+                        ForEach(topics, id: \.title) { topic in
+                            NotesList(title: topic.title, kind: .point, items: topic.items, record: record, cast: cast,
+                                      turns: turns, showInText: showInText, subject: true)
+                        }
+                    }
+                    .staggered(1)
                 }
                 if !summary.decisions.isEmpty {
                     NotesList(title: "Beslut", kind: .decision, items: summary.decisions, record: record, cast: cast,
                               turns: turns, showInText: showInText).staggered(2)
                 }
-                if !summary.points.isEmpty {
-                    NotesList(title: "Värt att komma ihåg", kind: .point, items: summary.points, record: record, cast: cast,
+                if !summary.tasks.isEmpty {
+                    NotesList(title: "Att göra", kind: .task, items: summary.tasks, record: record, cast: cast,
+                              turns: turns, showInText: showInText).staggered(2)
+                }
+                if !summary.loosePoints.isEmpty {
+                    NotesList(title: "Värt att komma ihåg", kind: .point, items: summary.loosePoints, record: record, cast: cast,
                               turns: turns, showInText: showInText).staggered(3)
                 }
                 VStack(alignment: .leading, spacing: 8) {
@@ -2744,12 +2759,18 @@ private struct NotesList: View {
     let cast: Cast
     let turns: [MeetingTurn]
     let showInText: (Double) -> Void
+    /// A subject the writer named ("Budgeten"): its words as written, and no count.
+    var subject = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(LocalizedStringKey(title)).font(.system(size: 15, weight: .semibold))
-                Text("\(items.count)").font(.system(size: 13)).foregroundStyle(DS.Colors.faint)
+                if subject {
+                    Text(verbatim: title).font(.system(size: 17, weight: .regular, design: .serif))
+                } else {
+                    Text(LocalizedStringKey(title)).font(.system(size: 15, weight: .semibold))
+                    Text("\(items.count)").font(.system(size: 13)).foregroundStyle(DS.Colors.faint)
+                }
             }
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)

@@ -170,9 +170,10 @@ enum MeetingExport {
                         out.append(.item(i.text + (i.owner.map { " (\($0))" } ?? ""), done: tasks ? (i.done == true) : nil))
                     }
                 }
+                for topic in s.topics { section(topic.title, topic.items) }
                 section(String(localized: "Beslut"), s.decisions)
                 section(String(localized: "Att göra"), s.tasks, tasks: true)
-                section(String(localized: "Värt att komma ihåg"), s.points)
+                section(String(localized: "Värt att komma ihåg"), s.loosePoints)
             }
             // Your notes, and what you wrote with a mark.
             let own = record.ownLines

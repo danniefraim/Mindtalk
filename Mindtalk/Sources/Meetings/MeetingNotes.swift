@@ -66,7 +66,23 @@ struct MeetingSummary: Codable, Equatable {
         var done: Bool? = nil
         /// You marked this moment during the meeting.
         var marked: Bool? = nil
+        /// Points: the subject it belongs to ("AI och IoT"), when the writer grouped them.
+        var topic: String? = nil
     }
+
+    /// The points under their subjects, in the order the subjects first came up.
+    var topics: [(title: String, items: [Item])] {
+        var order: [String] = []
+        var items: [String: [Item]] = [:]
+        for p in points {
+            guard let t = p.topic, !t.isEmpty else { continue }
+            if items[t] == nil { order.append(t) }
+            items[t, default: []].append(p)
+        }
+        return order.map { ($0, items[$0] ?? []) }
+    }
+    /// Points that belong to no subject (all of them in summaries written before subjects).
+    var loosePoints: [Item] { points.filter { ($0.topic ?? "").isEmpty } }
 
     /// A short title for the meeting, used unless you named it yourself.
     var title: String? = nil
@@ -92,6 +108,7 @@ struct MeetingSummary: Codable, Equatable {
             for i in self[keyPath: keyPath].indices {
                 self[keyPath: keyPath][i].text = fix(self[keyPath: keyPath][i].text)
                 self[keyPath: keyPath][i].owner = self[keyPath: keyPath][i].owner.map(fix)
+                self[keyPath: keyPath][i].topic = self[keyPath: keyPath][i].topic.map(fix)
             }
         }
     }
@@ -430,7 +447,7 @@ final class MeetingNotes: ObservableObject {
     @Generable struct Overview {
         @Guide(description: "A short title for the meeting: two to five words, no date, no quotation marks.")
         var title: String
-        @Guide(description: "What the meeting was about and what came out of it, in one to three sentences, in the third person, naming people only as they are named before the colon in the transcript, never other names. One sentence if the meeting was short.")
+        @Guide(description: "What the meeting was about, what was discussed and what came out of it, in two to four sentences, in the third person, naming people only as they are named before the colon in the transcript, never other names. One sentence if the meeting was short.")
         var summary: String
         @Guide(description: "Important facts, figures, concerns or ideas that came up. Empty for a short or casual conversation.", .maximumCount(6))
         var points: [Item]
@@ -472,6 +489,8 @@ final class MeetingNotes: ObservableObject {
     nonisolated private static func write(_ lines: Lines, writer: (any SummaryWriter)? = nil) async throws -> MeetingSummary {
         var outcomes: [Outcomes] = []
         var overviews: [Overview] = []
+        /// Each part's points' subjects, in step with its overview's points (writers only).
+        var topics: [[String?]] = []
         var lastError: Error?
         // Gemma 4 or your own model: the whole meeting at once when it fits (a long one
         // in as few parts as it can read), in the same line format — and through the
@@ -490,19 +509,20 @@ final class MeetingNotes: ObservableObject {
                 let p = parsePlain(reply)
                 outcomes.append(Outcomes(decisions: p.decisions, tasks: p.tasks))
                 overviews.append(Overview(title: p.title, summary: p.summary, points: p.points))
+                topics.append(p.pointTopics)
             }
             if overviews.count > 1 {
                 let parts = overviews.enumerated().map { "Part \($0.offset + 1): \($0.element.summary)" }.joined(separator: "\n")
                 let merged = try await writer.complete(system: "", user: """
                     These are summaries of consecutive parts of one meeting. Write one summary of the whole meeting \
-                    in \(lines.language), in two or three sentences. Only use what is in the summaries.
+                    in \(lines.language), in three to five sentences. Only use what is in the summaries.
 
                     \(parts)
-                    """, maxTokens: 300)
+                    """, maxTokens: 400)
                 overviews[0].summary = merged
                 overviews = [overviews[0]] + overviews.dropFirst().map { Overview(title: "", summary: "", points: $0.points) }
             }
-            var summary = await withMarks(finish(lines, outcomes: outcomes, overviews: overviews), lines, writer: writer)
+            var summary = await withMarks(finish(lines, outcomes: outcomes, overviews: overviews, topics: topics), lines, writer: writer)
             summary.writer = writer.name
             return summary
         }
@@ -700,7 +720,8 @@ final class MeetingNotes: ObservableObject {
     /// From what the model wrote to the notes shown: every item checked against the
     /// line it came from, decisions and tasks only where something was decided or
     /// promised, owners only if they're in the meeting.
-    nonisolated private static func finish(_ lines: Lines, outcomes: [Outcomes], overviews: [Overview]) -> MeetingSummary {
+    nonisolated private static func finish(_ lines: Lines, outcomes: [Outcomes], overviews: [Overview],
+                                           topics: [[String?]] = []) -> MeetingSummary {
         let overview = overviews.first?.summary ?? ""
         var summary = MeetingSummary(overview: Self.tidy(overview))
         summary.title = overviews.first.map { Self.cleanTitle($0.title) }
@@ -718,12 +739,24 @@ final class MeetingNotes: ObservableObject {
         let taken = Set((summary.decisions + summary.tasks).compactMap(\.at))
         // Worth remembering only if it can be shown where it was said — and few of
         // them for a short talk, where the model otherwise pads.
-        summary.points = overviews.flatMap(\.points).compactMap { lines.checked($0.text, line: $0.line) }
-            .filter { $0.at != nil && !taken.contains($0.at!) }
+        // Each point with its subject, when the writer gave one (Gemma and your own models).
+        let subjects = overviews.indices.flatMap { k in
+            overviews[k].points.indices.map { j in topics.indices.contains(k) && topics[k].indices.contains(j) ? topics[k][j] : nil }
+        }
+        summary.points = zip(overviews.flatMap(\.points), subjects).compactMap { point, subject in
+            guard var item = lines.checked(point.text, line: point.line) else { return nil }
+            item.topic = subject.map(Self.cleanTitle).flatMap { $0.isEmpty ? nil : $0 }
+            return item
+        }
+        .filter { $0.at != nil && !taken.contains($0.at!) }
         summary.decisions = Self.unique(summary.decisions)
         summary.tasks = Self.unique(summary.tasks)
         let words = lines.wordCount
-        summary.points = Array(Self.unique(summary.points).prefix(words < 150 ? 0 : words < 400 ? 2 : 8))
+        // Grouped by subject, a meeting gets what was said about each, as notes do; without
+        // subjects, a short talk keeps few points, where the model otherwise pads.
+        let grouped = summary.points.contains { $0.topic != nil }
+        let most = grouped ? (words < 150 ? 3 : words < 400 ? 8 : words < 2000 ? 14 : 20) : (words < 150 ? 0 : words < 400 ? 2 : 8)
+        summary.points = Array(Self.unique(summary.points).prefix(most))
         return summary
     }
 
@@ -1051,9 +1084,10 @@ final class MeetingNotes: ObservableObject {
                 out += "- \(box)\(i.text)\(i.owner.map { " (\($0))" } ?? "")\n"
             }
         }
+        for topic in s.topics { section(topic.title, topic.items) }
         section(String(localized: "Beslut"), s.decisions)
         section(String(localized: "Att göra"), s.tasks, task: true)
-        section(String(localized: "Värt att komma ihåg"), s.points)
+        section(String(localized: "Värt att komma ihåg"), s.loosePoints)
         return out
     }
 
@@ -1064,6 +1098,8 @@ final class MeetingNotes: ObservableObject {
         var decisions: [Item] = []
         var tasks: [Todo] = []
         var points: [Item] = []
+        /// The subject each point was written under (TOPIC:), in step with `points`.
+        var pointTopics: [String?] = []
 
         /// "text [12]" → ("text", 12)
         static func split(_ s: String) -> (String, Int) {
@@ -1086,15 +1122,17 @@ final class MeetingNotes: ObservableObject {
     nonisolated private static func plainPrompt(_ language: String) -> String {
         """
         You read a meeting transcript. Each line is "[n] Name: what they said". Write in \(language), in your own \
-        words, short. Only use what was actually said: never invent names, numbers, dates or decisions. Refer to \
-        people only by the names written before the colon. Answer in exactly this format, one item per line, and \
-        nothing else:
+        words, as clear notes someone who missed the meeting would want. Only use what was actually said: never \
+        invent names, numbers, dates or decisions. Refer to people only by the names written before the colon. \
+        Answer in exactly this format, one item per line, every line starting with its label, and nothing else:
         TITLE: a title of two to five words
-        SUMMARY: one to three sentences about what the meeting was about and what came out of it
+        SUMMARY: two to four sentences about what the meeting was about, what was discussed and what came out of it
+        TOPIC: a short heading, two to five words, for one subject that was discussed
+        POINT: one thing that was said about that subject, in one sentence, naming who said it when that matters [n]
         DECISION: a decision that was actually made [n]
         TASK: a concrete action someone will do after the meeting | who will do it [n]
-        POINT: an important fact, figure or concern [n]
-        Leave out DECISION, TASK or POINT lines when there are none. Thoughts or what the meeting is about are not tasks.
+        Give two to four TOPIC lines (one for a short talk), each followed by its two to four POINT lines. Leave out \
+        DECISION or TASK lines when there are none. Thoughts or what the meeting is about are not tasks.
         """
     }
 
@@ -1109,6 +1147,7 @@ final class MeetingNotes: ObservableObject {
         // (22 October: both lost, the notes had no overview).
         var unlabelled: [String] = []
         var labelled = false
+        var topic = ""
         for raw in reply.components(separatedBy: .newlines) {
             let line = raw.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "-•*#")))
             guard !line.isEmpty else { continue }
@@ -1132,8 +1171,11 @@ final class MeetingNotes: ObservableObject {
                 if !what.isEmpty {
                     p.tasks.append(Todo(text: what, owner: parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespaces) : "", line: n))
                 }
+            case "TOPIC", "ÄMNE":
+                topic = Plain.unmark(value)
             case "POINT", "PUNKT":
-                let (t, n) = Plain.split(value); if !t.isEmpty { p.points.append(Item(text: t, line: n)) }
+                let (t, n) = Plain.split(value)
+                if !t.isEmpty { p.points.append(Item(text: t, line: n)); p.pointTopics.append(topic.isEmpty ? nil : topic) }
             default: continue
             }
         }
@@ -1148,7 +1190,7 @@ final class MeetingNotes: ObservableObject {
     }
 
     nonisolated private static let plainKeys: Set<String> = ["TITLE", "TITEL", "SUMMARY", "SAMMANFATTNING", "DECISION", "BESLUT",
-                                                             "TASK", "UPPGIFT", "POINT", "PUNKT"]
+                                                             "TASK", "UPPGIFT", "POINT", "PUNKT", "TOPIC", "ÄMNE"]
 
     /// `Mindtalk --plain-test`: the line format read back, also when a label is missing.
     nonisolated static func plainSelfTest() -> Int32 {
@@ -1176,7 +1218,19 @@ final class MeetingNotes: ObservableObject {
         check("a stray line after the labels is left out", afterLabels.summary == "Kort.")
         let bold = parsePlain("**TITLE:** Budget\n**SUMMARY:** Kort.")
         check("bold labels", bold.title == "Budget" && bold.summary == "Kort.")
-        print(failed == 0 ? "plain: 9 of 9 pass" : "plain: \(failed) failed")
+        let topics = parsePlain("""
+            TITLE: Höstens planer
+            SUMMARY: Vi pratade om budget och lansering.
+            POINT: Före alla ämnen. [1]
+            TOPIC: Budgeten
+            POINT: Den håller. [2]
+            POINT: Marknadsföringen avgörs senare. [3]
+            TOPIC: **Lanseringen**
+            POINT: Den flyttas till november. [5]
+            """)
+        check("points keep their subject", topics.pointTopics == [nil, "Budgeten", "Budgeten", "Lanseringen"])
+        check("subjects and points in step", topics.points.count == topics.pointTopics.count)
+        print(failed == 0 ? "plain: 11 of 11 pass" : "plain: \(failed) failed")
         return failed == 0 ? 0 : 1
     }
 
@@ -1468,11 +1522,14 @@ struct Lines: Sendable {
         }
         let words = Self.keys(text)
         let named = line - 1
+        // No number given (Gemma leaves out "[n]" now and then): every line on equal terms,
+        // rather than all of them held far from a line that wasn't named.
+        let unnamed = line <= 0
         var best: (index: Int, score: Double)?
         for i in lines.indices {
             // The line the model named wins a tie: an item in its own words often shares
             // as much with the line before it (and the first one would win otherwise).
-            let score = Self.overlap(words, Self.keys(lines[i].text)) - (abs(i - named) <= 2 ? 0 : 0.35)
+            let score = Self.overlap(words, Self.keys(lines[i].text)) - (unnamed || abs(i - named) <= 2 ? 0 : 0.35)
                 + (i == named ? 0.01 : 0)
             if best == nil || score > best!.score { best = (i, score) }
         }

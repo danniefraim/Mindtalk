@@ -480,7 +480,9 @@ enum ClaudeTools {
                 var summary: [String: Any] = ["overview": s.overview, "written": iso.string(from: s.created)]
                 if let w = s.writer { summary["written_by"] = w }
                 if detailed, !s.points.isEmpty {
-                    summary["points"] = s.points.map { ["text": $0.text].merging(moment($0.at)) { a, _ in a } }
+                    summary["points"] = s.points.map { p in
+                        ["text": p.text].merging(p.topic.map { ["topic": $0] } ?? [:]) { a, _ in a }.merging(moment(p.at)) { a, _ in a }
+                    }
                 }
                 if let from = s.notesFrom, from != m.notesFingerprint { summary["notes_changed_since"] = true }
                 result["summary"] = summary
