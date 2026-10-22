@@ -419,11 +419,14 @@ struct Constellation: View {
         }
         // The points, nearer ones brighter and larger, whiter until they've arrived.
         // Drawn in a few batches (by brightness and colour) rather than one by one.
+        // A smaller cloud (on Hem, the start card) has finer points, so it stays as
+        // airy as the round's and doesn't close up into a grey disc.
+        let fine = min(1, max(0.62, Double(R) / 180))
         let shades = 5, hues = 4
         var batches = [Path](repeating: Path(), count: shades * hues)
         for i in 0..<Self.count {
             let z = zs[i], e = es[i]
-            let s = (1.5 - z * 0.6) * (1 + e * 0.3)
+            let s = (1.5 - z * 0.6) * (1 + e * 0.3) * fine
             let shade = min(shades - 1, Int((1 - z) / 2 * Double(shades)))
             let hue = min(hues - 1, Int(e * Double(hues)))
             batches[hue * shades + shade].addEllipse(in: CGRect(x: xs[i] - s, y: ys[i] - s, width: s * 2, height: s * 2))
@@ -432,7 +435,10 @@ struct Constellation: View {
             let m = (Double(hue) + 0.5) / Double(hues)
             let c = onLight ? rgb : SIMD3<Double>(1, 1, 1) + (rgb - SIMD3<Double>(1, 1, 1)) * m
             for shade in 0..<shades {
-                let alpha = 0.3 + 0.45 * (Double(shade) + 0.5) / Double(shades)
+                let near = (Double(shade) + 0.5) / Double(shades)
+                // Ink on paper: the far side faint, the near side dark, as light on the
+                // night is in the round.
+                let alpha = onLight ? 0.2 + 0.75 * near : 0.3 + 0.45 * near
                 ctx.fill(batches[hue * shades + shade], with: .color(Color(red: c.x, green: c.y, blue: c.z).opacity(alpha)))
             }
         }

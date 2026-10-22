@@ -544,7 +544,7 @@ struct InkSphere: View {
         let _ = colorScheme
         let light = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) != .darkAqua
         Constellation(figure: nil, color: DS.Colors.ink, level: level, searching: listening, paused: !visible || paused, onLight: light)
-            .opacity(light ? 0.5 : 0.42)
+            .opacity(light ? 0.9 : 0.42)
             .onAppear {
                 visible = AppDelegate.mainWindowVisible
                 // Opened from the menu bar, the page can appear a moment before its window

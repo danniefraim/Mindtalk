@@ -3798,7 +3798,24 @@ struct DotSphere: View {
     private static let points = lattice(760)
     private static let fewer = lattice(190)
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
+        if small { dots } else {
+            // The round's own cloud, in ink on the light card: points that breathe and
+            // drift, rather than a lattice in rows.
+            // (The appearance from the app, as on Hem: a still picture has no colour scheme.)
+            let _ = colorScheme
+            let light = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) != .darkAqua
+            GeometryReader { geo in
+                let side = min(geo.size.width, geo.size.height)
+                Constellation(figure: nil, color: light ? DS.Colors.ink : .white, level: 0.22, paused: paused, onLight: light,
+                              center: CGPoint(x: geo.size.width / 2, y: geo.size.height / 2), radius: side * 0.44)
+            }
+        }
+    }
+
+    private var dots: some View {
         TimelineView(.animation(minimumInterval: 1 / 30, paused: paused || reduceMotion)) { context in
             let angle = reduceMotion ? 0.6 : context.date.timeIntervalSinceReferenceDate / 9
             Canvas { g, size in
