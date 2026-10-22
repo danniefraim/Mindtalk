@@ -737,8 +737,7 @@ struct StartCard: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
                     .padding(.top, 14)
-                knownVoices.padding(.top, 12)
-                roomControl.padding(.top, 16)
+                roomControl.padding(.top, 14)
                 if dictation.micGranted { foot.padding(.top, 20) }
             }
         }
@@ -819,51 +818,6 @@ struct StartCard: View {
         .accessibilityElement(children: .contain)
     }
 
-    /// The proof under the sphere: the voices Mindtalk already knows, as their figures
-    /// with names, and how many. Remembering off, or none yet: what it would take.
-    @ViewBuilder private var knownVoices: some View {
-        let known = memory.people.sorted { $0.updated > $1.updated }
-        let line: String = {
-            if !memory.enabled { return String(localized: "Slå på Kom ihåg rösterna, så känner Mindtalk igen er nästa gång.") }
-            if known.isEmpty { return String(localized: "Efter första namnrundan känner Mindtalk igen er nästa gång. Inget ljud sparas.") }
-            return known.count == 1 ? String(localized: "Känner igen 1 röst. Inget ljud sparas.")
-                                    : String(localized: "Känner igen \(known.count) röster. Inget ljud sparas.")
-        }()
-        VStack(spacing: 8) {
-            if memory.enabled, !known.isEmpty {
-                // As many whole names as fit (four, three or two); the rest as "+N".
-                ViewThatFits(in: .horizontal) {
-                    voiceRow(known, shown: 4)
-                    voiceRow(known, shown: 3)
-                    voiceRow(known, shown: 2)
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(Text(verbatim: known.prefix(4).map(\.name).joined(separator: ", ")))
-            }
-            Text(verbatim: line)
-                .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func voiceRow(_ known: [VoiceMemory.Person], shown: Int) -> some View {
-        HStack(spacing: 12) {
-            ForEach(Array(known.prefix(shown).enumerated()), id: \.element.id) { i, person in
-                HStack(spacing: 5) {
-                    VoiceFigureView(figure: person.figure ?? VoiceFigure.from(seed: person.name.lowercased()),
-                                    color: SpeakerMark.fill(i), size: .compact, diameter: 22, tinted: true)
-                    Text(verbatim: person.name).font(.system(size: 12.5, weight: .medium)).fixedSize()
-                }
-            }
-            if known.count > shown {
-                Text(verbatim: "+\(known.count - shown)").font(.system(size: 12.5, weight: .semibold))
-                    .foregroundStyle(DS.Colors.muted).fixedSize()
-            }
-        }
-    }
-
     /// "Kom ihåg rösterna ⓘ" and a small switch. Off until chosen; switched here or in
     /// Settings, or asked before the first meeting. The voices are other people's, so ⓘ
     /// says to ask them.
@@ -921,23 +875,10 @@ struct StartCard: View {
                 VStack(alignment: .leading, spacing: 8) {
                     choice(.round, "Starta med namnrunda", symbol: "person.2.wave.2",
                            caption: "Alla säger sitt namn, så står rätt namn i texten. En halv minut.")
-                    Text(verbatim: memory.enabled
-                         ? String(localized: "Säg hej och ditt namn. Sedan vet Mindtalk vem som pratar, i hela mötet och nästa gång.")
-                         : String(localized: "Säg hej och ditt namn. Sedan vet Mindtalk vem som pratar, i hela mötet."))
-                        .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.leading, 4).padding(.bottom, 4)
                     choice(.direct, "Starta direkt", symbol: "mic",
                            caption: "Namnge talarna under mötet om du vill.")
-                    Text("Rösterna hålls isär ändå. Namnge dem när du vill.")
-                        .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.leading, 4)
                 }
                 .disabled(dictation.phase != .idle || starting)
-                // Said where you press: the room should know.
-                Text("Säg till alla att mötet spelas in.")
-                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                 if let line = waitingLine {
                     Text(verbatim: line)
                         .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
