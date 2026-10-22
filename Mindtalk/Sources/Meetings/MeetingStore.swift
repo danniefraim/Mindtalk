@@ -238,6 +238,11 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         summary = (try? c.decodeIfPresent(MeetingSummary.self, forKey: .summary)) ?? nil
         answers = (try? c.decodeIfPresent([MeetingAnswer].self, forKey: .answers)) ?? []
         userTitled = try c.decodeIfPresent(Bool.self, forKey: .userTitled) ?? false
+        // Still the date it was given: not named by you. (A meeting's title field, left
+        // during the meeting, once counted as naming it, and its notes never titled it.)
+        if userTitled, title == Self.defaultTitle(for: date) { userTitled = false }
+        // Notes written but the title they gave not used (that same case): used now.
+        if !userTitled, title == Self.defaultTitle(for: date), let given = summary?.title, !given.isEmpty { title = given }
         finished = try c.decodeIfPresent(Bool.self, forKey: .finished) ?? true
         heal = (try? c.decodeIfPresent(Heal.self, forKey: .heal)) ?? nil
         moves = try c.decodeIfPresent([Move].self, forKey: .moves) ?? []

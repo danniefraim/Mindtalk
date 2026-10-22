@@ -1231,7 +1231,8 @@ final class MeetingSession: ObservableObject {
 
     func rename(to title: String) {
         let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else { return }
+        // Unchanged (the field only lost focus): not a name you gave it.
+        guard !title.isEmpty, title != record?.title else { return }
         record?.title = title
         record?.userTitled = true        // the notes written after don't give it another
         if let record { MeetingStore.shared.save(record) }
