@@ -124,6 +124,9 @@ struct VoiceFigureView: View {
     var phase: Double?
     /// Not turning (off screen, or a still picture).
     var paused = false
+    /// Small on light paper: in the voice's own quiet colour (the meeting list) rather
+    /// than ink (a chip in Settings).
+    var tinted = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
 
@@ -187,7 +190,7 @@ struct VoiceFigureView: View {
         // On a light surface (a chip in Settings) ink, no glow; on a dark one the
         // voice's colour, lit from within.
         let light = scheme == .light
-        let line = light && self.size == .compact ? DS.Colors.ink : color
+        let line = light && self.size == .compact && !tinted ? DS.Colors.ink : color
         if !light, self.size.glow > 0 {
             var whole = Path()
             whole.move(to: pts[0])

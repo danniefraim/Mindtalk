@@ -436,31 +436,54 @@ struct RecordGlyph: View {
 /// On screen, a file dragged over the page lights this strip rather than covering the page.
 struct ImportZone: View {
     let folder: UUID?
+    /// Beside the start card, as large as it: the words and the button in its middle.
+    var tall = false
     @ObservedObject private var importer = MeetingImport.shared
     @State private var hovering = false
     @State private var targeted = false
 
     var body: some View {
         let dropping = importer.dropping
-        let shape = RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-        HStack(spacing: 14) {
-            glyph
-            VStack(alignment: .leading, spacing: 2) {
-                Text(dropping ? "Släpp så skrivs den ned" : "Har du redan en inspelning?")
-                    .font(.system(size: 13.5, weight: .semibold))
-                    .foregroundStyle(.primary)
-                if !dropping {
-                    Text("Dra hit en ljud- eller videofil.").font(.system(size: 12.5))
-                        .foregroundStyle(DS.Colors.muted)
+        let shape = RoundedRectangle(cornerRadius: tall ? DS.Radius.tile : DS.Radius.card, style: .continuous)
+        Group {
+            if tall {
+                VStack(spacing: 14) {
+                    Spacer(minLength: 0)
+                    glyph.scaleEffect(1.5).padding(.bottom, 8)
+                    Text(dropping ? "Släpp så skrivs den ned" : "Har du redan en inspelning?")
+                        .font(.system(size: 19, weight: .semibold))
+                        .multilineTextAlignment(.center)
+                    Text(dropping ? " " : "Släpp en ljud- eller videofil här, så blir den ett möte med text, talare och sammanfattning.")
+                        .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: 300)
+                    chooseButton.padding(.top, 6).opacity(dropping ? 0 : 1)
+                    Spacer(minLength: 0)
                 }
+                .padding(28)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                HStack(spacing: 14) {
+                    glyph
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(dropping ? "Släpp så skrivs den ned" : "Har du redan en inspelning?")
+                            .font(.system(size: 13.5, weight: .semibold))
+                            .foregroundStyle(.primary)
+                        if !dropping {
+                            Text("Dra hit en ljud- eller videofil.").font(.system(size: 12.5))
+                                .foregroundStyle(DS.Colors.muted)
+                        }
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    if !dropping { chooseButton }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+                .frame(minHeight: 66)
             }
-            .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 8)
-            if !dropping { chooseButton }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .frame(minHeight: 66)
         .background(shape.fill(DS.Colors.chip.opacity(dropping ? 0.7 : hovering ? 0.35 : 0)))
         .overlay(shape.strokeBorder(dropping ? DS.Colors.ink : DS.Colors.fieldStroke.opacity(hovering ? 1 : 0.85),
                                     style: dropping ? StrokeStyle(lineWidth: 1.5) : StrokeStyle(lineWidth: 1.5, dash: [5, 4])))

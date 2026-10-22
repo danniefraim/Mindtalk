@@ -363,9 +363,13 @@ private struct MeetingList: View {
     @ViewBuilder private func archive(_ section: ArchiveSection, order: [UUID]) -> some View {
         switch section.kind {
         case .recent:
-            // The day in small capitals, close above its meetings.
-            VStack(alignment: .leading, spacing: 8) {
-                CapsLabel(section.title).padding(.top, 6)
+            // The day as in a paper, in italic serif, close above its meetings.
+            VStack(alignment: .leading, spacing: 4) {
+                Text(section.title)
+                    .font(.system(size: 15, design: .serif)).italic()
+                    .foregroundStyle(DS.Colors.muted)
+                    .padding(.top, 6)
+                    .accessibilityAddTraits(.isHeader)
                 rows(section.meetings, order: order, compact: false, timeOnly: section.day)
             }
         case .month:
@@ -400,16 +404,27 @@ private struct MeetingList: View {
         }
     }
 
-    private func rows(_ meetings: [MeetingRecord], order: [UUID], compact: Bool, timeOnly: Bool = false) -> some View {
-        VStack(spacing: 0) {
-            ForEach(Array(meetings.enumerated()), id: \.element.id) { i, record in
-                if i > 0 { CardDivider() }
-                row(record, order: order, compact: compact, timeOnly: timeOnly)
+    @ViewBuilder private func rows(_ meetings: [MeetingRecord], order: [UUID], compact: Bool, timeOnly: Bool = false) -> some View {
+        if compact {
+            VStack(spacing: 0) {
+                ForEach(Array(meetings.enumerated()), id: \.element.id) { i, record in
+                    if i > 0 { CardDivider() }
+                    row(record, order: order, compact: true, timeOnly: timeOnly)
+                }
             }
+            .padding(4)
+            .card()
+            .transition(.opacity.combined(with: .move(edge: .top)))
+        } else {
+            // The recent ones on the page itself, a hairline between them, as in a paper.
+            VStack(spacing: 0) {
+                ForEach(meetings) { record in
+                    Rectangle().fill(DS.Colors.divider).frame(height: 1)
+                    row(record, order: order, compact: false, timeOnly: timeOnly)
+                }
+            }
+            .transition(.opacity.combined(with: .move(edge: .top)))
         }
-        .padding(4)
-        .card()
-        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     /// The meetings in the order they're on screen — for ⇧-click to select a run.
@@ -530,8 +545,8 @@ struct StartCard: View {
     @ObservedObject private var memory = VoiceMemory.shared
     /// Who writes the summaries: the foot of the card follows a change.
     @ObservedObject private var better = BetterNotes.shared
-    /// Room for the two tiles side by side.
-    @State private var wide = true
+    /// Room for the card and the file zone side by side.
+    @State private var sideBySide = true
     /// A start was just pressed: the card steps back as the room takes over.
     @State private var starting = false
     /// The way you started last time: the ink tile, and what Return does.
@@ -569,14 +584,22 @@ struct StartCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             if ready {
-                card
-                // A recording you already have: its own place, under the card.
-                VStack(alignment: .leading, spacing: 0) {
-                    ImportZone(folder: folders.selected)
-                    // A file just done: where it went, for a moment.
-                    ImportDoneLine()
+                // The card to start one, and as large beside it, the place for a recording
+                // you already have. One above the other when the window is narrow.
+                let pair = sideBySide ? AnyLayout(HStackLayout(alignment: .top, spacing: 18))
+                                      : AnyLayout(VStackLayout(alignment: .leading, spacing: 18))
+                pair {
+                    card.frame(maxHeight: .infinity, alignment: .top)
+                    VStack(alignment: .leading, spacing: 0) {
+                        ImportZone(folder: folders.selected, tall: sideBySide)
+                            .frame(maxHeight: sideBySide ? .infinity : nil)
+                        // A file just done: where it went, for a moment.
+                        ImportDoneLine()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: sideBySide ? .infinity : nil, alignment: .top)
+                    .animation(.easeOut(duration: 0.25), value: importer.lastDone)
                 }
-                .animation(.easeOut(duration: 0.25), value: importer.lastDone)
+                .fixedSize(horizontal: false, vertical: true)
             } else {
                 // Getting ready: one door — both ways need the same models.
                 HStack(alignment: .center, spacing: 18) {
@@ -600,6 +623,7 @@ struct StartCard: View {
         }
         .animation(.spring(duration: 0.3, bounce: 0.15), value: importer.dropping)
         .animation(.easeOut(duration: 0.25), value: session.voiceQuestion)
+        .onGeometryChange(for: Bool.self) { $0.size.width >= 680 } action: { sideBySide = $0 }
         .onDisappear { putDown() }
         .onChange(of: session.phase) { _, now in if now == .idle { starting = false } }
         .onAppear {
@@ -623,7 +647,7 @@ struct StartCard: View {
         }
     }
 
-    /// The light card: the label, the two tiles, and one quiet line at the foot.
+    /// The light card: the label, the sphere, the two ways in, and the foot.
     private var card: some View {
         VStack(alignment: .leading, spacing: 0) {
             CapsLabel(String(localized: "Nytt möte"))
@@ -634,46 +658,65 @@ struct StartCard: View {
             if session.voiceQuestion != nil {
                 voiceQuestion.padding(.top, 18).transition(.opacity)
             } else {
-                roomControl.padding(.top, 18)
+                // The sphere from Hem, turning while the card waits for you. (The cloud is
+                // about two thirds of its frame: the rest is let go.)
+                DotSphere(paused: importer.dropping || starting)
+                    .frame(width: 190, height: 190)
+                    .frame(maxWidth: .infinity)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                    .padding(.top, 14)
+                roomControl.padding(.top, 14)
                 if dictation.micGranted { foot.padding(.top, 20) }
             }
         }
-        .padding(.horizontal, 28)
-        .padding(.vertical, 26)
+        .padding(.horizontal, 26)
+        .padding(.vertical, 24)
         .frame(maxWidth: .infinity, alignment: .leading)
         .opacity(starting ? 0.5 : importer.dropping ? 0.4 : 1)
         .animation(.easeOut(duration: 0.3), value: starting)
         .tile()
-        .onGeometryChange(for: Bool.self) { $0.size.width >= 560 } action: { wide = $0 }
     }
 
     /// The shortcut, who writes the summary (with Byt to where it's chosen) and where a
     /// new meeting goes; at the other end, whether the voices are remembered. One row,
     /// or two when the card is narrow.
     private var foot: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) {
-                footFacts
-                Spacer(minLength: 16)
-                voicesSwitch
-            }
-            VStack(alignment: .leading, spacing: 10) {
-                footFacts
-                voicesSwitch
-            }
+        VStack(alignment: .leading, spacing: 10) {
+            voicesSwitch
+            footFacts
         }
         .font(.system(size: 12.5))
         .foregroundStyle(DS.Colors.muted)
     }
 
+    /// The shortcut, then who writes the summary with Byt; on two lines when the card is narrow.
     private var footFacts: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                shortcutChip
+                Text(verbatim: "·").foregroundStyle(DS.Colors.faint).accessibilityHidden(true)
+                writerFacts
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                writerFacts
+                shortcutChip
+            }
+        }
+    }
+
+    private var shortcutChip: some View {
+        KeyChip(text: StatusPanelView.meetingKeys, small: true)
+            .fixedSize()
+            .help("Starta möte (\(StatusPanelView.meetingKeys)). Du väljer om ni tar en namnrunda eller startar direkt.")
+    }
+
+    private var writerFacts: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            KeyChip(text: StatusPanelView.meetingKeys, small: true)
-                .help("Starta möte (\(StatusPanelView.meetingKeys)). Du väljer om ni tar en namnrunda eller startar direkt.")
-            Text(verbatim: "·").foregroundStyle(DS.Colors.faint).accessibilityHidden(true)
-            Text(verbatim: writerLine).lineLimit(2).fixedSize(horizontal: true, vertical: false)
+            Text(verbatim: writerLine).lineLimit(2).fixedSize(horizontal: false, vertical: true)
             Button("Byt") { SettingsPage.open(.meetings, scrollTo: .summaries) }
                 .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(.primary)
+                .fixedSize()
                 .help("Öppnar Inställningar → Möten → Sammanfattningar.")
             if let folder = folders.folder(folders.selected) {
                 Text(verbatim: "·").foregroundStyle(DS.Colors.faint).accessibilityHidden(true)
@@ -725,6 +768,7 @@ struct StartCard: View {
                     .frame(width: 260, alignment: .leading)
                     .padding(14)
             }
+            Spacer(minLength: 12)
             Toggle("Kom ihåg rösterna", isOn: $memory.enabled)
                 .toggleStyle(InkSwitchStyle(small: true))
                 .labelsHidden()
@@ -732,7 +776,7 @@ struct StartCard: View {
                 .accessibilityHint("Mindtalk känner igen rösten utan att spara den som ljud. Fråga kollegorna först.")
                 .padding(.leading, 3)
         }
-        .fixedSize()
+        .frame(maxWidth: .infinity)
     }
 
     /// "Sammanfattas av Apple Intelligence", or that there'll be no summary without one.
@@ -756,16 +800,16 @@ struct StartCard: View {
                     .frame(maxWidth: 400, alignment: .leading)
             }
         } else {
-            VStack(alignment: .leading, spacing: 12) {
-                let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 14))
-                                  : AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-                layout {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 8) {
                     choice(.round, "Starta med namnrunda", symbol: "person.2.wave.2",
                            caption: "Alla säger sitt namn, så står rätt namn i texten. En halv minut.")
+                    Text("Alla säger sitt namn. En halv minut.")
+                        .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                        .padding(.leading, 4).padding(.bottom, 4)
                     choice(.direct, "Starta direkt", symbol: "mic",
                            caption: "Namnge talarna under mötet om du vill.")
                 }
-                .fixedSize(horizontal: false, vertical: true)
                 .disabled(dictation.phase != .idle || starting)
                 // Said where you press: the room should know.
                 Text("Säg till alla att mötet spelas in.")
@@ -815,36 +859,21 @@ struct StartCard: View {
         let waiting = MeetingSession.preparing(mode)
         let returnKey = primary && session.armed && !waiting
         return Button { begin(introducing: mode == .round) } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
-                        .fill(primary ? DS.Colors.onInk.opacity(0.12) : DS.Colors.card)
-                    Image(systemName: symbol).font(.system(size: 15, weight: .medium))
-                }
-                .frame(width: 34, height: 34)
-                .accessibilityHidden(true)
-                HStack(spacing: 10) {
-                    Circle().fill(DS.Colors.recording).frame(width: 9, height: 9).accessibilityHidden(true)
-                    Text(title).font(.system(size: 16, weight: .semibold))
-                }
-                Text(caption).font(.system(size: 13))
-                    .foregroundStyle(primary ? AnyShapeStyle(DS.Colors.onInk.opacity(0.68)) : AnyShapeStyle(DS.Colors.muted))
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
+            HStack(spacing: 12) {
+                Circle().fill(DS.Colors.recording).frame(width: 10, height: 10).accessibilityHidden(true)
+                Text(title).font(.system(size: 17, weight: .semibold))
+                Spacer(minLength: 8)
                 Group {
                     if waiting {
                         Text("Förbereder…")
                     } else if primary {
                         Text(verbatim: "↩").accessibilityHidden(true)
-                    } else {
-                        Text(verbatim: " ").accessibilityHidden(true)
                     }
                 }
-                .font(.system(size: 12))
-                .foregroundStyle(primary ? AnyShapeStyle(DS.Colors.onInk.opacity(0.5)) : AnyShapeStyle(DS.Colors.faint))
-                .padding(.top, 6)
+                .font(.system(size: 12.5))
+                .foregroundStyle(primary ? AnyShapeStyle(DS.Colors.onInk.opacity(0.55)) : AnyShapeStyle(DS.Colors.faint))
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(StartTileStyle(primary: primary, ring: returnKey || focus == mode))
         .disabled(waiting)
@@ -878,8 +907,7 @@ struct StartCard: View {
                 configuration.label
                     .foregroundStyle(primary ? AnyShapeStyle(DS.Colors.onInk) : AnyShapeStyle(.primary))
                     .padding(.horizontal, 22)
-                    .padding(.top, 22)
-                    .padding(.bottom, 20)
+                    .frame(minHeight: 58)
                     .background(shape.fill(primary ? DS.Colors.ink : DS.Colors.control)
                         .shadow(color: .black.opacity(lifted ? 0.10 : 0.04), radius: lifted ? 6 : 1, y: lifted ? 3 : 1))
                     .overlay(shape.strokeBorder(primary ? Color.clear : (lifted ? DS.Colors.fieldStroke : DS.Colors.divider),
@@ -1147,65 +1175,86 @@ struct MeetingRow: View {
         .contentShape(Rectangle())
     }
 
+    /// A recent meeting as in a paper: the time, the title in serif, what it was about,
+    /// its subjects; on the right the voices that were there, their names and how long.
     private func full(_ cast: Cast) -> some View {
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 8) {
-                        if let source = record.source {
-                            Image(systemName: source.video ? "film" : "waveform")
-                                .font(.system(size: 11.5, weight: .semibold))
-                                .foregroundStyle(DS.Colors.muted)
-                                .help(String(localized: "Importerad från \(source.file)"))
-                        }
-                        Text(record.title).font(.system(size: 14.5, weight: .semibold)).lineLimit(1)
-                        if !record.finished {
-                            Text("Inte klart").font(.system(size: 11, weight: .semibold)).foregroundStyle(DS.Colors.warning)
-                        }
+        HStack(alignment: .top, spacing: 18) {
+            Text(verbatim: clock)
+                .font(.system(size: 12.5, design: .monospaced))
+                .foregroundStyle(DS.Colors.faint)
+                .frame(width: timeOnly ? 52 : 92, alignment: .leading)
+                .padding(.top, 7)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    if let source = record.source {
+                        Image(systemName: source.video ? "film" : "waveform")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(DS.Colors.muted)
+                            .help(String(localized: "Importerad från \(source.file)"))
                     }
-                    if let lede {
-                        Text(lede).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted).lineLimit(1)
+                    Text(record.title).font(.system(size: 22, weight: .regular, design: .serif)).lineLimit(2)
+                    if !record.finished {
+                        Text("Inte klart").font(.system(size: 11, weight: .semibold)).foregroundStyle(DS.Colors.warning)
                     }
-                    (Text(meta) + (folder.map { Text("  \(Image(systemName: "folder")) \($0)") } ?? Text("")))
-                        .font(.system(size: 12)).foregroundStyle(DS.Colors.faint).monospacedDigit().lineLimit(1)
                 }
-                Spacer(minLength: 12)
-                // The names say who was there: no timeline here, and the arrow only under the pointer.
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(DS.Colors.faint)
-                    .opacity(hovering ? 1 : 0)
-                    .accessibilityHidden(true)
+                if let about {
+                    Text(about).font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                }
+                if let imported = record.importMeta(at: now) {
+                    Text(verbatim: imported).font(.system(size: 12)).foregroundStyle(DS.Colors.faint)
+                }
+                let subjects = Array((record.summary?.topics ?? []).prefix(3).map(\.title))
+                if !subjects.isEmpty || folder != nil {
+                    HStack(spacing: 6) {
+                        ForEach(subjects, id: \.self) { subject in
+                            Text(verbatim: subject).font(.system(size: 11.5)).lineLimit(1)
+                                .padding(.horizontal, 9).padding(.vertical, 3)
+                                .background(Capsule().fill(DS.Colors.chip.opacity(0.7)))
+                        }
+                        if let folder {
+                            Label(folder, systemImage: "folder").font(.system(size: 11.5)).foregroundStyle(DS.Colors.faint).lineLimit(1)
+                        }
+                    }
+                    .padding(.top, 2)
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 11)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(DS.Colors.chip.opacity(selected ? 1 : hovering ? 0.6 : 0)))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(DS.Colors.ink.opacity(selected ? 0.35 : 0), lineWidth: 1))
-            .contentShape(Rectangle())
+            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .trailing, spacing: 5) {
+                HStack(spacing: 2) {
+                    ForEach(cast.order.prefix(4), id: \.self) { speaker in
+                        let name = cast.names[String(speaker)].flatMap { $0.isEmpty ? nil : $0 }
+                        VoiceFigureView(figure: name.flatMap(VoiceFigure.remembered) ?? VoiceFigure.from(seed: name ?? "\(record.id)-\(speaker)"),
+                                        color: SpeakerMark.color(of: speaker, in: cast), size: .compact, diameter: 26, tinted: true)
+                    }
+                }
+                .accessibilityHidden(true)
+                if let people { Text(verbatim: people).font(.system(size: 12)).foregroundStyle(DS.Colors.muted).lineLimit(1) }
+                Text(verbatim: Stats.duration(record.duration)).font(.system(size: 12)).foregroundStyle(DS.Colors.faint).monospacedDigit()
+            }
+            .frame(minWidth: 120, alignment: .trailing)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 16)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(DS.Colors.chip.opacity(selected ? 1 : hovering ? 0.45 : 0)))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .strokeBorder(DS.Colors.ink.opacity(selected ? 0.35 : 0), lineWidth: 1))
+        .contentShape(Rectangle())
     }
 
-    /// The first sentence of the notes — what the meeting was about.
-    private var lede: String? {
+    /// "9:30" under a day's heading, else "I går 9:30"; "Datum okänt" for a file without one.
+    private var clock: String {
+        if record.source?.dateKnown == false { return String(localized: "Datum okänt") }
+        if timeOnly { return record.date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale)) }
+        return MeetingRecord.when(record.date)
+    }
+
+    /// What it was about: the overview, two lines at most in the list.
+    private var about: String? {
         if writing { return String(localized: "Skriver sammanfattningen…") }
         guard let overview = record.summary?.overview, !overview.isEmpty else { return nil }
-        var first = overview
-        overview.enumerateSubstrings(in: overview.startIndex..., options: .bySentences) { s, _, _, stop in
-            if let s { first = s.trimmingCharacters(in: .whitespaces) }
-            stop = true
-        }
-        return first
-    }
-
-    /// "I går 09:15 · 34 min · Anna, Erik" — or, just imported, "Importerad i dag ·
-    /// inspelad 14 aug. · 34 min"; a file with no date in it says "Datum okänt".
-    private var meta: String {
-        let time: String
-        if let imported = record.importMeta(at: now) { time = imported }
-        else if record.source?.dateKnown == false { time = String(localized: "Datum okänt") }
-        else if timeOnly { time = record.date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale)) }
-        else { time = MeetingRecord.when(record.date) }
-        return ([time, Stats.duration(record.duration)] + (people.map { [$0] } ?? [])).joined(separator: " · ")
+        return overview
     }
 
     /// "Anna, Erik +2" — the people named in it, in the order they first spoke.
@@ -3611,3 +3660,36 @@ struct ArchivePreview: View {
     }
 }
 #endif
+
+/// A sphere of evenly spread points in ink, turning slowly, the near ones darker and
+/// larger: the start card's. Still with Reduce Motion, and while `paused`.
+struct DotSphere: View {
+    var paused = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// A Fibonacci lattice: points spread evenly over the sphere.
+    private static let points: [SIMD3<Double>] = (0..<760).map { i in
+        let y = 1 - Double(i) / 759 * 2, r = (1 - y * y).squareRoot(), t = Double(i) * 2.399963
+        return SIMD3(cos(t) * r, y, sin(t) * r)
+    }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: paused || reduceMotion)) { context in
+            let angle = reduceMotion ? 0.6 : context.date.timeIntervalSinceReferenceDate / 9
+            Canvas { g, size in
+                let radius = min(size.width, size.height) / 2 * 0.94
+                let center = CGPoint(x: size.width / 2, y: size.height / 2)
+                let (ca, sa, tilt) = (cos(angle), sin(angle), 0.42)
+                let (ct, st) = (cos(tilt), sin(tilt))
+                for p in Self.points {
+                    let x1 = p.x * ca - p.z * sa, z1 = p.x * sa + p.z * ca
+                    let y2 = p.y * ct - z1 * st, z2 = p.y * st + z1 * ct
+                    let near = (z2 + 1) / 2
+                    let dot = 0.55 + near * 1.15
+                    let rect = CGRect(x: center.x + x1 * radius - dot, y: center.y + y2 * radius - dot, width: dot * 2, height: dot * 2)
+                    g.fill(Path(ellipseIn: rect), with: .color(DS.Colors.ink.opacity(0.1 + near * 0.8)))
+                }
+            }
+        }
+    }
+}

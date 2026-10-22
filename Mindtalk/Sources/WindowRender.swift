@@ -78,6 +78,13 @@ enum WindowRender {
         // The page's entrance and the model sizes being counted.
         try? await Task.sleep(for: .seconds(2.5))
         host.layoutSubtreeIfNeeded()
+        // `--scroll 600`: the page scrolled down that far, to draw what's below the fold.
+        if let down = value("--scroll").flatMap(Double.init), let scroll = WindowPerf.tallestScroll(in: host) {
+            scroll.contentView.scroll(to: NSPoint(x: 0, y: down))
+            scroll.reflectScrolledClipView(scroll.contentView)
+            try? await Task.sleep(for: .seconds(0.6))
+            host.layoutSubtreeIfNeeded()
+        }
 
         // The frame view: the content and the window's own buttons.
         let view = window.contentView?.superview ?? host
@@ -182,7 +189,7 @@ enum WindowPerf {
     }
 
     /// The scroll view with the most to scroll: the page's own.
-    private static func tallestScroll(in view: NSView) -> NSScrollView? {
+    static func tallestScroll(in view: NSView) -> NSScrollView? {
         var best: NSScrollView?
         func walk(_ v: NSView) {
             if let s = v as? NSScrollView, (s.documentView?.frame.height ?? 0) > (best?.documentView?.frame.height ?? 0) { best = s }

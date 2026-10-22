@@ -2942,6 +2942,22 @@
         }
       }
     },
+    "Alla säger sitt namn. En halv minut.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everyone says their name. Half a minute."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alla säger sitt namn. En halv minut."
+          }
+        }
+      }
+    },
     "Alla tankar": {
       "localizations": {
         "en": {
@@ -27454,6 +27470,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Släpp"
+          }
+        }
+      }
+    },
+    "Släpp en ljud- eller videofil här, så blir den ett möte med text, talare och sammanfattning.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop an audio or video file here, and it becomes a meeting with text, speakers and a summary."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Släpp en ljud- eller videofil här, så blir den ett möte med text, talare och sammanfattning."
           }
         }
       }
