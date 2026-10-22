@@ -509,7 +509,19 @@ final class MeetingNotes: ObservableObject {
                 // `--notes … --raw`: what the writer answered, before it is read.
                 if CommandLine.arguments.contains("--raw") { print("RÅTT SVAR:\n\(reply)\n---") }
                 #endif
-                let p = parsePlain(reply)
+                var p = parsePlain(reply)
+                // No summary line (Gemma skips it now and then, 22 October): asked for on its
+                // own, so the notes never open without what the meeting was about.
+                if p.summary.isEmpty, overviews.isEmpty {
+                    let alone = try? await writer.complete(system: "", user: """
+                        Write in \(lines.language), in two to four sentences in the third person, what this meeting was \
+                        about, what was discussed and what came out of it. Only what was said. Nothing else.
+
+                        \(prompt)
+                        """, maxTokens: 300)
+                    p.summary = Plain.unmark(alone ?? "").replacingOccurrences(of: "\n", with: " ")
+                        .replacingOccurrences(of: #"^(SUMMARY|SAMMANFATTNING):\s*"#, with: "", options: .regularExpression)
+                }
                 outcomes.append(Outcomes(decisions: p.decisions, tasks: p.tasks))
                 overviews.append(Overview(title: p.title, summary: p.summary, points: p.points))
                 topics.append(p.pointTopics)
@@ -1061,8 +1073,17 @@ final class MeetingNotes: ObservableObject {
     /// abbreviations (AI, IoT), and names as they're written in what was said.
     nonisolated static func sentenceCase(_ title: String, _ lines: Lines) -> String {
         guard lines.language == "Swedish" else { return title }
-        let said = Set(lines.lines.flatMap { $0.text.split(separator: " ").dropFirst() }
-            .map { $0.trimmingCharacters(in: .punctuationCharacters) }.filter { $0.first?.isUppercase == true })
+        // Names: words written with a capital inside a sentence (not first in one, where
+        // any word is: "… klart. Om vi …").
+        var said = Set<String>()
+        for line in lines.lines {
+            let words = line.text.split(separator: " ").map(String.init)
+            for (i, word) in words.enumerated() where i > 0 {
+                guard let last = words[i - 1].last, !".!?".contains(last) else { continue }
+                let bare = word.trimmingCharacters(in: .punctuationCharacters)
+                if bare.first?.isUppercase == true, !smallWords.contains(bare.lowercased()) { said.insert(bare) }
+            }
+        }
         return sentenceCase(title, names: said)
     }
 
@@ -1170,7 +1191,7 @@ final class MeetingNotes: ObservableObject {
         TASK: a concrete action someone will do after the meeting | who will do it [n]
         TOPIC: a short heading, two to five words, for one subject that was discussed
         POINT: one thing that was said about that subject, in one sentence, naming who said it when that matters [n]
-        Write the DECISION and TASK lines first. Every time someone says they will do something after the meeting \
+        Always begin with the TITLE line and the SUMMARY line. Then write the DECISION and TASK lines. Every time someone says they will do something after the meeting \
         ("Erik tar fram en tidsplan", "Anna bokar lokalen", "I'll send it"), that is a TASK line, not a POINT. Every time \
         something is decided or agreed, that is a DECISION line. Leave them out only when there are none. Thoughts or \
         what the meeting is about are not tasks. People saying who they are ("Hej, jag heter Anna") is not a point. Then give two to four TOPIC lines (one for a short talk), each \
