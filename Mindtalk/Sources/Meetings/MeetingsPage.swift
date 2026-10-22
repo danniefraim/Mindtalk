@@ -203,12 +203,6 @@ private struct MeetingList: View {
                     .staggered(1)
                     .id(Self.cardID)
                 ImportCards { id in open(id, nil) }
-                if !searching {
-                    // In a folder: its week, summed up from its meetings.
-                    WeekRecap(meetings: shown.filter { $0.id != session.record?.id }, all: store.meetings,
-                              folder: folders.folder(folders.selected)?.name, person: people.chosen?.name)
-                        .staggered(2)
-                }
                 if store.meetings.isEmpty {
                     EmptyArchive().staggered(2)
                 } else {
@@ -1194,54 +1188,6 @@ private struct StartBar: View {
         // couldn't happen says why there too.
         starting = false
         showCard()
-    }
-}
-
-/// The last seven days in one quiet line: how many meetings, how long, and a way to
-/// have them summed up. Only with two or more. In a folder, its meetings.
-private struct WeekRecap: View {
-    let meetings: [MeetingRecord]
-    let all: [MeetingRecord]
-    /// The folder chosen, by name: the card and the summary are its meetings.
-    var folder: String? = nil
-    /// A person chosen: the line counts their meetings. A question can't be narrowed to
-    /// them yet, so "Sammanfatta veckan" waits until everyone is shown again.
-    var person: String? = nil
-    @ObservedObject private var library = MeetingLibrary.shared
-    @State private var hovering = false
-
-    var body: some View {
-        let since = Date().addingTimeInterval(-7 * 86_400)
-        // The meetings with text: what a question can read.
-        let week = meetings.filter { $0.date > since && !$0.words.isEmpty }
-        if week.count >= 2 {
-            let time = week.reduce(0) { $0 + $1.duration }
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(verbatim: String(localized: "Senaste veckan: \(week.count) möten, \(Stats.duration(time))"))
-                    .font(.system(size: 13)).foregroundStyle(DS.Colors.muted).monospacedDigit()
-                    .lineLimit(1)
-                if MeetingNotes.isAvailable, person == nil {
-                    Button {
-                        // "den senaste veckan": the same seven days as the line counts.
-                        withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
-                            library.ask(folder.map { String(localized: "Vad hände i mötena i \($0) den senaste veckan?") }
-                                        ?? String(localized: "Vad hände i mina möten den senaste veckan?"))
-                        }
-                    } label: {
-                        Text(folder.map { String(localized: "Sammanfatta veckan i \($0)") } ?? String(localized: "Sammanfatta veckan"))
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(DS.Colors.ink)
-                            .underline(hovering, color: DS.Colors.muted.opacity(0.6))
-                            .lineLimit(1)
-                    }
-                    .buttonStyle(.plain)
-                    .onHover { hovering = $0 }
-                    .disabled(library.asking)
-                }
-                Spacer(minLength: 0)
-            }
-            .accessibilityElement(children: .contain)
-        }
     }
 }
 
@@ -3689,13 +3635,10 @@ private struct RewriteBanner: View {
 
 #if DEBUG
 /// Screenshots (`--render-archive`): folded months and years, an opened old month.
-/// Screenshots: the top of Möten — the night tile and the week — with your meetings.
+/// Screenshots: the top of Möten, the start card.
 struct MeetingsTopPreview: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            StartCard(session: .shared, voices: .shared, dictation: .shared)
-            WeekRecap(meetings: MeetingStore.shared.meetings, all: MeetingStore.shared.meetings)
-        }
+        StartCard(session: .shared, voices: .shared, dictation: .shared)
     }
 }
 
