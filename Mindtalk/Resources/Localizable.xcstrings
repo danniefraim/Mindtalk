@@ -29533,6 +29533,22 @@
         }
       }
     },
+    "Svar från %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Answer from %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Svar från %@"
+          }
+        }
+      }
+    },
     "Svarade på %@ s. Orkar ungefär %@ ord åt gången.": {
       "localizations": {
         "en": {

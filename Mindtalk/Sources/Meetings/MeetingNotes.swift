@@ -120,6 +120,9 @@ struct MeetingAnswer: Codable, Equatable, Identifiable {
     var answer: String
     var sources: [Double] = []
     var date = Date()
+    /// Which model answered ("Gemma 4 E4B"); nil for Apple Intelligence, and in answers
+    /// from before it was kept.
+    var writer: String? = nil
 }
 
 @MainActor
@@ -859,7 +862,7 @@ final class MeetingNotes: ObservableObject {
         guard !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw EmptyAnswer() }
         // Your own model: an answer that names no line it came from isn't shown.
         if let writer, writer.requiresSources, sources.isEmpty { throw ServerError.noSources }
-        return MeetingAnswer(question: question, answer: answer, sources: Array(Set(sources)).sorted())
+        return MeetingAnswer(question: question, answer: answer, sources: Array(Set(sources)).sorted(), writer: writer?.name)
     }
 
     /// A question across meetings (MeetingSearch.swift): answered from the meetings the

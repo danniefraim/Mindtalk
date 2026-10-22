@@ -2648,13 +2648,15 @@ private struct SummaryView: View {
             unavailable
         } else {
             HStack(spacing: 14) {
-                Image(systemName: "apple.intelligence").font(.system(size: 18)).foregroundStyle(DS.Colors.muted)
+                // The mark of whoever will write it: Apple's only for Apple Intelligence.
+                let mark = BetterNotes.shared.isActive ? "sparkle" : "apple.intelligence"
+                Image(systemName: mark).font(.system(size: 18)).foregroundStyle(DS.Colors.muted)
                 Text("Ingen sammanfattning än").font(.system(size: 15, weight: .semibold))
                 Spacer()
                 Button {
                     notes.summarize(record.id)
                 } label: {
-                    Label("Sammanfatta", systemImage: "apple.intelligence")
+                    Label("Sammanfatta", systemImage: mark)
                 }
                 .buttonStyle(.ink)
                 .disabled(record.words.isEmpty)
@@ -2715,8 +2717,10 @@ private struct SummaryView: View {
                             .frame(maxWidth: 420, alignment: .trailing)
                     }
                     HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: "apple.intelligence").font(.system(size: 13)).foregroundStyle(DS.Colors.faint)
+                        // Who answered: Apple's mark only for Apple Intelligence, as under the summary.
+                        Image(systemName: a.writer == nil ? "apple.intelligence" : "sparkle").font(.system(size: 13)).foregroundStyle(DS.Colors.faint)
                             .padding(.top, 3)
+                            .help(String(localized: "Svar från \(a.writer ?? "Apple Intelligence")"))
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 8) {
                             Text(a.answer).font(.system(size: 15)).lineSpacing(3).textSelection(.enabled)
