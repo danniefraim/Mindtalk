@@ -446,7 +446,13 @@ struct Constellation: View {
 
     /// A speaker's colour, made vivid for a dark room; as it is (`vivid: false`) on a light one.
     static func rgb(_ color: Color, vivid: Bool = true) -> SIMD3<Double> {
-        let c = NSColor(color).usingColorSpace(.sRGB) ?? .white
+        // Resolved as the app looks, not as the Mac does: Mindtalk set to light on a dark
+        // Mac drew ink as its dark variant, near white, on the light card.
+        var resolved: NSColor?
+        NSApp.effectiveAppearance.performAsCurrentDrawingAppearance {
+            resolved = NSColor(color).usingColorSpace(.sRGB)
+        }
+        let c = resolved ?? .white
         if !vivid { return SIMD3(Double(c.redComponent), Double(c.greenComponent), Double(c.blueComponent)) }
         var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         c.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
