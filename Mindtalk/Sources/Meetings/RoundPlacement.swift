@@ -464,9 +464,16 @@ enum RoundPlacement {
         var candidates: [(speaker: Int, name: String, score: Float)] = []
         for (v, voice) in unnamed.sorted(by: { $0.key < $1.key }) {
             let wrong = Set((rejected[v] ?? []).map(key))
-            let ranked = people.filter { !taken.contains(key($0.name)) && !wrong.contains(key($0.name)) && !$0.prints.isEmpty }
+            // Everyone ranked, the taken too: a voice that sounds most like someone who
+            // already has a voice (one person split in two) stays unnamed, rather than
+            // going to whoever comes second.
+            let ranked = people.filter { !wrong.contains(key($0.name)) && !$0.prints.isEmpty }
                 .map { ($0.name, similarity(voice.print, $0.prints)) }.sorted { $0.1 > $1.1 }
             guard let best = ranked.first else { continue }
+            if taken.contains(key(best.0)) {
+                notes.append("voice \(v): most like \(best.0) (\(fmt(best.1))), who has a voice already, left unnamed")
+                continue
+            }
             let lead = best.1 - (ranked.dropFirst().first?.1 ?? -1)
             guard best.1 >= sameVoiceBar(seconds: voice.seconds), lead >= VoiceMemory.margin else {
                 if best.1 >= sameVoiceBar(seconds: voice.seconds) {

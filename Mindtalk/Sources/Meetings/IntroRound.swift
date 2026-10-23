@@ -582,16 +582,21 @@ final class IntroRound: ObservableObject {
     private func captureHeard(_ name: String, from: Double, to: Double, said: ClosedRange<Double>?) {
         let colour = captures.count
         let remembered = VoiceFigure.remembered(name)
-        let fig = remembered ?? finalFigure(from: turnPrint) ?? VoiceFigure.from(seed: "\(name)-\(colour)")
-        captures.append(Capture(name: name, known: false, score: nil, from: from, to: to, print: turnPrint,
+        // A turn that began well before the name is said (the one before talked on into
+        // it) has a print of them, not of this person: it's made again from the name.
+        let spokeFirst = speechStart.map(seconds) ?? from
+        let late = from - spokeFirst > 2
+        let print = late ? nil : turnPrint
+        let fig = remembered ?? finalFigure(from: print) ?? VoiceFigure.from(seed: "\(name)-\(colour)")
+        captures.append(Capture(name: name, known: false, score: nil, from: from, to: to, print: print,
                                 figure: fig, colour: colour,
                                 turnFrom: min(from, seconds(turnSpeech ?? speechStart ?? turnStart)),
                                 turnTo: max(to, seconds(cursor)), said: said))
         if remembered == nil { VoiceMemory.shared.reserve(fig, for: name) }
         // Its voice, from what it said this turn (when that was long enough): so someone
         // talking on in the next turn is heard as them, not as a new person.
-        let spoke = min(from, speechStart.map(seconds) ?? from)
-        if turnPrint == nil, seconds(cursor) - spoke >= 1.5, let session {
+        let spoke = late ? from : min(from, spokeFirst)
+        if print == nil, seconds(cursor) - spoke >= 1.5, let session {
             let audio = session.roundAudio(from: Int(spoke * Self.rate), to: cursor)
             let id = captures.last!.id
             Task { [weak self] in
@@ -667,6 +672,8 @@ final class IntroRound: ObservableObject {
         "bra", "så", "här", "där", "var", "vad", "när", "men", "om", "till", "för", "på", "av", "med", "kan", "ska",
         "vill", "har", "hade", "bli", "blir", "mer", "bara", "också", "nog", "ju", "väl", "nästa", "kanske", "precis",
         "exakt", "visst", "absolut", "the", "and", "you", "so", "yes", "no", "well", "right", "sure", "next", "fine",
+        // "min", "din", "sin" … ("i östra minnen" from a radio was taken for Min).
+        "min", "mitt", "mina", "din", "ditt", "dina", "sin", "sitt", "sina",
     ])
 
     /// Keeps the round's place in a countdown the scanner can show.

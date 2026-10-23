@@ -241,7 +241,9 @@ def score(fixture, result_txt, truth=None, want=None, background_voices=(), run_
         # The name each person said, as the round heard it: the turn held while they
         # introduced themselves. A person the round never took a turn for (it heard them
         # as someone already there) can't be named by the placement: either is right.
-        turns = res.get("turns", [])
+        # A turn whose name is none of the people's ("Min" heard in the radio) isn't one.
+        people = {p.split(" ")[0].lower() for p in d["people"]}
+        turns = [t for t in res.get("turns", []) if t["name"].split(" ")[0].lower() in people]
         expected_name, optional = {}, set()
         for k, p in enumerate(d["people"]):
             intro = next(g for g in segs if g["who"] == k and g["kind"] == "intro")
