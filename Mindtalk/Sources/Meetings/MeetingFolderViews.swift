@@ -3,19 +3,23 @@ import SwiftUI
 // MARK: - The folder row
 //
 // Under the search field, and pinned there as the list scrolls (so a meeting far
-// down can still be dragged onto a folder): "Alla", your folders A to Ö with how
-// many meetings each holds, and "Ny mapp". Selected, a folder is drawn like the
-// page's other pickers — a raised pill. A meeting (or several) dragged onto a
-// folder goes into it; onto "Alla", out of its folder. Right-click a folder to
-// rename it or take it away.
+// down can still be dragged onto a folder): "Alla", your folders with how many
+// meetings each holds, and "Ny mapp". Beside the search field it's one row that
+// never scrolls: the folders with the most meetings, as many as fit, and the rest
+// under "Fler" (the folder chosen is always in the row). Selected, a folder is
+// drawn like the page's other pickers — a raised pill. A meeting (or several)
+// dragged onto a folder goes into it; onto "Alla", out of its folder; held over
+// Fler, it opens. Right-click a folder to rename it or take it away.
 
 struct FolderBar: View {
     @ObservedObject var folders: MeetingFolders
     @ObservedObject var store: MeetingStore
     /// The meeting being recorded: in the store, not in the list — not counted.
     var live: UUID?
-    /// Beside the search field: in one row that scrolls, not wrapped.
+    /// Beside the search field: in one row, the folders that don't fit under Fler.
     var oneRow = false
+    /// The room for that row (0 until it's known: then all of them).
+    var width: CGFloat = 0
     @State private var removing: MeetingFolder?
 
     var body: some View {
@@ -23,8 +27,20 @@ struct FolderBar: View {
         var counts: [UUID: Int] = [:]
         for m in counted { if let f = m.folder { counts[f, default: 0] += 1 } }
         return Group {
-            if oneRow { HStack(spacing: 8) { chips(counted: counted, counts: counts) } }
-            else { FlowLayout(spacing: 8) { chips(counted: counted, counts: counts) } }
+            if oneRow {
+                let row = fitted(counted: counted.count, counts: counts)
+                HStack(spacing: 8) {
+                    allChip(count: counted.count)
+                    ForEach(row.shown) { chip($0, count: counts[$0.id] ?? 0) }
+                    if row.more.isEmpty {
+                        newFolder
+                    } else {
+                        MoreFolders(folders: folders, more: row.more, counts: counts) { removing = $0 }
+                    }
+                }
+            } else {
+                FlowLayout(spacing: 8) { chips(counted: counted, counts: counts) }
+            }
         }
         .animation(.spring(duration: 0.3, bounce: 0.15), value: folders.folders)
         .confirmationDialog(Text("Ta bort mappen ”\(removing?.name ?? "")”?"),
@@ -39,40 +55,214 @@ struct FolderBar: View {
     }
 
     @ViewBuilder private func chips(counted: [MeetingRecord], counts: [UUID: Int]) -> some View {
-            // "Alla" alone would be a choice of one: it comes with the first folder.
-            if !folders.folders.isEmpty {
-                FolderChip(title: String(localized: "Alla"), count: counted.count,
-                           selected: folders.selected == nil, symbol: nil,
-                           help: "Alla möten: släpp ett möte här för att ta det ur sin mapp") {
-                    select(nil)
-                } drop: { ids in folders.move(ids, to: nil) }
+        allChip(count: counted.count)
+        ForEach(folders.sorted) { chip($0, count: counts[$0.id] ?? 0) }
+        newFolder
+    }
+
+    /// "Alla" alone would be a choice of one: it comes with the first folder.
+    @ViewBuilder private func allChip(count: Int) -> some View {
+        if !folders.folders.isEmpty {
+            FolderChip(title: String(localized: "Alla"), count: count,
+                       selected: folders.selected == nil, symbol: nil,
+                       help: "Alla möten: släpp ett möte här för att ta det ur sin mapp") {
+                select(nil)
+            } drop: { ids in folders.move(ids, to: nil) }
+        }
+    }
+
+    private func chip(_ folder: MeetingFolder, count: Int) -> some View {
+        FolderChip(title: folder.name, count: count,
+                   selected: folders.selected == folder.id, symbol: "folder",
+                   help: "\(folder.name): släpp möten här för att lägga dem i mappen") {
+            select(folder.id)
+        } drop: { ids in folders.move(ids, to: folder.id) }
+        .contextMenu {
+            Button("Byt namn…") { FolderNaming.shared.request = .rename(folder) }
+            Button("Ta bort mappen…", role: .destructive) { removing = folder }
+        }
+    }
+
+    private var newFolder: some View {
+        Button { FolderNaming.shared.request = .create(moving: []) } label: {
+            Label("Ny mapp", systemImage: "plus")
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(DS.Colors.muted)
+                .padding(.horizontal, 12)
+                .frame(height: 28)
+                .overlay(Capsule().strokeBorder(DS.Colors.muted.opacity(0.45), style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help("Skapa en mapp att sortera mötena i")
+    }
+
+    /// The folders in the row and those under Fler: the most meetings first (A to Ö
+    /// among equals), as many as fit; the one chosen always in the row, last if it
+    /// had to be brought in.
+    private func fitted(counted: Int, counts: [UUID: Int]) -> (shown: [MeetingFolder], more: [MeetingFolder]) {
+        let ranked = folders.sorted.enumerated()
+            .sorted { a, b in
+                let (x, y) = (counts[a.element.id] ?? 0, counts[b.element.id] ?? 0)
+                return x != y ? x > y : a.offset < b.offset
             }
-            ForEach(folders.sorted) { folder in
-                FolderChip(title: folder.name, count: counts[folder.id] ?? 0,
-                           selected: folders.selected == folder.id, symbol: "folder",
-                           help: "\(folder.name): släpp möten här för att lägga dem i mappen") {
-                    select(folder.id)
-                } drop: { ids in folders.move(ids, to: folder.id) }
-                .contextMenu {
-                    Button("Byt namn…") { FolderNaming.shared.request = .rename(folder) }
-                    Button("Ta bort mappen…", role: .destructive) { removing = folder }
-                }
+            .map(\.element)
+        guard width > 0, !ranked.isEmpty else { return (ranked, []) }
+        let gap: CGFloat = 8
+        let all = Self.chipWidth(String(localized: "Alla"), count: counted, symbol: false)
+        func w(_ f: MeetingFolder) -> CGFloat { gap + Self.chipWidth(f.name, count: counts[f.id] ?? 0, symbol: true) }
+        if ranked.reduce(all, { $0 + w($1) }) + gap + Self.newFolderWidth <= width { return (ranked, []) }
+        var used = all + gap + Self.moreWidth
+        var shown: [MeetingFolder] = []
+        for folder in ranked {
+            guard used + w(folder) <= width else { break }
+            shown.append(folder)
+            used += w(folder)
+        }
+        if let chosen = ranked.first(where: { $0.id == folders.selected }), !shown.contains(chosen) {
+            while let last = shown.last, used + w(chosen) > width {
+                shown.removeLast()
+                used -= w(last)
             }
-            Button { FolderNaming.shared.request = .create(moving: []) } label: {
-                Label("Ny mapp", systemImage: "plus")
-                    .font(.system(size: 12.5, weight: .medium))
-                    .foregroundStyle(DS.Colors.muted)
-                    .padding(.horizontal, 12)
-                    .frame(height: 28)
-                    .overlay(Capsule().strokeBorder(DS.Colors.muted.opacity(0.45), style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
-                    .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .help("Skapa en mapp att sortera mötena i")
+            shown.append(chosen)
+        }
+        return (shown, ranked.filter { !shown.contains($0) })
+    }
+
+    /// A chip's width as FolderChip draws it (the name in semibold, as when chosen).
+    private static func chipWidth(_ title: String, count: Int, symbol: Bool) -> CGFloat {
+        var width = 24 + min(170, measure(title, size: 12.5, weight: .semibold))
+        if symbol { width += 15 + 6 }
+        if count > 0 { width += 6 + measure("\(count)", size: 11.5, weight: .medium) }
+        return ceil(width) + 2
+    }
+    private static var newFolderWidth: CGFloat { ceil(24 + 14 + 6 + measure(String(localized: "Ny mapp"), size: 12.5, weight: .medium)) + 2 }
+    private static var moreWidth: CGFloat { ceil(24 + 10 + 5 + measure(String(localized: "Fler"), size: 12.5, weight: .medium)) + 2 }
+    private static func measure(_ text: String, size: CGFloat, weight: NSFont.Weight) -> CGFloat {
+        (text as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: weight)]).width
     }
 
     private func select(_ id: UUID?) {
         withAnimation(.spring(duration: 0.35, bounce: 0.15)) { folders.selected = id }
+    }
+}
+
+/// "Fler ▾" at the end of the row: the folders that didn't fit, in a list. A
+/// meeting held over it a moment opens the list, to be dropped on one of them.
+private struct MoreFolders: View {
+    @ObservedObject var folders: MeetingFolders
+    let more: [MeetingFolder]
+    let counts: [UUID: Int]
+    let remove: (MeetingFolder) -> Void
+    @State private var open = false
+    @State private var targeted = false
+    @State private var opening: Task<Void, Never>?
+
+    var body: some View {
+        Button { open.toggle() } label: {
+            HStack(spacing: 5) {
+                Text("Fler").font(.system(size: 12.5, weight: .medium))
+                Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+            }
+            .foregroundStyle(DS.Colors.muted)
+            .padding(.horizontal, 12)
+            .frame(height: 28)
+            .background(Capsule().fill(DS.Colors.chip.opacity(0.7)))
+            .overlay(Capsule().strokeBorder(DS.Colors.ink, lineWidth: targeted ? 2 : 0))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .help(more.count == 1 ? String(localized: "1 mapp till") : String(localized: "\(more.count) mappar till"))
+        .accessibilityLabel(more.count == 1 ? String(localized: "Fler mappar, 1 till") : String(localized: "Fler mappar, \(more.count) till"))
+        .dropDestination(for: MeetingDrag.self) { _, _ in false } isTargeted: { over in
+            targeted = over
+            opening?.cancel()
+            guard over else { return }
+            opening = Task {
+                try? await Task.sleep(for: .milliseconds(600))
+                if !Task.isCancelled { open = true }
+            }
+        }
+        .animation(.spring(duration: 0.25, bounce: 0.3), value: targeted)
+        .popover(isPresented: $open, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 0) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(more) { folder in
+                            MoreFolderRow(name: folder.name, count: counts[folder.id] ?? 0) {
+                                open = false
+                                withAnimation(.spring(duration: 0.35, bounce: 0.15)) { folders.selected = folder.id }
+                            } drop: { ids in
+                                open = false
+                                withAnimation(.snappy) { folders.move(ids, to: folder.id) }
+                            }
+                            .contextMenu {
+                                Button("Byt namn…") { open = false; FolderNaming.shared.request = .rename(folder) }
+                                Button("Ta bort mappen…", role: .destructive) { open = false; remove(folder) }
+                            }
+                        }
+                    }
+                    .padding(6)
+                }
+                .frame(height: min(CGFloat(more.count) * 32 + 12, 360))
+                Divider()
+                Button {
+                    open = false
+                    FolderNaming.shared.request = .create(moving: [])
+                } label: {
+                    Label("Ny mapp…", systemImage: "plus")
+                        .font(.system(size: 13))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10)
+                        .frame(height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(6)
+            }
+            .frame(width: 250)
+        }
+    }
+}
+
+/// A folder in Fler's list: chosen with a click, a drop target for meetings.
+private struct MoreFolderRow: View {
+    let name: String
+    let count: Int
+    let action: () -> Void
+    let drop: ([UUID]) -> Void
+    @State private var hovering = false
+    @State private var targeted = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: targeted ? "folder.fill" : "folder")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(DS.Colors.muted)
+                Text(name).font(.system(size: 13)).lineLimit(1).truncationMode(.middle)
+                Spacer(minLength: 8)
+                if count > 0 {
+                    Text(verbatim: "\(count)").font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.Colors.muted)
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 30)
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(DS.Colors.chip.opacity(hovering || targeted ? 0.9 : 0)))
+            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(DS.Colors.ink, lineWidth: targeted ? 1.5 : 0))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .dropDestination(for: MeetingDrag.self) { items, _ in
+            let ids = items.flatMap(\.ids)
+            guard !ids.isEmpty else { return false }
+            drop(ids)
+            return true
+        } isTargeted: { targeted = $0 }
+        .accessibilityLabel(count == 1 ? String(localized: "\(name), 1 möte") : String(localized: "\(name), \(count) möten"))
     }
 }
 

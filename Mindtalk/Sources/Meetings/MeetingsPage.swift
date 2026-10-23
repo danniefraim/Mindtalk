@@ -158,6 +158,8 @@ private struct MeetingList: View {
     @ObservedObject private var archiveOpen = ArchiveOpen.shared
     let open: (UUID, Double?) -> Void
     @State private var confirmDelete: MeetingRecord?
+    /// The room beside the search field for the folder row.
+    @State private var folderRowWidth: CGFloat = 0
     /// Several chosen and "Ta bort" pressed: asked once for all of them.
     @State private var confirmDeleteMany: [UUID] = []
     @State private var query = ""
@@ -232,13 +234,14 @@ private struct MeetingList: View {
                                     .frame(width: showsFolders ? 260 : nil)
                                     .frame(maxWidth: showsFolders ? nil : .infinity)
                                 if showsFolders {
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        FolderBar(folders: folders, store: store, live: session.record?.id, oneRow: true)
-                                            .padding(.vertical, 2)
-                                            // The pinned row kept an old count after a delete until the
-                                            // page was opened again: drawn anew whenever a count changes.
-                                            .id(folderCounts)
-                                    }
+                                    // One row that never scrolls: as many folders as fit, the rest under Fler.
+                                    FolderBar(folders: folders, store: store, live: session.record?.id, oneRow: true, width: folderRowWidth)
+                                        .padding(.vertical, 2)
+                                        // The pinned row kept an old count after a delete until the
+                                        // page was opened again: drawn anew whenever a count changes.
+                                        .id(folderCounts)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { folderRowWidth = $0 }
                                 }
                             }
                             if !selection.isEmpty { selectionBar }

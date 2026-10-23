@@ -241,7 +241,10 @@ enum WindowDemo {
 
     static func fill(openMeeting: Bool) {
         MeetingStore.shared.loadNow()
-        MeetingFolders.shared.preview(english ? ["Customers", "Board", "Suppliers"] : ["Kunder", "Styrelsen", "Leverantörer"])
+        MeetingFolders.shared.preview(english ? ["Customers", "Board", "Suppliers"] : ["Kunder", "Styrelsen", "Leverantörer"]
+            // `--many-folders`: enough of them that the row has to put some under Fler.
+            + (CommandLine.arguments.contains("--many-folders")
+               ? ["IT", "Ledningsmöte", "Supporten", "Testmöten", "Rekrytering", "Marknad", "Projekt Norge", "Ekonomi"] : []))
         let meetings = meetings()
         MeetingStore.shared.replaceAll(meetings)
         Thoughts.shared.preview(thoughts())
