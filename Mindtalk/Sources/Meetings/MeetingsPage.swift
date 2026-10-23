@@ -583,6 +583,8 @@ struct StartCard: View {
     @FocusState private var focus: MeetingSession.StartMode?
     /// "Kom ihåg rösterna" ⓘ: what it means, in a popover.
     @State private var aboutVoices = false
+    /// "Kom ihåg rösterna" switched on: asked first.
+    @State private var askingVoices = false
     /// "Gör klart för möten" pressed: which downloads it began, so the one progress
     /// line counts them together.
     @State private var setupParts: (voices: Bool, speech: Bool)?
@@ -792,7 +794,7 @@ struct StartCard: View {
     private var voicesSwitch: some View {
         HStack(spacing: 7) {
             Text("Kom ihåg rösterna")
-                .onTapGesture { memory.enabled.toggle() }
+                .onTapGesture { memory.switchTo(!memory.enabled, asking: $askingVoices) }
                 .accessibilityHidden(true)
             Button { aboutVoices = true } label: {
                 Image(systemName: "info.circle").font(.system(size: 12.5)).foregroundStyle(DS.Colors.faint)
@@ -808,7 +810,7 @@ struct StartCard: View {
                     .padding(14)
             }
             Spacer(minLength: 12)
-            Toggle("Kom ihåg rösterna", isOn: $memory.enabled)
+            Toggle("Kom ihåg rösterna", isOn: memory.consenting($askingVoices))
                 .toggleStyle(InkSwitchStyle(small: true))
                 .labelsHidden()
                 .accessibilityLabel("Kom ihåg rösterna")
@@ -816,6 +818,7 @@ struct StartCard: View {
                 .padding(.leading, 3)
         }
         .frame(maxWidth: .infinity)
+        .voiceConsent($askingVoices)
     }
 
     /// "Sammanfattas av Apple Intelligence", or that there'll be no summary without one.
@@ -2378,9 +2381,11 @@ private struct TranscriptView: View {
             if session?.phase == .starting {
                 Text("Förbereder…").font(.system(size: 15, weight: .semibold))
                 Text("Inspelningen är igång, inget går förlorat.")
+                tellTheRoom
             } else if live {
                 Text("Lyssnar").font(.system(size: 15, weight: .semibold))
                 Text("Börja prata, så kommer texten här.")
+                tellTheRoom
             } else {
                 Text("Inget hördes").font(.system(size: 15, weight: .semibold))
             }
@@ -2389,6 +2394,14 @@ private struct TranscriptView: View {
         .foregroundStyle(DS.Colors.muted)
         .frame(maxWidth: .infinity)
         .padding(.top, 70)
+    }
+
+    /// Said where the meeting begins, until the first words: the room should know.
+    private var tellTheRoom: some View {
+        Text("Säg till alla att mötet spelas in.")
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.primary)
+            .padding(.top, 8)
     }
 }
 

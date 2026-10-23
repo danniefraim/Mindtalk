@@ -676,6 +676,8 @@ actor VoicePrints {
 struct VoiceMemoryCard: View {
     @ObservedObject var memory: VoiceMemory
     @State private var confirmForgetAll = false
+    /// Switched on: asked first.
+    @State private var askingVoices = false
     /// Someone to forget — asked first: there's no way back.
     @State private var confirmForget: VoiceMemory.Person?
     /// Someone whose name is being put right, and the name as typed.
@@ -699,8 +701,9 @@ struct VoiceMemoryCard: View {
     var body: some View {
         VStack(spacing: 0) {
             CardRow(title: "Kom ihåg röster", detail: detail) {
-                InkToggle(label: "Kom ihåg röster", isOn: $memory.enabled)
+                InkToggle(label: "Kom ihåg röster", isOn: memory.consenting($askingVoices))
             }
+            .voiceConsent($askingVoices)
             CardDivider()
             // You among the voices: your tasks in the notes read "Du".
             CardRow(title: "Det här är jag", detail: "Dina uppgifter i sammanfattningen visas som Du.") {
@@ -846,5 +849,32 @@ final class SpeakerModel {
         }
         let n = max(sqrt(sum.reduce(0) { $0 + $1 * $1 }), 1e-9)
         return sum.map { $0 / n }
+    }
+}
+
+// MARK: - Asked before remembering
+
+extension VoiceMemory {
+    /// "Kom ihåg rösterna" as a switch: switched off at once; switched on only once
+    /// you've said the others agree (`asking` puts the question).
+    func consenting(_ asking: Binding<Bool>) -> Binding<Bool> {
+        Binding(get: { self.enabled }, set: { self.switchTo($0, asking: asking) })
+    }
+
+    func switchTo(_ on: Bool, asking: Binding<Bool>) {
+        if on, !enabled { asking.wrappedValue = true } else { enabled = on }
+    }
+}
+
+extension View {
+    /// The question when "Kom ihåg rösterna" is switched on: the voices are other
+    /// people's, so they're asked first. The same words as before the first meeting.
+    func voiceConsent(_ asking: Binding<Bool>) -> some View {
+        alert("Ska Mindtalk känna igen rösterna nästa gång?", isPresented: asking) {
+            Button("Ja, de har sagt ja") { VoiceMemory.shared.enabled = true }
+            Button("Inte nu", role: .cancel) {}
+        } message: {
+            Text("Fråga dem först. Mindtalk känner igen rösten utan att spara den som ljud.")
+        }
     }
 }
