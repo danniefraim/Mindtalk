@@ -16,7 +16,6 @@ import SwiftUI
 //                  (Demo.on gives the dictations and the statistics); the greeting
 //                  says a made-up name
 //   --open-meeting with --demo: Möten showing the demo meeting, its summary open
-//   --person "Anna"  with --demo: Möten's list narrowed to her meetings (Personer)
 //   --show-folder "Kunder"  with --demo: Möten's list in that folder
 //   --find-query "ord"  with --open-meeting: ⌘F open in the meeting, that searched for
 //   --meeting-state silence|latecomer|manyvoices|whoareyou|paused|scrolled: a meeting
@@ -361,8 +360,7 @@ enum WindowDemo {
         return [weekly, customer, budget] + older()
     }
 
-    /// Older meetings, a line or two each: enough people and meetings for the row of
-    /// Personer, and folded months below the recent ones.
+    /// Older meetings, a line or two each: enough for folded months below the recent ones.
     private static func older() -> [MeetingRecord] {
         let en = english
         let folders = MeetingFolders.shared.folders

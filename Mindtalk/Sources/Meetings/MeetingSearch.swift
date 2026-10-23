@@ -606,7 +606,7 @@ struct LibraryContext: Sendable {
                 if calendar.component(.weekday, from: d) == weekday { return day(-back) }
             }
         }
-        // Just "veckan" ("Sammanfatta veckan"): the last seven days, as the week card counts.
+        // Just "veckan" ("Vad hände i veckan?"): the last seven days.
         if q.contains(" veckan ") || q.contains(" veckans ") || q.contains(" the week ") || q.contains(" the weeks ") {
             return now.addingTimeInterval(-7 * 86_400)...now
         }

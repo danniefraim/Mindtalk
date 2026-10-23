@@ -240,7 +240,8 @@ private struct MeetingList: View {
                                         // The pinned row kept an old count after a delete until the
                                         // page was opened again: drawn anew whenever a count changes.
                                         .id(folderCounts)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        // minWidth 0: the room there is, never the row's own width.
+                                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                                         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { folderRowWidth = $0 }
                                 }
                             }
@@ -684,7 +685,7 @@ struct StartCard: View {
         }
     }
 
-    /// The light card: what it does, the sphere, the voices it knows, the two ways in, and the foot.
+    /// The light card: what it does, the sphere, the two ways in, and the foot.
     private var card: some View {
         VStack(alignment: .leading, spacing: 0) {
             // What the round is for, said as what you get: it knows who's speaking.
@@ -897,7 +898,9 @@ struct StartCard: View {
         return Button { begin(introducing: mode == .round) } label: {
             HStack(spacing: 12) {
                 Circle().fill(DS.Colors.recording).frame(width: 10, height: 10).accessibilityHidden(true)
+                // One line, a little smaller if it must ("Start with a round of names").
                 Text(title).font(.system(size: 17, weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.8)
                 Spacer(minLength: 8)
                 Group {
                     if waiting {
@@ -3766,8 +3769,9 @@ struct ArchivePreview: View {
 }
 #endif
 
-/// A sphere of evenly spread points in ink, turning slowly, the near ones darker and
-/// larger: the start card's. Still with Reduce Motion, and while `paused`.
+/// The start card's sphere: the name round's cloud of points, in ink on the light
+/// card. The start bar's small one is a plain lattice of fewer, finer points. Still
+/// with Reduce Motion, and while `paused`.
 struct DotSphere: View {
     var paused = false
     /// The start bar's (about 38 pt): fewer, finer points, so it stays a sphere and
@@ -3782,8 +3786,7 @@ struct DotSphere: View {
             return SIMD3(cos(t) * r, y, sin(t) * r)
         }
     }
-    private static let points = lattice(760)
-    private static let fewer = lattice(190)
+    private static let points = lattice(190)
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -3810,8 +3813,8 @@ struct DotSphere: View {
                 let center = CGPoint(x: size.width / 2, y: size.height / 2)
                 let (ca, sa, tilt) = (cos(angle), sin(angle), 0.42)
                 let (ct, st) = (cos(tilt), sin(tilt))
-                let (base, grow) = small ? (0.3, 0.6) : (0.55, 1.15)
-                for p in small ? Self.fewer : Self.points {
+                let (base, grow) = (0.3, 0.6)
+                for p in Self.points {
                     let x1 = p.x * ca - p.z * sa, z1 = p.x * sa + p.z * ca
                     let y2 = p.y * ct - z1 * st, z2 = p.y * st + z1 * ct
                     let near = (z2 + 1) / 2

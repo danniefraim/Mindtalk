@@ -421,7 +421,7 @@ struct Constellation: View {
         // Drawn in a few batches (by brightness and colour) rather than one by one.
         // A smaller cloud (on Hem, the start card) has finer points, so it stays as
         // airy as the round's and doesn't close up into a grey disc.
-        let fine = min(1, max(0.62, Double(R) / 180))
+        let fine = onLight ? min(1, max(0.62, Double(R) / 180)) : 1
         let shades = 5, hues = 4
         var batches = [Path](repeating: Path(), count: shades * hues)
         for i in 0..<Self.count {

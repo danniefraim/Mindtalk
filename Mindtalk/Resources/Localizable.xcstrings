@@ -9467,40 +9467,6 @@
         }
       }
     },
-    "Inga möten med %@ i den här mappen.": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No meetings with %@ in this folder."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inga möten med %@ i den här mappen."
-          }
-        }
-      }
-    },
-    "Inga möten med %@ än.": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No meetings with %@ yet."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inga möten med %@ än."
-          }
-        }
-      }
-    },
     "Inga möten med text i %@ än.": {
       "localizations": {
         "en": {
@@ -17289,23 +17255,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Person 1"
-          }
-        }
-      }
-    },
-    "Personer": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "People"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Personer"
           }
         }
       }

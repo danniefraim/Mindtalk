@@ -31,8 +31,9 @@ struct FolderBar: View {
                 let row = fitted(counted: counted.count, counts: counts)
                 HStack(spacing: 8) {
                     allChip(count: counted.count)
-                    ForEach(row.shown) { chip($0, count: counts[$0.id] ?? 0) }
-                    if row.more.isEmpty {
+                    // Each at its own width: one that didn't fit goes under Fler, never squeezed.
+                    ForEach(row.shown) { chip($0, count: counts[$0.id] ?? 0).fixedSize() }
+                    if !row.overflow {
                         newFolder
                     } else {
                         MoreFolders(folders: folders, more: row.more, counts: counts) { removing = $0 }
@@ -97,21 +98,23 @@ struct FolderBar: View {
         .help("Skapa en mapp att sortera mötena i")
     }
 
-    /// The folders in the row and those under Fler: the most meetings first (A to Ö
-    /// among equals), as many as fit; the one chosen always in the row, last if it
-    /// had to be brought in.
-    private func fitted(counted: Int, counts: [UUID: Int]) -> (shown: [MeetingFolder], more: [MeetingFolder]) {
-        let ranked = folders.sorted.enumerated()
+    /// The folders in the row and those under Fler. Those with the most meetings are
+    /// chosen (A to Ö among equals), as many as fit, and the one chosen is always among
+    /// them; the row itself stays A to Ö, so a chip doesn't jump when a meeting is
+    /// dropped on it. `overflow`: Fler takes Ny mapp's place.
+    private func fitted(counted: Int, counts: [UUID: Int]) -> (shown: [MeetingFolder], more: [MeetingFolder], overflow: Bool) {
+        let byName = folders.sorted
+        let ranked = byName.enumerated()
             .sorted { a, b in
                 let (x, y) = (counts[a.element.id] ?? 0, counts[b.element.id] ?? 0)
                 return x != y ? x > y : a.offset < b.offset
             }
             .map(\.element)
-        guard width > 0, !ranked.isEmpty else { return (ranked, []) }
+        guard width > 0, !ranked.isEmpty else { return (byName, [], false) }
         let gap: CGFloat = 8
         let all = Self.chipWidth(String(localized: "Alla"), count: counted, symbol: false)
         func w(_ f: MeetingFolder) -> CGFloat { gap + Self.chipWidth(f.name, count: counts[f.id] ?? 0, symbol: true) }
-        if ranked.reduce(all, { $0 + w($1) }) + gap + Self.newFolderWidth <= width { return (ranked, []) }
+        if ranked.reduce(all, { $0 + w($1) }) + gap + Self.newFolderWidth <= width { return (byName, [], false) }
         var used = all + gap + Self.moreWidth
         var shown: [MeetingFolder] = []
         for folder in ranked {
@@ -126,15 +129,16 @@ struct FolderBar: View {
             }
             shown.append(chosen)
         }
-        return (shown, ranked.filter { !shown.contains($0) })
+        return (byName.filter { shown.contains($0) }, byName.filter { !shown.contains($0) }, true)
     }
 
-    /// A chip's width as FolderChip draws it (the name in semibold, as when chosen).
+    /// A chip's width as FolderChip draws it (the name in semibold, as when chosen),
+    /// with a little to spare: an estimate too small would squeeze the last one.
     private static func chipWidth(_ title: String, count: Int, symbol: Bool) -> CGFloat {
         var width = 24 + min(170, measure(title, size: 12.5, weight: .semibold))
-        if symbol { width += 15 + 6 }
-        if count > 0 { width += 6 + measure("\(count)", size: 11.5, weight: .medium) }
-        return ceil(width) + 2
+        if symbol { width += 17 + 6 }
+        if count > 0 { width += 6 + measure("\(count)", size: 11.5, weight: .semibold) }
+        return ceil(width) + 6
     }
     private static var newFolderWidth: CGFloat { ceil(24 + 14 + 6 + measure(String(localized: "Ny mapp"), size: 12.5, weight: .medium)) + 2 }
     private static var moreWidth: CGFloat { ceil(24 + 10 + 5 + measure(String(localized: "Fler"), size: 12.5, weight: .medium)) + 2 }
@@ -187,29 +191,32 @@ private struct MoreFolders: View {
         .animation(.spring(duration: 0.25, bounce: 0.3), value: targeted)
         .popover(isPresented: $open, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 0) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 2) {
-                        ForEach(more) { folder in
-                            MoreFolderRow(name: folder.name, count: counts[folder.id] ?? 0) {
-                                open = false
-                                withAnimation(.spring(duration: 0.35, bounce: 0.15)) { folders.selected = folder.id }
-                            } drop: { ids in
-                                open = false
-                                withAnimation(.snappy) { folders.move(ids, to: folder.id) }
-                            }
-                            .contextMenu {
-                                Button("Byt namn…") { open = false; FolderNaming.shared.request = .rename(folder) }
-                                Button("Ta bort mappen…", role: .destructive) { open = false; remove(folder) }
+                if !more.isEmpty {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(more) { folder in
+                                MoreFolderRow(name: folder.name, count: counts[folder.id] ?? 0) {
+                                    open = false
+                                    withAnimation(.spring(duration: 0.35, bounce: 0.15)) { folders.selected = folder.id }
+                                } drop: { ids in
+                                    open = false
+                                    withAnimation(.snappy) { folders.move(ids, to: folder.id) }
+                                }
+                                .contextMenu {
+                                    // Asked once the list has closed: a question put while it closes can be lost.
+                                    Button("Byt namn…") { open = false; later { FolderNaming.shared.request = .rename(folder) } }
+                                    Button("Ta bort mappen…", role: .destructive) { open = false; later { remove(folder) } }
+                                }
                             }
                         }
+                        .padding(6)
                     }
-                    .padding(6)
+                    .frame(height: min(CGFloat(more.count) * 32 + 12, 360))
+                    Divider()
                 }
-                .frame(height: min(CGFloat(more.count) * 32 + 12, 360))
-                Divider()
                 Button {
                     open = false
-                    FolderNaming.shared.request = .create(moving: [])
+                    later { FolderNaming.shared.request = .create(moving: []) }
                 } label: {
                     Label("Ny mapp…", systemImage: "plus")
                         .font(.system(size: 13))
@@ -224,6 +231,10 @@ private struct MoreFolders: View {
             .frame(width: 250)
         }
     }
+}
+
+private func later(_ action: @escaping () -> Void) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: action)
 }
 
 /// A folder in Fler's list: chosen with a click, a drop target for meetings.

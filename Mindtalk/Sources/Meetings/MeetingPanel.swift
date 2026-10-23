@@ -529,6 +529,10 @@ private struct LivePanel: View {
                 Text("Lyssnar").font(.system(size: 14, weight: .semibold))
                 Text("Börja prata, så kommer texten här.")
             }
+            // As on the meeting page, until the first words: the room should know.
+            Text("Säg till alla att mötet spelas in.")
+                .font(.system(size: 12.5, weight: .medium)).foregroundStyle(.primary)
+                .padding(.top, 6)
         }
         .font(.system(size: 12.5))
         .foregroundStyle(DS.Colors.muted)

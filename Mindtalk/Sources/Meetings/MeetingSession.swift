@@ -79,7 +79,8 @@ final class MeetingSession: ObservableObject {
     }
 
     /// A start from the card (a tile, Return, or the shortcut while the card is in
-    /// front): the card says to tell everyone it's recorded, so that is noted. The very
+    /// front): the meeting page and the panel say to tell everyone it's recorded until
+    /// the first words, so that is noted. The very
     /// first time, Mindtalk first asks whether to remember the voices, and nothing is
     /// recorded until that is answered.
     func startFromCard(_ mode: StartMode, folder: UUID? = nil) {
