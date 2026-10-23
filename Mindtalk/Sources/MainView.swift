@@ -690,6 +690,11 @@ struct SettingsPage: View {
                     detail: "Under ett möte syns panelen ovanpå det du jobbar med. Den går undan när du kommer tillbaka.") {
                 InkToggle(label: "Visa panelen när du lämnar Mindtalk", isOn: $prefs.panelWhenAway)
             }
+            CardDivider()
+            CardRow(title: "Ta med samtal på datorn",
+                    detail: "Mindtalk hör de andra i Teams, Zoom och Meet genom datorns ljud. Med hörlurar behövs det, med högtalare hör mikrofonen dem redan.") {
+                MenuPicker(options: CallAudioMode.allCases.map { ($0, $0.title) }, selection: $prefs.callAudio)
+            }
         }
         .card()
         MeetingStorageCard()

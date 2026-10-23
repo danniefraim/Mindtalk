@@ -2135,6 +2135,22 @@
         }
       }
     },
+    "Aldrig": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Never"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aldrig"
+          }
+        }
+      }
+    },
     "Alla": {
       "localizations": {
         "en": {
@@ -3915,6 +3931,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cursor öppnas och frågar om du vill lägga till Mindtalk."
+          }
+        }
+      }
+    },
+    "Datorns ljud kommer också med.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Mac's sound comes along too."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datorns ljud kommer också med."
           }
         }
       }
@@ -7081,6 +7113,22 @@
         }
       }
     },
+    "Fungerar i rummet och i samtal på datorn. Med hörlurar tar Mindtalk med datorns ljud, så att de andra i Teams, Zoom eller Meet också hörs.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Works in the room and in calls on the Mac. With headphones, Mindtalk takes the Mac's sound too, so the others in Teams, Zoom or Meet are heard as well."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fungerar i rummet och i samtal på datorn. Med hörlurar tar Mindtalk med datorns ljud, så att de andra i Teams, Zoom eller Meet också hörs."
+          }
+        }
+      }
+    },
     "Fungerar så fort dikteringen gör det.": {
       "localizations": {
         "en": {
@@ -9075,6 +9123,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hörde inget. Är rätt mikrofon vald?"
+          }
+        }
+      }
+    },
+    "Hörlurar i. Samtal på datorn kommer också med.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Headphones on. A call on the Mac comes along too."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hörlurar i. Samtal på datorn kommer också med."
           }
         }
       }
@@ -14222,6 +14286,22 @@
         }
       }
     },
+    "Med hörlurar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With headphones"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Med hörlurar"
+          }
+        }
+      }
+    },
     "Med knappen Starta möte ovanför, eller från menyraden.": {
       "localizations": {
         "en": {
@@ -14917,6 +14997,39 @@
         }
       }
     },
+    "Mindtalk hör de andra i Teams, Zoom och Meet genom datorns ljud. Med hörlurar behövs det, med högtalare hör mikrofonen dem redan.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hears the others in Teams, Zoom and Meet through the Mac's sound. With headphones that's needed; with speakers the microphone hears them already."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hör de andra i Teams, Zoom och Meet genom datorns ljud. Med hörlurar behövs det, med högtalare hör mikrofonen dem redan."
+          }
+        }
+      }
+    },
+    "Mindtalk hör de andra i Teams, Zoom och Meet genom datorns ljud. Ändra under Inställningar → Möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hears the others in Teams, Zoom and Meet through the Mac's sound. Change it under Settings → Meetings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hör de andra i Teams, Zoom och Meet genom datorns ljud. Ändra under Inställningar → Möten."
+          }
+        }
+      }
+    },
     "Mindtalk hör dig tydligt": {
       "localizations": {
         "en": {
@@ -15324,6 +15437,7 @@
       }
     },
     "Mindtalk spelar in det mikrofonen hör. I Teams och Zoom med hörlurar hörs bara du, så använd högtalare eller sitt i samma rum.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -19914,6 +20028,22 @@
         }
       }
     },
+    "Spelas in, med datorns ljud": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording, with the Mac's sound"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spelas in, med datorns ljud"
+          }
+        }
+      }
+    },
     "Språk": {
       "localizations": {
         "en": {
@@ -21622,6 +21752,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ta bort…"
+          }
+        }
+      }
+    },
+    "Ta med samtal på datorn": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include calls on the Mac"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta med samtal på datorn"
           }
         }
       }

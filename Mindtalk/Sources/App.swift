@@ -1354,6 +1354,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if args.contains("--writer-test") {
             exit(SummaryWriterChoice.selfTest())
         }
+        // `Mindtalk --call-mix-test`: the Mac's sound mixed under the microphone (no tap).
+        if args.contains("--call-mix-test") {
+            exit(CallAudio.mixSelfTest())
+        }
+        // `Mindtalk --call-audio-test`: a tone played on the Mac comes back through the tap.
+        if args.contains("--call-audio-test") {
+            Task { @MainActor in exit(await CallAudio.tapSelfTest()) }
+            return
+        }
         // `Mindtalk --unquote-test`: a summary item loses a transcript line pasted after it.
         if args.contains("--unquote-test") {
             exit(MeetingNotes.unquoteSelfTest())

@@ -849,6 +849,7 @@ struct StartCard: View {
                            caption: "Namnge talarna under mötet om du vill.")
                 }
                 .disabled(dictation.phase != .idle || starting)
+                callLine
                 if let line = waitingLine {
                     Text(verbatim: line)
                         .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
@@ -871,6 +872,23 @@ struct StartCard: View {
                 }
             }
             .animation(.easeOut(duration: 0.2), value: waitingLine)
+        }
+    }
+
+    /// With headphones on (or "Alltid" chosen): that a call on the Mac comes along too,
+    /// looked at again every few seconds as headphones come and go.
+    private var callLine: some View {
+        TimelineView(.periodic(from: .now, by: 3)) { _ in
+            let mode = Settings.callAudio
+            let headphones = CallAudio.route == .headphones
+            if mode == .always || (mode == .headphones && headphones) {
+                Label(headphones ? String(localized: "Hörlurar i. Samtal på datorn kommer också med.")
+                                 : String(localized: "Datorns ljud kommer också med."),
+                      systemImage: headphones ? "headphones" : "speaker.wave.2")
+                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                    .help("Mindtalk hör de andra i Teams, Zoom och Meet genom datorns ljud. Ändra under Inställningar → Möten.")
+                    .transition(.opacity)
+            }
         }
     }
 
@@ -1938,7 +1956,8 @@ struct MeetingView: View {
 
     private func liveStatus(_ session: MeetingSession) -> String {
         if case .finishing = session.phase { return String(localized: "Mötet är slut") }
-        return session.isPaused ? String(localized: "Pausat") : String(localized: "Spelas in")
+        if session.isPaused { return String(localized: "Pausat") }
+        return session.hearingCall ? String(localized: "Spelas in, med datorns ljud") : String(localized: "Spelas in")
     }
 
     /// The meeting beside your work (as closing the window does), and the text copied.

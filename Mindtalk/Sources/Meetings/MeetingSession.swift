@@ -194,6 +194,11 @@ final class MeetingSession: ObservableObject {
 
     private var recorder = Recorder(keepSamples: false)
     private var intake: AudioIntake?
+    /// The Mac's own sound is taken in too (a call heard in headphones): said on the meeting.
+    @Published private(set) var hearingCall = false
+    /// Turns the Mac's sound on and off as headphones come and go, every two seconds.
+    private var callWatch: Task<Void, Never>?
+    private var callRoute: CallAudio.Route?
     private var tracker: VoiceTracker?
     /// The same voices with ten seconds of context: slower, steadier — what the
     /// quick one says is confirmed or corrected by this one a few seconds later.
@@ -632,7 +637,8 @@ final class MeetingSession: ObservableObject {
     /// The microphone, into the meeting's audio.
     private func openMicrophone(into intake: AudioIntake) throws {
         recorder = Recorder(keepSamples: false)
-        recorder.onChunk = { chunk in intake.append(chunk) }
+        // The Mac's sound of the same moment under it, while that's on.
+        recorder.onChunk = { chunk in intake.append(CallAudio.shared.mixed(chunk)) }
         recorder.onLevel = { level in Task { @MainActor in MeetingSession.shared.heard(level) } }
         recorder.onInterrupted = { Task { @MainActor in MeetingSession.shared.inputChanged() } }
         recorder.onSignalLost = { Task { @MainActor in MeetingSession.shared.signalLost() } }
@@ -655,6 +661,14 @@ final class MeetingSession: ObservableObject {
     private func begin() {
         loop = Task { await self.run() }
         heartbeat = Task { await self.beat() }
+        callWatch?.cancel()
+        callWatch = Task { @MainActor [weak self] in
+            while let self, self.isRecording, !Task.isCancelled {
+                self.updateCallAudio()
+                try? await Task.sleep(for: .seconds(2))
+            }
+            self?.stopCallAudio()
+        }
         recognition = Task { @MainActor [weak self] in
             var checked: [Int: Double] = [:]          // speaker → speech heard when last checked
             var earlierChecked: [Int: Double] = [:]
@@ -830,6 +844,7 @@ final class MeetingSession: ObservableObject {
     func pause() {
         guard isRecording, !isPaused, !stopping else { return }
         _ = recorder.stop()
+        stopCallAudio()
         // A second of quiet: the last words settle, and they don't run into the first
         // ones after the pause.
         intake?.append([Float](repeating: 0, count: Self.rate))
@@ -1204,6 +1219,7 @@ final class MeetingSession: ObservableObject {
                                                              reason: "Mindtalk lyssnar igenom ett möte")
         }
         _ = recorder.stop()
+        stopCallAudio()
         let loop = self.loop
         Task {
             await loop?.value
@@ -2372,6 +2388,27 @@ final class MeetingSession: ObservableObject {
         try? recorder.start(device: device)
         warning = Self.silent
         gaveUpOnSignal = true
+    }
+
+    /// The Mac's sound on while the meeting records (not paused) and the setting and
+    /// the route want it; off otherwise. Another output (headphones in or out): taken
+    /// again from the new one.
+    private func updateCallAudio() {
+        let want = isRecording && !isPaused && CallAudio.wanted
+        let route = CallAudio.route
+        if want, CallAudio.shared.isRunning, route != callRoute { stopCallAudio() }
+        if want, !CallAudio.shared.isRunning {
+            callRoute = route
+            hearingCall = CallAudio.shared.start()
+        } else if !want, CallAudio.shared.isRunning {
+            stopCallAudio()
+        }
+    }
+
+    private func stopCallAudio() {
+        CallAudio.shared.stop()
+        hearingCall = false
+        callRoute = nil
     }
 
     /// The microphone went away (unplugged, AirPods gone): carry on with the system input.

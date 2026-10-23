@@ -223,6 +223,13 @@ extension Settings {
         set { Settings.keep(newValue.rawValue, forKey: "mediaMode") }
     }
 
+    /// When a meeting takes the Mac's own sound too (a call in Teams, Zoom, Meet):
+    /// with headphones unless chosen otherwise.
+    static var callAudio: CallAudioMode {
+        get { UserDefaults.standard.string(forKey: "callAudio").flatMap(CallAudioMode.init) ?? .headphones }
+        set { Settings.keep(newValue.rawValue, forKey: "callAudio") }
+    }
+
     /// During a meeting, the panel comes over your work when you turn to another app,
     /// and goes again when you come back. On unless turned off.
     static var panelWhenAway: Bool {
@@ -265,6 +272,9 @@ final class AppPrefs: ObservableObject {
     }
     @Published var panelWhenAway = Settings.panelWhenAway {
         didSet { Settings.panelWhenAway = panelWhenAway }
+    }
+    @Published var callAudio = Settings.callAudio {
+        didSet { Settings.callAudio = callAudio }
     }
     @Published var aiPolish = Settings.aiPolish {
         didSet {

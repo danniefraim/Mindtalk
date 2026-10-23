@@ -125,6 +125,7 @@ targets:
           - CFBundleURLName: ai.mindact.mindtalk
             CFBundleURLSchemes: [mindtalk]
         NSMicrophoneUsageDescription: "Mindtalk använder mikrofonen när du dikterar och när du spelar in möten. Allt tolkas på din Mac, och inget ljud lämnar datorn."
+        NSAudioCaptureUsageDescription: "Mindtalk tar med datorns ljud i ett möte, så att de andra i ett samtal i Teams, Zoom eller Meet också skrivs ned. Allt tolkas på din Mac, och inget ljud lämnar datorn."
     entitlements:
       path: Mindtalk/Mindtalk.entitlements
       properties:
