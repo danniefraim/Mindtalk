@@ -57,6 +57,21 @@ enum WindowRender {
         // In memory only: a render never writes a setting (Settings.previewing).
         if args.contains("--voices-off") { VoiceMemory.shared.enabled = false }
         if let state = value("--meeting-state") { MeetingSession.shared.preview(state: state) }
+        // `--import-state reading|writing|voices|summary|done|failed [--import-progress 0.4]`:
+        // a file at that step in the drop zone.
+        if let state = value("--import-state") {
+            let stages: [String: MeetingImport.Stage] = ["waiting": .waiting, "reading": .reading, "writing": .writing,
+                                                         "voices": .voices, "summary": .done, "done": .done, "failed": .failed]
+            let progress = value("--import-progress").flatMap(Double.init) ?? 0.4
+            var job = MeetingImport.Job(url: URL(fileURLWithPath: "/tmp/Styrelsemöte oktober.m4a"), video: false, folder: nil,
+                                        stage: stages[state] ?? .writing, progress: progress)
+            if let first = MeetingStore.shared.meetings.first, job.stage == .done {
+                job.meeting = first.id
+                job.title = first.title
+                if state == "summary" { MeetingNotes.shared.previewWriting(first.id) }
+            }
+            MeetingImport.shared.preview(job)
+        }
         if args.contains("--setup") || args.contains("--asked") {
             Dictation.shared.preview(mic: false, accessibility: false, asked: args.contains("--asked"))
         } else if args.contains("--ready") {

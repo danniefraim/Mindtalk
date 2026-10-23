@@ -165,6 +165,11 @@ final class MeetingNotes: ObservableObject {
         guard Settings.previewing else { return }
         tried[id] = choice
     }
+    /// Screenshots: the summary of `id` being written.
+    func previewWriting(_ id: UUID) {
+        guard Settings.previewing else { return }
+        writing.insert(id)
+    }
     #endif
 
     /// "Använd Gemma 4 E4B i alla möten?" answered: Ja makes it the choice for all.

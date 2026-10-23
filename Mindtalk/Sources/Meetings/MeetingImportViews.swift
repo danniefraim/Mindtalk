@@ -243,39 +243,6 @@ struct ImportCard: View {
     }
 }
 
-// MARK: - Where it went
-
-/// Under the drop zone for ten seconds after a file is done: "Klar: ”Styrelsemöte”,
-/// inspelad 14 augusti. Visa →" — so you know where in the list to find it.
-struct ImportDoneLine: View {
-    @ObservedObject private var importer = MeetingImport.shared
-
-    var body: some View {
-        if let done = importer.lastDone {
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 10, weight: .bold)).foregroundStyle(DS.Colors.good)
-                    .accessibilityHidden(true)
-                Text(done.text)
-                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
-                    .lineLimit(1).truncationMode(.middle)
-                Button {
-                    MeetingsPage.lastOpen = done.meeting
-                    NotificationCenter.default.post(name: .openMeeting, object: done.meeting)
-                } label: {
-                    Text("Visa →").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DS.Colors.muted).fixedSize()
-                }
-                .buttonStyle(.plain)
-                .help("Öppna mötet")
-                .accessibilityLabel("Visa mötet")
-                Spacer(minLength: 0)
-            }
-            .padding(.top, 10)
-            .transition(.opacity)
-        }
-    }
-}
-
 // MARK: - A meeting's date
 
 /// "Ändra datum": when it really was — for a file whose own date was wrong, or that
@@ -431,9 +398,11 @@ struct RecordGlyph: View {
     }
 }
 
-/// A dashed strip under the start card, for a recording you already have: drop it
-/// here (or anywhere on the page), or "Välj fil…". The whole strip also opens a file.
-/// On screen, a file dragged over the page lights this strip rather than covering the page.
+/// The place for a recording you already have: beside the start card, as large as it,
+/// or a dashed strip under it when the window is narrow. Drop it here (or anywhere on
+/// the page), or "Välj fil…"; the whole zone also opens a file. On screen, a file dragged
+/// over the page lights this zone rather than covering the page. A file being made into
+/// a meeting is shown here, start to end (ImportProgress), and nowhere under it.
 struct ImportZone: View {
     let folder: UUID?
     /// Beside the start card, as large as it: the words and the button in its middle.
@@ -445,16 +414,21 @@ struct ImportZone: View {
     var body: some View {
         let dropping = importer.dropping
         let shape = RoundedRectangle(cornerRadius: tall ? DS.Radius.tile : DS.Radius.card, style: .continuous)
+        let working = dropping ? nil : importer.shown
         Group {
-            if tall {
+            if let working {
+                ImportProgress(job: working.job, waiting: working.waiting, tall: tall)
+                    .id(working.job.id)
+                    .transition(.opacity)
+            } else if tall {
                 VStack(spacing: 14) {
                     Spacer(minLength: 0)
                     glyph.scaleEffect(1.5).padding(.bottom, 8)
                     Text(dropping ? "Släpp så skrivs den ned" : "Har du redan en inspelning?")
                         .font(.system(size: 19, weight: .semibold))
                         .multilineTextAlignment(.center)
-                    Text(dropping ? " " : "Släpp en ljud- eller videofil här, så blir den ett möte med text, talare och sammanfattning.")
-                        .font(.system(size: 13.5)).foregroundStyle(DS.Colors.muted)
+                    Text(dropping ? " " : importer.refused ?? String(localized: "Släpp en ljud- eller videofil här, så blir den ett möte med text, talare och sammanfattning."))
+                        .font(.system(size: 13.5)).foregroundStyle(importer.refused != nil && !dropping ? DS.Colors.warning : DS.Colors.muted)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: 300)
@@ -471,8 +445,8 @@ struct ImportZone: View {
                             .font(.system(size: 13.5, weight: .semibold))
                             .foregroundStyle(.primary)
                         if !dropping {
-                            Text("Dra hit en ljud- eller videofil.").font(.system(size: 12.5))
-                                .foregroundStyle(DS.Colors.muted)
+                            Text(importer.refused ?? String(localized: "Dra hit en ljud- eller videofil.")).font(.system(size: 12.5))
+                                .foregroundStyle(importer.refused != nil ? DS.Colors.warning : DS.Colors.muted)
                         }
                     }
                     .fixedSize(horizontal: false, vertical: true)
@@ -488,15 +462,18 @@ struct ImportZone: View {
         .overlay(shape.strokeBorder(dropping ? DS.Colors.ink : DS.Colors.fieldStroke.opacity(hovering ? 1 : 0.85),
                                     style: dropping ? StrokeStyle(lineWidth: 1.5) : StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
         .contentShape(shape)
-        .onTapGesture { importer.choose(folder: folder) }
+        // Opens a file while it waits for one; not while it shows one being made.
+        .onTapGesture { if working == nil { importer.choose(folder: folder) } }
         .onHover { inside in withAnimation(.easeOut(duration: 0.15)) { hovering = inside } }
         .modifier(DropTarget(targeted: $targeted) { providers in importer.take(providers, folder: folder) })
         .onChange(of: targeted) { _, now in importer.zoneTargeted = now }
         .onScrollVisibilityChange(threshold: 0.4) { visible in importer.zoneVisible = visible }
         .onDisappear { importer.zoneVisible = false }
         .animation(.spring(duration: 0.3, bounce: 0.15), value: dropping)
+        .animation(.easeInOut(duration: 0.4), value: working?.job.id)
+        .animation(.easeOut(duration: 0.25), value: importer.refused)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Dra hit en inspelning, eller välj en fil")
+        .accessibilityLabel(working == nil ? "Dra hit en inspelning, eller välj en fil" : "Inspelningen som görs till ett möte")
     }
 
     private var glyph: some View {

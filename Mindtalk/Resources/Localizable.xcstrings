@@ -12,6 +12,7 @@
       }
     },
     " ": {
+      "extractionState": "stale",
       "localizations": {
         "sv": {
           "stringUnit": {
@@ -1172,6 +1173,22 @@
         }
       }
     },
+    "%lld filer till väntar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld more files waiting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld filer till väntar"
+          }
+        }
+      }
+    },
     "%lld filer är inte ljud- eller videofiler som macOS kan läsa.": {
       "localizations": {
         "en": {
@@ -1703,6 +1720,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "+%lld till"
+          }
+        }
+      }
+    },
+    "1 fil till väntar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 more file waiting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 fil till väntar"
           }
         }
       }
@@ -6223,6 +6256,22 @@
         }
       }
     },
+    "Filen kunde inte läsas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file couldn't be read."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filen kunde inte läsas."
+          }
+        }
+      }
+    },
     "Filen kunde inte läsas: %@": {
       "localizations": {
         "en": {
@@ -9948,6 +9997,22 @@
         }
       }
     },
+    "Inspelad %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recorded %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspelad %@"
+          }
+        }
+      }
+    },
     "Inspelning": {
       "extractionState": "stale",
       "localizations": {
@@ -10041,6 +10106,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inspelningen kan inte sparas. Är disken full? Texten skrivs ändå."
+          }
+        }
+      }
+    },
+    "Inspelningen som görs till ett möte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The recording being made into a meeting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspelningen som görs till ett möte"
           }
         }
       }
@@ -10576,6 +10657,7 @@
       }
     },
     "Klar: ”%@”, datum okänt.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10592,6 +10674,7 @@
       }
     },
     "Klar: ”%@”, inspelad %@.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -18978,6 +19061,22 @@
         }
       }
     },
+    "Skriver sammanfattningen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Writing the summary"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriver sammanfattningen"
+          }
+        }
+      }
+    },
     "Skriver sammanfattningen igen, med det du skrivit": {
       "localizations": {
         "en": {
@@ -24534,6 +24633,7 @@
       }
     },
     "Visa →": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

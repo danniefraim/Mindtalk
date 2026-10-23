@@ -203,7 +203,11 @@ private struct MeetingList: View {
                 StartCard(session: session, voices: voices, dictation: dictation, offscreen: cardAway)
                     .staggered(1)
                     .id(Self.cardID)
-                ImportCards { id in open(id, nil) }
+                // A file being made into a meeting shows in the drop zone; without the zone
+                // (the models not ready yet), as cards here.
+                if !StartCard.ready(voices: voices, dictation: dictation) {
+                    ImportCards { id in open(id, nil) }
+                }
                 if store.meetings.isEmpty {
                     EmptyArchive().staggered(2)
                 } else {
@@ -626,14 +630,8 @@ struct StartCard: View {
                                       : AnyLayout(VStackLayout(alignment: .leading, spacing: 18))
                 pair {
                     card.frame(maxHeight: .infinity, alignment: .top)
-                    VStack(alignment: .leading, spacing: 0) {
-                        ImportZone(folder: folders.selected, tall: sideBySide)
-                            .frame(maxHeight: sideBySide ? .infinity : nil)
-                        // A file just done: where it went, for a moment.
-                        ImportDoneLine()
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: sideBySide ? .infinity : nil, alignment: .top)
-                    .animation(.easeOut(duration: 0.25), value: importer.lastDone)
+                    ImportZone(folder: folders.selected, tall: sideBySide)
+                        .frame(maxWidth: .infinity, maxHeight: sideBySide ? .infinity : nil, alignment: .top)
                 }
                 .fixedSize(horizontal: false, vertical: true)
             } else {

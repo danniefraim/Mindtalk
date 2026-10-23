@@ -91,6 +91,13 @@ final class MeetingImport: ObservableObject {
     }
 
     @Published private(set) var jobs: [Job] = []
+
+    /// The file the drop zone shows: the one being worked on, else the next in line,
+    /// else the last done or failed (until it goes); and how many wait behind it.
+    var shown: (job: Job, waiting: Int)? {
+        guard let job = jobs.first(where: \.active) ?? jobs.first(where: { $0.stage == .waiting }) ?? jobs.last else { return nil }
+        return (job, jobs.filter { $0.stage == .waiting && $0.id != job.id }.count)
+    }
     /// A file dragged over the page / over the start card's zone; and whether that
     /// zone is on screen (then it lights up instead of the page being covered).
     @Published var pageDragging = false
@@ -118,23 +125,6 @@ final class MeetingImport: ObservableObject {
     }
     /// Files that weren't sound or video — said for a few seconds, then gone.
     @Published private(set) var refused: String?
-    /// The file last done — said under the drop zone for ten seconds, with the date
-    /// the meeting got, so you know where in the list it went.
-    @Published private(set) var lastDone: Done?
-
-    struct Done: Equatable {
-        let meeting: UUID
-        let title: String
-        let date: Date
-        let dateKnown: Bool
-        let at: Date
-
-        /// "Klar: ”Styrelsemöte”, inspelad 14 augusti."
-        var text: String {
-            dateKnown ? String(localized: "Klar: ”\(title)”, inspelad \(MeetingRecord.day(date, long: true)).")
-                      : String(localized: "Klar: ”\(title)”, datum okänt.")
-        }
-    }
     private var running: Task<Void, Never>?
 
     /// Sound and video — whatever macOS can read (mp3, m4a, wav, aiff, mp4, mov…).
@@ -396,7 +386,6 @@ final class MeetingImport: ObservableObject {
                 $0.stage = .done; $0.progress = 1; $0.title = record.title; $0.doneAt = Date()
             }
             Self.log.info("import: done, \(Int(duration)) s, \(words.count) words, \(Set(words.compactMap(\.speaker)).count) voices")
-            noteDone(record)
 
             // 4. The notes — written in the background, like a meeting's.
             MeetingNotes.shared.summarize(record.id)
@@ -428,21 +417,9 @@ final class MeetingImport: ObservableObject {
         }
     }
 
-    /// Where it went, said under the drop zone for ten seconds (the latest, when
-    /// several finish close together).
-    private func noteDone(_ record: MeetingRecord) {
-        let done = Done(meeting: record.id, title: record.title, date: record.date,
-                        dateKnown: record.source?.dateKnown ?? true, at: Date())
-        lastDone = done
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(10))
-            if self?.lastDone == done { self?.lastDone = nil }
-        }
-    }
-
     #if DEBUG
-    /// Screenshots: the line as after an import.
-    func previewDone(_ record: MeetingRecord) { noteDone(record) }
+    /// Screenshots (`--import-state`): a file at a step, in memory only.
+    func preview(_ job: Job) { jobs = [job] }
     #endif
 
     /// Done while you were elsewhere (another page, another app): a notification

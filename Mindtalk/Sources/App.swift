@@ -1951,8 +1951,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
     #if DEBUG
     /// `--import-demo`: the made-up meetings of the archive screenshot, two of them
-    /// files dropped today, put before your own in memory (nothing is written), and
-    /// the line under the drop zone as after the first of them.
+    /// files dropped today, put before your own in memory (nothing is written).
     @MainActor private static func importDemo() {
         var sample = ArchivePreview.sample()
         // Imported just now, by the real clock, so the list says "i dag".
@@ -1963,7 +1962,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             sample[i].source = source
         }
         MeetingStore.shared.replaceAll(sample + MeetingStore.shared.meetings)
-        MeetingImport.shared.previewDone(sample[0])
     }
 
     /// Drives the key logic with scripted presses (no event tap, no paste) and
