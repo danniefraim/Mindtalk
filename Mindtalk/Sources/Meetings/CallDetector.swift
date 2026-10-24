@@ -10,7 +10,7 @@ import os
 /// waiting for your choice; nothing is ever recorded before that press. Read from Core
 /// Audio's list of processes using an input (no permission, no window titles, no
 /// addresses), every three seconds. Asked once a call: an app that keeps its microphone
-/// open (Zoom while muted) isn't asked again until it has let it go for a minute.
+/// open (Zoom while muted) isn't asked again until it has let it go for ten seconds.
 /// "Inte för Zoom" stops it for that app; Inställningar → Möten turns it all off.
 @MainActor
 final class CallDetector {
@@ -22,7 +22,7 @@ final class CallDetector {
 
     /// When each app began using the microphone, while it does.
     private var since: [String: Date] = [:]
-    /// When each app was last asked about; kept a minute after it lets the microphone go.
+    /// When each app was last asked about; kept ten seconds after it lets the microphone go.
     private var asked: [String: Date] = [:]
     private var watching: Task<Void, Never>?
 
@@ -67,10 +67,11 @@ final class CallDetector {
             since[app] = now
             Self.log.notice("calls: \(app, privacy: .public) is using the microphone")
         }
-        // Asked once a call: the mark is kept while the app listens, and a minute after
-        // it lets the microphone go (a moment's drop isn't a new call).
+        // Asked once a call: the mark is kept while the app listens, and ten seconds
+        // after it lets the microphone go (a moment's drop, AirPods switching, isn't a
+        // new call; a call right after the last one is).
         for app in listening where asked[app] != nil { asked[app] = now }
-        asked = asked.filter { listening.contains($0.key) || now.timeIntervalSince($0.value) < 60 }
+        asked = asked.filter { listening.contains($0.key) || now.timeIntervalSince($0.value) < 10 }
         // Recording or dictating: this call is in hand, not asked about. (Writing out
         // the last meeting isn't: a call that starts meanwhile is still asked about.)
         if MeetingSession.shared.isRecording || Dictation.shared.phase != .idle {
