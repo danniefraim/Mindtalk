@@ -674,7 +674,12 @@ final class MeetingSession: ObservableObject {
         callWatch?.cancel()
         callWatch = Task { @MainActor [weak self] in
             while let self, self.isRecording, !Task.isCancelled {
-                self.updateCallAudio()
+                // Asked of Core Audio off the main thread: it can stall while devices change.
+                let (route, playing) = await Task.detached(priority: .utility) {
+                    (CallAudio.route, CallAudio.callProcesses())
+                }.value
+                guard !Task.isCancelled else { break }
+                self.updateCallAudio(route: route, callApps: playing)
                 try? await Task.sleep(for: .seconds(2))
             }
             self?.stopCallAudio()
@@ -2404,11 +2409,11 @@ final class MeetingSession: ObservableObject {
     /// The Mac's sound on while the meeting records (not paused), the setting and the
     /// route want it, and a call app is playing; off otherwise. Made again for another
     /// output, a changed format, or a call app that has started to play since.
-    private func updateCallAudio() {
+    private func updateCallAudio(route: CallAudio.Route, callApps: Set<AudioObjectID>) {
         guard Self.fakeMic == nil else { return }       // a replay: no tap, no permission asked
         let audio = CallAudio.shared
-        let want = isRecording && !isPaused && CallAudio.wanted
-        let playing = want ? CallAudio.callProcesses() : []
+        let want = isRecording && !isPaused && CallAudio.wanted(route: route)
+        let playing = want ? callApps : []
         if audio.isRunning, !want || audio.outdated(for: playing) {
             // What it had, and what plays now: a call app that went quiet stays in.
             let keep = want ? CallAudio.alive(audio.processes).union(playing) : []

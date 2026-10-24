@@ -1435,8 +1435,8 @@ final class Dictation: ObservableObject {
         guard onlyBreak || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             if let pending = take.pending { Thoughts.shared.discard(pending) }
             guard current else { return }
-            // The thought key held alone and not a word: ⌘ held for something else.
-            if take.thought && take.byKey && !take.locked { return reset() }
+            // The thought key tapped and let go before the listening began: nothing said.
+            if take.thought && take.byKey && !take.locked && take.samples.count < 8_000 { return reset() }
             return notice(take.heard < 0.03 ? String(localized: "Hörde inget. Är rätt mikrofon vald?")
                                             : String(localized: "Hörde inga ord. Försök igen."))
         }
@@ -1566,7 +1566,7 @@ final class Dictation: ObservableObject {
         take.note = nil
         transcribe(take)
     }
-    private static var thoughtWithoutText: String { String(localized: "Tanken kunde inte skrivas ned. Försök igen i Tankar.") }
+    static var thoughtWithoutText: String { String(localized: "Tanken kunde inte skrivas ned. Försök igen i Tankar.") }
 
     /// Esc while writing, or writing that never ends: the HUD and the key are free
     /// again. A thought gets its text if it comes, or "Försök igen" in Tankar.

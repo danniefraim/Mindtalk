@@ -228,10 +228,14 @@ final class CallPrompt {
     private var shownAt = Date.distantPast
     /// When it goes by itself.
     private var deadline = Date.distantPast
+    /// This showing: a hover leaving a box that is fading out doesn't cut a newer one short.
+    private var showing = UUID()
 
     func show(_ app: String) {
         close()
         self.app = app
+        let showing = UUID()
+        self.showing = showing
         let view = CallPromptView(app: app, answer: { [weak self] answer in
             // A click meant for the call (its controls are up here in full screen) the
             // moment the box comes doesn't count.
@@ -239,7 +243,7 @@ final class CallPrompt {
             self.close()
             CallDetector.shared.answer(answer, app: app)
         }, hovering: { [weak self] inside in
-            guard let self else { return }
+            guard let self, self.showing == showing else { return }
             inside ? self.hold() : self.countDown(seconds: max(20, self.deadline.timeIntervalSinceNow))
         })
         // Takes the first click without becoming key, as the meeting panel does.

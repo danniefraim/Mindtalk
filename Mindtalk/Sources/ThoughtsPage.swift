@@ -44,7 +44,7 @@ struct ThoughtsPage: View {
 
     private var live: Int { thoughts.pinned.count + thoughts.days.reduce(0) { $0 + $1.items.count } }
     /// Keys go to the list, not to a field being typed in.
-    private var listKeys: Bool { editing == nil && !typing && !searching }
+    private var listKeys: Bool { editing == nil && !typing && !searching && !showingRemoved }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -146,7 +146,12 @@ struct ThoughtsPage: View {
             title = String(localized: "Håll in \(thoughtKey.titleName) och tänk högt")
             // A short tap locks: it listens until the next tap (or Spara tanken), as
             // thoughtReleased does.
-            detail = dictation.accessibilityGranted
+            // What stands in the way first: the speech model, then Hjälpmedel.
+            detail = !dictation.engine.isInstalled
+                ? (dictation.downloads[dictation.engine] != nil
+                    ? String(localized: "Talmodellen laddas ned. Sedan kan du säga en tanke.")
+                    : String(localized: "Talmodellen är inte nedladdad än. Du hittar den under Inställningar → Språk."))
+                : dictation.accessibilityGranted
                 ? String(localized: "Släpp när du är klar, så sparas tanken här. Tryck kort för att låsa och prata fritt. Esc avbryter.")
                 : String(localized: "Slå på Hjälpmedel för Mindtalk, så fungerar tangenten.")
             spoken = String(localized: "Genväg: \(thoughtKey.spokenName). \(String(localized: "Håll in och tänk högt."))")
@@ -422,6 +427,12 @@ struct ThoughtsPage: View {
     private var chosen: [UUID] { visibleOrder.filter { selection.contains($0) } }
     /// The chosen that are written down: one still being written (or that failed)
     /// can't be done, pinned or removed.
+    private func chosenAll(_ flag: KeyPath<Thought, Bool>) -> Bool {
+        let ids = Set(chosenWritten)
+        let picked = thoughts.all.filter { ids.contains($0.id) }
+        return !picked.isEmpty && picked.allSatisfy { $0[keyPath: flag] }
+    }
+
     private var chosenWritten: [UUID] {
         let written = Set(thoughts.all.filter { $0.writing == nil }.map(\.id))
         return chosen.filter { written.contains($0) }
@@ -532,7 +543,8 @@ struct ThoughtsPage: View {
         withAnimation(.snappy) {
             switch zone {
             case .into:
-                guard !ids.contains(target.id) else { return }
+                // Not into one still being written or that failed: its text isn't there yet.
+                guard !ids.contains(target.id), target.writing == nil else { return }
                 thoughts.merge([target.id] + ids, into: target.id)
                 selection = [target.id]
             case .before, .after:
@@ -648,8 +660,14 @@ struct ThoughtsPage: View {
             HStack(spacing: 4) {
                 Text(verbatim: String(localized: "\(chosen.count) valda")).font(.system(size: 13, weight: .semibold))
                     .padding(.horizontal, 10)
-                barButton("Klar", "checkmark") { withAnimation(.snappy) { thoughts.setDone(chosenWritten, true) }; selection = [] }
-                barButton("pin|Fäst", "pin") { withAnimation(.snappy) { thoughts.setPinned(chosenWritten, true) } }
+                // All chosen already done (or pinned): the button undoes it, and says so.
+                let allDone = chosenAll(\.done), allPinned = chosenAll(\.pinned)
+                barButton(allDone ? "Inte klar" : "Klar", allDone ? "arrow.uturn.backward" : "checkmark") {
+                    withAnimation(.snappy) { thoughts.setDone(chosenWritten, !allDone) }; selection = []
+                }
+                barButton(allPinned ? "Lossa" : "pin|Fäst", allPinned ? "pin.slash" : "pin") {
+                    withAnimation(.snappy) { thoughts.setPinned(chosenWritten, !allPinned) }
+                }
                 barButton("Kopiera", "doc.on.doc") { copyChosen() }
                 barButton("Slå ihop", "arrow.triangle.merge") { mergeChosen() }
                 barButton("Ta bort", "trash") { removeChosen() }

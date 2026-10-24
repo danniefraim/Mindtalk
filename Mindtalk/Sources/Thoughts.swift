@@ -364,6 +364,10 @@ final class Thoughts: ObservableObject {
     func retry(_ id: UUID) async {
         guard let i = all.firstIndex(where: { $0.id == id }), all[i].writing == .failed else { return }
         let language = all[i].language ?? Dictation.shared.engine
+        // The meeting's model stays loaded while it records, and a removed model can't
+        // write: said, instead of the row failing again without a reason.
+        if MeetingSession.shared.isRecording { return say(String(localized: "Ett möte spelas in. Försök igen när det är slut.")) }
+        if !language.isInstalled { return say(String(localized: "Talmodellen för tanken finns inte här. Ladda ned den under Inställningar → Språk.")) }
         all[i].writing = .writing
         let url = Self.soundURL(id)
         let samples: [Float]? = await Task.detached(priority: .userInitiated) {
@@ -405,9 +409,12 @@ final class Thoughts: ObservableObject {
         }
     }
 
-    /// Trimmed, with a capital first letter.
+    /// Trimmed, with a capital first letter, unless the first word already has its own
+    /// capitals (iPhone, eBay).
     private static func tidy(_ text: String) -> String {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let first = t.prefix { !$0.isWhitespace }
+        if first.dropFirst().contains(where: \.isUppercase) { return t }
         return t.prefix(1).uppercased() + t.dropFirst()
     }
 
@@ -461,9 +468,10 @@ final class Thoughts: ObservableObject {
     func purge(_ ids: [UUID]) {
         for id in ids { dropSound(id) }
         change { $0.removeAll { ids.contains($0.id) && $0.deleted != nil } }
-        // Not undoable once it's gone for good.
+        // Not undoable once it's gone for good, and an Ångra still showing would do nothing.
         undoSteps.removeAll()
         redoSteps.removeAll()
+        toast = nil
     }
 
     /// Into one: the first keeps its place and time, the others' words follow it,
@@ -472,7 +480,7 @@ final class Thoughts: ObservableObject {
         let others = ids.filter { $0 != target }
         guard !others.isEmpty else { return }
         change(String(localized: "Tankarna slogs ihop")) { all in
-            guard let t = all.firstIndex(where: { $0.id == target }) else { return }
+            guard let t = all.firstIndex(where: { $0.id == target }), all[t].writing == nil else { return }
             let texts = all.filter { others.contains($0.id) && $0.writing == nil }.sorted { $0.order > $1.order }.map(\.text)
             guard !texts.isEmpty else { return }
             all[t].text = ([all[t].text] + texts).joined(separator: "\n")
@@ -538,8 +546,12 @@ final class Thoughts: ObservableObject {
                 + (t.done ? " " + String(localized: "(klar)") : "")
         }
         if !pinned.isEmpty {
+            // Pinned ones come from any day: with their date as well.
             lines += ["## " + String(localized: "Fäst"), ""]
-            lines += pinned.filter { $0.writing == nil }.map(line)
+            lines += pinned.filter { $0.writing == nil }.map { t in
+                "- " + t.date.formatted(date: .abbreviated, time: .shortened) + ": " + t.text.replacingOccurrences(of: "\n", with: "\n  ")
+                    + (t.done ? " " + String(localized: "(klar)") : "")
+            }
             lines.append("")
         }
         for day in days {

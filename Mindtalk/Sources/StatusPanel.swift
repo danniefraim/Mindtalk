@@ -442,7 +442,7 @@ struct StatusPanelView: View {
             }
             .padding(.horizontal, PanelMetrics.inset)
             .frame(minHeight: 40)
-            Text("Gäller diktering och möten.")
+            Text("Gäller diktering, tankar och möten.")
                 .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
                 .padding(.horizontal, PanelMetrics.inset)
                 .padding(.top, 4).padding(.bottom, 8)

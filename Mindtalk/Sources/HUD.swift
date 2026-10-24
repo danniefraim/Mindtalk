@@ -38,7 +38,8 @@ final class HUD {
         let dictation = Dictation.shared
         panel.ignoresMouseEvents = !((dictation.handsFree && dictation.phase == .recording) || dictation.phase == .saved
                                      || dictation.phase == .waitingForModel
-                                     || dictation.phase == .failed(Dictation.clickToRetry))
+                                     || dictation.phase == .failed(Dictation.clickToRetry)
+                                     || dictation.phase == .failed(Dictation.thoughtWithoutText))
         place(panel)
         panel.orderFrontRegardless()
     }
@@ -162,6 +163,22 @@ private struct HUDView: View {
                 .buttonStyle(.plain)
                 .help("Försök igen")
                 .accessibilityHint(Text("Försöker igen"))
+            case .failed(let message) where message == Dictation.thoughtWithoutText:
+                // Kept in Tankar with Försök igen: a click goes there.
+                Button { dictation.openThoughtsFromHUD() } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warningOnNight)
+                        Text(message)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: Self.textWidth, alignment: .leading)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Öppna Tankar")
             case .failed(let message):
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warningOnNight)
                 Text(message)

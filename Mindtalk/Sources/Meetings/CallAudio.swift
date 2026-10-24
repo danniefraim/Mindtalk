@@ -142,7 +142,11 @@ final class CallAudio: @unchecked Sendable {
     }
 
     /// Whether a meeting should take the Mac's sound now, by the setting and the route.
-    @MainActor static var wanted: Bool {
+    @MainActor static var wanted: Bool { wanted(route: route) }
+
+    /// The same, for a route already looked up (off the main thread: it can stall
+    /// while devices change, AirPods connecting).
+    @MainActor static func wanted(route: Route) -> Bool {
         switch Settings.callAudio {
         case .never: return false
         case .always: return true

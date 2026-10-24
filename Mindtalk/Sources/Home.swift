@@ -703,13 +703,23 @@ struct HomeShelves: View {
         @State private var hovering = false
 
         var body: some View {
-            Button { page = .thoughts } label: {
+            Button {
+                // To this thought, its day unfolded, as a mindtalk:// link does.
+                ThoughtsPage.pendingShow = thought.id
+                page = .thoughts
+                NotificationCenter.default.post(name: .showThought, object: thought.id)
+            } label: {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(thought.text).font(.system(size: 15, design: .serif)).lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Spacer(minLength: 0)
-                    Text(verbatim: MeetingRecord.when(thought.date)).font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
+                    // Pinned ones come first: the pin says why one from yesterday is above today's.
+                    HStack(spacing: 5) {
+                        if thought.pinned { Image(systemName: "pin.fill").font(.system(size: 9.5)).accessibilityLabel(Text("Fäst")) }
+                        Text(verbatim: MeetingRecord.when(thought.date))
+                    }
+                    .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, minHeight: 88, alignment: .topLeading)

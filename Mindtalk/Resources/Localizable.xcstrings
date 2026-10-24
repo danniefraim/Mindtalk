@@ -6096,6 +6096,22 @@
         }
       }
     },
+    "Ett möte spelas in. Försök igen när det är slut.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A meeting is being recorded. Try again when it's over."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ett möte spelas in. Försök igen när det är slut."
+          }
+        }
+      }
+    },
     "Exempel": {
       "localizations": {
         "en": {
@@ -7949,6 +7965,7 @@
       }
     },
     "Gäller diktering och möten.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7960,6 +7977,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gäller diktering och möten."
+          }
+        }
+      }
+    },
+    "Gäller diktering, tankar och möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applies to dictation, thoughts and meetings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gäller diktering, tankar och möten."
           }
         }
       }
@@ -22210,6 +22243,22 @@
         }
       }
     },
+    "Talmodellen för tanken finns inte här. Ladda ned den under Inställningar → Språk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The speech model for this thought isn't here. Download it under Settings → Language."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellen för tanken finns inte här. Ladda ned den under Inställningar → Språk."
+          }
+        }
+      }
+    },
     "Talmodellen förbereds": {
       "localizations": {
         "en": {
@@ -22466,6 +22515,22 @@
         }
       }
     },
+    "Talmodellen laddas ned. Sedan kan du säga en tanke.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The speech model is downloading. Then you can say a thought."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellen laddas ned. Sedan kan du säga en tanke."
+          }
+        }
+      }
+    },
     "Talmodellen saknas": {
       "localizations": {
         "en": {
@@ -22574,6 +22639,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Talmodellen är inte nedladdad än."
+          }
+        }
+      }
+    },
+    "Talmodellen är inte nedladdad än. Du hittar den under Inställningar → Språk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The speech model isn't downloaded yet. You'll find it under Settings → Language."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellen är inte nedladdad än. Du hittar den under Inställningar → Språk."
           }
         }
       }
