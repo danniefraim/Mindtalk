@@ -1,5 +1,6 @@
 import AppKit
 import UserNotifications
+import os
 
 // MARK: - A call begins
 
@@ -13,6 +14,7 @@ import UserNotifications
 @MainActor
 final class CallDetector {
     static let shared = CallDetector()
+    private static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "Calls")
     static let category = "call"
     static let takeNotes = "call.take-notes"
     static let notForApp = "call.not-for-app"
@@ -60,7 +62,10 @@ final class CallDetector {
         // A call over: its question in Notification Center goes with it.
         withdraw(since.keys.filter { !listening.contains($0) })
         since = since.filter { listening.contains($0.key) }
-        for app in listening where since[app] == nil { since[app] = now }
+        for app in listening where since[app] == nil {
+            since[app] = now
+            Self.log.notice("calls: \(app, privacy: .public) is using the microphone")
+        }
         // Asked once a call: the mark is kept while the app listens, and a minute after
         // it lets the microphone go (a moment's drop isn't a new call).
         for app in listening where asked[app] != nil { asked[app] = now }
@@ -99,8 +104,12 @@ final class CallDetector {
     private func ask(_ app: String) {
         let browser = CallApps.all.first { $0.name == app }?.browser ?? false
         let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert]) { granted, _ in
-            guard granted else { return }
+        Self.log.notice("calls: asking about \(app, privacy: .public)")
+        center.requestAuthorization(options: [.alert]) { granted, error in
+            guard granted else {
+                Self.log.error("calls: notifications not allowed (\(error?.localizedDescription ?? "denied", privacy: .public))")
+                return
+            }
             let content = UNMutableNotificationContent()
             content.title = browser ? String(localized: "\(app) använder mikrofonen") : String(localized: "Samtal i \(app)")
             content.body = browser ? String(localized: "Är det ett möte? Ta anteckningar med Mindtalk.")
