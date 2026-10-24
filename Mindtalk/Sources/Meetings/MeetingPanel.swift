@@ -473,7 +473,11 @@ private struct LivePanel: View {
             // Following: the newest words stay at the bottom as the text grows, the view
             // gliding along rather than jumping after every handful. Read back, it stays put.
             .defaultScrollAnchor(following ? .bottom : .top, for: .sizeChanges)
-            .onChange(of: turns, initial: true) { _, now in LiveReveal.shared.update(now, meeting: session.record?.id) }
+            .onChange(of: turns, initial: true) { _, now in
+                let words = session.record?.words ?? []
+                LiveReveal.shared.update(now, meeting: session.record?.id,
+                                         times: (words + MeetingText.fresh(session.pending, after: words)).map(\.start))
+            }
             // Opened mid-meeting (from the menu bar): at the latest words.
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { proxy.scrollTo("end", anchor: .bottom) }

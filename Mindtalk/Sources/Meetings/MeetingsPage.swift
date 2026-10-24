@@ -1667,7 +1667,7 @@ struct MeetingView: View {
             if !live { RememberVoicesOffer(record: record, live: false).pageColumn(width).padding(.bottom, 12) }
             ZStack {
                 if live || tab == .transcript {
-                    TranscriptView(record: record, turns: turns, cast: cast, session: session, width: width,
+                    TranscriptView(record: record, turns: turns, cast: cast, session: session, pendingTimes: pending.map(\.start), width: width,
                                    edit: edit, focusTurn: $focusTurn, focusNote: $focusNote,
                                    changed: showChanges ? Set(record.heal?.changed ?? []) : [],
                                    finding: finding ? findQuery : "", findHit: hit)
@@ -1714,7 +1714,7 @@ struct MeetingView: View {
                 LiveNotices(session: session, record: record, cast: cast, edit: edit)
                     .pageColumn(column)
                     .padding(.bottom, hasNotice(session, cast) ? 14 : 0)
-                TranscriptView(record: record, turns: turns, cast: cast, session: session, width: column,
+                TranscriptView(record: record, turns: turns, cast: cast, session: session, pendingTimes: pending.map(\.start), width: column,
                                edit: edit, focusTurn: $focusTurn, focusNote: $focusNote,
                                finding: finding ? findQuery : "", findHit: hit, inlineNotes: !wide)
                     .id(epoch.value)   // see WindowEpoch
@@ -2226,6 +2226,8 @@ private struct TranscriptView: View {
     let turns: [MeetingTurn]
     let cast: Cast
     let session: MeetingSession?
+    /// When the words still being written were said (the reveal's rhythm).
+    var pendingTimes: [Double] = []
     let width: CGFloat
     let edit: MeetingEdits
     @Binding var focusTurn: Int?
@@ -2262,7 +2264,7 @@ private struct TranscriptView: View {
         }
         // Live: what's handed over comes out word by word (LiveReveal).
         .onChange(of: turns, initial: true) { _, now in
-            if live { LiveReveal.shared.update(now, meeting: record.id) }
+            if live { LiveReveal.shared.update(now, meeting: record.id, times: record.words.map(\.start) + pendingTimes) }
         }
     }
 
@@ -2486,6 +2488,7 @@ struct LiveTurnText: View {
     var asideSize: CGFloat = 12.5
     let fallback: (Bool?) -> Text
     @ObservedObject private var reveal = LiveReveal.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: reveal.animating ? 1.0 / 60 : 0.5)) { context in
@@ -2494,7 +2497,7 @@ struct LiveTurnText: View {
             let blinking = cursor != nil && !turn.pending.isEmpty
             let glyph = cursor.flatMap { blinking ? Text(" \(Image(nsImage: $0))").foregroundStyle(DS.Colors.ink.opacity(on ? 0.9 : 0.15)) : nil }
             if let text = reveal.text(turn, cast: cast, asideFont: .system(size: asideSize), cursor: glyph) {
-                text.foregroundStyle(DS.Colors.ink).textRenderer(LiveTextRenderer(now: t))
+                text.foregroundStyle(DS.Colors.ink).textRenderer(LiveTextRenderer(now: t, reduceMotion: reduceMotion))
             } else {
                 fallback(blinking ? on : nil)
             }
