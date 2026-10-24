@@ -1597,6 +1597,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if args.contains("--auto-meeting") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
                 Self.showWindow(page: .meetings)
+                // `--front`: the window in front, not the panel (tests of the live text).
+                if args.contains("--front") { NSApp.activate() }
                 MeetingSession.shared.start(introducing: args.contains("--round"))
                 print("[auto] möte startat, runda: \(MeetingSession.shared.introducing), fel: \(MeetingSession.shared.lastError ?? "inget")")
                 // `--continue-from s [--continue-limit s]`: once it's written, the meeting is

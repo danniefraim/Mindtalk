@@ -2303,6 +2303,8 @@ private struct TranscriptView: View {
                     })
                 .padding(.top, i == 0 ? 0 : newSpeaker ? 26 : 12)
                 .id(turn.id)
+                // Live: a new turn (someone else talking) fades in and rises into place.
+                .transition(live ? .opacity.combined(with: .offset(y: 8)) : .identity)
         }
         Color.clear.frame(height: 1).id("end")
     }
@@ -2311,6 +2313,8 @@ private struct TranscriptView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) { rows(notes) }
+                // Turns coming, going or splitting move into place rather than jumping.
+                .animation(live ? .smooth(duration: 0.35) : nil, value: turns.map(\.id))
                 .pageColumn(width)
                 .padding(.top, 8)
             }
@@ -2491,15 +2495,20 @@ struct LiveTurnText: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: reveal.animating ? 1.0 / 60 : 0.5)) { context in
+        // The text is built when its words change, not every frame: between, only how it's
+        // drawn moves (the fades, the cursor's blink, all in the renderer).
+        let blinking = cursor != nil && !turn.pending.isEmpty
+        let glyph = blinking ? cursor.map { Text(" \(Image(nsImage: $0))").customAttribute(LiveCursor()) } : nil
+        let content = reveal.text(turn, cast: cast, asideFont: .system(size: asideSize), cursor: glyph)
+        // Thirty frames a second while its words move (a third of a second's fade needs no
+        // more); else the cursor's beat, or hardly at all.
+        let beat = reveal.busy(turn.id) ? 1.0 / 30 : blinking ? 0.5 : 30
+        TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: beat)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
-            let on = Int(t / 0.5) % 2 == 0
-            let blinking = cursor != nil && !turn.pending.isEmpty
-            let glyph = cursor.flatMap { blinking ? Text(" \(Image(nsImage: $0))").foregroundStyle(DS.Colors.ink.opacity(on ? 0.9 : 0.15)) : nil }
-            if let text = reveal.text(turn, cast: cast, asideFont: .system(size: asideSize), cursor: glyph) {
-                text.foregroundStyle(DS.Colors.ink).textRenderer(LiveTextRenderer(now: t, reduceMotion: reduceMotion))
+            if let content {
+                content.foregroundStyle(DS.Colors.ink).textRenderer(LiveTextRenderer(now: t, reduceMotion: reduceMotion))
             } else {
-                fallback(blinking ? on : nil)
+                fallback(blinking ? Int(t / 0.5) % 2 == 0 : nil)
             }
         }
         .animation(.smooth(duration: 0.3), value: reveal.shown(turn.id))
@@ -2622,6 +2631,8 @@ private struct TurnRow: View {
                     .foregroundStyle(DS.Colors.faint)
             }
         }
+        // "Känner igen rösten…" giving way to the name: crossfaded, not switched.
+        .animation(live ? .smooth(duration: 0.3) : nil, value: speaker)
         .accessibilityElement(children: .contain)
     }
 

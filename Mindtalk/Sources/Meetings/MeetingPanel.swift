@@ -462,9 +462,12 @@ private struct LivePanel: View {
                                   merge: { s, other in withAnimation(.snappy) { session.merge(s, into: other) } })
                             .padding(.top, i == 0 ? 0 : newSpeaker ? 20 : 10)
                             .id(turn.id)
+                            // A new turn fades in and rises into place, as in the window.
+                            .transition(.opacity.combined(with: .offset(y: 6)))
                     }
                     Color.clear.frame(height: 16).id("end")      // air under the last words
                 }
+                .animation(.smooth(duration: 0.35), value: turns.map(\.id))
                 .padding(.horizontal, 16)
                 .padding(.top, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -739,6 +742,7 @@ private struct PanelTurn: View {
                         .font(.system(size: 11, weight: .medium)).monospacedDigit()
                         .foregroundStyle(DS.Colors.faint)
                 }
+                .animation(.smooth(duration: 0.3), value: speaker)
                 .accessibilityElement(children: .combine)
             }
             // Word by word as it's said, as in the window (LiveReveal).
