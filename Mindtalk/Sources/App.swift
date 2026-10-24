@@ -1650,6 +1650,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // self-test: nothing is kept (Settings.previewing, the meeting removed after); known
         // voices come only from --people, in memory, and --learn-people writes what the
         // meeting taught to that file only (scripts/round-replay.sh).
+        #if DEBUG
+        // `Mindtalk --import-test file… [--models-dir …]`: files imported the whole way, as
+        // dropped on Möten (sound, text, voices, summary), in a fresh HOME; what came of
+        // each is printed. Run it with HOME pointed at an empty folder.
+        if let i = args.firstIndex(of: "--import-test") {
+            let files = args[(i + 1)...].prefix { !$0.hasPrefix("--") }.map { URL(fileURLWithPath: $0) }
+            Task { @MainActor in
+                await MeetingStore.shared.ready()
+                MeetingImport.shared.add(files, folder: nil, language: .swedish)
+                let began = Date()
+                while MeetingImport.shared.jobs.contains(where: { $0.stage != .done && $0.stage != .failed }) {
+                    try? await Task.sleep(for: .seconds(1))
+                }
+                print(String(format: "importen tog %.0f s", Date().timeIntervalSince(began)))
+                var failed: Int32 = 0
+                for job in MeetingImport.shared.jobs {
+                    guard let id = job.meeting else {
+                        failed += 1
+                        print("FEL  \(job.url.lastPathComponent): \(job.error ?? "inget möte")")
+                        continue
+                    }
+                    // The summary, written after: waited for, at most three minutes.
+                    for _ in 0..<180 where MeetingNotes.shared.writing.contains(id) { try? await Task.sleep(for: .seconds(1)) }
+                    guard let m = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { failed += 1; continue }
+                    let text = m.words.map(\.text).joined(separator: " ")
+                    print("OK   \(job.url.lastPathComponent)")
+                    print("     titel: \(m.title)")
+                    print(String(format: "     längd %.0f s · %d ord · %d talare · ljud %@ · datum %@", m.duration, m.words.count, m.cast.order.count,
+                                 m.hasAudio ? "ja" : "nej", m.date.formatted()))
+                    print("     början: \(text.prefix(400))")
+                    if let s = m.summary {
+                        print("     sammanfattning: \(s.overview.prefix(400))")
+                        print("     beslut \(s.decisions.count) · att göra \(s.tasks.count) · punkter \(s.points.count)")
+                    } else {
+                        print("     ingen sammanfattning (\(MeetingNotes.shared.failed[id] ?? "ingen skrivare"))")
+                    }
+                }
+                exit(failed)
+            }
+            RunLoop.main.run()
+        }
+        #endif
         if let i = args.firstIndex(of: "--round-replay-test"), i + 1 < args.count {
             let file = { (flag: String) in args.firstIndex(of: flag).flatMap { $0 + 1 < args.count ? URL(fileURLWithPath: args[$0 + 1]) : nil } }
             Task {
