@@ -1,6 +1,5 @@
 import ServiceManagement
 import SwiftUI
-import UserNotifications
 import os
 import Carbon.HIToolbox
 
@@ -353,8 +352,6 @@ struct SettingsPage: View {
     @ObservedObject private var updates = Updates.shared
     @ObservedObject private var voices = VoiceModels.shared
     @State private var loginStatus = SMAppService.mainApp.status
-    /// Notifications turned off for Mindtalk: the call question shows in its own box.
-    @State private var notificationsOff = false
     /// Why "Starta vid inloggning" couldn't be switched, from macOS.
     @State private var loginError: String?
     @ObservedObject private var meeting = MeetingSession.shared
@@ -683,11 +680,6 @@ struct SettingsPage: View {
 
     // MARK: Möten
 
-    private func checkNotifications() async {
-        let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
-        notificationsOff = status == .denied
-    }
-
     @ViewBuilder private var meetingsSection: some View {
         // Meetings can't be recorded without it: first, until it's here.
         if voices.state != .ready { VoiceModelSettingsCard() }
@@ -705,18 +697,8 @@ struct SettingsPage: View {
             }
             CardDivider()
             CardRow(title: "Fråga när ett samtal börjar",
-                    detail: "När Teams, Zoom, FaceTime eller webbläsaren börjar använda mikrofonen frågar Mindtalk om du vill ta anteckningar. Inget spelas in förrän du trycker.") {
+                    detail: "När Teams, Zoom, FaceTime eller webbläsaren börjar använda mikrofonen frågar Mindtalk i en liten ruta om du vill anteckna mötet. Inget spelas in förrän du trycker.") {
                 InkToggle(label: "Fråga när ett samtal börjar", isOn: $prefs.askOnCalls)
-            }
-            if prefs.askOnCalls, notificationsOff {
-                CardDivider()
-                CardRow(title: "Notiser är avstängda för Mindtalk",
-                        detail: "Frågan visas då i en liten ruta överst på skärmen. Slå på notiser om du vill ha den i notiscentret.") {
-                    Button("Öppna Notiser") {
-                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!)
-                    }
-                    .buttonStyle(.soft)
-                }
             }
             if prefs.askOnCalls, !prefs.callAppsMuted.isEmpty {
                 CardDivider()
@@ -726,11 +708,6 @@ struct SettingsPage: View {
             }
         }
         .card()
-        // Looked at again on coming back, as from System Settings after turning them on.
-        .task { await checkNotifications() }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            Task { await checkNotifications() }
-        }
         MeetingStorageCard()
         VoiceMemoryCard(memory: .shared)
         SummaryWritersCard().id(SettingsAnchor.summaries)

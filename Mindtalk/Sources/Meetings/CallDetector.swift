@@ -1,3 +1,4 @@
+import Accessibility
 import AppKit
 import SwiftUI
 import UserNotifications
@@ -5,20 +6,25 @@ import os
 
 // MARK: - A call begins
 
-/// When Teams, Zoom, FaceTime or another call app starts using the microphone, a quiet
-/// question: "Samtal i Zoom. Vill du ta anteckningar?" Pressed, it opens the start card,
-/// waiting for your choice; nothing is ever recorded before that press. Read from Core
-/// Audio's list of processes using an input (no permission, no window titles, no
-/// addresses), every three seconds. Asked once a call: an app that keeps its microphone
-/// open (Zoom while muted) isn't asked again until it has let it go for ten seconds.
-/// "Inte för Zoom" stops it for that app; Inställningar → Möten turns it all off.
+/// When Teams, Zoom, FaceTime or another call app starts using the microphone, a small
+/// box at the top right of the screen: "Samtal i Teams. Vill du anteckna mötet?" with
+/// Starta direkt (recording at once, the meeting in its panel over the call) and Med
+/// namnrunda (Mindtalk's window, the round). Its own box rather than a notification, as
+/// Granola, Wispr Flow and MacWhisper do: the buttons are seen at once, one click starts,
+/// and it shows with notifications off or a Focus on. Nothing is ever recorded without
+/// that press. Read from Core Audio's list of processes using an input (no permission,
+/// no window titles, no addresses), every three seconds. Asked once a call: an app that
+/// keeps its microphone open (Zoom while muted) isn't asked again until it has let it go
+/// for ten seconds. "Fråga inte för Teams" stops it for that app; Inställningar → Möten
+/// turns it all off.
 @MainActor
 final class CallDetector {
     static let shared = CallDetector()
     private static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "Calls")
+    /// Notifications from earlier versions of the question, still in Notification Center.
     static let category = "call"
-    static let takeNotes = "call.take-notes"
-    static let notForApp = "call.not-for-app"
+
+    enum Answer { case startDirect, startRound, openCard, notForApp, notNow }
 
     /// When each app began using the microphone, while it does.
     private var since: [String: Date] = [:]
@@ -28,11 +34,6 @@ final class CallDetector {
 
     func start() {
         guard !Settings.previewing, watching == nil else { return }
-        let take = UNNotificationAction(identifier: Self.takeNotes, title: String(localized: "Ta anteckningar"), options: [.foreground])
-        let mute = UNNotificationAction(identifier: Self.notForApp, title: String(localized: "Fråga inte för den här appen"), options: [])
-        UNUserNotificationCenter.current().setNotificationCategories([
-            UNNotificationCategory(identifier: Self.category, actions: [take, mute], intentIdentifiers: [], options: []),
-        ])
         watching = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 if Settings.askOnCalls {
@@ -49,10 +50,10 @@ final class CallDetector {
         }
     }
 
-    /// Off: nothing remembered, and a question still in Notification Center taken back.
+    /// Off: nothing remembered, and a question on screen taken back.
     private func forget() {
         guard !since.isEmpty || !asked.isEmpty else { return }
-        withdraw(Array(Set(since.keys).union(asked.keys)))
+        CallPrompt.shared.withdraw(Array(since.keys))
         since = [:]
         asked = [:]
     }
@@ -60,8 +61,8 @@ final class CallDetector {
     private func check(_ bundles: [String], front: String?) {
         let listening = Set(bundles.compactMap { name(for: $0, front: front) })
         let now = Date()
-        // A call over: its question in Notification Center goes with it.
-        withdraw(since.keys.filter { !listening.contains($0) })
+        // A call over: its question goes with it.
+        CallPrompt.shared.withdraw(since.keys.filter { !listening.contains($0) })
         since = since.filter { listening.contains($0.key) }
         for app in listening where since[app] == nil {
             since[app] = now
@@ -72,10 +73,12 @@ final class CallDetector {
         // new call; a call right after the last one is).
         for app in listening where asked[app] != nil { asked[app] = now }
         asked = asked.filter { listening.contains($0.key) || now.timeIntervalSince($0.value) < 10 }
-        // Recording or dictating: this call is in hand, not asked about. (Writing out
-        // the last meeting isn't: a call that starts meanwhile is still asked about.)
+        // Recording or dictating: this call is in hand, not asked about (and a question
+        // still up goes: the meeting was started another way). Writing out the last
+        // meeting isn't: a call that starts meanwhile is still asked about.
         if MeetingSession.shared.isRecording || Dictation.shared.phase != .idle {
             for app in listening { asked[app] = now }
+            if MeetingSession.shared.isRecording { CallPrompt.shared.withdraw(Array(listening)) }
             return
         }
         guard MeetingSession.shared.phase == .idle else { return }
@@ -83,7 +86,8 @@ final class CallDetector {
         // Four seconds of it first: a page asking for the mic a moment isn't a call.
         for (app, began) in since where now.timeIntervalSince(began) >= 4 && asked[app] == nil && !muted.contains(app) {
             asked[app] = now
-            ask(app)
+            Self.log.notice("calls: asking about \(app, privacy: .public)")
+            CallPrompt.shared.show(app)
             return
         }
     }
@@ -98,12 +102,6 @@ final class CallDetector {
         return known.name
     }
 
-    private func withdraw(_ apps: [String]) {
-        guard !apps.isEmpty else { return }
-        CallPrompt.shared.withdraw(apps)
-        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: apps.map { "call-\($0)" })
-    }
-
     static func title(_ app: String) -> String {
         CallApps.all.first { $0.name == app }?.browser == true
             ? String(localized: "\(app) använder mikrofonen") : String(localized: "Samtal i \(app)")
@@ -111,50 +109,54 @@ final class CallDetector {
 
     static func question(_ app: String) -> String {
         CallApps.all.first { $0.name == app }?.browser == true
-            ? String(localized: "Är det ett möte? Ta anteckningar med Mindtalk.")
-            : String(localized: "Vill du ta anteckningar med Mindtalk?")
+            ? String(localized: "Är det ett möte? Anteckna det med Mindtalk.")
+            : String(localized: "Vill du anteckna mötet?")
     }
 
-    /// As a notification when they're allowed; otherwise (turned off, or never allowed)
-    /// in a small box of Mindtalk's own at the top of the screen, so it's never lost.
-    private func ask(_ app: String) {
-        let center = UNUserNotificationCenter.current()
-        Self.log.notice("calls: asking about \(app, privacy: .public)")
-        center.requestAuthorization(options: [.alert]) { granted, _ in
-            guard granted else {
-                Self.log.notice("calls: notifications not allowed, asking in Mindtalk's own box")
-                Task { @MainActor in CallPrompt.shared.show(app) }
-                return
-            }
-            let content = UNMutableNotificationContent()
-            content.title = Self.title(app)
-            content.body = Self.question(app)
-            content.categoryIdentifier = Self.category
-            content.userInfo = ["callApp": app]
-            center.add(UNNotificationRequest(identifier: "call-\(app)", content: content, trigger: nil))
-        }
-    }
-
-    /// The question answered. "Ta anteckningar" (or a click on it): the start card,
-    /// waiting, and afterwards back over the call. Never a start of its own.
-    func answer(_ action: String, userInfo: [AnyHashable: Any]) {
-        guard let app = userInfo["callApp"] as? String else { return }
-        switch action {
-        case Self.notForApp:
+    /// The question answered.
+    /// - Starta direkt: recording now, the meeting in its panel, you stay in the call.
+    ///   The very first meeting (the question about remembering voices), or meetings
+    ///   not ready yet: the start card instead, where that is said.
+    /// - Med namnrunda: the round in Mindtalk's window, back to the panel after it.
+    /// - A click on the box itself (or an old notification): the start card, waiting.
+    func answer(_ answer: Answer, app: String) {
+        switch answer {
+        case .notForApp:
             // Through the settings page's copy, so its "Frågar inte för …" row shows at once.
             let prefs = AppPrefs.shared
             if !prefs.callAppsMuted.contains(app) { prefs.callAppsMuted.append(app) }
-        case UNNotificationDismissActionIdentifier:
-            break
+            return
+        case .notNow:
+            return
         default:
-            let meeting = MeetingSession.shared
-            // Only for a call still going, and with meetings set up to start.
-            guard meeting.phase == .idle, since[app] != nil,
-                  VoiceModels.shared.state == .ready, Dictation.shared.engine.isInstalled else { return }
-            MeetingPanel.shared.startedElsewhere = true
-            meeting.armed = true
-            AppDelegate.showWindow(page: .meetings)
+            break
         }
+        let meeting = MeetingSession.shared
+        // Only for a call still going (an old question isn't a start), and only once.
+        guard meeting.phase == .idle, since[app] != nil else { return }
+        let ready = VoiceModels.shared.state == .ready && Dictation.shared.engine.isInstalled
+        let mode: MeetingSession.StartMode = answer == .startRound ? .round : .direct
+        if answer == .openCard || !ready || MeetingSession.asksAboutVoices || MeetingSession.preparing(mode) {
+            openCard()
+            return
+        }
+        MeetingPanel.shared.startedElsewhere = true
+        meeting.start(introducing: mode == .round, folder: MeetingFolders.shared.selected, informed: true)
+        Self.log.notice("calls: started from the question (\(mode == .round ? "round" : "direct", privacy: .public))")
+        // It couldn't (the dictation has the mic, say): the card, where it's said why.
+        if !meeting.isRecording { openCard() }
+    }
+
+    /// From an old notification: a click or its action opens the card.
+    func answer(_ action: String, userInfo: [AnyHashable: Any]) {
+        guard let app = userInfo["callApp"] as? String, action != UNNotificationDismissActionIdentifier else { return }
+        answer(.openCard, app: app)
+    }
+
+    private func openCard() {
+        MeetingPanel.shared.startedElsewhere = true
+        MeetingSession.shared.armed = true
+        AppDelegate.showWindow(page: .meetings)
     }
 
     static func app(for bundleID: String) -> (prefix: String, name: String, browser: Bool)? {
@@ -184,96 +186,154 @@ final class CallDetector {
     #endif
 }
 
-// MARK: - The question in Mindtalk's own box
+// MARK: - The question on screen
 
-/// "Samtal i Teams. Vill du ta anteckningar?" at the top right of the screen, over
-/// every window and space, when notifications aren't allowed: Ta anteckningar, Inte
-/// nu, Fråga inte för Teams. It takes no focus from the call, goes by itself after half
-/// a minute, and when the call ends.
+/// The box at the top right, under the menu bar, over every window, space and full
+/// screen: it takes no focus from the call. A minute, then it goes by itself (the
+/// pointer resting on it holds it), and at once when the call ends.
 @MainActor
 final class CallPrompt {
     static let shared = CallPrompt()
     private var panel: NSPanel?
-    private var app: String?
+    private(set) var app: String?
     private var hiding: Task<Void, Never>?
 
     func show(_ app: String) {
         close()
         self.app = app
-        let view = CallPromptView(app: app) { [weak self] action in
+        let view = CallPromptView(app: app, answer: { [weak self] answer in
             self?.close()
-            CallDetector.shared.answer(action, userInfo: ["callApp": app])
-        }
+            CallDetector.shared.answer(answer, app: app)
+        }, hovering: { [weak self] inside in
+            inside ? self?.hold() : self?.countDown(seconds: 20)
+        })
         let host = NSHostingView(rootView: view)
-        host.frame.size = host.fittingSize
-        let panel = NSPanel(contentRect: NSRect(origin: .zero, size: host.fittingSize),
+        let size = host.fittingSize
+        host.frame.size = size
+        let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size),
                             styleMask: [.nonactivatingPanel, .borderless], backing: .buffered, defer: false)
         panel.contentView = host
         panel.isFloatingPanel = true
         panel.level = .statusBar
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = false
         panel.hidesOnDeactivate = false
-        if let screen = NSScreen.main?.visibleFrame {
-            panel.setFrameOrigin(NSPoint(x: screen.maxX - host.fittingSize.width - 12, y: screen.maxY - host.fittingSize.height - 12))
+        panel.becomesKeyOnlyIfNeeded = true
+        // On the screen you're on (the one with the pointer), under its menu bar.
+        let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main
+        if let room = screen?.visibleFrame {
+            panel.setFrameOrigin(NSPoint(x: room.maxX - size.width - 4, y: room.maxY - size.height - 2))
         }
         panel.alphaValue = 0
         panel.orderFrontRegardless()
-        NSAnimationContext.runAnimationGroup { $0.duration = 0.25; panel.animator().alphaValue = 1 }
+        NSAnimationContext.runAnimationGroup { $0.duration = 0.3; panel.animator().alphaValue = 1 }
         self.panel = panel
-        hiding = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(30))
-            guard !Task.isCancelled else { return }
-            self?.close()
-        }
+        AccessibilityNotification.Announcement(CallDetector.title(app) + ". " + CallDetector.question(app)).post()
+        countDown(seconds: 60)
     }
 
     func withdraw(_ apps: [String]) {
         if let app, apps.contains(app) { close() }
     }
 
+    #if DEBUG
+    static func preview(_ app: String) -> some View { CallPromptView(app: app, answer: { _ in }, hovering: { _ in }) }
+    #endif
+
+    private func hold() {
+        hiding?.cancel()
+        hiding = nil
+    }
+
+    private func countDown(seconds: Double) {
+        hiding?.cancel()
+        hiding = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled else { return }
+            self?.close()
+        }
+    }
+
     private func close() {
         hiding?.cancel()
         hiding = nil
-        panel?.orderOut(nil)
+        if let panel {
+            NSAnimationContext.runAnimationGroup({ $0.duration = 0.2; panel.animator().alphaValue = 0 },
+                                                 completionHandler: { panel.orderOut(nil) })
+        }
         panel = nil
         app = nil
     }
 }
 
+/// "Samtal i Teams / Vill du anteckna mötet?" beside the turning sphere, then
+/// Starta direkt (ink, with the red dot) and Med namnrunda; ⋯ for Fråga inte för Teams,
+/// × for not now. A click elsewhere on it opens the start card.
 private struct CallPromptView: View {
     let app: String
-    let answer: (String) -> Void
+    let answer: (CallDetector.Answer) -> Void
+    let hovering: (Bool) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Image(systemName: "person.2.wave.2").font(.system(size: 15, weight: .medium))
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 11) {
+                DotSphere(small: true)
+                    .frame(width: 30, height: 30)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: CallDetector.title(app)).font(.system(size: 13.5, weight: .semibold))
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(verbatim: CallDetector.question(app)).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: 8)
-                Button { answer(UNNotificationDismissActionIdentifier) } label: {
-                    Image(systemName: "xmark").font(.system(size: 9, weight: .bold)).foregroundStyle(DS.Colors.muted)
-                        .frame(width: 20, height: 20).contentShape(Rectangle())
+                Spacer(minLength: 6)
+                Menu {
+                    Button("Fråga inte för \(app)") { answer(.notForApp) }
+                } label: {
+                    Image(systemName: "ellipsis").font(.system(size: 11, weight: .bold)).foregroundStyle(DS.Colors.muted)
+                        .frame(width: 22, height: 22).contentShape(Rectangle())
+                }
+                .menuStyle(.button)
+                .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("Fler val")
+                .accessibilityLabel("Fler val")
+                Button { answer(.notNow) } label: {
+                    Image(systemName: "xmark").font(.system(size: 9.5, weight: .bold)).foregroundStyle(DS.Colors.muted)
+                        .frame(width: 22, height: 22).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help("Inte nu")
                 .accessibilityLabel("Inte nu")
             }
+            .contentShape(Rectangle())
+            .onTapGesture { answer(.openCard) }
             HStack(spacing: 8) {
-                Button("Ta anteckningar") { answer(CallDetector.takeNotes) }.buttonStyle(.ink)
-                Button("Inte för \(app)") { answer(CallDetector.notForApp) }.buttonStyle(SoftButtonStyle(small: true))
+                Button { answer(.startDirect) } label: {
+                    HStack(spacing: 7) {
+                        Circle().fill(DS.Colors.recording).frame(width: 7, height: 7)
+                        Text("Starta direkt")
+                    }
+                    .lineLimit(1)
+                    .fixedSize()
+                }
+                .buttonStyle(.ink)
+                .help("Spelar in nu. Mötet syns i en liten panel ovanpå samtalet.")
+                Button { answer(.startRound) } label: { Text("Med namnrunda").lineLimit(1).fixedSize() }
+                    .buttonStyle(.soft)
+                    .help("Öppnar Mindtalk, där alla säger sitt namn.")
             }
         }
         .padding(14)
-        .frame(width: 320, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DS.Colors.card))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(DS.Colors.divider, lineWidth: 1))
-        .shadow(color: .black.opacity(0.18), radius: 14, y: 6)
-        .padding(16)
+        .frame(width: 360, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(DS.Colors.card))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(DS.Colors.divider, lineWidth: 1))
+        .shadow(color: .black.opacity(0.2), radius: 16, y: 6)
+        .padding(18)
+        .onHover(perform: hovering)
+        .accessibilityElement(children: .contain)
     }
 }

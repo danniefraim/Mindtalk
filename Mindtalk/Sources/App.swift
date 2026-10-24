@@ -754,6 +754,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             RunLoop.main.run()
         }
         #if DEBUG
+        // `Mindtalk --render-call-prompt out.png [--dark] [--app Chrome]`: the box asked
+        // when a call starts, as it stands on the screen.
+        if let i = args.firstIndex(of: "--render-call-prompt"), i + 1 < args.count {
+            NSApplication.shared.setActivationPolicy(.accessory)
+            Task { @MainActor in
+                let dark = args.contains("--dark")
+                NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                let app = args.firstIndex(of: "--app").map { args[$0 + 1] } ?? "Teams"
+                let view = CallPrompt.preview(app)
+                    .background(dark ? Color(white: 0.12) : Color(white: 0.9))
+                    .environment(\.colorScheme, dark ? .dark : .light)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
+                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: args[i + 1]))
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --render-round out.png [--round-state reveal|known|new|listening|forming|ready] [--size 1200x500]`:
         // the round's room in a given state (the moment a name is settled, by default;
         // `forming` is a turn at 60 % with the cloud halfway into its figure), with demo

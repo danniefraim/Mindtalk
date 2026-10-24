@@ -6497,6 +6497,22 @@
         }
       }
     },
+    "Fler val": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More options"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fler val"
+          }
+        }
+      }
+    },
     "Flera språk": {
       "localizations": {
         "en": {
@@ -6884,18 +6900,18 @@
         }
       }
     },
-    "Fråga inte för den här appen": {
+    "Fråga inte för %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Don't ask for this app"
+            "value": "Don't ask for %@"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fråga inte för den här appen"
+            "value": "Fråga inte för %@"
           }
         }
       }
@@ -7011,23 +7027,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fråga: %@"
-          }
-        }
-      }
-    },
-    "Frågan visas då i en liten ruta överst på skärmen. Slå på notiser om du vill ha den i notiscentret.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The question then shows in a small box at the top of the screen. Turn notifications on to get it in Notification Center."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Frågan visas då i en liten ruta överst på skärmen. Slå på notiser om du vill ha den i notiscentret."
           }
         }
       }
@@ -10446,22 +10445,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inte använt än"
-          }
-        }
-      }
-    },
-    "Inte för %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not for %@"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inte för %@"
           }
         }
       }
@@ -16779,23 +16762,6 @@
         }
       }
     },
-    "Notiser är avstängda för Mindtalk": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notifications are off for Mindtalk"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notiser är avstängda för Mindtalk"
-          }
-        }
-      }
-    },
     "Nu rättas också %@ till ”%@”.": {
       "localizations": {
         "en": {
@@ -17006,19 +16972,19 @@
         }
       }
     },
-    "När Teams, Zoom, FaceTime eller webbläsaren börjar använda mikrofonen frågar Mindtalk om du vill ta anteckningar. Inget spelas in förrän du trycker.": {
+    "När Teams, Zoom, FaceTime eller webbläsaren börjar använda mikrofonen frågar Mindtalk i en liten ruta om du vill anteckna mötet. Inget spelas in förrän du trycker.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "When Teams, Zoom, FaceTime or the browser starts using the microphone, Mindtalk asks whether you want to take notes. Nothing is recorded until you press."
+            "value": "When Teams, Zoom, FaceTime or the browser starts using the microphone, Mindtalk asks in a small box whether you want to take notes. Nothing is recorded until you press."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "När Teams, Zoom, FaceTime eller webbläsaren börjar använda mikrofonen frågar Mindtalk om du vill ta anteckningar. Inget spelas in förrän du trycker."
+            "value": "När Teams, Zoom, FaceTime eller webbläsaren börjar använda mikrofonen frågar Mindtalk i en liten ruta om du vill anteckna mötet. Inget spelas in förrän du trycker."
           }
         }
       }
@@ -20128,6 +20094,22 @@
         }
       }
     },
+    "Spelar in nu. Mötet syns i en liten panel ovanpå samtalet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Records now. The meeting shows in a small panel over the call."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spelar in nu. Mötet syns i en liten panel ovanpå samtalet."
+          }
+        }
+      }
+    },
     "Spelar in tills nedräkningen är klar.": {
       "localizations": {
         "en": {
@@ -21465,22 +21447,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sökvägen är kopierad. Öppna Inställningar i ChatGPT, välj MCP servers och Add server."
-          }
-        }
-      }
-    },
-    "Ta anteckningar": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Take notes"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ta anteckningar"
           }
         }
       }
@@ -24491,6 +24457,22 @@
         }
       }
     },
+    "Vill du anteckna mötet?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take notes on this meeting?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vill du anteckna mötet?"
+          }
+        }
+      }
+    },
     "Vill du slå av?": {
       "localizations": {
         "en": {
@@ -24503,22 +24485,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vill du slå av?"
-          }
-        }
-      }
-    },
-    "Vill du ta anteckningar med Mindtalk?": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Take notes with Mindtalk?"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vill du ta anteckningar med Mindtalk?"
           }
         }
       }
@@ -27534,7 +27500,7 @@
         }
       }
     },
-    "Är det ett möte? Ta anteckningar med Mindtalk.": {
+    "Är det ett möte? Anteckna det med Mindtalk.": {
       "localizations": {
         "en": {
           "stringUnit": {
@@ -27545,7 +27511,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Är det ett möte? Ta anteckningar med Mindtalk."
+            "value": "Är det ett möte? Anteckna det med Mindtalk."
           }
         }
       }
@@ -27743,22 +27709,6 @@
         }
       }
     },
-    "Öppna Notiser": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open Notifications"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Öppna Notiser"
-          }
-        }
-      }
-    },
     "Öppna Systeminställningar": {
       "localizations": {
         "en": {
@@ -27916,6 +27866,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppnar Mindtalk"
+          }
+        }
+      }
+    },
+    "Öppnar Mindtalk, där alla säger sitt namn.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens Mindtalk, where everyone says their name."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppnar Mindtalk, där alla säger sitt namn."
           }
         }
       }
