@@ -808,6 +808,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             Task { @MainActor in
                 let dark = args.contains("--dark")
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                #if DEBUG
+                // `--demo --ready`: made-up figures and a ready Mac, in memory only.
+                if Demo.on { WindowDemo.fill(openMeeting: false) }
+                if args.contains("--ready") {
+                    Dictation.shared.preview(mic: true, accessibility: true, asked: false, model: .ready)
+                    StatusPanelView.previewModels = true
+                }
+                #endif
                 let view = StatusPanelView(dictation: .shared, stats: .shared, close: {}, flat: true)
                     .padding(20).background(Color(white: dark ? 0.2 : 0.75))
                     .environment(\.colorScheme, dark ? .dark : .light)

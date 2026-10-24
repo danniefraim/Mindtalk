@@ -8576,8 +8576,23 @@
         }
       }
     },
+    "Håll %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll %@"
+          }
+        }
+      }
+    },
     "Håll %@ för att diktera": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -11123,6 +11138,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klistra in senaste"
+          }
+        }
+      }
+    },
+    "Klistra in senaste dikteringen": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste Last Dictation"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klistra in senaste dikteringen"
           }
         }
       }
@@ -23212,6 +23244,22 @@
         }
       }
     },
+    "Tryck %@ för att diktera": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press %@ to dictate"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryck %@ för att diktera"
+          }
+        }
+      }
+    },
     "Tryck Gör klart först, sedan kan du spela in mer.": {
       "localizations": {
         "en": {
@@ -23924,6 +23972,7 @@
       }
     },
     "Utseende": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

@@ -133,6 +133,10 @@ struct StatusPanelView: View {
     let close: () -> Void
     /// No glass (ImageRenderer can't draw it) — screenshots only.
     var flat = false
+    /// Screenshots: every row as on a Mac with its models.
+    nonisolated(unsafe) static var previewModels = false
+    private var voicesReady: Bool { Self.previewModels || VoiceModels.isInstalled }
+    private var speechReady: Bool { Self.previewModels || dictation.engine.isInstalled }
     /// A language that isn't downloaded yet, waiting for a yes before 600+ MB.
     @State private var confirming: SpeechModel?
 
@@ -177,7 +181,7 @@ struct StatusPanelView: View {
                         }
                     }
                 }
-            } else if VoiceModels.isInstalled {
+            } else if voicesReady {
                 PanelRow(title: "Starta möte", dot: true, shortcut: Self.meetingKeys) {
                     // Gone at once (no fade): the window the meeting opens in comes in front.
                     (NSApp.delegate as? AppDelegate)?.closeStatusPanel(immediately: true)
@@ -185,25 +189,24 @@ struct StatusPanelView: View {
                 }
             }
             // A thought, from wherever you are — kept in Tankar.
-            if !meeting.isRecording, dictation.engine.isInstalled {
+            if !meeting.isRecording, speechReady {
                 PanelRow(title: "Säg en tanke", icon: "lightbulb",
-                         shortcut: Settings.thoughtShortcut?.chip, chip: true) {
+                         shortcut: Settings.thoughtShortcut.map { Self.held($0.inlineName) }) {
                     (NSApp.delegate as? AppDelegate)?.closeStatusPanel(immediately: true)
                     Dictation.shared.startThought()
                 }
             }
             // The last dictation, typed into the app you were in, as ⌃⌥V does.
             if !dictation.recent.isEmpty {
-                PanelRow(title: "Klistra in senaste", icon: "doc.on.clipboard", shortcut: "⌃⌥V") {
+                PanelRow(title: "Klistra in senaste dikteringen", icon: "doc.on.clipboard", shortcut: "⌃⌥V") {
                     (NSApp.delegate as? AppDelegate)?.closeStatusPanel(immediately: true)
                     dictation.paste()
                 }
             }
-            PanelRow(title: "Öppna Mindtalk", icon: "house") { go(.dictation) }
             PanelSeparator()
             language
-            appearance
             PanelSeparator()
+            PanelRow(title: "Öppna Mindtalk") { go(.dictation) }
             PanelRow(title: "Inställningar…", shortcut: "⌘,") { go(.settings) }
             PanelRow(title: "Avsluta Mindtalk", shortcut: "⌘Q") { NSApp.terminate(nil) }
         }
@@ -225,6 +228,9 @@ struct StatusPanelView: View {
             else { content }
         }
     }
+
+    /// A key held for something, said as a menu would: "Håll vänster ⌥".
+    static func held(_ key: String) -> String { String(localized: "Håll \(key)") }
 
     /// The meeting shortcut that works everywhere — or Mindtalk's own ⇧⌘R when it's off.
     static var meetingKeys: String {
@@ -340,22 +346,11 @@ struct StatusPanelView: View {
                         Text("Ett annat program spärrar tangentbordet just nu, så tangenten för diktering fungerar inte.")
                             .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                     } else if dictation.isReady {
-                        if dictation.hotkey.modifierKeys.count > 1 {
-                            // The chip on a line of its own: "Diktera med", then the keys.
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Diktera med")
-                                KeyChip(text: dictation.hotkey.chip)
-                                    .lineLimit(nil)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        } else {
-                            Text(LocalizedStringKey(dictation.mode == .toggle ? "Tryck" : "Håll in"))
-                            KeyChip(text: dictation.hotkey.chip)
-                                .fixedSize()
-                                .layoutPriority(1)
-                                .padding(.horizontal, 1)
-                            Text("för att diktera")
-                        }
+                        // In words, as a menu says it: "Håll höger ⌥ för att diktera".
+                        let key = dictation.hotkey.shortName
+                        Text(verbatim: dictation.mode == .toggle ? String(localized: "Tryck \(key) för att diktera")
+                                                                 : String(localized: "Håll \(key) för att diktera"))
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                     } else {
                         let left = FloatingTabBar.stepsLeft(dictation)
                         if left > 0 {
@@ -422,7 +417,7 @@ struct StatusPanelView: View {
     private func figure(_ value: Int, _ label: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text(Stats.number(value))
-                .font(.system(size: 20, weight: .regular, design: .serif))
+                .font(.system(size: 17, weight: .regular, design: .serif))
                 .monospacedDigit()
                 .contentTransition(.numericText())
             Text(LocalizedStringKey(label)).foregroundStyle(DS.Colors.muted)
@@ -466,66 +461,6 @@ struct StatusPanelView: View {
         }
         .animation(.easeOut(duration: 0.18), value: confirming)
     }
-
-    // MARK: Appearance
-
-    /// Light, dark or following the Mac, straight from the menu bar.
-    private var appearance: some View {
-        HStack(spacing: 12) {
-            Text("Utseende").font(.system(size: 14))
-            Spacer(minLength: 8)
-            AppearancePicker(prefs: .shared)
-        }
-        .padding(.horizontal, PanelMetrics.inset)
-        .frame(minHeight: 40)
-    }
-}
-
-/// Three symbols in a pill: sun, moon, and half a circle for following the Mac.
-private struct AppearancePicker: View {
-    @ObservedObject var prefs: AppPrefs
-    @Namespace private var pill
-
-    private func symbol(_ a: Appearance) -> String {
-        switch a {
-        case .light: return "sun.max"
-        case .dark: return "moon"
-        case .system: return "circle.lefthalf.filled"
-        }
-    }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(Appearance.allCases) { a in
-                let selected = prefs.appearance == a
-                Button {
-                    withAnimation(.spring(duration: 0.35, bounce: 0.2)) { prefs.appearance = a }
-                } label: {
-                    Image(systemName: symbol(a))
-                        .font(.system(size: 12.5, weight: selected ? .semibold : .medium))
-                        .foregroundStyle(selected ? AnyShapeStyle(.primary) : AnyShapeStyle(DS.Colors.muted))
-                        .frame(width: 34, height: 28)
-                        .background {
-                            if selected {
-                                Capsule()
-                                    .fill(DS.Colors.pill)
-                                    .shadow(color: .black.opacity(0.14), radius: 3, y: 1)
-                                    .overlay(Capsule().strokeBorder(DS.Colors.fieldStroke.opacity(0.6), lineWidth: 0.5))
-                                    .matchedGeometryEffect(id: "pill", in: pill)
-                            }
-                        }
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .help(a.title)
-                .accessibilityLabel(a.title)
-                .accessibilityAddTraits(selected ? .isSelected : [])
-            }
-        }
-        .padding(3)
-        .background(Capsule().fill(DS.Colors.chip))
-        .fixedSize()
-    }
 }
 
 // MARK: - Rows
@@ -558,8 +493,6 @@ private struct PanelRow: View {
     /// The recording dot, for "Starta möte".
     var dot = false
     var shortcut: String? = nil
-    /// The shortcut as a keycap (the thought key), as in the header's hint.
-    var chip = false
     var muted = false
     let action: () -> Void
 
@@ -581,7 +514,7 @@ private struct PanelRow: View {
                     .foregroundStyle(muted ? AnyShapeStyle(DS.Colors.muted) : AnyShapeStyle(.primary))
                 Spacer(minLength: 12)
                 if let shortcut {
-                    if chip { KeyChip(text: shortcut, small: true) } else { Text(shortcut).font(.system(size: 13)).foregroundStyle(DS.Colors.faint) }
+                    Text(shortcut).font(.system(size: 13)).foregroundStyle(DS.Colors.faint)
                 }
             }
             .font(.system(size: 14))
