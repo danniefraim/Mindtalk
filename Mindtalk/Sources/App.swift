@@ -1678,7 +1678,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     print("OK   \(job.url.lastPathComponent)")
                     print("     titel: \(m.title)")
                     print(String(format: "     längd %.0f s · %d ord · %d talare · ljud %@ · datum %@", m.duration, m.words.count, m.cast.order.count,
-                                 m.hasAudio ? "ja" : "nej", m.date.formatted()))
+                                 m.hasAudio ? "ja" : "nej", m.source?.dateKnown == false ? "okänt" : m.date.formatted()))
                     print("     början: \(text.prefix(400))")
                     if let s = m.summary {
                         print("     sammanfattning: \(s.overview.prefix(400))")

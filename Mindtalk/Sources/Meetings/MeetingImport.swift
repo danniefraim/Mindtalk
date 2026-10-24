@@ -589,7 +589,9 @@ final class MeetingImport: ObservableObject {
 
     /// When it was recorded: what the file itself says (a phone's video, a voice memo),
     /// else when the file was made, else now — never in the future. `known` is false
-    /// for that last case: the meeting is then dated by its import, and says so.
+    /// for that last case: the meeting is then dated by its import, and says so. A file
+    /// downloaded from the internet counts as that last case too: its dates on disk are
+    /// when it arrived.
     nonisolated static func recordedDate(_ url: URL) async -> (date: Date, known: Bool) {
         let now = Date()
         // Not before the year 2000 (a zero date in a file's header is 1904 or 1970).
@@ -601,6 +603,8 @@ final class MeetingImport: ObservableObject {
             let text = (try? await item.load(.stringValue)) ?? nil
             if text == nil || text!.count >= 10 { return (date, true) }
         }
+        // The browser, Mail and Messages mark what they bring in (quarantine).
+        if getxattr(url.path, "com.apple.quarantine", nil, 0, 0, 0) >= 0 { return (now, false) }
         if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path) {
             let created = attributes[.creationDate] as? Date
             let modified = attributes[.modificationDate] as? Date
