@@ -1383,6 +1383,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if args.contains("--writer-test") {
             exit(SummaryWriterChoice.selfTest())
         }
+        // `Mindtalk --remux-test file…`: WebM and Matroska files read as an import reads
+        // them (MatroskaAudio), each one's length printed; nothing is imported.
+        if let i = args.firstIndex(of: "--remux-test") {
+            let files = args[(i + 1)...].map { URL(fileURLWithPath: $0) }
+            // The main thread kept turning (an import's messages want it); the app never starts.
+            Task.detached {
+                var failed: Int32 = 0
+                for file in files {
+                    let out = FileManager.default.temporaryDirectory.appendingPathComponent("remux-test-\(UUID().uuidString).caf")
+                    do {
+                        let seconds = try await MeetingImport.readSound(from: file, to: out) { _ in }
+                        print("OK   \(file.lastPathComponent): \(String(format: "%.2f", seconds)) s")
+                    } catch {
+                        failed += 1
+                        print("FEL  \(file.lastPathComponent): \(String(describing: error))")
+                    }
+                    try? FileManager.default.removeItem(at: out)
+                }
+                fflush(stdout)
+                exit(failed)
+            }
+            RunLoop.main.run()
+        }
         // `Mindtalk --call-detect-test`: call apps told apart; what uses a mic now.
         if args.contains("--call-detect-test") {
             exit(CallDetector.selfTest())

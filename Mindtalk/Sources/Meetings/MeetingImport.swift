@@ -519,6 +519,22 @@ final class MeetingImport: ObservableObject {
     /// Reads the file's sound — any format macOS can, video too — as 16 kHz mono into
     /// `out`, as a meeting records it. Returns its length in seconds.
     nonisolated static func readSound(from url: URL, to out: URL, progress: @escaping @Sendable (Double) -> Void) async throws -> Double {
+        // WebM and Matroska: macOS decodes the sound but can't open the file. Its sound,
+        // as it is, in a file macOS opens; read from there, and that copy let go after.
+        if MatroskaAudio.extensions.contains(url.pathExtension.lowercased()) {
+            let inner: URL
+            do {
+                guard let made = try MatroskaAudio.remux(url, into: FileManager.default.temporaryDirectory) else { throw ImportError.unreadable }
+                inner = made
+            } catch MatroskaAudio.Failure.noAudio {
+                throw ImportError.noSound
+            } catch {
+                log.error("import: webm/mkv not read: \(String(describing: error), privacy: .public)")
+                throw ImportError.unreadable
+            }
+            defer { try? FileManager.default.removeItem(at: inner) }
+            return try await readSound(from: inner, to: out, progress: progress)
+        }
         let asset = AVURLAsset(url: url)
         if (try? await asset.load(.hasProtectedContent)) == true { throw ImportError.protected }
         // A type macOS knows by name but can't read (webm, mkv, ogg): said as such, not "no sound".
