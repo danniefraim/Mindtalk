@@ -239,7 +239,11 @@ final class Vocabulary: ObservableObject {
     func rename(_ entry: VocabularyEntry, to word: String) {
         let word = Self.tidy(word)
         guard Self.isValidWord(word), let i = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+        guard word.count <= 60 else { return NSSound.beep() }
         offerUndo(String(localized: "Ändrade till ”\(word)”"), before: entries)
+        // As when adding: the new word is no longer anyone's mishearing (the two would
+        // swap in every text), nor its own.
+        for k in entries.indices { entries[k].heardAs.removeAll { Self.key($0) == Self.key(word) } }
         // Renaming onto another entry merges the two.
         if let j = entries.firstIndex(where: { $0.id != entry.id && Self.key($0.word) == Self.key(word) }) {
             for v in entries[i].heardAs where !entries[j].heardAs.contains(where: { Self.key($0) == Self.key(v) }) {

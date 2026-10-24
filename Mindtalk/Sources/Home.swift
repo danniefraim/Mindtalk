@@ -384,7 +384,7 @@ struct HomeHero: View {
         if case .finishing = session.phase {
         } else if voices.state == .ready, dictation.engine.isInstalled {
             tileButton("Starta möte", dot: true, primary: true, keys: meetingKeys,
-                       help: micBusy ? busy : String(localized: "Spela in ett möte i rummet")) {
+                       help: micBusy ? busy : String(localized: "Spela in ett möte")) {
                 // To the start card, waiting for your choice: nothing is recorded yet.
                 session.armed = true
                 page = .meetings

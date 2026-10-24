@@ -145,7 +145,7 @@ struct ImportCard: View {
                 }
                 Image(systemName: failed ? "exclamationmark.triangle.fill" : done ? "checkmark" : job.video ? "film" : "waveform")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(failed ? DS.Colors.warning : done ? DS.Colors.good : DS.Colors.ink)
+                    .foregroundStyle(failed ? DS.Colors.warning : DS.Colors.ink)
                     .contentTransition(.symbolEffect(.replace))
             }
             .accessibilityHidden(true)

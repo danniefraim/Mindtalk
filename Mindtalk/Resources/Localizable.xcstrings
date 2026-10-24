@@ -2199,6 +2199,22 @@
         }
       }
     },
+    "AI-apparna hittar inte Mindtalk just nu. Laga det med en knapptryckning.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The AI apps can't find Mindtalk right now. Fix it with one click."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI-apparna hittar inte Mindtalk just nu. Laga det med en knapptryckning."
+          }
+        }
+      }
+    },
     "Aldrig": {
       "localizations": {
         "en": {
@@ -4434,6 +4450,7 @@
       }
     },
     "Det Claude eller ChatGPT läser här skickas till deras servrar, som när du klistrar in text i chatten. Ljud och röstavtryck stannar alltid på din Mac.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4611,6 +4628,22 @@
         }
       }
     },
+    "Det du skrev under Hörs ofta som är för långt. Högst 60 tecken.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you wrote under Often heard as is too long. 60 characters at most."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det du skrev under Hörs ofta som är för långt. Högst 60 tecken."
+          }
+        }
+      }
+    },
     "Det du skriver och markerar hamnar här.": {
       "localizations": {
         "en": {
@@ -4623,6 +4656,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Det du skriver och markerar hamnar här."
+          }
+        }
+      }
+    },
+    "Det en AI-app i molnet läser här, som Claude eller ChatGPT, skickas till deras servrar, som när du klistrar in text i chatten. Ljud och röstavtryck stannar alltid på din Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What an AI app in the cloud, like Claude or ChatGPT, reads here is sent to their servers, just as when you paste text into a chat. Audio and voiceprints always stay on your Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det en AI-app i molnet läser här, som Claude eller ChatGPT, skickas till deras servrar, som när du klistrar in text i chatten. Ljud och röstavtryck stannar alltid på din Mac."
           }
         }
       }
@@ -4837,6 +4886,7 @@
       }
     },
     "Det som brukar bli fel är för långt. Högst 60 tecken.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6032,6 +6082,22 @@
         }
       }
     },
+    "Ett möte går att läsa två minuter efter att det har slutat. Fråga igen om en stund.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A meeting can be read two minutes after it has ended. Ask again in a moment."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ett möte går att läsa två minuter efter att det har slutat. Fråga igen om en stund."
+          }
+        }
+      }
+    },
     "Ett möte kunde inte flyttas till papperskorgen": {
       "localizations": {
         "en": {
@@ -6108,6 +6174,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ett möte spelas in. Försök igen när det är slut."
+          }
+        }
+      }
+    },
+    "Ett möte spelas in. Öppna länken igen när det är klart.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A meeting is being recorded. Open the link again when it's over."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ett möte spelas in. Öppna länken igen när det är klart."
           }
         }
       }
@@ -7247,6 +7329,22 @@
         }
       }
     },
+    "Fungerar när mikrofonen och talmodellen är klara.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Works once the microphone and the speech model are ready."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fungerar när mikrofonen och talmodellen är klara."
+          }
+        }
+      }
+    },
     "Fungerar så fort dikteringen gör det.": {
       "localizations": {
         "en": {
@@ -7736,6 +7834,23 @@
         }
       }
     },
+    "Genvägarna behöver Hjälpmedel.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shortcuts need Accessibility."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genvägarna behöver Hjälpmedel."
+          }
+        }
+      }
+    },
     "Genvägarna behöver Hjälpmedel. Tillåt det på Hem.": {
       "extractionState": "stale",
       "localizations": {
@@ -8029,6 +8144,22 @@
         }
       }
     },
+    "Går att visa när mötet är klart.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can be shown when the meeting is over."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Går att visa när mötet är klart."
+          }
+        }
+      }
+    },
     "Går att öppna när mötet är klart": {
       "localizations": {
         "en": {
@@ -8237,6 +8368,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hittar ingen fungerande mikrofon."
+          }
+        }
+      }
+    },
+    "Hittar programmet inte mötet du just hade?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't the app find the meeting you just had?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hittar programmet inte mötet du just hade?"
           }
         }
       }
@@ -12187,6 +12334,7 @@
       }
     },
     "Ladda ned Nemotron 3 först, under Inställningar → Möten.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -12230,6 +12378,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ladda ned igen"
+          }
+        }
+      }
+    },
+    "Ladda ned röstmodellen först, under Inställningar → Möten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download the voice model first, under Settings → Meetings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda ned röstmodellen först, under Inställningar → Möten."
           }
         }
       }
@@ -12587,6 +12751,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Laddas ned i bakgrunden medan du fortsätter"
+          }
+        }
+      }
+    },
+    "Laga": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fix"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laga"
           }
         }
       }
@@ -13791,6 +13971,7 @@
       }
     },
     "Läste %@ · hela texten": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13807,6 +13988,7 @@
       }
     },
     "Läste %@ · sammanfattning": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13915,6 +14097,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Läste de %lld senaste mötena"
+          }
+        }
+      }
+    },
+    "Läste texten i %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read the text of %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läste texten i %@"
           }
         }
       }
@@ -14490,6 +14688,7 @@
       }
     },
     "Med knappen Starta möte ovanför, eller från menyraden.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -14501,6 +14700,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Med knappen Starta möte ovanför, eller från menyraden."
+          }
+        }
+      }
+    },
+    "Med knappen ovanför, eller från menyraden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With the button above, or from the menu bar."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Med knappen ovanför, eller från menyraden."
           }
         }
       }
@@ -16260,6 +16475,22 @@
         }
       }
     },
+    "Mötet finns inte längre i Mindtalk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting is no longer in Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet finns inte längre i Mindtalk."
+          }
+        }
+      }
+    },
     "Mötet fortsätter": {
       "localizations": {
         "en": {
@@ -17338,6 +17569,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Något är fel med inspelningen"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
           }
         }
       }
@@ -20158,6 +20405,7 @@
       }
     },
     "Spela in ett möte i rummet": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -21206,6 +21454,22 @@
         }
       }
     },
+    "Säg en tanke på sidan Tankar. Tangenten fungerar när Hjälpmedel är på.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Say a thought on the Thoughts page. The key works once Accessibility is on."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Säg en tanke på sidan Tankar. Tangenten fungerar när Hjälpmedel är på."
+          }
+        }
+      }
+    },
     "Säg något för att testa": {
       "localizations": {
         "en": {
@@ -22047,6 +22311,22 @@
         }
       }
     },
+    "Ta bort… (går när mötet eller importen är klar)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove… (possible when the meeting or import is done)"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort… (går när mötet eller importen är klar)"
+          }
+        }
+      }
+    },
     "Ta med samtal på datorn": {
       "extractionState": "manual",
       "localizations": {
@@ -22784,6 +23064,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tanke"
+          }
+        }
+      }
+    },
+    "Tanken finns inte längre i Mindtalk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The thought is no longer in Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tanken finns inte längre i Mindtalk."
           }
         }
       }

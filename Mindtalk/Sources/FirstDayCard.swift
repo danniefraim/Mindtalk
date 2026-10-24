@@ -156,7 +156,7 @@ struct FirstDayCard: View {
                 }
             }
             row(3, done: s.meeting, title: "Spela in ett möte", link: ("Öppna Möten", { page = .meetings })) {
-                Text("Med knappen Starta möte ovanför, eller från menyraden.")
+                Text("Med knappen ovanför, eller från menyraden.")
             }
 
             // Where Mindtalk goes when the window closes — said before you close it.

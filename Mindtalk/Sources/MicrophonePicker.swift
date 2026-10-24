@@ -134,7 +134,7 @@ struct MicrophonePicker: View {
                         HStack(spacing: 6) {
                             let hearing = mics.hearing
                             Circle()
-                                .fill(hearing.good == true ? DS.Colors.good : hearing.good == false ? Color.orange : DS.Colors.fieldStroke)
+                                .fill(hearing.good == true ? DS.Colors.ink : hearing.good == false ? Color.orange : DS.Colors.fieldStroke)
                                 .frame(width: 7, height: 7)
                             Text(hearing.text).font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                         }

@@ -81,7 +81,8 @@ struct ThoughtsStep: View {
                             .raised(cornerRadius: DS.Radius.panel)
                             .transition(.opacity)
                     }
-                    anywhere
+                    // The key works only with Hjälpmedel: without it, the button is the way.
+                    if !live.useButton { anywhere }
                 }
                 .frame(width: Self.columnWidth, height: Self.columnHeight, alignment: .top)
                 .staggered(1)

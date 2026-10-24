@@ -70,25 +70,33 @@ struct ClaudeSettingsCard: View {
         }
     }
 
+    /// Bumped by Laga, so the card looks at the link again.
+    @State private var helperMended = 0
+
     var body: some View {
         VStack(spacing: 0) {
             header
             // Everything else stays on the Mac; this is the one way text leaves it. Said
             // plainly, every time, not only in the first-time dialog.
-            Text("Det Claude eller ChatGPT läser här skickas till deras servrar, som när du klistrar in text i chatten. Ljud och röstavtryck stannar alltid på din Mac.")
+            Text("Det en AI-app i molnet läser här, som Claude eller ChatGPT, skickas till deras servrar, som när du klistrar in text i chatten. Ljud och röstavtryck stannar alltid på din Mac.")
                 .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 22).padding(.top, -6).padding(.bottom, 16)
-            if !ClaudeInstall.helperReachable {
-                // The same Flytta as under Allmänt: moved and opened from there in one press.
+            if !ClaudeInstall.helperReachable || helperMended < 0 {
+                // Outside Program: the same Flytta as under Allmänt. In Program with the link
+                // gone: made again on the spot.
                 HStack(alignment: .center, spacing: 16) {
-                    Text("Flytta Mindtalk till mappen Program och öppna den igen, annars hittar AI-apparna inte Mindtalk.")
+                    Text(AppMover.isInApplications
+                         ? "AI-apparna hittar inte Mindtalk just nu. Laga det med en knapptryckning."
+                         : "Flytta Mindtalk till mappen Program och öppna den igen, annars hittar AI-apparna inte Mindtalk.")
                         .font(.system(size: 13, weight: .medium))
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     if !AppMover.isInApplications {
                         Button("Flytta") { AppMover.moveNow() }.buttonStyle(.soft)
+                    } else {
+                        Button("Laga") { Bridge.installHelperLink(); helperMended += 1 }.buttonStyle(.soft)
                     }
                 }
                 .padding(.horizontal, 22).padding(.bottom, 16)
@@ -103,6 +111,9 @@ struct ClaudeSettingsCard: View {
                     .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 22).padding(.vertical, 16)
+                // What was read before, and what was refused while off: still there to see and clear.
+                CardDivider()
+                log
             }
         }
         .card()
@@ -341,7 +352,8 @@ struct ClaudeSettingsCard: View {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(showAll ? sharing.entries : Array(sharing.entries.prefix(Self.shown))) { entry in
                         // A refusal reads quieter: nothing went out.
-                        Text(verbatim: ClaudeLogLine.text(for: entry, detailed: showAll))
+                        // With how much was sent, always: that's what the log is for.
+                        Text(verbatim: ClaudeLogLine.text(for: entry))
                             .font(.system(size: 12.5)).monospacedDigit()
                             .foregroundStyle(DS.Colors.muted.opacity(entry.wasRefused ? 0.6 : 1))
                             .fixedSize(horizontal: false, vertical: true)
@@ -395,9 +407,9 @@ enum ClaudeLogLine {
             let hits = n == 0 ? String(localized: "inga träffar") : n == 1 ? String(localized: "mcp|1 träff") : String(localized: "mcp|\(n) träffar")
             return place.isEmpty ? String(localized: "Sökte, \(hits)") : String(localized: "Sökte i \(place), \(hits)")
         case "mindtalk_get_meeting":
-            return String(localized: "Läste \(scope) · sammanfattning")
+            return String(localized: "Läste \(scope)")
         case "mindtalk_get_transcript":
-            return String(localized: "Läste \(scope) · hela texten")
+            return String(localized: "Läste texten i \(scope)")
         case "mindtalk_list_meetings":
             let meetings = n == 1 ? String(localized: "1 möte") : String(localized: "\(n) möten")
             return place.isEmpty || all

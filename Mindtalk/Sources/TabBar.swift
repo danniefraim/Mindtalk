@@ -289,6 +289,7 @@ struct FloatingTabBar: View {
         if n > 1 { return String(localized: "\(n) steg kvar") }
         if !dictation.accessibilityGranted { return String(localized: "Hjälpmedel saknas") }
         if !dictation.micGranted { return String(localized: "Mikrofon saknas") }
+        if case .failed = dictation.model { return String(localized: "Talmodellen startade inte") }
         return String(localized: "Talmodellen saknas")
     }
 
@@ -401,7 +402,10 @@ private struct AboutPopover: View {
                 Text(verbatim: "© 2026 Mindact Solutions AB").font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
             }
             VStack(alignment: .leading, spacing: 8) {
+                // Not over a meeting: its key and its panel would be in the way of both.
                 Button("Visa introduktionen", action: introduction).buttonStyle(.soft)
+                    .disabled(MeetingSession.shared.isBusy)
+                    .help(MeetingSession.shared.isBusy ? String(localized: "Går att visa när mötet är klart.") : "")
                 Button("Tack till och licenser…", action: credits).buttonStyle(.soft)
             }
         }

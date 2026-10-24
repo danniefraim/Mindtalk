@@ -391,7 +391,12 @@ struct SummaryWritersCard: View {
                 Menu {
                     Button("Visa i Finder") { DiskSize.reveal(m.directory) }
                     Divider()
-                    Button("Ta bort…", role: .destructive) { confirmRemove = m }
+                    // Not while it may be writing a summary (a meeting ending, an import).
+                    if MeetingSession.shared.isBusy || MeetingImport.shared.busy {
+                        Button("Ta bort… (går när mötet eller importen är klar)") {}.disabled(true)
+                    } else {
+                        Button("Ta bort…", role: .destructive) { confirmRemove = m }
+                    }
                 } label: { ModelParts.more }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 .help("Mer")

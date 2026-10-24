@@ -570,7 +570,7 @@ final class MeetingSession: ObservableObject {
             return
         }
         guard VoiceModels.isInstalled else {
-            lastError = String(localized: "Ladda ned Nemotron 3 först, under Inställningar → Möten.")
+            lastError = String(localized: "Ladda ned röstmodellen först, under Inställningar → Möten.")
             return
         }
         guard Recorder.micAuthorized else {
@@ -712,7 +712,7 @@ final class MeetingSession: ObservableObject {
             return
         }
         guard VoiceModels.isInstalled else {
-            lastError = String(localized: "Ladda ned Nemotron 3 först, under Inställningar → Möten.")
+            lastError = String(localized: "Ladda ned röstmodellen först, under Inställningar → Möten.")
             return
         }
         guard saved.finished, saved.hasAudio else {

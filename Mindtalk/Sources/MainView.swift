@@ -320,10 +320,15 @@ private struct ModelControl: View {
                 if dictation.model == .missing { dictation.downloadModel() } else { dictation.retryModel() }
             }
                 .buttonStyle(.ink)
+        case .downloading(let p) where SpeechModel.isPreparing(p):
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Förbereder…").foregroundStyle(DS.Colors.muted)
+            }
         case .downloading(let p):
             HStack(spacing: 10) {
-                ProgressView(value: p).frame(width: 110).tint(DS.Colors.ink)
-                Text(p, format: .percent.precision(.fractionLength(0)))
+                ProgressView(value: min(1, p / 0.9)).frame(width: 110).tint(DS.Colors.ink)
+                Text(min(1, p / 0.9), format: .percent.precision(.fractionLength(0)))
                     .monospacedDigit()
                     .foregroundStyle(DS.Colors.muted)
                 Button("Avbryt") { dictation.cancelDownload() }.buttonStyle(.soft)
@@ -516,7 +521,11 @@ struct SettingsPage: View {
         VStack(spacing: 0) {
             CardRow(title: "Genvägar",
                     detail: dictation.accessibilityGranted ? "Genvägarna fungerar överallt när Mindtalk har Hjälpmedel."
-                        : "Genvägarna behöver Hjälpmedel. Tillåt det på Hem.") { EmptyView() }
+                        : "Genvägarna behöver Hjälpmedel.") {
+                if !dictation.accessibilityGranted {
+                    Button("Tillåt") { dictation.requestAccessibility() }.buttonStyle(.soft)
+                }
+            }
             CardDivider()
             CardRow(title: "Diktering", detail: dictationKeyDetail) {
                 DictationKeyField(dictation: dictation)

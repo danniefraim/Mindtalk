@@ -181,7 +181,7 @@ struct StatusPanelView: View {
                         }
                     }
                 }
-            } else if voicesReady {
+            } else if voicesReady, speechReady {
                 PanelRow(title: "Starta möte", dot: true, shortcut: Self.meetingKeys) {
                     // Gone at once (no fade): the window the meeting opens in comes in front.
                     (NSApp.delegate as? AppDelegate)?.closeStatusPanel(immediately: true)
@@ -203,7 +203,8 @@ struct StatusPanelView: View {
                     dictation.paste()
                 }
             }
-            PanelSeparator()
+            // Only between rows: with none (before the models are here) one line is enough.
+            if meeting.isBusy || (voicesReady && speechReady) || speechReady || !dictation.recent.isEmpty { PanelSeparator() }
             language
             PanelSeparator()
             PanelRow(title: "Öppna Mindtalk") { go(.dictation) }
@@ -336,7 +337,7 @@ struct StatusPanelView: View {
                     // The files are in; a percentage stuck at 95 would only look stuck.
                     Text("Förbereder talmodellen…")
                 case .downloading(let p):
-                    Text("Laddar ned talmodellen · \(Int(p * 100)) %").monospacedDigit()
+                    Text("Laddar ned talmodellen · \(Int(min(1, p / 0.9) * 100)) %").monospacedDigit()
                 case .loading:
                     Text("Startar…")
                 default:
@@ -568,8 +569,9 @@ private struct LanguageRow: View {
             .transition(.opacity)
         } else if let download {
             HStack(spacing: 5) {
-                Text("\(Int(download * 100)) %").monospacedDigit()
-                ProgressRing(progress: download)
+                // As everywhere else: the last tenth is the preparing, not the download.
+                Text("\(Int(min(1, download / 0.9) * 100)) %").monospacedDigit()
+                ProgressRing(progress: min(1, download / 0.9))
             }
         } else if !installed {
             HStack(spacing: 4) {

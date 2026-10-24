@@ -296,6 +296,8 @@ final class Bridge: @unchecked Sendable {
         let parts = path.split(separator: "/").map(String.init)
         if let app = parts.first(where: { $0.hasSuffix(".app") && $0.count > 4 }) { return String(app.dropLast(4)) }
         guard let last = parts.last, !last.isEmpty else { return nil }
+        // Claude Code's own install: ~/.local/share/claude/versions/2.1.309, a bare version.
+        if path.contains("/claude/versions/") { return "Claude Code" }
         // `mindtalk folders` typed in a shell: the shell is the parent.
         if ["zsh", "bash", "sh", "fish", "dash", "tcsh", "ksh", "nu", "login"].contains(last) { return String(localized: "Terminalen") }
         return last

@@ -122,6 +122,10 @@ struct ReadyStep: View {
             ReadyRow(icon: "lightbulb", state: .ready, title: "Tankar", keys: keys, detail: works)
         case .loading, .downloading:
             ReadyRow(icon: "lightbulb", state: .waiting, title: "Tankar", keys: keys, detail: works)
+        case .accessibility:
+            // Said on Tankar already; only the key waits for Hjälpmedel.
+            ReadyRow(icon: "lightbulb", state: .optional, title: "Tankar", keys: keys,
+                     detail: String(localized: "Säg en tanke på sidan Tankar. Tangenten fungerar när Hjälpmedel är på."))
         default:
             // The same thing stands in the way; the button is on the row above.
             ReadyRow(icon: "lightbulb", state: .optional, title: "Tankar", keys: keys,
@@ -133,9 +137,15 @@ struct ReadyStep: View {
 
     @ViewBuilder private var meetingsRow: some View {
         let keys = Settings.meetingShortcut?.chip.replacingOccurrences(of: " ", with: "")
+        // A meeting needs the microphone and the speech model too, not only the voices.
+        let cantStart: Bool = { switch blocker { case .microphone, .modelMissing, .modelFailed: return true; default: return false } }()
+        let waits: Bool = { switch blocker { case .loading, .downloading: return true; default: return false } }()
         switch voices.state {
+        case .ready where cantStart:
+            ReadyRow(icon: "person.2.wave.2", state: .optional, title: "Möten", keys: keys,
+                     detail: String(localized: "Fungerar när mikrofonen och talmodellen är klara."))
         case .ready:
-            ReadyRow(icon: "person.2.wave.2", state: .ready, title: "Möten", keys: keys,
+            ReadyRow(icon: "person.2.wave.2", state: waits ? .waiting : .ready, title: "Möten", keys: keys,
                      detail: String(localized: "Spelar in möten i rummet och samtal på datorn, och håller isär vem som säger vad."))
         case .downloading(let p):
             ReadyRow(icon: "person.2.wave.2", state: .progress(p), title: "Möten", keys: keys,

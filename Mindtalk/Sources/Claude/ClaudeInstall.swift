@@ -412,7 +412,9 @@ enum ClaudeInstall {
 
     /// LM Studio: like Cursor's, in its own scheme.
     static func lmStudioURL(helperPath: String = helperLinkURL.path) -> URL {
-        let config = Data(serverJSON(helperPath: helperPath).utf8).base64EncodedString()
+        let base64 = Data(serverJSON(helperPath: helperPath).utf8).base64EncodedString()
+        // Percent-encoded as Cursor's: a + would come back as a space.
+        let config = base64.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? base64
         return URL(string: "lmstudio://add_mcp?name=mindtalk&config=\(config)")!
     }
 

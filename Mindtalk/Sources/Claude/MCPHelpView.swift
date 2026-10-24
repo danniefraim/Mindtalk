@@ -285,6 +285,8 @@ struct MCPHelpView: View {
                  String(localized: "Kontrollera att MCP är på här, och starta om programmet.")),
             .ask(String(localized: "Säger programmet att Mindtalk inte är igång?"),
                  String(localized: "Öppna Mindtalk.")),
+            .ask(String(localized: "Hittar programmet inte mötet du just hade?"),
+                 String(localized: "Ett möte går att läsa två minuter efter att det har slutat. Fråga igen om en stund.")),
             .ask(String(localized: "Vilka program kan läsa?"),
                  String(localized: "Alla program som körs som du på den här Macen kan fråga när MCP är på. Loggen här visar varje läsning.")),
             .ask(String(localized: "Vill du slå av?"),

@@ -1780,6 +1780,14 @@ struct MeetingView: View {
             // A "Fortsätt mötet" that couldn't is said here — not later on another page.
             if !live, recorder.phase == .idle { recorder.lastError = nil }
         }
+        // A second link into this meeting, at another second: the text goes there too, as
+        // the sound does.
+        .onReceive(NotificationCenter.default.publisher(for: .openMeeting)) { note in
+            guard !live, note.object as? UUID == record.id, let at = note.userInfo?["at"] as? Double else { return }
+            MeetingsPage.focusAt = nil
+            tab = .transcript
+            focusTurn = MeetingText.turns(record.words, paragraphs: true).last { $0.start <= at + 0.05 }?.id
+        }
         .onAppear {
             title = record.title
             // Nothing can write a summary on this Mac: the text first, not an empty tab.
@@ -3614,7 +3622,7 @@ private struct RewriteBanner: View {
             if writing {
                 SettlingLine(color: DS.Colors.ink).frame(width: 56)
             } else {
-                Image(systemName: "checkmark.circle.fill").font(.system(size: 18)).foregroundStyle(DS.Colors.good)
+                Image(systemName: "checkmark.circle.fill").font(.system(size: 18)).foregroundStyle(DS.Colors.ink)
                     .transition(.scale.combined(with: .opacity))
             }
             VStack(alignment: .leading, spacing: 3) {

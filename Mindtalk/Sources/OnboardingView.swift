@@ -32,7 +32,11 @@ struct OnboardingView: View {
         #endif
         return .welcome
     }
-    @State private var chosen: Set<SpeechModel> = [Settings.engine]
+    /// The language in use, and on a replay also those already here or on their way:
+    /// shown ticked, so Fortsätt doesn't stop a download started elsewhere.
+    @State private var chosen: Set<SpeechModel> = Set(SpeechModel.allCases.filter {
+        $0.isInstalled || Dictation.shared.downloads[$0] != nil
+    }).union([Settings.engine])
     /// The listener for the word list (100 MB), fetched along with the speech model —
     /// ticked from the start; it's small and makes names right as you speak.
     @State private var listener = OnboardingView.defaultListener
@@ -259,6 +263,9 @@ struct OnboardingView: View {
             for m in order where !m.isInstalled { dictation.downloadModel(m) }
             if listener { Vocabulary.shared.fetchListener() }
             if voices, VoiceModels.shared.state == .missing { VoiceModels.shared.download() }
+            // Remembered until they're here: quitting before then picks them up again.
+            Self.rememberDownloads(order.filter { !$0.isInstalled }, voices: voices && !VoiceModels.isInstalled)
+            if !gemma { UserDefaults.standard.removeObject(forKey: Self.gemmaAfterSpeech) }
             // Gemma only if it fits next to everything else on its way, with room to spare.
             let others = LanguageStep.others(chosen: chosen, listener: listener, voices: voices)
             if gemma, let m = gemmaPick, LanguageStep.fits(m, besides: others), case .missing = BetterNotes.shared.state(m) {
@@ -280,6 +287,7 @@ struct OnboardingView: View {
         let order = SpeechModel.allCases.filter(chosen.contains)
         if !chosen.contains(dictation.engine), let first = order.first { dictation.setEngine(first) }
         for m in SpeechModel.allCases where !chosen.contains(m) { dictation.cancelDownload(m) }
+        UserDefaults.standard.removeObject(forKey: Self.gemmaAfterSpeech)
         go(1)
     }
 
@@ -308,10 +316,23 @@ struct OnboardingView: View {
         }
     }
 
-    /// At launch: a Gemma the introduction chose, left waiting when Mindtalk quit.
-    static func resumePendingGemma() {
-        guard let notes = pendingGemma else { return }
-        downloadAfterSpeech(notes, models: SpeechModel.allCases)
+    private static let introDownloads = "introDownloads"
+
+    private static func rememberDownloads(_ models: [SpeechModel], voices: Bool) {
+        let names = models.map(\.rawValue) + (voices ? ["voices"] : [])
+        if names.isEmpty { UserDefaults.standard.removeObject(forKey: introDownloads) }
+        else { Settings.keep(names, forKey: introDownloads) }
+    }
+
+    /// At launch: what the introduction chose to download and Mindtalk quit before it
+    /// was here, started again (the speech model first), then a Gemma left waiting.
+    static func resumeIntroDownloads() {
+        let names = UserDefaults.standard.stringArray(forKey: introDownloads) ?? []
+        let models = names.compactMap(SpeechModel.init(rawValue:))
+        for m in models where !m.isInstalled && Dictation.shared.downloads[m] == nil { Dictation.shared.downloadModel(m) }
+        if names.contains("voices"), VoiceModels.shared.state == .missing { VoiceModels.shared.download() }
+        rememberDownloads(models.filter { !$0.isInstalled }, voices: names.contains("voices") && !VoiceModels.isInstalled)
+        if let notes = pendingGemma { downloadAfterSpeech(notes, models: SpeechModel.allCases) }
     }
 
     private func go(_ delta: Int) {

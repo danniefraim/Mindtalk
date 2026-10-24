@@ -41,8 +41,9 @@ let instructions = """
     with mindtalk_get_transcript only when the summary and search are not enough, and expect it in pages. \
     Every item has a link (mindtalk://meeting/<id>?t=<seconds>, mindtalk://thought/<id>) that opens that \
     moment in Mindtalk: include it when you cite something. Dates are ISO 8601 in the user’s time zone. \
-    The user switches this on in Mindtalk under Settings → AI apps → MCP (Inställningar → AI-appar → MCP in Swedish); while it is on, everything \
-    Mindtalk has can be read, except a meeting still being recorded or that ended in the last two minutes.
+    The user switches this on in Mindtalk under Settings → AI apps → MCP (Inställningar → AI-appar → MCP in Swedish); while it is on, the user’s \
+    meetings and thoughts can be read (never dictations, audio or voiceprints), except a meeting still being recorded or that ended \
+    in the last two minutes: if the user asks about a meeting that just ended, say it can be read a couple of minutes after it ended.
     """
 
 switch CommandLine.arguments.dropFirst().first {

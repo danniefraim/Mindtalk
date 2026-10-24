@@ -42,7 +42,7 @@ struct VocabularyPage: View {
         if word.count > 60 { return String(localized: "Ordet är för långt. Högst 60 tecken.") }
         if !word.isEmpty, !Vocabulary.isValidWord(word) { return String(localized: "Skriv ett ord med bokstäver eller siffror.") }
         let variants = heardAs.split(separator: ",").map { Vocabulary.tidy(String($0)) }.filter { !$0.isEmpty }
-        if variants.contains(where: { $0.count > 60 }) { return String(localized: "Det som brukar bli fel är för långt. Högst 60 tecken.") }
+        if variants.contains(where: { $0.count > 60 }) { return String(localized: "Det du skrev under Hörs ofta som är för långt. Högst 60 tecken.") }
         if !word.isEmpty, variants.contains(where: { Vocabulary.key($0) == Vocabulary.key(word) }) {
             return String(localized: "Skriv hur det brukar bli fel, inte samma ord en gång till.")
         }
@@ -586,7 +586,7 @@ private struct ListenerRow: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: symbol)
                 .font(.system(size: 15))
-                .foregroundStyle(status.state == .ready ? DS.Colors.good : DS.Colors.muted)
+                .foregroundStyle(status.state == .ready ? DS.Colors.ink : DS.Colors.muted)
                 .frame(width: 20)
                 .padding(.top, 1)
             VStack(alignment: .leading, spacing: 4) {

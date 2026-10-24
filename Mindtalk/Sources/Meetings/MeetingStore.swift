@@ -724,6 +724,8 @@ final class MeetingStore: ObservableObject {
     func loadNow() { if !loaded { finishLoading(Self.readAll()) } }
     #endif
 
+    var isLoaded: Bool { loaded }
+
     /// Waits until the meetings are read (instant once they are).
     func ready() async {
         while !loaded { try? await Task.sleep(for: .milliseconds(30)) }

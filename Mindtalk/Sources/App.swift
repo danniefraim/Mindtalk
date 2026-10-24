@@ -1756,7 +1756,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         UNUserNotificationCenter.current().delegate = self
         // A call starting in Teams, Zoom or FaceTime: asked whether to take notes.
         CallDetector.shared.start()
-        if Settings.didOnboard { OnboardingView.resumePendingGemma() }
+        if Settings.didOnboard { OnboardingView.resumeIntroDownloads() }
         MeetingSession.shared.$phase.combineLatest(MeetingSession.shared.$warning.removeDuplicates(),
                                                    MeetingSession.shared.$pausedAt.map { $0 != nil }.removeDuplicates())
             .receive(on: RunLoop.main)
@@ -2127,13 +2127,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     private var pendingOpen: [URL] = []
     private static let log = Logger(subsystem: "ai.mindact.mindtalk", category: "App")
 
+    /// A link that leads nowhere: said, once the window is in front.
+    private static func linkMissing(_ text: String) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            let alert = NSAlert()
+            alert.messageText = text
+            alert.addButton(withTitle: String(localized: "OK"))
+            alert.runModal()
+        }
+    }
+
     /// Where a `mindtalk://` link leads: the window on that page, and the page told
     /// what to show (the pages listen; a page not yet built reads the statics on appear).
     static func follow(_ link: MindtalkLink) {
         switch link {
         case .meeting(let id, let at):
+            // Right after launch the meetings may still be read from disk.
+            guard MeetingStore.shared.isLoaded else {
+                Task { @MainActor in await MeetingStore.shared.ready(); follow(link) }
+                return
+            }
             guard MeetingStore.shared.meetings.contains(where: { $0.id == id }) else {
                 log.notice("link to a meeting that isn't here: \(id.uuidString, privacy: .public)")
+                showWindow(page: .meetings)
+                linkMissing(String(localized: "Mötet finns inte längre i Mindtalk."))
+                return
+            }
+            // A meeting being recorded holds the page: said, rather than opened later by surprise.
+            if MeetingSession.shared.isBusy, MeetingSession.shared.record?.id != id {
+                showWindow(page: .meetings)
+                linkMissing(String(localized: "Ett möte spelas in. Öppna länken igen när det är klart."))
                 return
             }
             MeetingsPage.lastOpen = id
@@ -2147,6 +2170,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         case .thought(let id):
             guard Thoughts.shared.all.contains(where: { $0.id == id }) else {
                 log.notice("link to a thought that isn't here: \(id.uuidString, privacy: .public)")
+                showWindow(page: .thoughts)
+                linkMissing(String(localized: "Tanken finns inte längre i Mindtalk."))
                 return
             }
             showWindow(page: .thoughts)
@@ -2174,7 +2199,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         let path = Bundle.main.bundlePath.replacingOccurrences(of: "'", with: "'\\''")
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/sh")
-        task.arguments = ["-c", "sleep 0.5; /usr/bin/open '\(path)'"]
+        // Opened once this copy has really quit: it can take a while (a model starting).
+        task.arguments = ["-c", "while kill -0 \(getpid()) 2>/dev/null; do sleep 0.2; done; /usr/bin/open '\(path)'"]
         try? task.run()
         NSApp.terminate(nil)
     }
