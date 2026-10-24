@@ -230,6 +230,17 @@ extension Settings {
         set { Settings.keep(newValue.rawValue, forKey: "callAudio") }
     }
 
+    /// A call app starting to use the microphone: asked whether to take notes. On
+    /// unless turned off; apps answered "Fråga inte" are left out.
+    static var askOnCalls: Bool {
+        get { UserDefaults.standard.object(forKey: "askOnCalls") as? Bool ?? true }
+        set { Settings.keep(newValue, forKey: "askOnCalls") }
+    }
+    static var callAppsMuted: [String] {
+        get { UserDefaults.standard.stringArray(forKey: "callAppsMuted") ?? [] }
+        set { Settings.keep(newValue, forKey: "callAppsMuted") }
+    }
+
     /// During a meeting, the panel comes over your work when you turn to another app,
     /// and goes again when you come back. On unless turned off.
     static var panelWhenAway: Bool {
@@ -275,6 +286,12 @@ final class AppPrefs: ObservableObject {
     }
     @Published var callAudio = Settings.callAudio {
         didSet { Settings.callAudio = callAudio }
+    }
+    @Published var askOnCalls = Settings.askOnCalls {
+        didSet { Settings.askOnCalls = askOnCalls }
+    }
+    @Published var callAppsMuted = Settings.callAppsMuted {
+        didSet { Settings.callAppsMuted = callAppsMuted }
     }
     @Published var aiPolish = Settings.aiPolish {
         didSet {

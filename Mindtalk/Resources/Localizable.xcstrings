@@ -80,6 +80,22 @@
         }
       }
     },
+    "%@ använder mikrofonen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is using the microphone"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ använder mikrofonen"
+          }
+        }
+      }
+    },
     "%@ används": {
       "extractionState": "stale",
       "localizations": {
@@ -6852,6 +6868,38 @@
         }
       }
     },
+    "Fråga igen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask again"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fråga igen"
+          }
+        }
+      }
+    },
+    "Fråga inte för den här appen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Don't ask for this app"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fråga inte för den här appen"
+          }
+        }
+      }
+    },
     "Fråga inte igen": {
       "localizations": {
         "en": {
@@ -6864,6 +6912,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fråga inte igen"
+          }
+        }
+      }
+    },
+    "Fråga när ett samtal börjar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask when a call starts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fråga när ett samtal börjar"
           }
         }
       }
@@ -6946,6 +7011,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fråga: %@"
+          }
+        }
+      }
+    },
+    "Frågar inte för %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not asking for %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frågar inte för %@"
           }
         }
       }
@@ -16875,6 +16956,23 @@
         }
       }
     },
+    "När Teams, Zoom, FaceTime eller webbläsaren börjar använda mikrofonen frågar Mindtalk om du vill ta anteckningar. Inget spelas in förrän du trycker.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When Teams, Zoom, FaceTime or the browser starts using the microphone, Mindtalk asks whether you want to take notes. Nothing is recorded until you press."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "När Teams, Zoom, FaceTime eller webbläsaren börjar använda mikrofonen frågar Mindtalk om du vill ta anteckningar. Inget spelas in förrän du trycker."
+          }
+        }
+      }
+    },
     "När något du dikterar liknar ett ord i listan lyssnar Mindtalk en gång till just där, så att namnet stavas rätt.": {
       "localizations": {
         "en": {
@@ -18636,6 +18734,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sammanfattningen skrivs på mötets språk om du inte väljer ett annat."
+          }
+        }
+      }
+    },
+    "Samtal i %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Call in %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Samtal i %@"
           }
         }
       }
@@ -21301,6 +21415,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sökvägen är kopierad. Öppna Inställningar i ChatGPT, välj MCP servers och Add server."
+          }
+        }
+      }
+    },
+    "Ta anteckningar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take notes"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta anteckningar"
           }
         }
       }
@@ -24327,6 +24457,22 @@
         }
       }
     },
+    "Vill du ta anteckningar med Mindtalk?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take notes with Mindtalk?"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vill du ta anteckningar med Mindtalk?"
+          }
+        }
+      }
+    },
     "Virtuella enheter (%lld)": {
       "localizations": {
         "en": {
@@ -27334,6 +27480,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Är LM Studio kopplad till en annan dator kan mötet skickas dit. Koppla bort den för möten som ska stanna här."
+          }
+        }
+      }
+    },
+    "Är det ett möte? Ta anteckningar med Mindtalk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Is it a meeting? Take notes with Mindtalk."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Är det ett möte? Ta anteckningar med Mindtalk."
           }
         }
       }

@@ -199,6 +199,21 @@ final class MediaControl {
         }
     }
 
+    /// Other apps using a microphone right now (a call starting: CallDetector).
+    nonisolated static func listeningProcesses() -> [Player] {
+        let me = ProcessInfo.processInfo.processIdentifier
+        let list: [AudioObjectID] = array(AudioObjectID(kAudioObjectSystemObject), kAudioHardwarePropertyProcessObjectList)
+        return list.compactMap { id in
+            guard let running: UInt32 = value(id, kAudioProcessPropertyIsRunningInput), running != 0,
+                  let pid: pid_t = value(id, kAudioProcessPropertyPID), pid != me else { return nil }
+            var bundle: CFString = "" as CFString
+            var size = UInt32(MemoryLayout<CFString>.size)
+            var address = AudioObjectPropertyAddress(mSelector: kAudioProcessPropertyBundleID, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+            _ = withUnsafeMutablePointer(to: &bundle) { AudioObjectGetPropertyData(id, &address, 0, nil, &size, $0) }
+            return Player(id: id, bundleID: bundle as String)
+        }
+    }
+
     /// Apps whose sound is music, podcasts or video — the ones a pause is for.
     /// Browsers play through helper processes (Chrome) or WebKit's GPU process (Safari).
     nonisolated static func isMediaApp(_ bundleID: String) -> Bool {

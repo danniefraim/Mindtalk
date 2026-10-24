@@ -1354,6 +1354,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         if args.contains("--writer-test") {
             exit(SummaryWriterChoice.selfTest())
         }
+        // `Mindtalk --call-detect-test`: call apps told apart; what uses a mic now.
+        if args.contains("--call-detect-test") {
+            exit(CallDetector.selfTest())
+        }
         // `Mindtalk --call-mix-test`: the Mac's sound mixed under the microphone (no tap).
         if args.contains("--call-mix-test") {
             exit(CallAudio.mixSelfTest())
@@ -1721,6 +1725,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             Task { @MainActor in MeetingStore.shared.applyRetentionIfDue() }
         }
         UNUserNotificationCenter.current().delegate = self
+        // A call starting in Teams, Zoom or FaceTime: asked whether to take notes.
+        CallDetector.shared.start()
         MeetingSession.shared.$phase.combineLatest(MeetingSession.shared.$warning.removeDuplicates(),
                                                    MeetingSession.shared.$pausedAt.map { $0 != nil }.removeDuplicates())
             .receive(on: RunLoop.main)
@@ -2386,7 +2392,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
                                             withCompletionHandler completionHandler: @escaping () -> Void) {
         let info = response.notification.request.content.userInfo
-        DispatchQueue.main.async { MeetingPanel.shared.openFromNotification(info); completionHandler() }
+        let call = response.notification.request.content.categoryIdentifier == CallDetector.category
+        let action = response.actionIdentifier
+        DispatchQueue.main.async {
+            if call { CallDetector.shared.answer(action, userInfo: info) } else { MeetingPanel.shared.openFromNotification(info) }
+            completionHandler()
+        }
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
