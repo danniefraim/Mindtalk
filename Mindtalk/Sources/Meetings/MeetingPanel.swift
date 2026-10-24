@@ -470,6 +470,10 @@ private struct LivePanel: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollContentBackground(.hidden)
+            // Following: the newest words stay at the bottom as the text grows, the view
+            // gliding along rather than jumping after every handful. Read back, it stays put.
+            .defaultScrollAnchor(following ? .bottom : .top, for: .sizeChanges)
+            .onChange(of: turns, initial: true) { _, now in LiveReveal.shared.update(now, meeting: session.record?.id) }
             // Opened mid-meeting (from the menu bar): at the latest words.
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { proxy.scrollTo("end", anchor: .bottom) }
@@ -493,10 +497,10 @@ private struct LivePanel: View {
                 default: break
                 }
             }
-            // Follow the conversation — when the text grows (words, a name row, a mark)
-            // or the room for it shrinks (a card below appears).
-            .onScrollGeometryChange(for: [CGFloat].self) { geo in [geo.contentSize.height, geo.containerSize.height] } action: { old, new in
-                guard following, !userScrolling, new != old else { return }
+            // The room for it shrinks (a card below appears): still at the latest words.
+            // The text growing is the anchor's (above).
+            .onScrollGeometryChange(for: CGFloat.self) { $0.containerSize.height } action: { old, new in
+                guard following, !userScrolling, new < old else { return }
                 withAnimation(.smooth(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) }
             }
             .overlay(alignment: .bottom) {
@@ -733,14 +737,11 @@ private struct PanelTurn: View {
                 }
                 .accessibilityElement(children: .combine)
             }
-            text
-                // Words settle from grey into ink rather than switching.
-                .contentTransition(.interpolate)
+            // Word by word as it's said, as in the window (LiveReveal).
+            LiveTurnText(turn: turn, cast: cast, asideSize: 12) { _ in text }
                 .font(.system(size: 14.5))
                 .lineSpacing(4.5)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                // The text grows with its words, rather than snapping to the new size.
-                .animation(.smooth(duration: 0.4), value: turn.text)
             if !marks.isEmpty {
                 MarkChips(marks: marks, compact: true, remove: removeMark)
                     .padding(.top, 2)

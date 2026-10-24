@@ -2253,10 +2253,16 @@ private struct TranscriptView: View {
         // Your notes under the turns they were written in (while it records, the margin
         // lists them instead, when there's room for it).
         let notes = live && !inlineNotes ? [:] : NotePlacement.place(record, turns: turns)
-        if flat {
-            VStack(alignment: .leading, spacing: 0) { rows(notes) }.pageColumn(width).padding(.top, 8)
-        } else {
-            scrolling(notes)
+        Group {
+            if flat {
+                VStack(alignment: .leading, spacing: 0) { rows(notes) }.pageColumn(width).padding(.top, 8)
+            } else {
+                scrolling(notes)
+            }
+        }
+        // Live: what's handed over comes out word by word (LiveReveal).
+        .onChange(of: turns, initial: true) { _, now in
+            if live { LiveReveal.shared.update(now, meeting: record.id) }
         }
     }
 
@@ -2308,6 +2314,10 @@ private struct TranscriptView: View {
             }
             .contentMargins(.bottom, live ? 28 : 120, for: .scrollContent)
             .scrollContentBackground(.hidden)
+            // Live and following: the newest words stay at the bottom as the text grows,
+            // the view gliding along rather than jumping after every handful. Read back
+            // (or after the meeting), it stays where it is.
+            .defaultScrollAnchor(live && following ? .bottom : .top, for: .sizeChanges)
             .onScrollGeometryChange(for: Bool.self) { geo in
                 geo.contentOffset.y + geo.containerSize.height >= geo.contentSize.height - 80
             } action: { _, bottom in
@@ -2328,12 +2338,11 @@ private struct TranscriptView: View {
                 default: break
                 }
             }
-            // Follow the conversation — unless you've scrolled up to read. On what the
-            // text takes up, not on how many words: a new name row, a mark or a line
-            // that settles also grows it.
-            // (Or when the room for it shrinks: a card below appears, the note grows.)
-            .onScrollGeometryChange(for: [CGFloat].self) { [$0.contentSize.height, $0.containerSize.height] } action: { old, new in
-                guard live, following, !userScrolling, new != old else { return }
+            // Follow the conversation, unless you've scrolled up to read: the text growing
+            // (words, a name row, a mark) is held at the bottom by the anchor above.
+            // The growing is the anchor's (above); here only the room shrinking.
+            .onScrollGeometryChange(for: CGFloat.self) { $0.containerSize.height } action: { old, new in
+                guard live, following, !userScrolling, new < old else { return }
                 withAnimation(.smooth(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) }
             }
             // Listening: the text follows the voice.
@@ -2465,6 +2474,35 @@ extension MeetingTurn {
 
 /// One turn: the speaker's mark in the margin, their name, and what they said —
 /// what's still being written in grey, ending in Mindtalk's cursor.
+/// A live turn's text as it's said: the words in view now (LiveReveal), drawn every
+/// frame while they fade in, otherwise on the cursor's half-second beat. The text grows
+/// with its words rather than snapping to the new size. The turn as it always was until
+/// the reveal knows it.
+struct LiveTurnText: View {
+    let turn: MeetingTurn
+    let cast: Cast
+    /// The cursor's glyph, after the newest words; nil for the turns above them.
+    var cursor: NSImage?
+    var asideSize: CGFloat = 12.5
+    let fallback: (Bool?) -> Text
+    @ObservedObject private var reveal = LiveReveal.shared
+
+    var body: some View {
+        TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: reveal.animating ? 1.0 / 60 : 0.5)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            let on = Int(t / 0.5) % 2 == 0
+            let blinking = cursor != nil && !turn.pending.isEmpty
+            let glyph = cursor.flatMap { blinking ? Text(" \(Image(nsImage: $0))").foregroundStyle(DS.Colors.ink.opacity(on ? 0.9 : 0.15)) : nil }
+            if let text = reveal.text(turn, cast: cast, asideFont: .system(size: asideSize), cursor: glyph) {
+                text.foregroundStyle(DS.Colors.ink).textRenderer(LiveTextRenderer(now: t))
+            } else {
+                fallback(blinking ? on : nil)
+            }
+        }
+        .animation(.smooth(duration: 0.3), value: reveal.shown(turn.id))
+    }
+}
+
 private struct TurnRow: View {
     let turn: MeetingTurn
     let cast: Cast
@@ -2586,14 +2624,10 @@ private struct TurnRow: View {
 
     private var line: some View {
         Group {
-            if live && isLast {
-                // The words still arriving, and the cursor blinking after them. One view
-                // whether or not words are pending — so settling fades rather than snaps —
-                // on a fixed beat that a redraw doesn't restart.
-                TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: 0.5)) { context in
-                    let on = Int(context.date.timeIntervalSinceReferenceDate / 0.5) % 2 == 0
-                    text(cursor: turn.pending.isEmpty ? nil : on)
-                }
+            if live {
+                // Word by word as it's said, each fading in, and the cursor blinking after
+                // the newest (LiveReveal). One view whether or not words are pending.
+                LiveTurnText(turn: turn, cast: cast, cursor: isLast ? Self.cursor : nil) { cursor in text(cursor: cursor) }
             } else if !finding.trimmingCharacters(in: .whitespaces).isEmpty,
                       !MeetingFind.ranges(of: finding, in: turn.text).isEmpty {
                 Text(turn.spoken(cast: cast, finding: finding, current: findCurrent))
@@ -2603,16 +2637,15 @@ private struct TurnRow: View {
                 text(cursor: nil)
             }
         }
-        // Live: words settle from grey into ink rather than switching.
-        .contentTransition(.interpolate)
+        // After the meeting (listening along): the words go to ink by degrees. Live, the
+        // reveal draws that itself.
+        .contentTransition(live ? .identity : .interpolate)
         .font(.system(size: 16))
         .lineSpacing(6)
         .textSelection(.enabled)
         // All its lines, whatever sits under it (two of your notes made it one line and an ellipsis).
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: 640, alignment: .leading)
-        // The text grows with its words, rather than snapping to the new size.
-        .animation(live ? .smooth(duration: 0.4) : nil, value: turn.text)
     }
 
     private func text(cursor: Bool?) -> Text {
