@@ -1926,10 +1926,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         }
         NSApp.activate()
         let alert = NSAlert()
-        alert.messageText = String(localized: "Ett möte spelas in")
-        alert.informativeText = String(localized: "Mindtalk gör klart mötet innan programmet avslutas, så att texten blir färdig.")
-        alert.addButton(withTitle: String(localized: "Avsluta mötet och Mindtalk"))
-        alert.addButton(withTitle: String(localized: "Fortsätt spela in"))
+        // Over already and being written out: not "spelas in".
+        if case .finishing = meeting.phase {
+            alert.messageText = String(localized: "Mötet skrivs klart")
+            alert.informativeText = String(localized: "Mindtalk gör klart texten innan programmet avslutas.")
+            alert.addButton(withTitle: String(localized: "Avsluta när det är klart"))
+            alert.addButton(withTitle: String(localized: "Vänta"))
+        } else {
+            alert.messageText = String(localized: "Ett möte spelas in")
+            alert.informativeText = String(localized: "Mindtalk gör klart mötet innan programmet avslutas, så att texten blir färdig.")
+            alert.addButton(withTitle: String(localized: "Avsluta mötet och Mindtalk"))
+            alert.addButton(withTitle: String(localized: "Fortsätt spela in"))
+        }
         guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }
         Self.isQuitting = true
         if meeting.isRecording { meeting.stop() }
@@ -2321,6 +2329,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         guard meeting.armed, meeting.phase == .idle else { return }
         meeting.armed = false
         MeetingPanel.shared.startedElsewhere = false
+        // An unanswered voices question goes too: a later "Inte nu" would start at once.
+        meeting.cancelVoiceQuestion()
     }
 
     func applicationDidHide(_ notification: Notification) { Self.disarmMeeting() }

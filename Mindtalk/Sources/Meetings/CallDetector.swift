@@ -156,7 +156,9 @@ final class CallDetector {
         guard meeting.phase == .idle, since[app] != nil else { return }
         let ready = VoiceModels.shared.state == .ready && Dictation.shared.engine.isInstalled
         let mode: MeetingSession.StartMode = answer == .startRound ? .round : .direct
-        if answer == .openCard || !ready || MeetingSession.preparing(mode) {
+        // A speech model still starting doesn't stop a direct start: the meeting records
+        // from the press and writes once it's up. The round needs the voices warm.
+        if answer == .openCard || !ready || (mode == .round && MeetingSession.preparing(mode)) {
             openCard()
             return
         }

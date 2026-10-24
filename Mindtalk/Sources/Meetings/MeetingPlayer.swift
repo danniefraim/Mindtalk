@@ -79,6 +79,8 @@ final class MeetingPlayer: ObservableObject {
         guard let player else { return }
         time = player.currentTime
         isPlaying = player.isPlaying
-        if !player.isPlaying, player.currentTime <= 0.01 || player.currentTime >= player.duration - 0.05 { stop() }
+        // Played to the end (the player goes back to 0:00 by itself then). Paused and
+        // skipped back to 0:00 by hand, the bar stays.
+        if ticker != nil, !player.isPlaying, player.currentTime <= 0.01 || player.currentTime >= player.duration - 0.05 { stop() }
     }
 }

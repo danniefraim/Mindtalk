@@ -13,10 +13,12 @@ struct LiveNotices: View {
     let record: MeetingRecord
     let cast: Cast
     let edit: MeetingEdits
+    /// In the small panel: the silence question in its compact form.
+    var compact = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if session.silenceAsked { SilenceQuestion(session: session) }
+            if session.silenceAsked { SilenceQuestion(session: session, compact: compact) }
             if session.askingWhoYouAre { WhoAreYou(session: session, record: record) }
             if let speaker = session.latecomer, cast.order.contains(speaker) {
                 HStack(spacing: 6) {
@@ -37,7 +39,7 @@ struct LiveNotices: View {
                 HStack(spacing: 8) {
                     Image(systemName: "person.3").font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                         .accessibilityHidden(true)
-                    Text("Ni är många. Med fler än åtta röster kan namnen bli mindre säkra.")
+                    Text("Ni är många. Med åtta röster eller fler kan namnen bli mindre säkra.")
                         .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                         .fixedSize(horizontal: false, vertical: true)
                     Button { withAnimation(.snappy) { session.dismissManyVoices() } } label: {

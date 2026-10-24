@@ -76,7 +76,8 @@ struct FloatingTabBar: View {
         } badge: {
             // A meeting is being recorded — visible from every page.
             if p == .meetings, meeting.isRecording {
-                Circle().fill(DS.Colors.recording)
+                // Red only while the mic is on; paused, quiet.
+                Circle().fill(meeting.isPaused ? DS.Colors.muted : DS.Colors.recording)
                     .frame(width: 8, height: 8)
                     .overlay(Circle().strokeBorder(DS.Colors.card, lineWidth: 1.5))
                     .offset(x: -3, y: 3)
@@ -236,7 +237,7 @@ struct FloatingTabBar: View {
     @ViewBuilder private var status: some View {
         let row = HStack(spacing: 12) {
             // Red only while recording; otherwise ink while something is left, muted when ready.
-            Circle().fill(meeting.isRecording ? DS.Colors.recording : dictation.needsSetup ? DS.Colors.ink : DS.Colors.muted)
+            Circle().fill(meeting.isRecording && !meeting.isPaused ? DS.Colors.recording : dictation.needsSetup ? DS.Colors.ink : DS.Colors.muted)
                 .frame(width: 7, height: 7)
                 .frame(width: 40, height: 22)
             Text(verbatim: statusText).font(.system(size: 12)).foregroundStyle(DS.Colors.muted)

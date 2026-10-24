@@ -211,7 +211,24 @@
         }
       }
     },
+    "%@ finns inte kvar på disken. Ladda ned den igen under Inställningar → Möten, eller välj en annan där.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is no longer on the disk. Download it again under Settings → Meetings, or choose another one there."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ finns inte kvar på disken. Ladda ned den igen under Inställningar → Möten, eller välj en annan där."
+          }
+        }
+      }
+    },
     "%@ finns inte kvar på disken. Ladda ned den igen under Inställningar → Sammanfattningar, eller välj en annan där.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3351,6 +3368,22 @@
         }
       }
     },
+    "Avsluta när det är klart": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit When It's Done"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avsluta när det är klart"
+          }
+        }
+      }
+    },
     "Avsluta ändå": {
       "localizations": {
         "en": {
@@ -4417,6 +4450,23 @@
         }
       }
     },
+    "Den senaste dikteringen blev ingen text": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The last dictation didn't become text"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den senaste dikteringen blev ingen text"
+          }
+        }
+      }
+    },
     "Den som används kan inte tas bort. Byt språk först.": {
       "localizations": {
         "en": {
@@ -4445,6 +4495,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Den startar när du loggar in. Ändra under Inställningar."
+          }
+        }
+      }
+    },
+    "Den tangenten skriver du med. Välj en som inte används till text, som höger ⌥, § eller en F-tangent.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You type with that key. Pick one that isn't used for text, like right ⌥, § or a function key."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den tangenten skriver du med. Välj en som inte används till text, som höger ⌥, § eller en F-tangent."
           }
         }
       }
@@ -5843,7 +5910,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Um, uh and er are left out of the text."
+            "value": "Um, uh and erm are left out of the text."
           }
         },
         "sv": {
@@ -7215,6 +7282,7 @@
       }
     },
     "Frågor kräver Apple Intelligence eller Gemma 4.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7226,6 +7294,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Frågor kräver Apple Intelligence eller Gemma 4."
+          }
+        }
+      }
+    },
+    "Frågor kräver Apple Intelligence, Gemma 4 eller en egen modell.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questions need Apple Intelligence, Gemma 4 or a model of your own."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frågor kräver Apple Intelligence, Gemma 4 eller en egen modell."
           }
         }
       }
@@ -9022,6 +9106,22 @@
         }
       }
     },
+    "Håll in en eller flera tangenter, som ⌥ och ⌘, och släpp. Du kan också välja en tangent som § eller en F-tangent. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold one or more keys, like ⌥ and ⌘, and let go. You can also pick a key like § or a function key. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in en eller flera tangenter, som ⌥ och ⌘, och släpp. Du kan också välja en tangent som § eller en F-tangent. Esc avbryter."
+          }
+        }
+      }
+    },
     "Håll in en tangent, som vänster ⌥, och släpp. Du kan också trycka på en kombination, som ⌃⌥T. Esc avbryter.": {
       "localizations": {
         "en": {
@@ -10344,6 +10444,22 @@
         }
       }
     },
+    "Inget tal hördes, så det finns inget att sammanfatta.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No speech was heard, so there's nothing to summarise."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inget tal hördes, så det finns inget att sammanfatta."
+          }
+        }
+      }
+    },
     "Inget textfält här. Texten är kopierad, klistra in med ⌘V.": {
       "localizations": {
         "en": {
@@ -11245,6 +11361,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klicka och håll in tangenterna du vill använda. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter."
+          }
+        }
+      }
+    },
+    "Klicka och håll in tangenterna du vill använda. Släpp för att spara. Du kan också välja en tangent som § eller en F-tangent. Esc avbryter.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click and hold the keys you want to use. Let go to save. You can also pick a key like § or a function key. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klicka och håll in tangenterna du vill använda. Släpp för att spara. Du kan också välja en tangent som § eller en F-tangent. Esc avbryter."
           }
         }
       }
@@ -13091,6 +13224,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ljudet (.m4a)…"
+          }
+        }
+      }
+    },
+    "Ljudet finns kvar. Försök igen, så kopieras texten.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The sound is kept. Try again and the text is copied."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ljudet finns kvar. Försök igen, så kopieras texten."
           }
         }
       }
@@ -14977,7 +15127,24 @@
         }
       }
     },
+    "Mikrofonen i hörlurarna hann inte starta. Håll in lite längre.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The headphones' microphone didn't start in time. Hold a little longer."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofonen i hörlurarna hann inte starta. Håll in lite längre."
+          }
+        }
+      }
+    },
     "Mikrofonen kopplades bort. Inspelningen fortsätter med Macens mikrofon.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -14989,6 +15156,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mikrofonen kopplades bort. Inspelningen fortsätter med Macens mikrofon."
+          }
+        }
+      }
+    },
+    "Mikrofonen kopplades bort. Inspelningen fortsätter med en annan mikrofon.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The microphone was disconnected. Recording continues with another microphone."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mikrofonen kopplades bort. Inspelningen fortsätter med en annan mikrofon."
           }
         }
       }
@@ -15412,6 +15595,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mindtalk gör klart mötet innan programmet avslutas, så att texten blir färdig."
+          }
+        }
+      }
+    },
+    "Mindtalk gör klart texten innan programmet avslutas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk finishes the text before quitting."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk gör klart texten innan programmet avslutas."
           }
         }
       }
@@ -16587,6 +16786,22 @@
         }
       }
     },
+    "Mötet skrivs klart": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The meeting is being finished"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mötet skrivs klart"
+          }
+        }
+      }
+    },
     "Mötet spelas in": {
       "localizations": {
         "en": {
@@ -17103,6 +17318,7 @@
       }
     },
     "Ni är många. Med fler än åtta röster kan namnen bli mindre säkra.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -17114,6 +17330,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ni är många. Med fler än åtta röster kan namnen bli mindre säkra."
+          }
+        }
+      }
+    },
+    "Ni är många. Med åtta röster eller fler kan namnen bli mindre säkra.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There are many of you. With eight voices or more, the names may be less certain."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ni är många. Med åtta röster eller fler kan namnen bli mindre säkra."
           }
         }
       }
@@ -19096,6 +19328,7 @@
       }
     },
     "Sammanfattningar behöver Apple Intelligence eller Gemma 4": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -19107,6 +19340,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sammanfattningar behöver Apple Intelligence eller Gemma 4"
+          }
+        }
+      }
+    },
+    "Sammanfattningar behöver Apple Intelligence, Gemma 4 eller en egen modell": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summaries need Apple Intelligence, Gemma 4 or a model of your own"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sammanfattningar behöver Apple Intelligence, Gemma 4 eller en egen modell"
           }
         }
       }
@@ -26627,6 +26876,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "klistrar in den senaste igen."
+          }
+        }
+      }
+    },
+    "macOS kan inte läsa den här filtypen. Spara den som m4a eller mp3 och försök igen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS can't read this file type. Save it as m4a or mp3 and try again."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS kan inte läsa den här filtypen. Spara den som m4a eller mp3 och försök igen."
           }
         }
       }

@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import Combine
+import Carbon.HIToolbox
 import CoreAudio
 import SwiftUI
 import os
@@ -809,6 +810,11 @@ final class Dictation: ObservableObject {
             self.pickingKey = false
             // The thought key's: one press can't be both. The old key stays. A thought key
             // you chose counts; the default (left ⌥) just moves out of the way.
+            // A key you type with, alone: it would be swallowed in every app from then on.
+            if key.modifierMask == 0, Self.typingKeys.contains(Int(key.keyCode)) {
+                ShortcutLog.log.notice("dictation key: refused \(key.keyCode, privacy: .public) (a typing key)")
+                return self.refuse(String(localized: "Den tangenten skriver du med. Välj en som inte används till text, som höger ⌥, § eller en F-tangent."))
+            }
             if let why = ThoughtShortcut.refusal(dictation: key, besides: Settings.thoughtShortcut(in: .standard, besides: key)) {
                 ShortcutLog.log.notice("dictation key: refused \(key.keyCode, privacy: .public)/\(String(key.modifierMask, radix: 16), privacy: .public) (the thought key has it)")
                 return self.refuse(why)
@@ -823,6 +829,19 @@ final class Dictation: ObservableObject {
             KeyListener.shared.reset()
         }
     }
+
+    /// Keys that type or move the cursor: never the dictation key alone.
+    private static let typingKeys: Set<Int> = {
+        var keys: Set<Int> = [kVK_Space, kVK_Return, kVK_Tab, kVK_Delete, kVK_ForwardDelete, kVK_LeftArrow, kVK_RightArrow,
+                              kVK_UpArrow, kVK_DownArrow, kVK_ANSI_KeypadEnter]
+        keys.formUnion([kVK_ANSI_A, kVK_ANSI_B, kVK_ANSI_C, kVK_ANSI_D, kVK_ANSI_E, kVK_ANSI_F, kVK_ANSI_G, kVK_ANSI_H, kVK_ANSI_I,
+                        kVK_ANSI_J, kVK_ANSI_K, kVK_ANSI_L, kVK_ANSI_M, kVK_ANSI_N, kVK_ANSI_O, kVK_ANSI_P, kVK_ANSI_Q, kVK_ANSI_R,
+                        kVK_ANSI_S, kVK_ANSI_T, kVK_ANSI_U, kVK_ANSI_V, kVK_ANSI_W, kVK_ANSI_X, kVK_ANSI_Y, kVK_ANSI_Z,
+                        kVK_ANSI_0, kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3, kVK_ANSI_4, kVK_ANSI_5, kVK_ANSI_6, kVK_ANSI_7,
+                        kVK_ANSI_8, kVK_ANSI_9, kVK_ANSI_Comma, kVK_ANSI_Period, kVK_ANSI_Minus, kVK_ANSI_Semicolon,
+                        kVK_ANSI_Quote, kVK_ANSI_LeftBracket, kVK_ANSI_RightBracket, kVK_ANSI_Slash, kVK_ANSI_Backslash])
+        return keys
+    }()
 
     /// The dictation key's field (or Ändra on Diktering) was pressed.
     func togglePickingKey() {
@@ -1330,6 +1349,11 @@ final class Dictation: ObservableObject {
             guard let self, job == self.transcription, self.phase == .transcribing else { return }
             // Held a while and not a sound: the mic never delivered — say so.
             if samples.isEmpty, lasted > 1 {
+                // A headset takes a few seconds to wake (AirPods switching): slow, not broken.
+                if self.headsetInUse, lasted < 4 {
+                    self.notice(String(localized: "Mikrofonen i hörlurarna hann inte starta. Håll in lite längre."))
+                    return self.resumeHeldPress()
+                }
                 self.fail(String(localized: "Hittar ingen fungerande mikrofon."))
                 return self.resumeHeldPress()
             }
@@ -1537,7 +1561,11 @@ final class Dictation: ObservableObject {
     /// A dictation that couldn't be written: its sound is kept for "Försök igen" —
     /// not a thought's (Tankar keeps those) and never a password field's.
     private func keepForRetry(_ take: Take) {
-        guard !take.thought, !take.secret, !TextInserter.dryRun else { return }
+        guard !take.thought, !take.secret, !TextInserter.dryRun else {
+            // A password field's isn't kept, and an older one is no longer the last.
+            if take.secret { forgetRetry() }
+            return
+        }
         failedTake = take
         canRetry = true
     }

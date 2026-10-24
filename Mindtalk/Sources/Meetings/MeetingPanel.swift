@@ -589,8 +589,13 @@ private struct LivePanel: View {
                             .frame(maxWidth: .infinity)
                             .transition(.opacity)
                     }
-                    // Ten minutes without a word: asked here too, where the meeting is.
-                    if session.silenceAsked { SilenceQuestion(session: session, compact: true) }
+                    // Is it over, a new voice, many voices, which of them is you: asked here
+                    // too, where the meeting is (started from a call it lives here).
+                    if let record = session.record {
+                        LiveNotices(session: session, record: record, cast: record.cast, edit: .live(session), compact: true)
+                    } else if session.silenceAsked {
+                        SilenceQuestion(session: session, compact: true)
+                    }
                     NoteIsland(session: session, compact: true) { EmptyView() } trailing: {
                         MeetingControls(session: session, labelledStop: true)
                     }

@@ -914,9 +914,12 @@ final class MeetingStore: ObservableObject {
     func name(speaker: Int, in id: UUID, as name: String) {
         guard var record = meetings.first(where: { $0.id == id }) else { return }
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        // What the summary was written with ("Talare 2", or the name before): follows.
+        let before = record.cast.name(of: speaker)
         // A name someone gave, corrected: the voice remembered under it follows. A
         // guess of Mindtalk's replaced: it was someone else — that voice stays as it is.
         let (old, guessed) = record.setName(name, for: speaker)
+        if !name.isEmpty, before != name { record.summary?.rename(before, to: name) }
         if let old, !guessed { VoiceMemory.shared.corrected(from: old, to: name, meeting: id.uuidString) }
         // An unusual name ("Klang") is worth suggesting for the word list.
         if old == nil || guessed { Vocabulary.shared.suggest(name, from: record.title) }

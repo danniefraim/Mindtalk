@@ -870,6 +870,16 @@ struct NotesModelOffer: View {
                 }
                 .padding(16)
                 .card()
+            case .failed(let why):
+                // Asked for here: it doesn't go away without a word.
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 13)).foregroundStyle(DS.Colors.warning).accessibilityHidden(true)
+                    Text(why).font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Button("Försök igen") { notes.download(m) }.buttonStyle(.soft)
+                }
+                .padding(16)
+                .card()
             case .missing where !answered && m.hasRoom:
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .top, spacing: 12) {

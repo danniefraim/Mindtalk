@@ -121,7 +121,7 @@ enum WriterError: Error, Equatable {
     var plainWords: String {
         switch self {
         case .gemmaMissing(let m):
-            return String(localized: "\(m.name) finns inte kvar på disken. Ladda ned den igen under Inställningar → Sammanfattningar, eller välj en annan där.")
+            return String(localized: "\(m.name) finns inte kvar på disken. Ladda ned den igen under Inställningar → Möten, eller välj en annan där.")
         case .gemmaDownloading(let m):
             return String(localized: "\(m.name) laddas fortfarande ned. Sammanfatta igen när den är klar.")
         }

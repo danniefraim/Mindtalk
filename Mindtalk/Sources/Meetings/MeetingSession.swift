@@ -707,7 +707,9 @@ final class MeetingSession: ObservableObject {
     func continueMeeting(_ id: UUID) {
         guard phase == .idle, let saved = MeetingStore.shared.meetings.first(where: { $0.id == id }) else { return }
         lastError = nil
-        guard Dictation.shared.phase == .idle else {
+        // As for a new meeting: only while the dictation has the mic, not while a
+        // "Kopierat" or "Sparad" is still showing.
+        guard Dictation.shared.phase != .recording, Dictation.shared.phase != .transcribing else {
             lastError = String(localized: "Avsluta dikteringen först.")
             return
         }
@@ -857,7 +859,8 @@ final class MeetingSession: ObservableObject {
     /// The microphone off, the meeting kept: what was said so far settles, and the
     /// time stands still until it goes on.
     func pause() {
-        guard isRecording, !isPaused, !stopping else { return }
+        // Not in the round: it waits for names, and with the mic off it would wait forever.
+        guard isRecording, !isPaused, !stopping, !introducing else { return }
         _ = recorder.stop()
         stopCallAudio()
         // A second of quiet: the last words settle, and they don't run into the first
@@ -1531,7 +1534,8 @@ final class MeetingSession: ObservableObject {
         }
         let words = (record?.words.count ?? 0) + pending.count
         if words != wordsHeard { wordsHeard = words; lastSpeech = Date() }
-        let since = speechDown ? max(lastHeard, lastSpeech) : lastSpeech
+        // No words can come while the text can't be written: then the sound decides.
+        let since = speechDown || failures >= 5 ? max(lastHeard, lastSpeech) : lastSpeech
         let quiet = Date().timeIntervalSince(since)
         if quiet >= Self.silenceAsk + Self.silenceEnd {
             Self.log.notice("meeting: nothing said for \(Int(quiet / 60)) min, ended by itself")
@@ -2457,7 +2461,7 @@ final class MeetingSession: ObservableObject {
         _ = recorder.stop()
         do {
             try startMicrophone()
-            inform(String(localized: "Mikrofonen kopplades bort. Inspelningen fortsätter med Macens mikrofon."))
+            inform(String(localized: "Mikrofonen kopplades bort. Inspelningen fortsätter med en annan mikrofon."))
         } catch {
             warning = error.localizedDescription
             retryMicrophone()

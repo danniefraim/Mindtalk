@@ -1091,9 +1091,10 @@ private struct DictationKeyCard: View {
         KeyCard(keycap: dictation.hotkey.chip,
                 picking: picking,
                 title: picking ? String(localized: "Tryck på en tangent…") : title,
+                // What stands in the way first, with its fix beside: the key does nothing until then.
                 detail: dictation.keyRefusal ?? (picking
-                    ? String(localized: "Håll in en eller flera tangenter, som ⌥ och ⌘, och släpp. Du kan också trycka på en vanlig tangent. Esc avbryter.")
-                    : how),
+                    ? String(localized: "Håll in en eller flera tangenter, som ⌥ och ⌘, och släpp. Du kan också välja en tangent som § eller en F-tangent. Esc avbryter.")
+                    : dictation.setupIssue.map { $0.why } ?? how),
                 refused: dictation.keyRefusal != nil,
                 spoken: spoken) {
             // Picked right here, as in Inställningar.
@@ -1104,11 +1105,13 @@ private struct DictationKeyCard: View {
             }
             .buttonStyle(TileButtonStyle())
             .disabled(!dictation.accessibilityGranted)
-            .help(LocalizedStringKey(dictation.accessibilityGranted ? "Klicka och håll in tangenterna du vill använda. Släpp för att spara. Du kan också trycka på en vanlig tangent. Esc avbryter."
+            .help(LocalizedStringKey(dictation.accessibilityGranted ? "Klicka och håll in tangenterna du vill använda. Släpp för att spara. Du kan också välja en tangent som § eller en F-tangent. Esc avbryter."
                                                                     : "Slå på Hjälpmedel för Mindtalk först."))
             .accessibilityLabel(picking ? Text("Avbryt") : Text("Ändra genvägen"))
         } trailing: {
-            if !dictation.needsSetup {
+            if let issue = dictation.setupIssue {
+                Button(issue.title) { dictation.fix(issue) }.buttonStyle(TileButtonStyle(primary: true))
+            } else if !dictation.needsSetup {
                 Button(trying ? "Stäng" : "Prova") {
                     withAnimation(.spring(duration: 0.35, bounce: 0.1)) { trying.toggle() }
                 }
@@ -1265,6 +1268,16 @@ struct RecentPage: View {
                 }
             }
             DictationKeyCard(dictation: dictation).staggered(1)
+            // The sound of a dictation that didn't become text is kept: reachable here
+            // after the pill has gone, not only in its eight seconds.
+            if dictation.canRetry {
+                CardRow(title: "Den senaste dikteringen blev ingen text",
+                        detail: "Ljudet finns kvar. Försök igen, så kopieras texten.") {
+                    Button("Försök igen") { dictation.retryLast() }.buttonStyle(.soft)
+                }
+                .card()
+                .staggered(1)
+            }
             if stats.totalWords > 0 {
                 DictationFigures(stats: stats).staggered(1)
             }
@@ -1640,10 +1653,14 @@ private struct TextCleanupCard: View {
             CardDivider()
             CardRow(title: "Putsa med AI", detail: polishDetail) {
                 if status == .notEnabled {
-                    Button("Slå på") {
-                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!)
+                    HStack(spacing: 12) {
+                        Button("Slå på") {
+                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!)
+                        }
+                        .buttonStyle(.soft)
+                        // Left on from before: still there to switch off.
+                        if prefs.aiPolish { InkToggle(label: "Putsa med AI", isOn: $prefs.aiPolish) }
                     }
-                    .buttonStyle(.soft)
                 } else {
                     InkToggle(label: "Putsa med AI", isOn: $prefs.aiPolish)
                         .disabled(status != .available)

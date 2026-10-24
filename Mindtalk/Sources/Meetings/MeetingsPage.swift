@@ -1000,6 +1000,7 @@ struct StartCard: View {
         let elsewhere = MeetingPanel.shared.startedElsewhere
         session.armed = false
         MeetingPanel.shared.startedElsewhere = false
+        session.cancelVoiceQuestion()
         if escaped, elsewhere {
             AppDelegate.hideMainWindow()
             NSApp.deactivate()
@@ -2110,7 +2111,7 @@ struct MeetingView: View {
             Menu("Flytta till") { MoveToFolderItems(ids: [record.id], current: record.folder) }
             if record.source != nil { Button("Ändra datum…") { changingDate = true } }
             Divider()
-            Button("Sammanfatta igen") { notes.summarize(record.id) }
+            Button(record.summary == nil ? "Sammanfatta" : "Sammanfatta igen") { notes.summarize(record.id) }
                 .disabled(notes.writing.contains(record.id) || !MeetingNotes.isAvailable || record.words.isEmpty)
             if record.hasAudio {
                 Button("Spela in mer") { AppDelegate.continueMeeting(record.id) }
@@ -2841,7 +2842,9 @@ private struct SummaryView: View {
                 // The mark of whoever will write it: Apple's only for Apple Intelligence.
                 let mark = BetterNotes.shared.isActive ? "sparkle" : "apple.intelligence"
                 Image(systemName: mark).font(.system(size: 18)).foregroundStyle(DS.Colors.muted)
-                Text("Ingen sammanfattning än").font(.system(size: 15, weight: .semibold))
+                // Nothing said: nothing to sum up, and "än" would promise one.
+                Text(record.words.isEmpty ? "Inget tal hördes, så det finns inget att sammanfatta." : "Ingen sammanfattning än")
+                    .font(.system(size: 15, weight: .semibold))
                 Spacer()
                 Button {
                     notes.summarize(record.id)
@@ -2860,7 +2863,7 @@ private struct SummaryView: View {
         HStack(spacing: 14) {
             Image(systemName: "apple.intelligence").font(.system(size: 18)).foregroundStyle(DS.Colors.muted)
             VStack(alignment: .leading, spacing: 4) {
-                Text("Sammanfattningar behöver Apple Intelligence eller Gemma 4").font(.system(size: 15, weight: .semibold))
+                Text("Sammanfattningar behöver Apple Intelligence, Gemma 4 eller en egen modell").font(.system(size: 15, weight: .semibold))
                 Text(LocalizedStringKey(unavailableDetail))
                     .font(.system(size: 13)).foregroundStyle(DS.Colors.muted)
             }
@@ -3183,8 +3186,9 @@ private struct LiveBar: View {
             return (session.isPaused ? String(localized: "Mötet avslutas om några sekunder.")
                                      : String(localized: "Spelar in tills nedräkningen är klar."), false)
         }
-        if session.isPaused { return (String(localized: "Pausat. Mikrofonen är av och det som sagts finns kvar."), false) }
+        // A warning first: Fortsätt that couldn't start the mic says so here, not "Pausat".
         if let w = session.warning { return (w, true) }
+        if session.isPaused { return (String(localized: "Pausat. Mikrofonen är av och det som sagts finns kvar."), false) }
         if !panelTipSeen, session.isRecording, !session.introducing {
             return (String(localized: "Stäng fönstret så fortsätter mötet i en liten panel."), false)
         }
@@ -3381,13 +3385,13 @@ private struct ReviewBar: View {
     private var field: some View {
         HStack(spacing: 10) {
             let available = MeetingNotes.isAvailable
-            TextField(available ? String(localized: "Fråga om det här mötet") : String(localized: "Frågor kräver Apple Intelligence eller Gemma 4."),
+            TextField(available ? String(localized: "Fråga om det här mötet") : String(localized: "Frågor kräver Apple Intelligence, Gemma 4 eller en egen modell."),
                       text: $question)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
                 .focused($focused)
                 .onSubmit { ask(question) }
-                .accessibilityLabel(available ? String(localized: "Fråga om det här mötet") : String(localized: "Frågor kräver Apple Intelligence eller Gemma 4."))
+                .accessibilityLabel(available ? String(localized: "Fråga om det här mötet") : String(localized: "Frågor kräver Apple Intelligence, Gemma 4 eller en egen modell."))
             if busy {
                 SettlingLine(color: DS.Colors.ink).scaleEffect(0.7).frame(width: 40)
             } else if available {

@@ -84,6 +84,28 @@ struct MeetingSummary: Codable, Equatable {
     /// Points that belong to no subject (all of them in summaries written before subjects).
     var loosePoints: [Item] { points.filter { ($0.topic ?? "").isEmpty } }
 
+    /// A speaker named after it was written: "Talare 2" (or the old name) becomes the
+    /// new one in the overview, the points and who does what.
+    mutating func rename(_ old: String, to new: String) {
+        guard !old.isEmpty, let pattern = try? NSRegularExpression(pattern: "\\b" + NSRegularExpression.escapedPattern(for: old) + "\\b") else { return }
+        let template = NSRegularExpression.escapedTemplate(for: new)
+        func swap(_ text: String) -> String {
+            pattern.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: template)
+        }
+        func swapped(_ items: [Item]) -> [Item] {
+            items.map { item in
+                var item = item
+                item.text = swap(item.text)
+                if let owner = item.owner { item.owner = swap(owner) }
+                return item
+            }
+        }
+        overview = swap(overview)
+        decisions = swapped(decisions)
+        tasks = swapped(tasks)
+        points = swapped(points)
+    }
+
     /// A short title for the meeting, used unless you named it yourself.
     var title: String? = nil
     /// Which model wrote it ("Gemma 4"); nil for Apple Intelligence.

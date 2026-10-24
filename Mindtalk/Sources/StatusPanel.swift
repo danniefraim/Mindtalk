@@ -170,9 +170,12 @@ struct StatusPanelView: View {
                     if meeting.stopping {
                         PanelRow(title: String(localized: "Avslutas strax, ångra"), icon: "arrow.uturn.backward") { meeting.cancelStop() }
                     } else {
-                        PanelRow(title: meeting.isPaused ? String(localized: "pause|Fortsätt") : String(localized: "Pausa"),
-                                 icon: meeting.isPaused ? "play.fill" : "pause.fill") {
-                            if meeting.isPaused { meeting.resume() } else { meeting.pause() }
+                        // No pause during the round of names, as in the window.
+                        if !meeting.introducing {
+                            PanelRow(title: meeting.isPaused ? String(localized: "pause|Fortsätt") : String(localized: "Pausa"),
+                                     icon: meeting.isPaused ? "play.fill" : "pause.fill") {
+                                if meeting.isPaused { meeting.resume() } else { meeting.pause() }
+                            }
                         }
                         PanelRow(title: String(localized: "meeting|Avsluta"), icon: "stop.fill", shortcut: Self.meetingKeys) {
                             meeting.requestStop()

@@ -431,7 +431,7 @@ struct HomeHero: View {
                     withAnimation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15)) { session.resume() }
                 }
                 .keyboardShortcut("p", modifiers: [.command, .option])
-            } else {
+            } else if !session.introducing {
                 tileButton("Pausa", icon: "pause.fill", primary: true, keys: "⌥⌘P", help: String(localized: "Pausa mötet")) {
                     withAnimation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15)) { session.pause() }
                 }

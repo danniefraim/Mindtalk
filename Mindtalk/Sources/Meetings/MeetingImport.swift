@@ -501,9 +501,10 @@ final class MeetingImport: ObservableObject {
     }
 
     enum ImportError: Error {
-        case noSound, silent, noSpeech, protected, notSaved
+        case noSound, silent, noSpeech, protected, notSaved, unreadable
         var message: String {
             switch self {
+            case .unreadable: return String(localized: "macOS kan inte läsa den här filtypen. Spara den som m4a eller mp3 och försök igen.")
             case .notSaved: return String(localized: "Mindtalk kunde inte spara mötet. Kontrollera att det finns plats på disken.")
             case .protected: return String(localized: "Filen är kopieringsskyddad och kan inte läsas.")
             case .noSound: return String(localized: "Filen har inget ljud.")
@@ -520,6 +521,8 @@ final class MeetingImport: ObservableObject {
     nonisolated static func readSound(from url: URL, to out: URL, progress: @escaping @Sendable (Double) -> Void) async throws -> Double {
         let asset = AVURLAsset(url: url)
         if (try? await asset.load(.hasProtectedContent)) == true { throw ImportError.protected }
+        // A type macOS knows by name but can't read (webm, mkv, ogg): said as such, not "no sound".
+        if (try? await asset.load(.isReadable)) == false { throw ImportError.unreadable }
         // One sound track: the first in use — a dubbed language or a commentary beside
         // it would be mixed in otherwise, and two copies of the same sound clip.
         var tracks: [AVAssetTrack] = []
