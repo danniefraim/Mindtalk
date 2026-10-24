@@ -449,7 +449,10 @@ struct Constellation: View {
         // Resolved as the app looks, not as the Mac does: Mindtalk set to light on a dark
         // Mac drew ink as its dark variant, near white, on the light card.
         var resolved: NSColor?
-        NSApp.effectiveAppearance.performAsCurrentDrawingAppearance {
+        // (No application in some still pictures: then as drawn now.)
+        if let app = NSApp {
+            app.effectiveAppearance.performAsCurrentDrawingAppearance { resolved = NSColor(color).usingColorSpace(.sRGB) }
+        } else {
             resolved = NSColor(color).usingColorSpace(.sRGB)
         }
         let c = resolved ?? .white

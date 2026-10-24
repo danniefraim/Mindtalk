@@ -585,7 +585,8 @@ final class IntroRound: ObservableObject {
         // A turn that began well before the name is said (the one before talked on into
         // it) has a print of them, not of this person: it's made again from the name.
         let spokeFirst = speechStart.map(seconds) ?? from
-        let late = from - spokeFirst > 2
+        // (Too little after the name to make a print of: the turn's is kept.)
+        let late = from - spokeFirst > 2 && seconds(cursor) - from >= 1.5
         let print = late ? nil : turnPrint
         let fig = remembered ?? finalFigure(from: print) ?? VoiceFigure.from(seed: "\(name)-\(colour)")
         captures.append(Capture(name: name, known: false, score: nil, from: from, to: to, print: print,
@@ -673,7 +674,7 @@ final class IntroRound: ObservableObject {
         "vill", "har", "hade", "bli", "blir", "mer", "bara", "också", "nog", "ju", "väl", "nästa", "kanske", "precis",
         "exakt", "visst", "absolut", "the", "and", "you", "so", "yes", "no", "well", "right", "sure", "next", "fine",
         // "min", "din", "sin" … ("i östra minnen" from a radio was taken for Min).
-        "min", "mitt", "mina", "din", "ditt", "dina", "sin", "sitt", "sina",
+        "min", "mitt", "din", "ditt", "sin", "sitt", "sina",
     ])
 
     /// Keeps the round's place in a countdown the scanner can show.

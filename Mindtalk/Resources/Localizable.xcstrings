@@ -8463,18 +8463,18 @@
         }
       }
     },
-    "Hämta rösterna (%@). Utan den går det inte att starta ett möte.": {
+    "Hämta röstmodellen (%@). Utan den går det inte att starta ett möte.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Download the voices (%@). Without it, a meeting can't be started."
+            "value": "Download the voice model (%@). Without it, a meeting can't be started."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hämta rösterna (%@). Utan den går det inte att starta ett möte."
+            "value": "Hämta röstmodellen (%@). Utan den går det inte att starta ett möte."
           }
         }
       }
@@ -15078,23 +15078,6 @@
         }
       }
     },
-    "Mindtalk hör de andra i Teams, Zoom och Meet genom datorns ljud. Med hörlurar behövs det, med högtalare hör mikrofonen dem redan.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mindtalk hears the others in Teams, Zoom and Meet through the Mac's sound. With headphones that's needed; with speakers the microphone hears them already."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mindtalk hör de andra i Teams, Zoom och Meet genom datorns ljud. Med hörlurar behövs det, med högtalare hör mikrofonen dem redan."
-          }
-        }
-      }
-    },
     "Mindtalk hör de andra i Teams, Zoom och Meet genom datorns ljud. Ändra under Inställningar → Möten.": {
       "localizations": {
         "en": {
@@ -15107,6 +15090,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mindtalk hör de andra i Teams, Zoom och Meet genom datorns ljud. Ändra under Inställningar → Möten."
+          }
+        }
+      }
+    },
+    "Mindtalk hör de andra i Teams, Zoom, Meet och FaceTime genom datorns ljud. Med hörlurar behövs det, med högtalare hör mikrofonen dem redan.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hears the others in Teams, Zoom, Meet and FaceTime through the Mac's sound. With headphones that's needed; with speakers the microphone hears them already."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hör de andra i Teams, Zoom, Meet och FaceTime genom datorns ljud. Med hörlurar behövs det, med högtalare hör mikrofonen dem redan."
           }
         }
       }

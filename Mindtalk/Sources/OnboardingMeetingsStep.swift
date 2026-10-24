@@ -667,7 +667,7 @@ private struct VoiceModelCard: View {
             VStack(alignment: .leading, spacing: 7) {
                 // What it does and what it costs; which model it is sits behind the ⓘ.
                 // After a failed download the reason takes its place.
-                if failure == nil { fact("person.wave.2", Text("Hämta rösterna (\(VoiceModels.sizeText)). Utan den går det inte att starta ett möte.")) }
+                if failure == nil { fact("person.wave.2", Text("Hämta röstmodellen (\(VoiceModels.sizeText)). Utan den går det inte att starta ett möte.")) }
                 fact("lock", Text("Körs på din Mac, ljudet lämnar den aldrig"))
                 fact("internaldrive", Text("Du har \(BetterNotes.gigabytes(BetterNotes.freeBytes)) ledigt"),
                      warn: BetterNotes.freeBytes < 2_000_000_000)

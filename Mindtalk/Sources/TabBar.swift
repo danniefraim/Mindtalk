@@ -293,7 +293,7 @@ struct FloatingTabBar: View {
     }
 
     private var statusText: String {
-        if meeting.isRecording { return String(localized: "Ett möte spelas in") }
+        if meeting.isRecording { return meeting.isPaused ? String(localized: "Mötet är pausat") : String(localized: "Ett möte spelas in") }
         switch dictation.model {
         case .downloading(let p) where SpeechModel.isPreparing(p): return String(localized: "Förbereder…")
         case .downloading(let p): return String(localized: "Laddar ned \(Int(min(1, p / 0.9) * 100)) %")

@@ -95,7 +95,13 @@ final class MeetingImport: ObservableObject {
     /// The file the drop zone shows: the one being worked on, else the next in line,
     /// else the last done or failed (until it goes); and how many wait behind it.
     var shown: (job: Job, waiting: Int)? {
-        guard let job = jobs.first(where: \.active) ?? jobs.first(where: { $0.stage == .waiting }) ?? jobs.last else { return nil }
+        // A file just done holds the zone a few seconds, even with the next one started:
+        // its title, voices and Öppna are seen. Then the one being worked on, the next in
+        // line, and the latest done or failed.
+        let fresh = jobs.filter { $0.doneAt.map { Date().timeIntervalSince($0) < 6 } ?? false }.max { $0.doneAt! < $1.doneAt! }
+        let latest = jobs.filter { $0.doneAt != nil }.max { $0.doneAt! < $1.doneAt! }
+        guard let job = fresh ?? jobs.first(where: \.active) ?? jobs.first(where: { $0.stage == .waiting }) ?? latest ?? jobs.last
+        else { return nil }
         return (job, jobs.filter { $0.stage == .waiting && $0.id != job.id }.count)
     }
     /// A file dragged over the page / over the start card's zone; and whether that
@@ -314,7 +320,11 @@ final class MeetingImport: ObservableObject {
         }
         let language = job.language
         guard language.isInstalled, VoiceModels.isInstalled else {
-            update(id) { $0.stage = .failed; $0.error = String(localized: "Ladda ned talmodellen under Inställningar → Språk och Nemotron 3 under Inställningar → Möten.") }
+            update(id) {
+                $0.stage = .failed; $0.doneAt = Date()
+                $0.error = String(localized: "Ladda ned talmodellen under Inställningar → Språk och Nemotron 3 under Inställningar → Möten.")
+            }
+            scheduleTidy(id, after: 60)
             return
         }
         Self.log.info("import: \(job.video ? "video" : "audio", privacy: .public), \(job.url.pathExtension, privacy: .public), \(language.rawValue, privacy: .public)")
@@ -402,15 +412,26 @@ final class MeetingImport: ObservableObject {
                 $0.stage = .failed
                 $0.meeting = nil
                 $0.error = (error as? ImportError)?.message ?? String(localized: "Filen kunde inte läsas: \(error.localizedDescription)")
+                $0.doneAt = Date()
             }
+            scheduleTidy(id, after: 60)
         }
     }
 
-    /// A done card goes by itself a while after — unless you were looking at it.
-    private func scheduleTidy(_ id: UUID) {
+    /// A done card goes by itself a while after — unless you were looking at it, or its
+    /// summary is still being written (then the while starts when it's there).
+    private func scheduleTidy(_ id: UUID, after seconds: Double = 25) {
         Task { @MainActor [weak self] in
+            var waited = false
             while let self, let job = self.jobs.first(where: { $0.id == id }), let done = job.doneAt {
-                let left = 25 - Date().timeIntervalSince(done)
+                if let meeting = job.meeting, MeetingNotes.shared.writing.contains(meeting) {
+                    waited = true
+                    try? await Task.sleep(for: .seconds(2))
+                    continue
+                }
+                // The summary there now: the while (and the zone's few seconds) from here.
+                if waited { waited = false; self.touch(id); continue }
+                let left = seconds - Date().timeIntervalSince(done)
                 if left <= 0 { self.jobs.removeAll { $0.id == id }; return }
                 try? await Task.sleep(for: .seconds(left))
             }

@@ -692,7 +692,7 @@ struct SettingsPage: View {
             }
             CardDivider()
             CardRow(title: "Ta med samtal på datorn",
-                    detail: "Mindtalk hör de andra i Teams, Zoom och Meet genom datorns ljud. Med hörlurar behövs det, med högtalare hör mikrofonen dem redan.") {
+                    detail: "Mindtalk hör de andra i Teams, Zoom, Meet och FaceTime genom datorns ljud. Med hörlurar behövs det, med högtalare hör mikrofonen dem redan.") {
                 MenuPicker(options: CallAudioMode.allCases.map { ($0, $0.title) }, selection: $prefs.callAudio)
             }
             CardDivider()

@@ -1,6 +1,7 @@
 import AVFoundation
 import Accessibility
 import AppKit
+import CoreAudio
 import FluidAudio
 import os
 
@@ -198,7 +199,8 @@ final class MeetingSession: ObservableObject {
     @Published private(set) var hearingCall = false
     /// Turns the Mac's sound on and off as headphones come and go, every two seconds.
     private var callWatch: Task<Void, Never>?
-    private var callRoute: CallAudio.Route?
+    /// A tap that wouldn't start is tried again only after this.
+    private var callRetryAt: Date?
     private var tracker: VoiceTracker?
     /// The same voices with ten seconds of context: slower, steadier — what the
     /// quick one says is confirmed or corrected by this one a few seconds later.
@@ -647,6 +649,8 @@ final class MeetingSession: ObservableObject {
 
     private func startMicrophone() throws {
         guard Self.fakeMic == nil else { return }
+        // What the Mac played while the microphone was off is too old to lay under it.
+        CallAudio.shared.flush()
         let chosen = Microphones.shared.selectedDeviceID
         do {
             try recorder.start(device: chosen)
@@ -1670,7 +1674,7 @@ final class MeetingSession: ObservableObject {
     private func checkInput() {
         if intake?.writeFailed == true {
             warning = String(localized: "Inspelningen kan inte sparas. Är disken full? Texten skrivs ändå.")
-        } else if !isPaused, Date().timeIntervalSince(lastHeard) > 45 {
+        } else if !isPaused, Date().timeIntervalSince(lastHeard) > 45, !CallAudio.shared.hearsSomething {
             warning = Self.quietWarning
         } else if warning == Self.quietWarning {
             warning = nil
@@ -2390,25 +2394,36 @@ final class MeetingSession: ObservableObject {
         gaveUpOnSignal = true
     }
 
-    /// The Mac's sound on while the meeting records (not paused) and the setting and
-    /// the route want it; off otherwise. Another output (headphones in or out): taken
-    /// again from the new one.
+    /// The Mac's sound on while the meeting records (not paused), the setting and the
+    /// route want it, and a call app is playing; off otherwise. Made again for another
+    /// output, a changed format, or a call app that has started to play since.
     private func updateCallAudio() {
+        guard Self.fakeMic == nil else { return }       // a replay: no tap, no permission asked
+        let audio = CallAudio.shared
         let want = isRecording && !isPaused && CallAudio.wanted
-        let route = CallAudio.route
-        if want, CallAudio.shared.isRunning, route != callRoute { stopCallAudio() }
-        if want, !CallAudio.shared.isRunning {
-            callRoute = route
-            hearingCall = CallAudio.shared.start()
-        } else if !want, CallAudio.shared.isRunning {
+        let playing = want ? CallAudio.callProcesses() : []
+        if audio.isRunning, !want || audio.outdated(for: playing) {
+            // What it had, and what plays now: a call app that went quiet stays in.
+            let keep = want ? audio.processes.union(playing) : []
             stopCallAudio()
+            if !keep.isEmpty { startCallAudio(keep) }
+        } else if want, !audio.isRunning, !playing.isEmpty, (callRetryAt ?? .distantPast) <= Date() {
+            startCallAudio(playing)
+        }
+        audio.checkAlive()
+        // Said once it hears something: a tap without the permission hears only silence.
+        hearingCall = audio.isRunning && audio.heardAny
+    }
+
+    private func startCallAudio(_ processes: Set<AudioObjectID>) {
+        if !CallAudio.shared.start(processes: processes) {
+            callRetryAt = Date().addingTimeInterval(30)
         }
     }
 
     private func stopCallAudio() {
         CallAudio.shared.stop()
         hearingCall = false
-        callRoute = nil
     }
 
     /// The microphone went away (unplugged, AirPods gone): carry on with the system input.

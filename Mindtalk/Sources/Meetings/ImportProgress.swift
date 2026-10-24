@@ -16,6 +16,7 @@ struct ImportProgress: View {
     var tall = true
     @ObservedObject private var notes = MeetingNotes.shared
     @ObservedObject private var store = MeetingStore.shared
+    @ObservedObject private var importer = MeetingImport.shared
 
     private var failed: Bool { job.stage == .failed }
     private var record: MeetingRecord? { job.meeting.flatMap { id in store.meetings.first { $0.id == id } } }
@@ -26,10 +27,14 @@ struct ImportProgress: View {
             if tall {
                 VStack(spacing: 10) {
                     Spacer(minLength: 0)
-                    ImportDots(mode: mode, fill: fill)
-                        .frame(height: job.stage == .done && !summarizing ? 56 : 120)
-                        .frame(maxWidth: 360)
-                        .padding(.bottom, 8)
+                    // At the end the meeting itself is the picture: no points left over.
+                    if !settled {
+                        ImportDots(mode: mode, fill: fill, paused: !importer.zoneVisible)
+                            .frame(height: 120)
+                            .frame(maxWidth: 360)
+                            .padding(.bottom, 8)
+                            .transition(.opacity)
+                    }
                     title
                     if job.stage == .done, !summarizing, let record { voices(record) }
                     Text(verbatim: status)
@@ -38,15 +43,17 @@ struct ImportProgress: View {
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                         .contentTransition(.numericText())
+                        .accessibilityAddTraits(.updatesFrequently)
                     actions.padding(.top, 8)
                     if waiting > 0 { queueLine.padding(.top, 2) }
+                    refusedLine
                     Spacer(minLength: 0)
                 }
                 .padding(28)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 HStack(spacing: 14) {
-                    ImportDots(mode: mode, fill: fill, small: true)
+                    ImportDots(mode: mode, fill: fill, small: true, paused: !importer.zoneVisible || settled)
                         .frame(width: 120, height: 34)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(verbatim: shownTitle)
@@ -67,7 +74,17 @@ struct ImportProgress: View {
         .animation(.easeOut(duration: 0.3), value: summarizing)
         .onHover { inside in if inside { MeetingImport.shared.touch(job.id) } }
         .accessibilityElement(children: .contain)
-        .accessibilityValue(job.active ? String(localized: "\(Int(job.progress * 100)) procent") : "")
+    }
+
+    /// Done (summary written) or failed: nothing more is going to happen to it.
+    private var settled: Bool { (job.stage == .done && !summarizing) || failed }
+
+    /// A file that wasn't sound or video, dropped while this one is shown.
+    @ViewBuilder private var refusedLine: some View {
+        if let refused = importer.refused {
+            Text(verbatim: refused).font(.system(size: 12)).foregroundStyle(DS.Colors.warning)
+                .multilineTextAlignment(.center).transition(.opacity)
+        }
     }
 
     /// The points' picture for where the job is, and how far that step has come.
@@ -212,6 +229,8 @@ struct ImportDots: View {
     let fill: Double
     /// The strip's (34 pt high): fewer, finer points.
     var small = false
+    /// Off screen (the zone scrolled away), or nothing more to show: no frames drawn.
+    var paused = false
     @State private var shift = Shift()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -236,7 +255,7 @@ struct ImportDots: View {
     }()
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion || paused)) { context in
             let now = context.date.timeIntervalSinceReferenceDate
             Canvas { g, size in draw(&g, size: size, now: now) }
         }

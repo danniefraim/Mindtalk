@@ -17,17 +17,6 @@ final class CallDetector {
     static let takeNotes = "call.take-notes"
     static let notForApp = "call.not-for-app"
 
-    /// The apps known to hold calls, by the start of their bundle id. Browsers too:
-    /// Meet and Teams on the web are a page using the microphone.
-    static let apps: [(prefix: String, name: String, browser: Bool)] = [
-        ("us.zoom.xos", "Zoom", false), ("com.microsoft.teams", "Teams", false), ("com.apple.FaceTime", "FaceTime", false),
-        ("com.tinyspeck.slackmacgap", "Slack", false), ("com.cisco.webexmeetingsapp", "Webex", false),
-        ("Cisco-Systems.Spark", "Webex", false), ("com.hnc.Discord", "Discord", false), ("net.whatsapp.WhatsApp", "WhatsApp", false),
-        ("com.skype.skype", "Skype", false), ("com.google.Chrome", "Chrome", true), ("com.apple.Safari", "Safari", true),
-        ("com.apple.WebKit", "Safari", true), ("company.thebrowser", "Arc", true), ("org.mozilla.firefox", "Firefox", true),
-        ("com.microsoft.edgemac", "Edge", true), ("com.brave.Browser", "Brave", true), ("com.vivaldi.Vivaldi", "Vivaldi", true),
-    ]
-
     /// When each app began using the microphone, while it does.
     private var since: [String: Date] = [:]
     /// When each app was last asked about; kept a minute after it lets the microphone go.
@@ -43,24 +32,46 @@ final class CallDetector {
         ])
         watching = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                self?.check()
+                if Settings.askOnCalls {
+                    // Core Audio asked off the main thread: it can stall while devices change.
+                    let bundles = await Task.detached(priority: .utility) {
+                        MediaControl.listeningProcesses().map(\.bundleID)
+                    }.value
+                    self?.check(bundles, front: NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
+                } else {
+                    self?.forget()
+                }
                 try? await Task.sleep(for: .seconds(3))
             }
         }
     }
 
-    private func check() {
-        guard Settings.askOnCalls else { since = [:]; return }
-        let listening = Set(MediaControl.listeningProcesses().compactMap { Self.app(for: $0.bundleID)?.name })
+    /// Off: nothing remembered, and a question still in Notification Center taken back.
+    private func forget() {
+        guard !since.isEmpty || !asked.isEmpty else { return }
+        withdraw(Array(Set(since.keys).union(asked.keys)))
+        since = [:]
+        asked = [:]
+    }
+
+    private func check(_ bundles: [String], front: String?) {
+        let listening = Set(bundles.compactMap { name(for: $0, front: front) })
         let now = Date()
+        // A call over: its question in Notification Center goes with it.
+        withdraw(since.keys.filter { !listening.contains($0) })
         since = since.filter { listening.contains($0.key) }
         for app in listening where since[app] == nil { since[app] = now }
+        // Asked once a call: the mark is kept while the app listens, and a minute after
+        // it lets the microphone go (a moment's drop isn't a new call).
+        for app in listening where asked[app] != nil { asked[app] = now }
         asked = asked.filter { listening.contains($0.key) || now.timeIntervalSince($0.value) < 60 }
-        // Already taking notes, or dictating: not now.
-        guard MeetingSession.shared.phase == .idle, Dictation.shared.phase == .idle else {
+        // Recording or dictating: this call is in hand, not asked about. (Writing out
+        // the last meeting isn't: a call that starts meanwhile is still asked about.)
+        if MeetingSession.shared.isRecording || Dictation.shared.phase != .idle {
             for app in listening { asked[app] = now }
             return
         }
+        guard MeetingSession.shared.phase == .idle else { return }
         let muted = Set(Settings.callAppsMuted)
         // Four seconds of it first: a page asking for the mic a moment isn't a call.
         for (app, began) in since where now.timeIntervalSince(began) >= 4 && asked[app] == nil && !muted.contains(app) {
@@ -70,8 +81,23 @@ final class CallDetector {
         }
     }
 
+    /// A WebKit process (Safari's, or an app's own web view, as in new Teams) is named
+    /// by the app in front when that's a known one: the call is most likely there.
+    private func name(for bundle: String, front: String?) -> String? {
+        guard let known = Self.app(for: bundle) else { return nil }
+        if bundle.hasPrefix("com.apple.WebKit"), let front, let app = Self.app(for: front), app.prefix != known.prefix {
+            return app.name
+        }
+        return known.name
+    }
+
+    private func withdraw(_ apps: [String]) {
+        guard !apps.isEmpty else { return }
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: apps.map { "call-\($0)" })
+    }
+
     private func ask(_ app: String) {
-        let browser = Self.apps.first { $0.name == app }?.browser ?? false
+        let browser = CallApps.all.first { $0.name == app }?.browser ?? false
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert]) { granted, _ in
             guard granted else { return }
@@ -91,14 +117,16 @@ final class CallDetector {
         guard let app = userInfo["callApp"] as? String else { return }
         switch action {
         case Self.notForApp:
-            var muted = Settings.callAppsMuted
-            if !muted.contains(app) { muted.append(app) }
-            Settings.callAppsMuted = muted
+            // Through the settings page's copy, so its "Frågar inte för …" row shows at once.
+            let prefs = AppPrefs.shared
+            if !prefs.callAppsMuted.contains(app) { prefs.callAppsMuted.append(app) }
         case UNNotificationDismissActionIdentifier:
             break
         default:
             let meeting = MeetingSession.shared
-            guard meeting.phase == .idle else { return }
+            // Only for a call still going, and with meetings set up to start.
+            guard meeting.phase == .idle, since[app] != nil,
+                  VoiceModels.shared.state == .ready, Dictation.shared.engine.isInstalled else { return }
             MeetingPanel.shared.startedElsewhere = true
             meeting.armed = true
             AppDelegate.showWindow(page: .meetings)
@@ -106,7 +134,7 @@ final class CallDetector {
     }
 
     static func app(for bundleID: String) -> (prefix: String, name: String, browser: Bool)? {
-        apps.first { bundleID.hasPrefix($0.prefix) }
+        CallApps.app(for: bundleID)
     }
 
     #if DEBUG
