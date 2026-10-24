@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import UserNotifications
 import os
 
@@ -98,22 +99,35 @@ final class CallDetector {
 
     private func withdraw(_ apps: [String]) {
         guard !apps.isEmpty else { return }
+        CallPrompt.shared.withdraw(apps)
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: apps.map { "call-\($0)" })
     }
 
+    static func title(_ app: String) -> String {
+        CallApps.all.first { $0.name == app }?.browser == true
+            ? String(localized: "\(app) använder mikrofonen") : String(localized: "Samtal i \(app)")
+    }
+
+    static func question(_ app: String) -> String {
+        CallApps.all.first { $0.name == app }?.browser == true
+            ? String(localized: "Är det ett möte? Ta anteckningar med Mindtalk.")
+            : String(localized: "Vill du ta anteckningar med Mindtalk?")
+    }
+
+    /// As a notification when they're allowed; otherwise (turned off, or never allowed)
+    /// in a small box of Mindtalk's own at the top of the screen, so it's never lost.
     private func ask(_ app: String) {
-        let browser = CallApps.all.first { $0.name == app }?.browser ?? false
         let center = UNUserNotificationCenter.current()
         Self.log.notice("calls: asking about \(app, privacy: .public)")
-        center.requestAuthorization(options: [.alert]) { granted, error in
+        center.requestAuthorization(options: [.alert]) { granted, _ in
             guard granted else {
-                Self.log.error("calls: notifications not allowed (\(error?.localizedDescription ?? "denied", privacy: .public))")
+                Self.log.notice("calls: notifications not allowed, asking in Mindtalk's own box")
+                Task { @MainActor in CallPrompt.shared.show(app) }
                 return
             }
             let content = UNMutableNotificationContent()
-            content.title = browser ? String(localized: "\(app) använder mikrofonen") : String(localized: "Samtal i \(app)")
-            content.body = browser ? String(localized: "Är det ett möte? Ta anteckningar med Mindtalk.")
-                                   : String(localized: "Vill du ta anteckningar med Mindtalk?")
+            content.title = Self.title(app)
+            content.body = Self.question(app)
             content.categoryIdentifier = Self.category
             content.userInfo = ["callApp": app]
             center.add(UNNotificationRequest(identifier: "call-\(app)", content: content, trigger: nil))
@@ -167,4 +181,98 @@ final class CallDetector {
         return failures == 0 ? 0 : 1
     }
     #endif
+}
+
+// MARK: - The question in Mindtalk's own box
+
+/// "Samtal i Teams. Vill du ta anteckningar?" at the top right of the screen, over
+/// every window and space, when notifications aren't allowed: Ta anteckningar, Inte
+/// nu, Fråga inte för Teams. It takes no focus from the call, goes by itself after half
+/// a minute, and when the call ends.
+@MainActor
+final class CallPrompt {
+    static let shared = CallPrompt()
+    private var panel: NSPanel?
+    private var app: String?
+    private var hiding: Task<Void, Never>?
+
+    func show(_ app: String) {
+        close()
+        self.app = app
+        let view = CallPromptView(app: app) { [weak self] action in
+            self?.close()
+            CallDetector.shared.answer(action, userInfo: ["callApp": app])
+        }
+        let host = NSHostingView(rootView: view)
+        host.frame.size = host.fittingSize
+        let panel = NSPanel(contentRect: NSRect(origin: .zero, size: host.fittingSize),
+                            styleMask: [.nonactivatingPanel, .borderless], backing: .buffered, defer: false)
+        panel.contentView = host
+        panel.isFloatingPanel = true
+        panel.level = .statusBar
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = false
+        panel.hidesOnDeactivate = false
+        if let screen = NSScreen.main?.visibleFrame {
+            panel.setFrameOrigin(NSPoint(x: screen.maxX - host.fittingSize.width - 12, y: screen.maxY - host.fittingSize.height - 12))
+        }
+        panel.alphaValue = 0
+        panel.orderFrontRegardless()
+        NSAnimationContext.runAnimationGroup { $0.duration = 0.25; panel.animator().alphaValue = 1 }
+        self.panel = panel
+        hiding = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(30))
+            guard !Task.isCancelled else { return }
+            self?.close()
+        }
+    }
+
+    func withdraw(_ apps: [String]) {
+        if let app, apps.contains(app) { close() }
+    }
+
+    private func close() {
+        hiding?.cancel()
+        hiding = nil
+        panel?.orderOut(nil)
+        panel = nil
+        app = nil
+    }
+}
+
+private struct CallPromptView: View {
+    let app: String
+    let answer: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "person.2.wave.2").font(.system(size: 15, weight: .medium))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: CallDetector.title(app)).font(.system(size: 13.5, weight: .semibold))
+                    Text(verbatim: CallDetector.question(app)).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                }
+                Spacer(minLength: 8)
+                Button { answer(UNNotificationDismissActionIdentifier) } label: {
+                    Image(systemName: "xmark").font(.system(size: 9, weight: .bold)).foregroundStyle(DS.Colors.muted)
+                        .frame(width: 20, height: 20).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Inte nu")
+                .accessibilityLabel("Inte nu")
+            }
+            HStack(spacing: 8) {
+                Button("Ta anteckningar") { answer(CallDetector.takeNotes) }.buttonStyle(.ink)
+                Button("Inte för \(app)") { answer(CallDetector.notForApp) }.buttonStyle(SoftButtonStyle(small: true))
+            }
+        }
+        .padding(14)
+        .frame(width: 320, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DS.Colors.card))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(DS.Colors.divider, lineWidth: 1))
+        .shadow(color: .black.opacity(0.18), radius: 14, y: 6)
+        .padding(16)
+    }
 }

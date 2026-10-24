@@ -7015,6 +7015,23 @@
         }
       }
     },
+    "Frågan visas då i en liten ruta överst på skärmen. Slå på notiser om du vill ha den i notiscentret.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The question then shows in a small box at the top of the screen. Turn notifications on to get it in Notification Center."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frågan visas då i en liten ruta överst på skärmen. Slå på notiser om du vill ha den i notiscentret."
+          }
+        }
+      }
+    },
     "Frågar inte för %@": {
       "localizations": {
         "en": {
@@ -10429,6 +10446,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inte använt än"
+          }
+        }
+      }
+    },
+    "Inte för %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not for %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inte för %@"
           }
         }
       }
@@ -16742,6 +16775,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ni är många. Med fler än åtta röster kan namnen bli mindre säkra."
+          }
+        }
+      }
+    },
+    "Notiser är avstängda för Mindtalk": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications are off for Mindtalk"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notiser är avstängda för Mindtalk"
           }
         }
       }
@@ -27689,6 +27739,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna Möten"
+          }
+        }
+      }
+    },
+    "Öppna Notiser": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Notifications"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna Notiser"
           }
         }
       }
