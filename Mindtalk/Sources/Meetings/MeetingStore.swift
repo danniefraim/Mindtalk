@@ -116,18 +116,24 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
 
     var hasAudio: Bool { audioRemoved == nil }
 
-    /// Imported within the last day: shown at the top of the list, whatever its
-    /// recording date (often months back), so a file you just dropped is found.
-    func recentlyImported(at now: Date = Date()) -> Bool {
+    /// Imported in the last week: in the list by when it came in (under I dag, I går,
+    /// the days of the week), and only then by when it was recorded.
+    func importedThisWeek(at now: Date = Date()) -> Bool {
         guard let at = source?.importedAt else { return false }
         let age = now.timeIntervalSince(at)
-        return age >= 0 && age < 86_400
+        return age >= 0 && age < 7 * 86_400
+    }
+
+    /// Where the list puts it: when it came into Mindtalk. For a meeting that's when it
+    /// was recorded; for a file imported this week, when it was imported.
+    func listDate(at now: Date = Date()) -> Date {
+        importedThisWeek(at: now) ? source?.importedAt ?? date : date
     }
 
     /// For the list and Hem while it's new: "Importerad i dag · inspelad 14 aug.", or
     /// "Importerad i dag · datum okänt" when the file didn't say.
     func importMeta(at now: Date = Date()) -> String? {
-        guard let source, recentlyImported(at: now) else { return nil }
+        guard let source, importedThisWeek(at: now) else { return nil }
         let calendar = Calendar.current
         let imported: String
         if calendar.isDate(source.importedAt, inSameDayAs: now) { imported = String(localized: "Importerad i dag") }

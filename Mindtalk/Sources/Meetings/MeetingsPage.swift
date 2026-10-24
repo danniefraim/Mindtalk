@@ -1351,7 +1351,12 @@ struct MeetingRow: View {
     }
 
     /// "9:30" under a day's heading, else "I går 9:30"; "Datum okänt" for a file without one.
+    /// The time it came in: when it was recorded, or for a file imported this week,
+    /// when it was imported (that's where the list puts it).
     private var clock: String {
+        if record.importedThisWeek(at: now), let at = record.source?.importedAt {
+            return at.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale))
+        }
         if record.source?.dateKnown == false { return "" }
         return record.date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale))
     }

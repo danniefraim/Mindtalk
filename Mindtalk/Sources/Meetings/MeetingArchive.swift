@@ -2,9 +2,10 @@ import SwiftUI
 
 // MARK: - The meetings, grouped
 //
-// A file imported in the last day first ("Nyligen importerade"), then the recent ones
-// as they've always been — "I dag", "I går", "Tidigare i veckan", "Tidigare i oktober" —
-// and last month open too. Older months fold into a line each
+// Newest first by when it came into Mindtalk: "I dag", "I går", the days of the week,
+// "Tidigare i oktober", and last month open too. A file imported this week stands where
+// it came in (marked "Importerad i dag · inspelad 13 okt. 2024"), so the top of the list
+// is always the latest; after a week it goes to the day it was recorded. Older months fold into a line each
 // ("September 2026 · 14 möten · Anna, Erik"), older years into one line that opens
 // to its months; opened, an old month shows its meetings a line each. What you open
 // or close is remembered.
@@ -38,33 +39,32 @@ struct ArchiveSection: Identifiable {
         }
         var years: [Int: [String: ArchiveSection]] = [:]
         var yearOrder: [Int] = []
-        // A file dropped in the last day, first — whatever it was recorded (often months
-        // back, where it would be lost in the archive). After a day it goes to its date.
-        let imported = records.filter { $0.recentlyImported(at: now) }.sorted { ($0.source?.importedAt ?? now) > ($1.source?.importedAt ?? now) }
-        for record in imported { append("imported", String(localized: "Nyligen importerade"), .recent, record, open: true, day: false) }
-        for record in records where !record.recentlyImported(at: now) {
-            let parts = calendar.dateComponents([.year, .month], from: record.date)
+        // In order of when each came in: a file imported this week by its import, so it
+        // isn't lost in the archive the moment it's dropped.
+        let ordered = records.map { ($0, $0.listDate(at: now)) }.sorted { $0.1 > $1.1 }
+        for (record, when) in ordered {
+            let parts = calendar.dateComponents([.year, .month], from: when)
             let monthID = String(format: "%04d-%02d", parts.year ?? 0, parts.month ?? 0)
-            if calendar.isDateInToday(record.date) {
+            if calendar.isDateInToday(when) {
                 append("today", String(localized: "I dag"), .recent, record, open: true, day: true)
-            } else if calendar.isDateInYesterday(record.date) {
+            } else if calendar.isDateInYesterday(when) {
                 append("yesterday", String(localized: "I går"), .recent, record, open: true, day: true)
-            } else if let days = calendar.dateComponents([.day], from: record.date, to: now).day, days < 7, record.date < now {
+            } else if let days = calendar.dateComponents([.day], from: when, to: now).day, days < 7, when < now {
                 // The rest of the week: a heading per day — "Onsdag 14 oktober".
-                let start = calendar.startOfDay(for: record.date)
-                let name = record.date.formatted(Date.FormatStyle().weekday(.wide).day().month(.wide).locale(AppLanguage.locale))
+                let start = calendar.startOfDay(for: when)
+                let name = when.formatted(Date.FormatStyle().weekday(.wide).day().month(.wide).locale(AppLanguage.locale))
                 append("day-\(Int(start.timeIntervalSince1970))", name.prefix(1).uppercased() + name.dropFirst(), .recent, record,
                        open: true, day: true)
             } else if parts.year == thisMonth.year, parts.month == thisMonth.month {
-                append("month-now", String(localized: "Tidigare i \(monthName(record.date, year: false))"), .recent, record, open: true)
+                append("month-now", String(localized: "Tidigare i \(monthName(when, year: false))"), .recent, record, open: true)
             } else if parts.year == thisMonth.year || (parts.year == lastMonth.year && parts.month == lastMonth.month) {
-                append(monthID, monthName(record.date, year: true), .month, record,
+                append(monthID, monthName(when, year: true), .month, record,
                        open: parts.year == lastMonth.year && parts.month == lastMonth.month)
             } else {
                 // Earlier years: a line each, opening to their months.
                 let year = parts.year ?? 0
                 if years[year] == nil { years[year] = [:]; yearOrder.append(year) }
-                let name = monthName(record.date, year: false)
+                let name = monthName(when, year: false)
                 var month = years[year]![monthID] ?? ArchiveSection(id: monthID, title: name.prefix(1).uppercased() + name.dropFirst(),
                                                                      kind: .month)
                 month.meetings.append(record)

@@ -16892,6 +16892,7 @@
       }
     },
     "Nyligen importerade": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

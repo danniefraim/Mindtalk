@@ -57,6 +57,11 @@ enum WindowRender {
         // In memory only: a render never writes a setting (Settings.previewing).
         if args.contains("--voices-off") { VoiceMemory.shared.enabled = false }
         if let state = value("--meeting-state") { MeetingSession.shared.preview(state: state) }
+        // `--demo-imported`: the oldest demo meeting as a file dropped two hours ago (recorded long before).
+        if args.contains("--demo-imported"), var old = MeetingStore.shared.meetings.last {
+            old.source = MeetingRecord.Source(file: "Styrelsemöte.m4a", video: false, importedAt: Date().addingTimeInterval(-7200))
+            MeetingStore.shared.replaceAll(MeetingStore.shared.meetings.dropLast() + [old])
+        }
         // `--import-state reading|writing|voices|summary|done|failed [--import-progress 0.4]`:
         // a file at that step in the drop zone.
         if let state = value("--import-state") {

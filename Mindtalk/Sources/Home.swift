@@ -605,11 +605,11 @@ struct HomeShelves: View {
     @State private var live: UUID?
 
     var body: some View {
-        // A file dropped in the last day first, under its own heading — whatever it was
-        // recorded — then the latest meetings, three in all.
-        let imported = Array(store.meetings.filter { $0.id != live && $0.recentlyImported() }
-            .sorted { ($0.source?.importedAt ?? .distantPast) > ($1.source?.importedAt ?? .distantPast) }.prefix(3))
-        let meetings = Array(store.meetings.filter { $0.id != live && !$0.recentlyImported() }.prefix(3 - imported.count))
+        // The three latest by when they came in, as the list has them: a file imported this
+        // week where it was imported (its card says when it was recorded).
+        let now = Date()
+        let meetings = Array(store.meetings.filter { $0.id != live }
+            .sorted { $0.listDate(at: now) > $1.listDate(at: now) }.prefix(3))
         let open = thoughts.forHome
         VStack(alignment: .leading, spacing: 30) {
             // In the setup card's place once the setup is done, for a new user.
@@ -620,12 +620,8 @@ struct HomeShelves: View {
                     if !importer.jobs.isEmpty {
                         ImportCards(compact: true) { id in MeetingsPage.lastOpen = id; page = .meetings }
                     }
-                    if !imported.isEmpty {
-                        CapsLabel(String(localized: "Nyligen importerade")).padding(.top, 4)
-                        cards(imported)
-                    }
                     if meetings.isEmpty {
-                        if importer.jobs.isEmpty, imported.isEmpty {
+                        if importer.jobs.isEmpty {
                             hint("person.2.wave.2", "Här hamnar mötena du spelar in eller lägger till, med en sammanfattning du kan läsa direkt.")
                         }
                     } else {
