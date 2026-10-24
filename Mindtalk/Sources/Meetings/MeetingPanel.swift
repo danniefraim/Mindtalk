@@ -58,8 +58,8 @@ final class MeetingPanel: ObservableObject {
     private var meetingRan = false
     /// The round was opened in the window from the panel: the meeting goes back after it.
     private var returnToPanel = false
-    /// Started from the menu bar or the shortcut (the window was opened for the round):
-    /// the meeting belongs in the panel once the round is over.
+    /// Started from the menu bar, the shortcut or the box asked in a call: the meeting
+    /// belongs in the panel (after the round, when there is one).
     var startedElsewhere = false
     private var watchingRound: AnyCancellable?
     /// The move to the panel, a moment after a meeting started from elsewhere.
@@ -150,11 +150,13 @@ final class MeetingPanel: ObservableObject {
                 expand()
             } else if home == .panel {
                 // "Nu spelar vi in" is seen first (StartCue, about a second), then the
-                // window goes behind your work and the panel comes. Stopped, put in the
-                // window or ended meanwhile: nothing moves.
+                // window goes behind your work and the panel comes; with no window up
+                // (started from the box asked in a call), the panel at once. Stopped, put
+                // in the window or ended meanwhile: nothing moves.
                 handOff?.cancel()
+                let wait = AppDelegate.mainWindowVisible ? 1.2 : 0.15
                 handOff = Task { @MainActor [weak self] in
-                    try? await Task.sleep(for: .seconds(1.2))
+                    try? await Task.sleep(for: .seconds(wait))
                     guard !Task.isCancelled, let self, self.home == .panel, MeetingSession.shared.isRecording,
                           !MeetingSession.shared.stopping else { return }
                     if AppDelegate.mainWindowVisible { AppDelegate.hideMainWindow() }   // behind your work anyway

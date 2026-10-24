@@ -27838,6 +27838,22 @@
         }
       }
     },
+    "Öppna startkortet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the start card"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna startkortet"
+          }
+        }
+      }
+    },
     "Öppnar Inställningar → Möten → Sammanfattningar.": {
       "localizations": {
         "en": {

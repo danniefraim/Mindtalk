@@ -26,14 +26,24 @@ final class CallDetector {
 
     enum Answer { case startDirect, startRound, openCard, notForApp, notNow }
 
-    /// When each app began using the microphone, while it does.
+    /// When each app began using the microphone, while it does (and ten seconds after,
+    /// so a moment's drop, AirPods switching, is the same call).
     private var since: [String: Date] = [:]
+    /// When each app was last seen using it.
+    private var seen: [String: Date] = [:]
+    /// The name a listening process got when first seen: a call in new Teams' web view
+    /// stays "Teams" when you turn to another app.
+    private var named: [String: String] = [:]
     /// When each app was last asked about; kept ten seconds after it lets the microphone go.
     private var asked: [String: Date] = [:]
     private var watching: Task<Void, Never>?
 
     func start() {
         guard !Settings.previewing, watching == nil else { return }
+        // Questions from the version that asked in notifications: taken back.
+        let center = UNUserNotificationCenter.current()
+        center.removeDeliveredNotifications(withIdentifiers: CallApps.all.map { "call-\($0.name)" })
+        center.setNotificationCategories([])
         watching = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 if Settings.askOnCalls {
@@ -55,15 +65,22 @@ final class CallDetector {
         guard !since.isEmpty || !asked.isEmpty else { return }
         CallPrompt.shared.withdraw(Array(since.keys))
         since = [:]
+        seen = [:]
         asked = [:]
+        named = [:]
     }
 
     private func check(_ bundles: [String], front: String?) {
-        let listening = Set(bundles.compactMap { name(for: $0, front: front) })
+        named = named.filter { bundles.contains($0.key) }
+        for bundle in bundles where named[bundle] == nil { named[bundle] = name(for: bundle, front: front) }
+        let listening = Set(bundles.compactMap { named[$0] })
         let now = Date()
-        // A call over: its question goes with it.
-        CallPrompt.shared.withdraw(since.keys.filter { !listening.contains($0) })
-        since = since.filter { listening.contains($0.key) }
+        for app in listening { seen[app] = now }
+        // A call over (its app has let the microphone go for ten seconds): its question
+        // goes with it.
+        let over = seen.filter { now.timeIntervalSince($0.value) >= 10 }.map(\.key)
+        CallPrompt.shared.withdraw(over)
+        for app in over { since[app] = nil; seen[app] = nil }
         for app in listening where since[app] == nil {
             since[app] = now
             Self.log.notice("calls: \(app, privacy: .public) is using the microphone")
@@ -73,18 +90,19 @@ final class CallDetector {
         // new call; a call right after the last one is).
         for app in listening where asked[app] != nil { asked[app] = now }
         asked = asked.filter { listening.contains($0.key) || now.timeIntervalSince($0.value) < 10 }
-        // Recording or dictating: this call is in hand, not asked about (and a question
-        // still up goes: the meeting was started another way). Writing out the last
-        // meeting isn't: a call that starts meanwhile is still asked about.
-        if MeetingSession.shared.isRecording || Dictation.shared.phase != .idle {
+        // Recording: this call is in hand, not asked about (and a question still up goes:
+        // the meeting was started another way). Dictating, or writing out the last
+        // meeting: not now, but a call that started meanwhile is asked about after.
+        if MeetingSession.shared.isRecording {
             for app in listening { asked[app] = now }
-            if MeetingSession.shared.isRecording { CallPrompt.shared.withdraw(Array(listening)) }
+            CallPrompt.shared.withdraw(Array(listening))
             return
         }
-        guard MeetingSession.shared.phase == .idle else { return }
+        guard MeetingSession.shared.phase == .idle,
+              Dictation.shared.phase != .recording, Dictation.shared.phase != .transcribing else { return }
         let muted = Set(Settings.callAppsMuted)
         // Four seconds of it first: a page asking for the mic a moment isn't a call.
-        for (app, began) in since where now.timeIntervalSince(began) >= 4 && asked[app] == nil && !muted.contains(app) {
+        for (app, began) in since where listening.contains(app) && now.timeIntervalSince(began) >= 4 && asked[app] == nil && !muted.contains(app) {
             asked[app] = now
             Self.log.notice("calls: asking about \(app, privacy: .public)")
             CallPrompt.shared.show(app)
@@ -136,12 +154,20 @@ final class CallDetector {
         guard meeting.phase == .idle, since[app] != nil else { return }
         let ready = VoiceModels.shared.state == .ready && Dictation.shared.engine.isInstalled
         let mode: MeetingSession.StartMode = answer == .startRound ? .round : .direct
-        if answer == .openCard || !ready || MeetingSession.asksAboutVoices || MeetingSession.preparing(mode) {
+        if answer == .openCard || !ready || MeetingSession.preparing(mode) {
             openCard()
             return
         }
+        // The very first meeting: the card, with the question about remembering voices
+        // already asked for the start that was pressed (nothing records until it's answered).
+        if MeetingSession.asksAboutVoices {
+            openCard()
+            meeting.startFromCard(mode)
+            return
+        }
+        // In no folder (a call isn't the page's), and noted as told: the box says to tell everyone.
         MeetingPanel.shared.startedElsewhere = true
-        meeting.start(introducing: mode == .round, folder: MeetingFolders.shared.selected, informed: true)
+        meeting.start(introducing: mode == .round, folder: nil, informed: true)
         Self.log.notice("calls: started from the question (\(mode == .round ? "round" : "direct", privacy: .public))")
         // It couldn't (the dictation has the mic, say): the card, where it's said why.
         if !meeting.isRecording { openCard() }
@@ -197,17 +223,25 @@ final class CallPrompt {
     private var panel: NSPanel?
     private(set) var app: String?
     private var hiding: Task<Void, Never>?
+    private var shownAt = Date.distantPast
+    /// When it goes by itself.
+    private var deadline = Date.distantPast
 
     func show(_ app: String) {
         close()
         self.app = app
         let view = CallPromptView(app: app, answer: { [weak self] answer in
-            self?.close()
+            // A click meant for the call (its controls are up here in full screen) the
+            // moment the box comes doesn't count.
+            guard let self, Date().timeIntervalSince(self.shownAt) > 0.7 else { return }
+            self.close()
             CallDetector.shared.answer(answer, app: app)
         }, hovering: { [weak self] inside in
-            inside ? self?.hold() : self?.countDown(seconds: 20)
+            guard let self else { return }
+            inside ? self.hold() : self.countDown(seconds: max(20, self.deadline.timeIntervalSinceNow))
         })
-        let host = NSHostingView(rootView: view)
+        // Takes the first click without becoming key, as the meeting panel does.
+        let host = ClickThroughHostingView(rootView: view)
         let size = host.fittingSize
         host.frame.size = size
         let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size),
@@ -230,6 +264,7 @@ final class CallPrompt {
         panel.orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { $0.duration = 0.3; panel.animator().alphaValue = 1 }
         self.panel = panel
+        shownAt = Date()
         AccessibilityNotification.Announcement(CallDetector.title(app) + ". " + CallDetector.question(app)).post()
         countDown(seconds: 60)
     }
@@ -248,6 +283,7 @@ final class CallPrompt {
     }
 
     private func countDown(seconds: Double) {
+        deadline = Date().addingTimeInterval(seconds)
         hiding?.cancel()
         hiding = Task { [weak self] in
             try? await Task.sleep(for: .seconds(seconds))
@@ -260,6 +296,7 @@ final class CallPrompt {
         hiding?.cancel()
         hiding = nil
         if let panel {
+            panel.ignoresMouseEvents = true
             NSAnimationContext.runAnimationGroup({ $0.duration = 0.2; panel.animator().alphaValue = 0 },
                                                  completionHandler: { panel.orderOut(nil) })
         }
@@ -288,6 +325,8 @@ private struct CallPromptView: View {
                     Text(verbatim: CallDetector.question(app)).font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // The words take the room there is before ⋯ and ×.
+                .layoutPriority(1)
                 Spacer(minLength: 6)
                 Menu {
                     Button("Fråga inte för \(app)") { answer(.notForApp) }
@@ -311,6 +350,8 @@ private struct CallPromptView: View {
             }
             .contentShape(Rectangle())
             .onTapGesture { answer(.openCard) }
+            .accessibilityElement(children: .combine)
+            .accessibilityAction(named: Text("Öppna startkortet")) { answer(.openCard) }
             HStack(spacing: 8) {
                 Button { answer(.startDirect) } label: {
                     HStack(spacing: 7) {
@@ -326,6 +367,9 @@ private struct CallPromptView: View {
                     .buttonStyle(.soft)
                     .help("Öppnar Mindtalk, där alla säger sitt namn.")
             }
+            // Said where you press, as on the start card: the others should know.
+            Text("Säg till alla att mötet spelas in.")
+                .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
         }
         .padding(14)
         .frame(width: 360, alignment: .leading)

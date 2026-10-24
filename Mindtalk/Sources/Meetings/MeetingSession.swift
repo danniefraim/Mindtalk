@@ -545,8 +545,9 @@ final class MeetingSession: ObservableObject {
 
     /// `folder`: started on the Möten page while a folder is chosen there — it goes
     /// in it. (From the menu bar or the shortcut, in none: the page suggests one after.)
-    /// `informed`: started from the card, where it says to tell everyone the meeting is
-    /// recorded; the moment is noted ("Deltagarna informerades") in the meeting.
+    /// `informed`: started from the card or the box asked in a call, both of which say
+    /// to tell everyone the meeting is recorded; the moment is noted ("Deltagarna
+    /// informerades") in the meeting.
     func start(introducing: Bool = false, folder: UUID? = nil, informed: Bool = false) {
         guard phase == .idle else { return }
         voiceQuestion = nil

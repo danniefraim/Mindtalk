@@ -761,7 +761,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             Task { @MainActor in
                 let dark = args.contains("--dark")
                 NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-                let app = args.firstIndex(of: "--app").map { args[$0 + 1] } ?? "Teams"
+                let app = args.firstIndex(of: "--app").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } ?? "Teams"
                 let view = CallPrompt.preview(app)
                     .background(dark ? Color(white: 0.12) : Color(white: 0.9))
                     .environment(\.colorScheme, dark ? .dark : .light)
