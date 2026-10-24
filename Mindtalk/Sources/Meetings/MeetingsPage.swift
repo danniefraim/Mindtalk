@@ -177,7 +177,13 @@ private struct MeetingList: View {
 
     /// From two letters: one finds nearly every meeting and only makes the list jump.
     private var searching: Bool { query.trimmingCharacters(in: .whitespaces).count >= 2 }
-    private var canAsk: Bool { MeetingNotes.isAvailable && shown.contains { !$0.words.isEmpty } }
+    /// The question field once there's something to ask across: three meetings with
+    /// text (with one or two, the meeting itself answers better), and a model that can
+    /// answer. Answers already given keep it.
+    private var canAsk: Bool {
+        guard MeetingNotes.isAvailable, shown.contains(where: { !$0.words.isEmpty }) else { return false }
+        return !library.answers.isEmpty || store.meetings.filter({ !$0.words.isEmpty }).count >= 3
+    }
 
     /// Every count the folder chips show, as one key.
     private var folderCounts: String {

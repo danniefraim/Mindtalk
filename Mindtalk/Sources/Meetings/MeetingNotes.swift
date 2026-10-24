@@ -1087,9 +1087,10 @@ final class MeetingNotes: ObservableObject {
         return out
     }
 
-    /// Without line numbers written into the answer as "(13)" or "(3, 7)".
+    /// Without line numbers written into the answer as "(13)", "(3, 7)" or "[28, 31]".
     nonisolated static func unnumbered(_ text: String) -> String {
         text.replacingOccurrences(of: #"\s*\((\d{1,3})(,\s*\d{1,3})*\)"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"\s*\[(\d{1,3})(,\s*\d{1,3})*\]"#, with: "", options: .regularExpression)
     }
 
     /// What went wrong, in words for the person asking.

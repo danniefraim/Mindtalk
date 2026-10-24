@@ -768,8 +768,10 @@ enum AskTest {
             ?? meetings.filter { $0.summary != nil }.max { $0.words.count < $1.words.count } ?? meetings[0]
         // A folder: the one named, or the one with the most meetings.
         let counts = Dictionary(grouping: meetings.compactMap(\.folder), by: { $0 }).mapValues(\.count)
-        let folder = value("--folder").flatMap { n in names.first { $0.value.localizedCaseInsensitiveContains(n) }?.key }
-            ?? counts.max { $0.value < $1.value }?.key
+        // `--folder none`: all meetings only.
+        let folder = value("--folder") == "none" ? nil
+            : value("--folder").flatMap { n in names.first { $0.value.localizedCaseInsensitiveContains(n) }?.key }
+                ?? counts.max { $0.value < $1.value }?.key
         let oneQuestions = value("--one")?.split(separator: "|").map(String.init)
             ?? ["Sammanfatta mötet.", "Vad bestämdes?", "Vem ska göra vad?"]
         let libQuestions = value("--lib")?.split(separator: "|").map(String.init)
