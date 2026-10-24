@@ -97,6 +97,9 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         /// nothing plausible was found: the meeting's date is then when it was
         /// imported, and said to be unknown — until you set it (then true again).
         var dateKnown = true
+        /// You set the date with Ändra datum: in the list by that date from then on, not
+        /// by when it was imported.
+        var dateSetByHand = false
 
         init(file: String, video: Bool, importedAt: Date, dateKnown: Bool = true) {
             self.file = file; self.video = video; self.importedAt = importedAt; self.dateKnown = dateKnown
@@ -111,6 +114,7 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
             path = try c.decodeIfPresent(String.self, forKey: .path)
             bookmark = try c.decodeIfPresent(Data.self, forKey: .bookmark)
             dateKnown = try c.decodeIfPresent(Bool.self, forKey: .dateKnown) ?? true
+            dateSetByHand = try c.decodeIfPresent(Bool.self, forKey: .dateSetByHand) ?? false
         }
     }
 
@@ -119,8 +123,8 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     /// Imported in the last week: in the list by when it came in (under I dag, I går,
     /// the days of the week), and only then by when it was recorded.
     func importedThisWeek(at now: Date = Date()) -> Bool {
-        guard let at = source?.importedAt else { return false }
-        let age = now.timeIntervalSince(at)
+        guard let source, !source.dateSetByHand else { return false }
+        let age = now.timeIntervalSince(source.importedAt)
         return age >= 0 && age < 7 * 86_400
     }
 
@@ -137,7 +141,7 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         let calendar = Calendar.current
         let imported: String
         if calendar.isDate(source.importedAt, inSameDayAs: now) { imported = String(localized: "Importerad i dag") }
-        else if calendar.isDate(source.importedAt, inSameDayAs: now.addingTimeInterval(-86_400)) { imported = String(localized: "Importerad i går") }
+        else if calendar.isDate(source.importedAt, inSameDayAs: calendar.date(byAdding: .day, value: -1, to: now) ?? now) { imported = String(localized: "Importerad i går") }
         else { imported = String(localized: "Importerad \(Self.day(source.importedAt, long: false))") }
         let recorded = source.dateKnown ? String(localized: "inspelad \(Self.day(date, long: false))") : String(localized: "datum okänt")
         return imported + " · " + recorded
@@ -705,6 +709,10 @@ final class MeetingStore: ObservableObject {
     private var retentionWaiting = false
 
     private init() {
+        // Midnight: I dag becomes I går, and a file imported a week ago goes to its own day.
+        NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { MeetingStore.shared.objectWillChange.send() }
+        }
         Task.detached(priority: .userInitiated) {
             let read = Self.readAll()
             await MainActor.run { MeetingStore.shared.finishLoading(read) }
@@ -981,6 +989,7 @@ final class MeetingStore: ObservableObject {
         guard var record = meetings.first(where: { $0.id == id }) else { return }
         record.date = date
         record.source?.dateKnown = true
+        record.source?.dateSetByHand = true
         save(record)
         meetings.sort { $0.date > $1.date }
     }

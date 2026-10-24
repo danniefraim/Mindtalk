@@ -37,7 +37,10 @@ struct ReadyStep: View {
             .staggered(1)
             HStack(spacing: 10) {
                 MenuBarChip()
-                Text(SMAppService.mainApp.status == .enabled ? "Mindtalk finns i menyraden och startar när du loggar in."
+                // Registered when the introduction ends, so said here already.
+                Text(SMAppService.mainApp.status == .enabled
+                     || (AppMover.runsFromApplications && !UserDefaults.standard.bool(forKey: "loginItemRegistered"))
+                     ? "Mindtalk finns i menyraden och startar när du loggar in."
                                                              : "Mindtalk finns i menyraden.")
                     .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -177,6 +180,11 @@ struct ReadyStep: View {
                      detail: Polisher.status == .available
                         ? String(localized: "\(m.name) laddas ned (\(Int(p * 100)) %). Till dess skriver Apple Intelligence.")
                         : String(localized: "\(m.name) laddas ned (\(Int(p * 100)) %). Sedan skrivs sammanfattningarna.")) { EmptyView() }
+        } else if let m = OnboardingView.pendingGemma {
+            ReadyRow(icon: "sparkle", state: .waiting, title: "Sammanfattningar", keys: nil,
+                     detail: Polisher.status == .available
+                        ? String(localized: "\(m.name) laddas ned när talmodellen är klar. Till dess skriver Apple Intelligence.")
+                        : String(localized: "\(m.name) laddas ned när talmodellen är klar. Sedan skrivs sammanfattningarna.")) { EmptyView() }
         } else {
             // Apple Intelligence writes them; what a Gemma adds is said on the Möten page and in
             // Settings, not here. Off: the one button that mends it.

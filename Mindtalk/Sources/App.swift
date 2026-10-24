@@ -1756,6 +1756,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         UNUserNotificationCenter.current().delegate = self
         // A call starting in Teams, Zoom or FaceTime: asked whether to take notes.
         CallDetector.shared.start()
+        if Settings.didOnboard { OnboardingView.resumePendingGemma() }
         MeetingSession.shared.$phase.combineLatest(MeetingSession.shared.$warning.removeDuplicates(),
                                                    MeetingSession.shared.$pausedAt.map { $0 != nil }.removeDuplicates())
             .receive(on: RunLoop.main)
@@ -2185,7 +2186,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     /// opening the window.
     static var isOnboarding: Bool {
         guard let delegate = NSApp.delegate as? AppDelegate else { return false }
-        return delegate.onboardingWindow?.isVisible == true || (MainView.introductionShown && mainWindowVisible)
+        // Its window, even minimised: a call box then would land in the middle of it.
+        return delegate.onboardingWindow != nil || (MainView.introductionShown && mainWindowVisible)
     }
 
     /// Start at login, once the introduction is done (installed in Applications, that

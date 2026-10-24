@@ -98,7 +98,10 @@ final class MeetingImport: ObservableObject {
         // A file just done holds the zone a few seconds, even with the next one started:
         // its title, voices and Öppna are seen. Then the one being worked on, the next in
         // line, and the latest done or failed.
-        let fresh = jobs.filter { $0.doneAt.map { Date().timeIntervalSince($0) < 6 } ?? false }.max { $0.doneAt! < $1.doneAt! }
+        // A failure holds it until it's closed or tidied away: with files behind it, it
+        // would otherwise be gone before it was read.
+        let fresh = jobs.filter { job in job.doneAt.map { Date().timeIntervalSince($0) < (job.stage == .failed ? 60 : 6) } ?? false }
+            .max { $0.doneAt! < $1.doneAt! }
         let latest = jobs.filter { $0.doneAt != nil }.max { $0.doneAt! < $1.doneAt! }
         guard let job = fresh ?? jobs.first(where: \.active) ?? jobs.first(where: { $0.stage == .waiting }) ?? latest ?? jobs.last
         else { return nil }

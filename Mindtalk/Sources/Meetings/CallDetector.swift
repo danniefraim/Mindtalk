@@ -15,7 +15,7 @@ import os
 /// that press. Read from Core Audio's list of processes using an input (no permission,
 /// no window titles, no addresses), every three seconds. Asked once a call: an app that
 /// keeps its microphone open (Zoom while muted) isn't asked again until it has let it go
-/// for ten seconds. "Fråga inte för Teams" stops it for that app; Inställningar → Möten
+/// for ten seconds. "Fråga inte vid samtal i Teams" stops it for that app; Inställningar → Möten
 /// turns it all off.
 @MainActor
 final class CallDetector {
@@ -142,7 +142,7 @@ final class CallDetector {
     func answer(_ answer: Answer, app: String) {
         switch answer {
         case .notForApp:
-            // Through the settings page's copy, so its "Frågar inte för …" row shows at once.
+            // Through the settings page's copy, so its "Frågar inte vid samtal i …" row shows at once.
             let prefs = AppPrefs.shared
             if !prefs.callAppsMuted.contains(app) { prefs.callAppsMuted.append(app) }
             return
@@ -308,7 +308,7 @@ final class CallPrompt {
 }
 
 /// "Samtal i Teams / Vill du anteckna mötet?" beside the turning sphere, then
-/// Starta direkt (ink, with the red dot) and Med namnrunda; ⋯ for Fråga inte för Teams,
+/// Starta direkt (ink, with the red dot) and Med namnrunda; ⋯ for Fråga inte vid samtal i Teams,
 /// × for not now. A click elsewhere on it opens the start card.
 private struct CallPromptView: View {
     let app: String
@@ -331,7 +331,7 @@ private struct CallPromptView: View {
                 .layoutPriority(1)
                 Spacer(minLength: 6)
                 Menu {
-                    Button("Fråga inte för \(app)") { answer(.notForApp) }
+                    Button("Fråga inte vid samtal i \(app)") { answer(.notForApp) }
                 } label: {
                     Image(systemName: "ellipsis").font(.system(size: 11, weight: .bold)).foregroundStyle(DS.Colors.muted)
                         .frame(width: 22, height: 22).contentShape(Rectangle())
@@ -364,7 +364,7 @@ private struct CallPromptView: View {
                     .fixedSize()
                 }
                 .buttonStyle(.ink)
-                .help("Spelar in nu. Mötet syns i en liten panel ovanpå samtalet.")
+                .help("Börjar spela in med en gång. Mötet syns i en liten panel ovanpå samtalet.")
                 Button { answer(.startRound) } label: { Text("Med namnrunda").lineLimit(1).fixedSize() }
                     .buttonStyle(.soft)
                     .help("Öppnar Mindtalk, där alla säger sitt namn.")

@@ -882,7 +882,7 @@ struct StartCard: View {
             let mode = Settings.callAudio
             let headphones = CallAudio.route == .headphones
             if mode == .always || (mode == .headphones && headphones) {
-                Label(headphones ? String(localized: "Hörlurar i. Samtal på datorn kommer också med.")
+                Label(headphones ? String(localized: "Med hörlurar kommer samtal på datorn också med.")
                                  : String(localized: "Datorns ljud kommer också med."),
                       systemImage: headphones ? "headphones" : "speaker.wave.2")
                     .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)

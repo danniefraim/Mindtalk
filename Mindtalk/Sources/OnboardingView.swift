@@ -165,7 +165,7 @@ struct OnboardingView: View {
             Spacer(minLength: 8)
             // On without the speech model: it can be fetched later, from Hem.
             if step == .language, languageBytes > 0 {
-                Button { go(1) } label: {
+                Button { skipDownloads() } label: {
                     Text("Fortsätt utan att ladda ned")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(DS.Colors.muted)
@@ -274,19 +274,44 @@ struct OnboardingView: View {
         }
     }
 
+    /// On without fetching anything, but with the language chosen: Prova and Hem then
+    /// offer the model you picked, not the other one.
+    private func skipDownloads() {
+        let order = SpeechModel.allCases.filter(chosen.contains)
+        if !chosen.contains(dictation.engine), let first = order.first { dictation.setEngine(first) }
+        for m in SpeechModel.allCases where !chosen.contains(m) { dictation.cancelDownload(m) }
+        go(1)
+    }
+
     private func done() {
         dictation.stopPickingKey(reason: "introduction done")
         finish()
     }
 
-    /// Gemma once the speech models chosen are here (or have stopped trying).
+    private static let gemmaAfterSpeech = "gemmaAfterSpeech"
+
+    /// The Gemma waiting for the speech model, chosen in the introduction.
+    static var pendingGemma: NotesModel? {
+        UserDefaults.standard.string(forKey: gemmaAfterSpeech).flatMap(NotesModel.init(rawValue:))
+    }
+
+    /// Gemma once the speech models chosen are here (or have stopped trying). Kept in
+    /// the defaults until it starts, so quitting before then doesn't lose it.
     private static func downloadAfterSpeech(_ notes: NotesModel, models: [SpeechModel]) {
+        Settings.keep(notes.rawValue, forKey: gemmaAfterSpeech)
         Task { @MainActor in
             while models.contains(where: { !$0.isInstalled && Dictation.shared.downloads[$0] != nil }) {
                 try? await Task.sleep(for: .seconds(3))
             }
+            UserDefaults.standard.removeObject(forKey: gemmaAfterSpeech)
             if case .missing = BetterNotes.shared.state(notes) { BetterNotes.shared.download(notes) }
         }
+    }
+
+    /// At launch: a Gemma the introduction chose, left waiting when Mindtalk quit.
+    static func resumePendingGemma() {
+        guard let notes = pendingGemma else { return }
+        downloadAfterSpeech(notes, models: SpeechModel.allCases)
     }
 
     private func go(_ delta: Int) {
@@ -664,9 +689,11 @@ private struct PermissionsStep: View {
                                granted: dictation.micGranted, button: "Tillåt") { dictation.requestMicrophone() }
                     .staggered(2)
                 // Asked now, at a calm moment, rather than the first time a call is recorded.
+                // Whether it was allowed can't be read: asked, it says so and where to change it,
+                // never a tick that could be a no.
                 PermissionCard(icon: "headphones", title: "Datorns ljud",
-                               text: "För Teams, Zoom och Meet med hörlurar. Bara från samtalsappar och bara medan ett möte spelas in. Ingen skärminspelning.",
-                               granted: callAudioAsked, button: "Tillåt", grantedText: "Frågat") { askCallAudio() }
+                               text: "Skärm- och systemljudsinspelning heter det i macOS. Mindtalk tar bara ljudet från samtalsappar medan ett möte spelas in, aldrig skärmen.",
+                               granted: false, button: "Tillåt", asked: callAudioAsked) { askCallAudio() }
                     .staggered(3)
             }
             Group {
@@ -696,17 +723,20 @@ private struct PermissionsStep: View {
 
     @State private var callAudioAsked = UserDefaults.standard.bool(forKey: "callAudioAsked")
 
-    /// macOS asks about "Inspelning av systemljud" when a tap first runs: one runs for a
+    /// macOS asks about "Systemljudinspelning" when a tap first runs: one runs for a
     /// moment, and nothing it hears is kept. Whether it was allowed can't be read, so
     /// the card says it was asked; refused, a meeting says so when a call isn't heard.
+    /// Never while a meeting records: its own tap asks then, and this one would hear
+    /// the whole Mac.
     private func askCallAudio() {
         guard !Settings.previewing else { callAudioAsked = true; return }
-        CallAudio.shared.start(processes: nil)
+        guard !MeetingSession.shared.isRecording, !CallAudio.shared.isRunning,
+              CallAudio.shared.start(processes: nil) else { return }
         Settings.keep(true, forKey: "callAudioAsked")
         withAnimation(.smooth(duration: 0.4)) { callAudioAsked = true }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(2))
-            if !MeetingSession.shared.isRecording { CallAudio.shared.stop() }
+            if CallAudio.shared.processes.isEmpty { CallAudio.shared.stop() }
         }
     }
 }
@@ -718,6 +748,8 @@ private struct PermissionCard: View {
     let granted: Bool
     let button: String
     var grantedText = "Tillåtet"
+    /// Asked, with no way to read the answer: said so, and where to change it.
+    var asked = false
     let action: () -> Void
 
     var body: some View {
@@ -743,6 +775,20 @@ private struct PermissionCard: View {
                 GrantedLabel(text: grantedText)
                     .frame(height: 34)
                     .transition(.opacity)
+            } else if asked {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Frågan är ställd.")
+                        .font(.system(size: 13, weight: .semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("Sa du nej? Ändra det i Systeminställningar.") {
+                        Dictation.shared.openPrivacySettings("Privacy_AudioCapture")
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12))
+                    .foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .transition(.opacity)
             } else {
                 Button(LocalizedStringKey(button), action: action)
                     .buttonStyle(.ink)

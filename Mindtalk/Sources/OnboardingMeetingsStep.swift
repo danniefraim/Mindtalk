@@ -23,9 +23,9 @@ struct MeetingsStep: View {
             // A summary is promised only where one can be written (Apple Intelligence, or a
             // Gemma here or on its way).
             StepHeader(title: "Möten, i rummet och i samtal",
-                       subtitle: MeetingNotes.isAvailable || BetterNotes.shared.downloading != nil
+                       subtitle: MeetingNotes.isAvailable || BetterNotes.shared.downloading != nil || OnboardingView.pendingGemma != nil
                            ? "Mindtalk hör vem som säger vad, skriver ned det medan ni pratar och sammanfattar efteråt."
-                           : "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar. Sammanfattningar skrivs av Apple Intelligence eller Gemma, som du väljer under Inställningar.")
+                           : "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar. Sammanfattningarna skriver Apple Intelligence eller Gemma. Du väljer vilken under Inställningar.")
                 .staggered(0)
             HStack(alignment: .top, spacing: DS.Layout.stepGap) {
                 DemoMeeting()
@@ -36,12 +36,11 @@ struct MeetingsStep: View {
                     .staggered(2)
             }
             // Calls on the Mac too, and how one starts: the box asks, nothing records by itself.
-            Text("När ett samtal i Teams, Zoom eller Meet börjar frågar Mindtalk i en liten ruta. Inget spelas in förrän du trycker, och med hörlurar kommer de andra också med. Säg till alla att mötet spelas in.")
+            Text("När ett samtal i Teams, Zoom eller Meet börjar frågar Mindtalk i en liten ruta om du vill anteckna det. Inget spelas in förrän du trycker, och med hörlurar kommer de andra med också. Säg till alla att mötet spelas in.")
                 .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: Self.tileWidth + DS.Layout.stepGap + Self.cardWidth)
-                .padding(.top, -10)
                 .staggered(3)
         }
     }

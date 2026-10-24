@@ -39,8 +39,9 @@ enum CallApps {
 
 /// The Mac's own sound, for a meeting on the Mac: the others in Teams, Zoom, Meet or
 /// FaceTime, heard in headphones, where the microphone can't hear them. A Core Audio
-/// process tap of the call apps playing sound ("Inspelning av systemljud", a permission
-/// of its own; no screen recording): not music, not notifications, never Mindtalk. It
+/// process tap of the call apps playing sound ("Systemljudinspelning", a permission of
+/// its own; no screen recording): not music, not notifications, never Mindtalk. A
+/// browser counts only while it also uses the microphone, so a video in a tab is not a call. It
 /// is turned into the meeting's 16 kHz mono and mixed into the microphone's chunks as
 /// they come; the microphone's clock leads, and the Mac's sound never runs more than a
 /// fifth of a second behind it.
@@ -90,6 +91,8 @@ final class CallAudio: @unchecked Sendable {
     private var aggregateID = AudioObjectID(kAudioObjectUnknown)
     private var procID: AudioDeviceIOProcID?
     private var variant = Variant.tapOnly
+    /// The output the tap alone read nothing on: clocked by it there, alone again elsewhere.
+    private var fellBackOn: String?
     private var startedAt = Date.distantPast
     /// How long the tap has run (0 when it isn't on).
     @MainActor var runningFor: TimeInterval { isRunning ? Date().timeIntervalSince(startedAt) : 0 }
@@ -147,15 +150,36 @@ final class CallAudio: @unchecked Sendable {
         }
     }
 
-    /// The call apps playing sound now, as Core Audio's process objects.
+    /// The call apps playing sound now, as Core Audio's process objects. A browser only
+    /// while it also has the microphone: a call in a tab, not a video.
     static func callProcesses() -> Set<AudioObjectID> {
-        Set(MediaControl.playingProcesses().filter { CallApps.app(for: $0.bundleID) != nil }.map(\.id))
+        let playing = MediaControl.playingProcesses().filter { CallApps.app(for: $0.bundleID) != nil }
+        guard playing.contains(where: { CallApps.app(for: $0.bundleID)?.browser == true }) else { return Set(playing.map(\.id)) }
+        let inCall = Set(MediaControl.listeningProcesses().compactMap { CallApps.app(for: $0.bundleID)?.name })
+        return Set(playing.filter { player in
+            guard let app = CallApps.app(for: player.bundleID) else { return false }
+            return !app.browser || inCall.contains(app.name)
+        }.map(\.id))
+    }
+
+    /// Of these process objects, the ones whose process still runs (an app that quit
+    /// can't be in a new tap).
+    static func alive(_ processes: Set<AudioObjectID>) -> Set<AudioObjectID> {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyProcessObjectList,
+                                                 mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size) == noErr, size > 0 else { return [] }
+        var list = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
+        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &list) == noErr else { return [] }
+        return processes.intersection(list)
     }
 
     /// The tap as it runs no longer fits: another output, its format changed (AirPods
     /// going into headset mode), or a call app it doesn't have has started to play.
     @MainActor func outdated(for playing: Set<AudioObjectID>) -> Bool {
         guard isRunning, let madeFor else { return false }
+        if processes.isEmpty { return true }        // the whole Mac's sound (onboarding's ask): never a meeting's
         if !playing.isSubset(of: processes) { return true }
         guard let output = Self.defaultOutput(), Self.uid(output) == madeFor.output else { return true }
         return Self.tapRate(tapID).map { $0 != madeFor.rate } ?? false
@@ -197,6 +221,7 @@ final class CallAudio: @unchecked Sendable {
         }
         converter.downmix = true
         let reader = Reader(format: input, converter: converter)
+        if variant == .withOutput, fellBackOn != outputUID { variant = .tapOnly }
 
         // The tap alone in a private device: the output's microphone (AirPods) is never
         // opened by it. Clocked by the output as well only where that alone gives nothing.
@@ -244,6 +269,7 @@ final class CallAudio: @unchecked Sendable {
         Self.log.notice("call audio: nothing read from the tap alone, clocked by the output instead")
         stop()
         variant = .withOutput
+        fellBackOn = madeFor?.output
         start(processes: processes.isEmpty ? nil : processes)
     }
 

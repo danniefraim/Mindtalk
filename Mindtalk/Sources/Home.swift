@@ -609,7 +609,10 @@ struct HomeShelves: View {
         // week where it was imported (its card says when it was recorded).
         let now = Date()
         let meetings = Array(store.meetings.filter { $0.id != live }
-            .sorted { $0.listDate(at: now) > $1.listDate(at: now) }.prefix(3))
+            .sorted { a, b in
+                let (x, y) = (a.listDate(at: now), b.listDate(at: now))
+                return x != y ? x > y : a.id.uuidString > b.id.uuidString
+            }.prefix(3))
         let open = thoughts.forHome
         VStack(alignment: .leading, spacing: 30) {
             // In the setup card's place once the setup is done, for a new user.
@@ -746,9 +749,13 @@ struct HomeShelves: View {
             let about = m.summary?.overview
                 ?? (!m.finished ? String(localized: "Inspelningen avbröts innan mötet var klart.")
                     : MeetingNotes.isAvailable ? String(localized: "Ingen sammanfattning än.") : String(localized: "Ingen sammanfattning."))
-            // Just imported: "Importerad i dag · inspelad 14 aug."; a file with no date: "Datum okänt".
-            let when = (m.importMeta() ?? (m.source?.dateKnown == false ? String(localized: "Datum okänt") : MeetingRecord.when(m.date)))
-                + " · " + Stats.duration(m.duration)
+            // Just imported: "Importerad i dag · inspelad 14 aug." alone (with the length too
+            // it broke inside the date); a file with no date: "Datum okänt".
+            // Broken only at the dots: "inspelad" never ends a line without its date.
+            let when = (m.importMeta()
+                ?? ((m.source?.dateKnown == false ? String(localized: "Datum okänt") : MeetingRecord.when(m.date))
+                    + " · " + Stats.duration(m.duration)))
+                .components(separatedBy: " · ").map { $0.replacingOccurrences(of: " ", with: "\u{00A0}") }.joined(separator: " · ")
             let people = speakers == 1 ? String(localized: "1 talare") : String(localized: "\(speakers) talare")
             Button {
                 MeetingsPage.lastOpen = m.id

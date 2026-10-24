@@ -70,7 +70,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>Mindtalk tar med datorns ljud i ett möte, så att de andra i ett samtal i Teams, Zoom eller Meet också skrivs ned. Allt tolkas på din Mac, och inget ljud lämnar datorn.</string>
+	<string>Mindtalk tar med datorns ljud i ett möte, så att det de andra säger i Teams, Zoom eller Meet också skrivs ned. Allt tolkas på din Mac, och inget ljud lämnar datorn.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Mindact Solutions AB. Taligenkänning: Klang Pianissimo av Klang AI AB och Parakeet Ultra av Moondream (CC BY 4.0).</string>
 	<key>NSMicrophoneUsageDescription</key>

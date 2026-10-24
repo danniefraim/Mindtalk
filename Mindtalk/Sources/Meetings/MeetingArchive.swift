@@ -41,7 +41,7 @@ struct ArchiveSection: Identifiable {
         var yearOrder: [Int] = []
         // In order of when each came in: a file imported this week by its import, so it
         // isn't lost in the archive the moment it's dropped.
-        let ordered = records.map { ($0, $0.listDate(at: now)) }.sorted { $0.1 > $1.1 }
+        let ordered = records.map { ($0, $0.listDate(at: now)) }.sorted { $0.1 != $1.1 ? $0.1 > $1.1 : $0.0.id.uuidString > $1.0.id.uuidString }
         for (record, when) in ordered {
             let parts = calendar.dateComponents([.year, .month], from: when)
             let monthID = String(format: "%04d-%02d", parts.year ?? 0, parts.month ?? 0)

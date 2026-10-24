@@ -173,7 +173,7 @@ struct ThoughtsStep: View {
         case noWords, tooShort, failed(String)
     }
 
-    private static var micText: String { String(localized: "Mindtalk behöver mikrofonen. Tillåt den i förra steget.") }
+    private static var micText: String { String(localized: "Mindtalk behöver mikrofonen. Tillåt den under Behörigheter.") }
 
     /// Why a press didn't start listening, in Dictation's own words where it has them.
     private var whyNotListening: String? {

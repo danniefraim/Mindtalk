@@ -690,17 +690,17 @@ struct SettingsPage: View {
             }
             CardDivider()
             CardRow(title: "Ta med samtal på datorn",
-                    detail: "Mindtalk hör de andra i Teams, Zoom, Meet och FaceTime genom datorns ljud. Med hörlurar behövs det, med högtalare hör mikrofonen dem redan.") {
+                    detail: "Mindtalk hör de andra i Teams, Zoom, Meet och andra samtalsappar genom datorns ljud. Det behövs med hörlurar. Med högtalare hör mikrofonen dem redan.") {
                 MenuPicker(options: CallAudioMode.allCases.map { ($0, $0.title) }, selection: $prefs.callAudio)
             }
             CardDivider()
             CardRow(title: "Fråga när ett samtal börjar",
-                    detail: "När Teams, Zoom, FaceTime eller webbläsaren börjar använda mikrofonen frågar Mindtalk i en liten ruta om du vill anteckna mötet. Inget spelas in förrän du trycker.") {
+                    detail: "När Teams, Zoom, Meet eller en annan samtalsapp börjar använda mikrofonen frågar Mindtalk i en liten ruta om du vill anteckna mötet. Inget spelas in förrän du trycker.") {
                 InkToggle(label: "Fråga när ett samtal börjar", isOn: $prefs.askOnCalls)
             }
             if prefs.askOnCalls, !prefs.callAppsMuted.isEmpty {
                 CardDivider()
-                CardRow(title: String(localized: "Frågar inte för \(prefs.callAppsMuted.formatted(.list(type: .and)))")) {
+                CardRow(title: String(localized: "Frågar inte vid samtal i \(prefs.callAppsMuted.formatted(.list(type: .and)))")) {
                     Button("Fråga igen") { prefs.callAppsMuted = [] }.buttonStyle(.soft)
                 }
             }
