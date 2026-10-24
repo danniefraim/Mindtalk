@@ -198,6 +198,8 @@ struct LibraryAnswers: View {
                         if i > 0 { CardDivider() }
                         AnswerRow(answer: a, open: open) { withAnimation(.snappy) { library.forget(a) } }
                     }
+                    // Answered by Apple Intelligence: Gemma, which reads many meetings better, offered here.
+                    if !library.asking, library.answers.last?.byApple == true { GemmaNudge() }
                     if library.asking {
                         if !library.answers.isEmpty { CardDivider() }
                         HStack(spacing: 10) {
@@ -217,6 +219,47 @@ struct LibraryAnswers: View {
                 .card()
             }
             .transition(.opacity.combined(with: .move(edge: .top)))
+        }
+    }
+}
+
+/// Under answers Apple Intelligence wrote across meetings: Gemma, on this Mac too, reads
+/// many meetings more carefully. Download it, use it when it's here, or see the models
+/// when there's no room.
+private struct GemmaNudge: View {
+    @ObservedObject private var notes = BetterNotes.shared
+
+    var body: some View {
+        if let m = NotesModel.recommended, !notes.isActive {
+            VStack(spacing: 0) {
+                CardDivider()
+                HStack(spacing: 12) {
+                    Image(systemName: "sparkle").font(.system(size: 13)).foregroundStyle(DS.Colors.muted).accessibilityHidden(true)
+                    switch notes.state(m) {
+                    case .downloading(let p):
+                        Text("\(m.name) laddas ned (\(Int(p * 100)) %). Sedan svarar den i stället.")
+                            .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                        Spacer(minLength: 0)
+                    case .ready:
+                        Text("\(m.name) finns på din Mac och läser många möten mer noggrant.")
+                            .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        Button("Använd \(m.name)") { notes.choice = .gemma(m) }.buttonStyle(.soft)
+                    default:
+                        Text("Svaren skrevs av Apple Intelligence. \(m.name) läser många möten mer noggrant, och den körs också på din Mac.")
+                            .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        if m.hasRoom {
+                            Button("Ladda ned \(BetterNotes.gigabytes(m.remainingBytes))") { notes.download(m) }.buttonStyle(.soft)
+                        } else {
+                            Button("Visa modeller") { SettingsPage.open(.meetings) }.buttonStyle(.soft)
+                        }
+                    }
+                }
+                .padding(.horizontal, 16).padding(.vertical, 12)
+            }
         }
     }
 }

@@ -244,6 +244,22 @@
         }
       }
     },
+    "%@ finns på din Mac och läser många möten mer noggrant.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is on your Mac and reads many meetings more carefully."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ finns på din Mac och läser många möten mer noggrant."
+          }
+        }
+      }
+    },
     "%@ från Google hittar fler beslut och uppgifter och skriver dem på din Mac. Den behöver %@ ledigt. Du har %@.": {
       "localizations": {
         "en": {
@@ -453,6 +469,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ laddas ned (%lld %%). Sedan skrivs sammanfattningarna."
+          }
+        }
+      }
+    },
+    "%@ laddas ned (%lld %%). Sedan svarar den i stället.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is downloading (%lld %%). Then it answers instead."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ laddas ned (%lld %%). Sedan svarar den i stället."
           }
         }
       }
@@ -2668,7 +2700,6 @@
       }
     },
     "Använd %@": {
-      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -21506,6 +21537,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Svarade på %@ s. Orkar ungefär %@ ord åt gången."
+          }
+        }
+      }
+    },
+    "Svaren skrevs av Apple Intelligence. %@ läser många möten mer noggrant, och den körs också på din Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These answers were written by Apple Intelligence. %@ reads many meetings more carefully, and it runs on your Mac too."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Svaren skrevs av Apple Intelligence. %@ läser många möten mer noggrant, och den körs också på din Mac."
           }
         }
       }

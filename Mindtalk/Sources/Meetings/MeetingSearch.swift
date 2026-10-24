@@ -635,6 +635,9 @@ struct LibraryAnswer: Identifiable, Equatable {
     /// …in this folder (nil: all of them).
     var folder: String? = nil
     var folderID: UUID? = nil
+    /// Written by Apple Intelligence: across many meetings Gemma reads more carefully,
+    /// and the answers say so (GemmaNudge).
+    var byApple = false
 }
 
 /// Questions about all your meetings, and their answers — kept while Mindtalk runs.
@@ -709,7 +712,7 @@ final class MeetingLibrary: ObservableObject {
             return seen.insert(source.id).inserted ? source : nil
         }
         return LibraryAnswer(question: question, answer: reply.answer, sources: sources, read: context.meetings,
-                             total: context.broad ? context.total : nil, folder: folderName, folderID: folder)
+                             total: context.broad ? context.total : nil, folder: folderName, folderID: folder, byApple: writer == nil)
     }
 
     #if DEBUG
