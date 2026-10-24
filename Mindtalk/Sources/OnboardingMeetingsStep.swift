@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Step 6: Meetings
+// MARK: - Step 6: Meetings, in the room and in calls
 //
 // Shows a meeting instead of describing one. On a night tile three speakers plan a
 // launch: each line is written as it's said, each new voice is first "Känner igen
@@ -20,11 +20,12 @@ struct MeetingsStep: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            // A summary is promised only where one can be written.
-            StepHeader(title: "Spela in ett möte i rummet",
-                       subtitle: MeetingNotes.isAvailable
+            // A summary is promised only where one can be written (Apple Intelligence, or a
+            // Gemma here or on its way).
+            StepHeader(title: "Möten, i rummet och i samtal",
+                       subtitle: MeetingNotes.isAvailable || BetterNotes.shared.downloading != nil
                            ? "Mindtalk hör vem som säger vad, skriver ned det medan ni pratar och sammanfattar efteråt."
-                           : "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar. Sammanfattningar kräver Apple Intelligence.")
+                           : "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar. Sammanfattningar skrivs av Apple Intelligence eller Gemma, som du väljer under Inställningar.")
                 .staggered(0)
             HStack(alignment: .top, spacing: DS.Layout.stepGap) {
                 DemoMeeting()
@@ -34,8 +35,8 @@ struct MeetingsStep: View {
                     .frame(width: Self.cardWidth, height: Self.height)
                     .staggered(2)
             }
-            // Calls on the Mac too: with headphones, the Mac's sound is taken as well.
-            Text("Fungerar i rummet och i samtal på datorn. Med hörlurar tar Mindtalk med datorns ljud, så att de andra i Teams, Zoom eller Meet också hörs.")
+            // Calls on the Mac too, and how one starts: the box asks, nothing records by itself.
+            Text("När ett samtal i Teams, Zoom eller Meet börjar frågar Mindtalk i en liten ruta. Inget spelas in förrän du trycker, och med hörlurar kommer de andra också med. Säg till alla att mötet spelas in.")
                 .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)

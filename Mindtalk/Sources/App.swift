@@ -1850,14 +1850,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         #endif
 
         if !Settings.didOnboard {
-            // Start at login from the first launch — installed in Applications, that is.
-            // Once: an item you removed in System Settings stays removed, also when the
-            // introduction comes back because it was closed early.
-            let registered = "loginItemRegistered"
-            if AppMover.runsFromApplications, !UserDefaults.standard.bool(forKey: registered),
-               (try? SMAppService.mainApp.register()) != nil {
-                Settings.keep(true, forKey: registered)
-            }
             showOnboarding()
         } else if let raw = UserDefaults.standard.string(forKey: "reopenPage"), let page = Page(rawValue: raw) {
             UserDefaults.standard.removeObject(forKey: "reopenPage")
@@ -2196,6 +2188,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         return delegate.onboardingWindow?.isVisible == true || (MainView.introductionShown && mainWindowVisible)
     }
 
+    /// Start at login, once the introduction is done (installed in Applications, that
+    /// is). Once ever: an item you removed in System Settings stays removed.
+    static func registerLoginItemOnce() {
+        let registered = "loginItemRegistered"
+        guard !Settings.previewing, AppMover.runsFromApplications, !UserDefaults.standard.bool(forKey: registered) else { return }
+        if (try? SMAppService.mainApp.register()) != nil { Settings.keep(true, forKey: registered) }
+    }
+
     /// "Öppna Mindtalk" closes the introduction — Hem is already open.
     private var finishingOnboarding = false
 
@@ -2210,9 +2210,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             window.isReleasedWhenClosed = false
             window.delegate = self
             window.contentViewController = NSHostingController(rootView: OnboardingView(dictation: dictation) { [weak self] in
-                VocabularyStep.commitPending?()     // a word typed but not added
-                VocabularyStep.commitPending = nil
                 Settings.didOnboard = true
+                // At login from now on, as the last step says ("startar när du loggar in").
+                AppDelegate.registerLoginItemOnce()
                 self?.finishingOnboarding = true
                 // Not left with only an icon in the menu bar: Hem, where it all starts.
                 // Opened before the introduction closes, so Mindtalk stays in the Dock
@@ -2451,9 +2451,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 // Closed with the red button or ⌘W: a word typed in the list is kept, and
                 // past the permissions the introduction counts as done — before it, it
                 // comes back at the next launch. Either way you land on Hem, not on nothing.
-                VocabularyStep.commitPending?()
-                VocabularyStep.commitPending = nil
-                if OnboardingView.pastSetup { Settings.didOnboard = true }
+                if OnboardingView.pastSetup {
+                    Settings.didOnboard = true
+                    Self.registerLoginItemOnce()
+                }
                 if !Self.isQuitting { Self.showWindow(page: .dictation) }
             }
         }

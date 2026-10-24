@@ -1,6 +1,24 @@
 {
   "sourceLanguage": "sv",
   "strings": {
+    "NSAudioCaptureUsageDescription": {
+      "comment": "System Audio Recording permission",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk takes in the Mac's sound during a meeting, so the others on a Teams, Zoom or Meet call are written down too. Everything is processed on your Mac, and no audio leaves it."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk tar med datorns ljud i ett möte, så att de andra i ett samtal i Teams, Zoom eller Meet också skrivs ned. Allt tolkas på din Mac, och inget ljud lämnar datorn."
+          }
+        }
+      }
+    },
     "NSHumanReadableCopyright": {
       "extractionState": "manual",
       "localizations": {

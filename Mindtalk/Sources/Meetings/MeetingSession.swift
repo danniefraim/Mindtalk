@@ -201,6 +201,11 @@ final class MeetingSession: ObservableObject {
     private var callWatch: Task<Void, Never>?
     /// A tap that wouldn't start is tried again only after this.
     private var callRetryAt: Date?
+    /// "Hör inget från samtalet" said in this meeting already.
+    private var callNotHeardSaid = false
+    private static var callNotHeard: String {
+        String(localized: "Hör inget från samtalet ännu. Pratar de andra? Tillåt då Inspelning av systemljud för Mindtalk i Systeminställningar under Integritet och säkerhet.")
+    }
     private var tracker: VoiceTracker?
     /// The same voices with ten seconds of context: slower, steadier — what the
     /// quick one says is confirmed or corrected by this one a few seconds later.
@@ -2414,6 +2419,14 @@ final class MeetingSession: ObservableObject {
         audio.checkAlive()
         // Said once it hears something: a tap without the permission hears only silence.
         hearingCall = audio.isRunning && audio.heardAny
+        // A call app playing for most of a minute and not a sound from it: most likely
+        // the permission was refused. Said once, gently (the others may just be quiet),
+        // with where to turn it on; gone as soon as the call is heard.
+        if audio.heardAny, warning == Self.callNotHeard { warning = nil }
+        if !callNotHeardSaid, audio.isRunning, !audio.heardAny, audio.runningFor > 45, !playing.isEmpty {
+            callNotHeardSaid = true
+            warning = Self.callNotHeard
+        }
     }
 
     private func startCallAudio(_ processes: Set<AudioObjectID>) {
@@ -2425,6 +2438,7 @@ final class MeetingSession: ObservableObject {
     private func stopCallAudio() {
         CallAudio.shared.stop()
         hearingCall = false
+        if !isRecording { callNotHeardSaid = false }
     }
 
     /// The microphone went away (unplugged, AirPods gone): carry on with the system input.

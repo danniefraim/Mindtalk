@@ -216,8 +216,6 @@ private struct IntroductionOverlay: View {
 
     private func done(finished: Bool) {
         dictation.stopPickingKey(reason: "introduction closed")
-        VocabularyStep.commitPending?()     // a word typed but not added
-        VocabularyStep.commitPending = nil
         Settings.didOnboard = true
         close(finished)
     }

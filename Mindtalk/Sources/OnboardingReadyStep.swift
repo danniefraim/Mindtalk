@@ -133,11 +133,11 @@ struct ReadyStep: View {
         switch voices.state {
         case .ready:
             ReadyRow(icon: "person.2.wave.2", state: .ready, title: "Möten", keys: keys,
-                     detail: String(localized: "Spelar in ett möte i rummet och håller isär vem som säger vad."))
+                     detail: String(localized: "Spelar in möten i rummet och samtal på datorn, och håller isär vem som säger vad."))
         case .downloading(let p):
             ReadyRow(icon: "person.2.wave.2", state: .progress(p), title: "Möten", keys: keys,
-                     detail: voices.preparing ? String(localized: "Röstmodellen förbereds. Du kan starta ett möte under tiden.")
-                                              : String(localized: "Röstmodellen laddas ned (\(Int(p * 100)) %). Du kan starta ett möte under tiden."))
+                     detail: voices.preparing ? String(localized: "Röstmodellen förbereds. Sedan kan du starta ett möte.")
+                                              : String(localized: "Röstmodellen laddas ned (\(Int(p * 100)) %). Sedan kan du starta ett möte."))
         case .missing, .failed:
             ReadyRow(icon: "person.2.wave.2", state: .optional, title: "Möten", keys: nil,
                      detail: String(localized: "Behöver röstmodellen för att hålla isär vem som pratar.")) {
@@ -174,7 +174,9 @@ struct ReadyStep: View {
                      detail: String(localized: "Skrivs av \(notes.writerName) på din Mac.")) { EmptyView() }
         } else if let m = notes.downloading, case .downloading(let p) = notes.state(m) {
             ReadyRow(icon: "sparkle", state: .progress(p), title: "Sammanfattningar", keys: nil,
-                     detail: String(localized: "\(m.name) laddas ned (\(Int(p * 100)) %). Till dess skriver Apple Intelligence.")) { EmptyView() }
+                     detail: Polisher.status == .available
+                        ? String(localized: "\(m.name) laddas ned (\(Int(p * 100)) %). Till dess skriver Apple Intelligence.")
+                        : String(localized: "\(m.name) laddas ned (\(Int(p * 100)) %). Sedan skrivs sammanfattningarna.")) { EmptyView() }
         } else {
             // Apple Intelligence writes them; what a Gemma adds is said on the Möten page and in
             // Settings, not here. Off: the one button that mends it.

@@ -91,6 +91,8 @@ final class CallAudio: @unchecked Sendable {
     private var procID: AudioDeviceIOProcID?
     private var variant = Variant.tapOnly
     private var startedAt = Date.distantPast
+    /// How long the tap has run (0 when it isn't on).
+    @MainActor var runningFor: TimeInterval { isRunning ? Date().timeIntervalSince(startedAt) : 0 }
     /// The processes in the running tap, and what it was made for (the output, the format).
     private(set) var processes: Set<AudioObjectID> = []
     private var madeFor: (output: String, rate: Double)?

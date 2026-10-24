@@ -424,6 +424,22 @@
         }
       }
     },
+    "%@ laddas ned (%lld %%). Sedan skrivs sammanfattningarna.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is downloading (%lld %%). Then the summaries are written."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ laddas ned (%lld %%). Sedan skrivs sammanfattningarna."
+          }
+        }
+      }
+    },
     "%@ laddas ned (%lld %%). Till dess skriver Apple Intelligence.": {
       "localizations": {
         "en": {
@@ -3497,6 +3513,22 @@
         }
       }
     },
+    "Behörigheter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permissions"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Behörigheter"
+          }
+        }
+      }
+    },
     "Behöver Hjälpmedel för att känna av tangenten och skriva in texten.": {
       "localizations": {
         "en": {
@@ -3947,6 +3979,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cursor öppnas och frågar om du vill lägga till Mindtalk."
+          }
+        }
+      }
+    },
+    "Datorns ljud": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Mac's sound"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datorns ljud"
           }
         }
       }
@@ -4900,6 +4949,7 @@
       }
     },
     "Diktera i alla appar, spara tankar och spela in möten. Allt stannar på din Mac.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4911,6 +4961,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diktera i alla appar, spara tankar och spela in möten. Allt stannar på din Mac."
+          }
+        }
+      }
+    },
+    "Diktera i alla appar, spara tankar och spela in möten. Allt tolkas på din Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dictate in any app, keep your thoughts and record meetings. Everything is processed on your Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diktera i alla appar, spara tankar och spela in möten. Allt tolkas på din Mac."
           }
         }
       }
@@ -5271,6 +5337,7 @@
       }
     },
     "Ditt första ord": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5287,6 +5354,7 @@
       }
     },
     "Ditt ord hamnar här": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5400,6 +5468,7 @@
       }
     },
     "Du behöver bara ge dem en gång.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5950,6 +6019,7 @@
       }
     },
     "Ett företag, en produkt eller ett ord från jobbet.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6047,6 +6117,7 @@
       }
     },
     "Ett ord till": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6095,6 +6166,7 @@
       }
     },
     "Exempel: Mindtalk hörde ”%@” och skrev ”%@” enligt din ordlista.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6160,6 +6232,7 @@
       }
     },
     "Fanns redan": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6418,6 +6491,7 @@
       }
     },
     "Finns redan": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7063,6 +7137,23 @@
         }
       }
     },
+    "Frågat": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asked"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frågat"
+          }
+        }
+      }
+    },
     "Frågor": {
       "extractionState": "stale",
       "localizations": {
@@ -7130,6 +7221,7 @@
       }
     },
     "Från din ordlista": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7179,6 +7271,7 @@
       }
     },
     "Från och med nu stavas ”%@” så i allt du dikterar.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7211,6 +7304,7 @@
       }
     },
     "Fungerar i rummet och i samtal på datorn. Med hörlurar tar Mindtalk med datorns ljud, så att de andra i Teams, Zoom eller Meet också hörs.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7304,6 +7398,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fönster"
+          }
+        }
+      }
+    },
+    "För Teams, Zoom och Meet med hörlurar. Bara från samtalsappar och bara medan ett möte spelas in. Ingen skärminspelning.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For Teams, Zoom and Meet with headphones. Only from call apps, and only while a meeting is recorded. No screen recording."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "För Teams, Zoom och Meet med hörlurar. Bara från samtalsappar och bara medan ett möte spelas in. Ingen skärminspelning."
           }
         }
       }
@@ -9207,6 +9318,22 @@
         }
       }
     },
+    "Hör inget från samtalet ännu. Pratar de andra? Tillåt då Inspelning av systemljud för Mindtalk i Systeminställningar under Integritet och säkerhet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing heard from the call yet. Are the others talking? Then allow System Audio Recording for Mindtalk in System Settings under Privacy & Security."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hör inget från samtalet ännu. Pratar de andra? Tillåt då Inspelning av systemljud för Mindtalk i Systeminställningar under Integritet och säkerhet."
+          }
+        }
+      }
+    },
     "Hörde inga ord. Försök igen.": {
       "localizations": {
         "en": {
@@ -9757,6 +9884,7 @@
       }
     },
     "Inga ord än.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10641,6 +10769,7 @@
       }
     },
     "Jag dikterar allt med": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13523,6 +13652,7 @@
       }
     },
     "Lägg till fler": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13636,6 +13766,7 @@
       }
     },
     "Lär Mindtalk dina ord": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15193,6 +15324,7 @@
       }
     },
     "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar. Sammanfattningar kräver Apple Intelligence.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -15204,6 +15336,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar. Sammanfattningar kräver Apple Intelligence."
+          }
+        }
+      }
+    },
+    "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar. Sammanfattningar skrivs av Apple Intelligence eller Gemma, som du väljer under Inställningar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hears who says what and writes it down as you talk. Summaries are written by Apple Intelligence or Gemma, which you choose in Settings."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk hör vem som säger vad och skriver ned det medan ni pratar. Sammanfattningar skrivs av Apple Intelligence eller Gemma, som du väljer under Inställningar."
           }
         }
       }
@@ -16023,6 +16171,22 @@
         }
       }
     },
+    "Möten, i rummet och i samtal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meetings, in the room and on calls"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Möten, i rummet och i samtal"
+          }
+        }
+      }
+    },
     "Mötena tas inte bort. De finns kvar under Alla.": {
       "localizations": {
         "en": {
@@ -16408,6 +16572,7 @@
       }
     },
     "Namn du ger talarna i ett möte föreslås till listan. Hela listan finns under Ordlista.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -16424,6 +16589,7 @@
       }
     },
     "Namn och ord på listan stavas rätt i allt du dikterar, också i tankar och möten.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -16795,6 +16961,7 @@
       }
     },
     "Nu rättas också %@ till ”%@”.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -17018,6 +17185,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "När Teams, Zoom, FaceTime eller webbläsaren börjar använda mikrofonen frågar Mindtalk i en liten ruta om du vill anteckna mötet. Inget spelas in förrän du trycker."
+          }
+        }
+      }
+    },
+    "När ett samtal i Teams, Zoom eller Meet börjar frågar Mindtalk i en liten ruta. Inget spelas in förrän du trycker, och med hörlurar kommer de andra också med. Säg till alla att mötet spelas in.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When a call in Teams, Zoom or Meet starts, Mindtalk asks in a small box. Nothing is recorded until you press, and with headphones the others are included too. Let everyone know the meeting is being recorded."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "När ett samtal i Teams, Zoom eller Meet börjar frågar Mindtalk i en liten ruta. Inget spelas in förrän du trycker, och med hörlurar kommer de andra också med. Säg till alla att mötet spelas in."
           }
         }
       }
@@ -18430,6 +18613,7 @@
       }
     },
     "Röstmodellen förbereds. Du kan starta ett möte under tiden.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -18441,6 +18625,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Röstmodellen förbereds. Du kan starta ett möte under tiden."
+          }
+        }
+      }
+    },
+    "Röstmodellen förbereds. Sedan kan du starta ett möte.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The voice model is being prepared. Then you can start a meeting."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Röstmodellen förbereds. Sedan kan du starta ett möte."
           }
         }
       }
@@ -18494,6 +18694,7 @@
       }
     },
     "Röstmodellen laddas ned (%lld %%). Du kan starta ett möte under tiden.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -18505,6 +18706,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Röstmodellen laddas ned (%lld %%). Du kan starta ett möte under tiden."
+          }
+        }
+      }
+    },
+    "Röstmodellen laddas ned (%lld %%). Sedan kan du starta ett möte.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The voice model is downloading (%lld %%). Then you can start a meeting."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Röstmodellen laddas ned (%lld %%). Sedan kan du starta ett möte."
           }
         }
       }
@@ -20112,6 +20329,7 @@
       }
     },
     "Spelar in ett möte i rummet och håller isär vem som säger vad.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -20123,6 +20341,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Spelar in ett möte i rummet och håller isär vem som säger vad."
+          }
+        }
+      }
+    },
+    "Spelar in möten i rummet och samtal på datorn, och håller isär vem som säger vad.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Records meetings in the room and calls on the Mac, and keeps track of who says what."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spelar in möten i rummet och samtal på datorn, och håller isär vem som säger vad."
           }
         }
       }
@@ -21176,6 +21410,7 @@
       }
     },
     "Så hördes det": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -21192,6 +21427,7 @@
       }
     },
     "Så skrivs det": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -22677,6 +22913,7 @@
       }
     },
     "Teams": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -23002,6 +23239,7 @@
       }
     },
     "Tillagt!": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -23567,6 +23805,7 @@
       }
     },
     "Två behörigheter": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -23578,6 +23817,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Två behörigheter"
+          }
+        }
+      }
+    },
+    "Två behövs. Den tredje är för samtal på datorn. Du ger dem bara en gång.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Two are needed. The third is for calls on the Mac. You only give them once."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Två behövs. Den tredje är för samtal på datorn. Du ger dem bara en gång."
           }
         }
       }
@@ -24395,6 +24650,7 @@
       }
     },
     "Vi hörs på": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -25962,6 +26218,7 @@
       }
     },
     "i morgon.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -26367,6 +26624,7 @@
       }
     },
     "mind talk": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -26577,6 +26835,7 @@
       }
     },
     "nu.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -26593,6 +26852,7 @@
       }
     },
     "och %lld till": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -27163,6 +27423,7 @@
       }
     },
     "t.ex. ett företagsnamn": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -27275,6 +27536,7 @@
       }
     },
     "tims": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -28007,6 +28269,7 @@
       }
     },
     "”%@” finns redan i din ordlista.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {

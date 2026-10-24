@@ -2,11 +2,11 @@ import SwiftUI
 
 // MARK: - First run
 //
-// Eight steps — welcome → language (starts the download) → permissions (while it
-// downloads) → a thought, for real → meetings (and the voice model, if you want it)
-// → the word list → try it for real, with your key, last, so the speech model has
-// had time to arrive → what you have now, with Gemma offered if it fits
-// (OnboardingReadyStep.swift) — and then Hem. Each feature gets its own step that
+// Seven steps — welcome → language (starts the downloads) → permissions (the two that
+// are needed, and the Mac's sound for calls, asked now rather than mid-call) → try it
+// for real, with your key (waiting for the speech model if it must) → a thought → meetings,
+// in the room and in calls → what you have now (OnboardingReadyStep.swift) — and then
+// Hem. The word list isn't a step: it's offered at the top of Ordlista. Each feature gets its own step that
 // says what to do and when. While anything downloads, the footer says how much and
 // how long, on every step. With Reduce Motion on, it's all calm and still.
 
@@ -18,7 +18,7 @@ struct OnboardingView: View {
     /// closed now (closing earlier brings it back at the next launch).
     static var pastSetup = false
 
-    enum Step: Int, CaseIterable { case welcome, language, permissions, thoughts, meetings, vocabulary, tryIt, ready }
+    enum Step: Int, CaseIterable { case welcome, language, permissions, tryIt, thoughts, meetings, ready }
 
     @State private var step: Step = OnboardingView.firstStep
 
@@ -26,7 +26,7 @@ struct OnboardingView: View {
         #if DEBUG
         let names: [String: Step] = ["welcome": .welcome, "language": .language, "permissions": .permissions, "key": .tryIt,
                                      "tryIt": .tryIt, "more": .thoughts,
-                                     "thoughts": .thoughts, "meetings": .meetings, "vocabulary": .vocabulary,
+                                     "thoughts": .thoughts, "meetings": .meetings,
                                      "ready": .ready]
         if let name = Demo.onboardingStep, let step = names[name] { return step }
         #endif
@@ -117,7 +117,6 @@ struct OnboardingView: View {
         case .tryIt: TryStep(dictation: dictation)
         case .thoughts: ThoughtsStep(dictation: dictation, done: tried(.thoughts))
         case .meetings: MeetingsStep(done: tried(.meetings))
-        case .vocabulary: VocabularyStep(dictation: dictation, done: tried(.vocabulary))
         case .ready: ReadyStep(dictation: dictation)
         }
     }
@@ -177,7 +176,7 @@ struct OnboardingView: View {
                 .help("Talmodellen kan laddas ned senare, på Hem")
                 .transition(.opacity)
             }
-            if step.rawValue >= Step.thoughts.rawValue, step != .ready {
+            if step.rawValue >= Step.tryIt.rawValue, step != .ready {
                 Button { done() } label: {
                     Text("Avsluta introduktionen")
                         .font(.system(size: 13, weight: .medium))
@@ -263,11 +262,10 @@ struct OnboardingView: View {
             // Gemma only if it fits next to everything else on its way, with room to spare.
             let others = LanguageStep.others(chosen: chosen, listener: listener, voices: voices)
             if gemma, let m = gemmaPick, LanguageStep.fits(m, besides: others), case .missing = BetterNotes.shared.state(m) {
-                BetterNotes.shared.download(m)
+                // After the speech model: gigabytes of Gemma alongside would make the wait
+                // to try dictation longer.
+                Self.downloadAfterSpeech(m, models: order)
             }
-            go(1)
-        case .vocabulary:
-            VocabularyStep.commitPending?()   // a word typed but not added
             go(1)
         case .ready:
             done()
@@ -279,6 +277,16 @@ struct OnboardingView: View {
     private func done() {
         dictation.stopPickingKey(reason: "introduction done")
         finish()
+    }
+
+    /// Gemma once the speech models chosen are here (or have stopped trying).
+    private static func downloadAfterSpeech(_ notes: NotesModel, models: [SpeechModel]) {
+        Task { @MainActor in
+            while models.contains(where: { !$0.isInstalled && Dictation.shared.downloads[$0] != nil }) {
+                try? await Task.sleep(for: .seconds(3))
+            }
+            if case .missing = BetterNotes.shared.state(notes) { BetterNotes.shared.download(notes) }
+        }
     }
 
     private func go(_ delta: Int) {
@@ -330,7 +338,7 @@ private struct WelcomeStep: View {
                               String(localized: "Prata. Vi skriver.")],
                        repeats: true,
                        cursorHeight: 44)
-            Text("Diktera i alla appar, spara tankar och spela in möten. Allt stannar på din Mac.")
+            Text("Diktera i alla appar, spara tankar och spela in möten. Allt tolkas på din Mac.")
                 .font(.system(size: 15.5)).foregroundStyle(DS.Colors.muted)
                 .multilineTextAlignment(.center)
                 .staggered(2)
@@ -642,10 +650,10 @@ private struct PermissionsStep: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            StepHeader(title: "Två behörigheter",
-                       subtitle: "Du behöver bara ge dem en gång.")
+            StepHeader(title: "Behörigheter",
+                       subtitle: "Två behövs. Den tredje är för samtal på datorn. Du ger dem bara en gång.")
                 .staggered(0)
-            HStack(spacing: 16) {
+            HStack(spacing: 14) {
                 // What macOS calls it, and what happens without it: nothing at all.
                 PermissionCard(icon: "hand.point.up.left.fill", title: "Hjälpmedel",
                                text: "Hjälpmedel heter det i macOS. Det låter Mindtalk känna när du trycker på tangenten och skriva in texten åt dig. Utan det händer ingenting när du trycker.",
@@ -655,6 +663,11 @@ private struct PermissionsStep: View {
                                text: "Hör dig bara när du dikterar, sparar en tanke eller spelar in ett möte. Ljudet lämnar aldrig din Mac.",
                                granted: dictation.micGranted, button: "Tillåt") { dictation.requestMicrophone() }
                     .staggered(2)
+                // Asked now, at a calm moment, rather than the first time a call is recorded.
+                PermissionCard(icon: "headphones", title: "Datorns ljud",
+                               text: "För Teams, Zoom och Meet med hörlurar. Bara från samtalsappar och bara medan ett möte spelas in. Ingen skärminspelning.",
+                               granted: callAudioAsked, button: "Tillåt", grantedText: "Frågat") { askCallAudio() }
+                    .staggered(3)
             }
             Group {
                 if dictation.micGranted && dictation.accessibilityGranted {
@@ -673,12 +686,28 @@ private struct PermissionsStep: View {
             }
             .font(.system(size: 12.5, weight: .medium))
             .multilineTextAlignment(.center)
-            .staggered(3)
+            .staggered(4)
         }
         // Calm; the check mark's own bounce is the only spring here.
         .animation(.smooth(duration: 0.4), value: dictation.micGranted)
         .animation(.smooth(duration: 0.4), value: dictation.accessibilityGranted)
         .onAppear { dictation.refreshPermissions() }
+    }
+
+    @State private var callAudioAsked = UserDefaults.standard.bool(forKey: "callAudioAsked")
+
+    /// macOS asks about "Inspelning av systemljud" when a tap first runs: one runs for a
+    /// moment, and nothing it hears is kept. Whether it was allowed can't be read, so
+    /// the card says it was asked; refused, a meeting says so when a call isn't heard.
+    private func askCallAudio() {
+        guard !Settings.previewing else { callAudioAsked = true; return }
+        CallAudio.shared.start(processes: nil)
+        Settings.keep(true, forKey: "callAudioAsked")
+        withAnimation(.smooth(duration: 0.4)) { callAudioAsked = true }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            if !MeetingSession.shared.isRecording { CallAudio.shared.stop() }
+        }
     }
 }
 
@@ -688,6 +717,7 @@ private struct PermissionCard: View {
     let text: String
     let granted: Bool
     let button: String
+    var grantedText = "Tillåtet"
     let action: () -> Void
 
     var body: some View {
@@ -710,7 +740,7 @@ private struct PermissionCard: View {
                 .padding(.top, 5)
             Spacer(minLength: 16)
             if granted {
-                GrantedLabel()
+                GrantedLabel(text: grantedText)
                     .frame(height: 34)
                     .transition(.opacity)
             } else {
@@ -719,9 +749,9 @@ private struct PermissionCard: View {
                     .frame(height: 34)
             }
         }
-        .padding(22)
+        .padding(20)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .frame(height: 256)
+        .frame(height: 310)
         .raised()
     }
 }

@@ -71,6 +71,8 @@ final class CallDetector {
     }
 
     private func check(_ bundles: [String], front: String?) {
+        // Not before the introduction is done: meetings may not be set up yet.
+        guard Settings.didOnboard, !AppDelegate.isOnboarding else { return }
         named = named.filter { bundles.contains($0.key) }
         for bundle in bundles where named[bundle] == nil { named[bundle] = name(for: bundle, front: front) }
         let listening = Set(bundles.compactMap { named[$0] })
