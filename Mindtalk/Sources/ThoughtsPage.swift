@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 //
 // The key card (as Diktering's, with Säg en tanke), a line to type in beside the
 // search (alone while there's nothing to search); then the pinned;
-// then a section per day, today and yesterday open, older days folded with a count.
+// then a section per day, the three latest with thoughts open, older days folded with a count.
 // Click a thought to choose it, click it again (or Return) to change the words.
 // ↑↓ move between them, Space marks one done, ⌫ removes, ⌥⌘↑↓ moves it, ⌘Z undoes.
 // Drag one by its handle: between two, it moves there (within its day); onto
@@ -243,10 +243,11 @@ struct ThoughtsPage: View {
         matching(thoughts.pinned).count + thoughts.days.reduce(0) { $0 + matching($1.items).count }
     }
 
+    /// The three latest days that have thoughts open, however long ago they were (after
+    /// a week away, the last ones said, not only headings); older ones folded with a count.
     private func isOpen(_ day: Date) -> Bool {
         if !query.isEmpty { return true }
-        let calendar = Calendar.current
-        return opened[day] ?? (calendar.isDateInToday(day) || calendar.isDateInYesterday(day))
+        return opened[day] ?? thoughts.days.prefix(3).contains { $0.day == day }
     }
 
     private func doneShowing(_ day: Date) -> Bool { !query.isEmpty || showingDone.contains(day) }
