@@ -504,11 +504,11 @@ private struct LivePanel: View {
                 default: break
                 }
             }
-            // The room for it shrinks (a card below appears): still at the latest words.
-            // The text growing is the anchor's (above).
-            .onScrollGeometryChange(for: CGFloat.self) { $0.containerSize.height } action: { old, new in
-                guard following, !userScrolling, new < old else { return }
-                withAnimation(.smooth(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) }
+            // The text growing, or the room for it shrinking: still at the latest words, at
+            // once (an animation for every word would trail behind and jerk).
+            .onScrollGeometryChange(for: [CGFloat].self) { [$0.contentSize.height, $0.containerSize.height] } action: { old, new in
+                guard following, !userScrolling, new != old else { return }
+                proxy.scrollTo("end", anchor: .bottom)
             }
             .overlay(alignment: .bottom) {
                 if !following, !turns.isEmpty {

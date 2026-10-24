@@ -1600,6 +1600,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 // `--front`: the window in front, not the panel (tests of the live text).
                 if args.contains("--front") { NSApp.activate() }
                 MeetingSession.shared.start(introducing: args.contains("--round"))
+                // `--live-script "20:panel,30:window,40:pause,46:resume"`: what someone does
+                // during the meeting, at those seconds — without taking anyone's focus.
+                if let i = args.firstIndex(of: "--live-script"), i + 1 < args.count {
+                    for step in args[i + 1].split(separator: ",") {
+                        let parts = step.split(separator: ":")
+                        guard parts.count == 2, let at = Double(parts[0]) else { continue }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + at) {
+                            let session = MeetingSession.shared
+                            switch parts[1] {
+                            case "panel": Self.hideMainWindow(); MeetingPanel.shared.show()
+                            case "window": Self.showWindow(page: .meetings)
+                            case "pause": session.pause()
+                            case "resume": session.resume()
+                            default: break
+                            }
+                            print("[script] \(Int(at)) s: \(parts[1])")
+                            fflush(stdout)
+                        }
+                    }
+                }
                 print("[auto] möte startat, runda: \(MeetingSession.shared.introducing), fel: \(MeetingSession.shared.lastError ?? "inget")")
                 // `--continue-from s [--continue-limit s]`: once it's written, the meeting is
                 // continued with the file from there on — then what came of it, and quit.

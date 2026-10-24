@@ -2346,10 +2346,12 @@ private struct TranscriptView: View {
             }
             // Follow the conversation, unless you've scrolled up to read: the text growing
             // (words, a name row, a mark) is held at the bottom by the anchor above.
-            // The growing is the anchor's (above); here only the room shrinking.
-            .onScrollGeometryChange(for: CGFloat.self) { $0.containerSize.height } action: { old, new in
-                guard live, following, !userScrolling, new < old else { return }
-                withAnimation(.smooth(duration: 0.3)) { proxy.scrollTo("end", anchor: .bottom) }
+            // The text growing, or the room for it shrinking: still at the newest words. At
+            // once, not animated (the anchor above and the text's own growth make it glide);
+            // an animation for every word would trail behind and jerk.
+            .onScrollGeometryChange(for: [CGFloat].self) { [$0.contentSize.height, $0.containerSize.height] } action: { old, new in
+                guard live, following, !userScrolling, new != old else { return }
+                proxy.scrollTo("end", anchor: .bottom)
             }
             // Listening: the text follows the voice.
             .onChange(of: playingTurn) { _, id in
@@ -2492,7 +2494,13 @@ struct LiveTurnText: View {
     var asideSize: CGFloat = 12.5
     let fallback: (Bool?) -> Text
     @ObservedObject private var reveal = LiveReveal.shared
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    #if DEBUG
+    /// `--reduce-motion`: as with Reduce Motion on, for tests.
+    private var reduceMotion: Bool { systemReduceMotion || CommandLine.arguments.contains("--reduce-motion") }
+    #else
+    private var reduceMotion: Bool { systemReduceMotion }
+    #endif
 
     var body: some View {
         // The text is built when its words change, not every frame: between, only how it's
@@ -2504,7 +2512,9 @@ struct LiveTurnText: View {
         // more); else the cursor's beat, or hardly at all.
         let beat = reveal.busy(turn.id) ? 1.0 / 30 : blinking ? 0.5 : 30
         TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: beat)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
+            // Drawn anew because its words changed, the timeline's last beat may be long
+            // past: the time now, or words just shown would be drawn as not yet there.
+            let t = max(context.date.timeIntervalSinceReferenceDate, LiveReveal.now)
             if let content {
                 content.foregroundStyle(DS.Colors.ink).textRenderer(LiveTextRenderer(now: t, reduceMotion: reduceMotion))
             } else {
