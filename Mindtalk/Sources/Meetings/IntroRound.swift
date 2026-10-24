@@ -585,8 +585,7 @@ final class IntroRound: ObservableObject {
         // A turn that began well before the name is said (the one before talked on into
         // it) has a print of them, not of this person: it's made again from the name.
         let spokeFirst = speechStart.map(seconds) ?? from
-        // (Too little after the name to make a print of: the turn's is kept.)
-        let late = from - spokeFirst > 2 && seconds(cursor) - from >= 1.5
+        let late = from - spokeFirst > 2
         let print = late ? nil : turnPrint
         let fig = remembered ?? finalFigure(from: print) ?? VoiceFigure.from(seed: "\(name)-\(colour)")
         captures.append(Capture(name: name, known: false, score: nil, from: from, to: to, print: print,
