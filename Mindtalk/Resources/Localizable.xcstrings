@@ -9815,6 +9815,22 @@
         }
       }
     },
+    "I samtal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In a call"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I samtal"
+          }
+        }
+      }
+    },
     "Igång": {
       "localizations": {
         "en": {
@@ -11295,22 +11311,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klart"
-          }
-        }
-      }
-    },
-    "Klart! Möten fungerar.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Done! Meetings work."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Klart! Möten fungerar."
           }
         }
       }
@@ -17250,22 +17250,6 @@
         }
       }
     },
-    "Namnrunda först om ni är flera, eller namnge talarna under mötet.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A name round first if there are several of you, or name the speakers during the meeting."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Namnrunda först om ni är flera, eller namnge talarna under mötet."
-          }
-        }
-      }
-    },
     "Nedladdad": {
       "extractionState": "stale",
       "localizations": {
@@ -17347,22 +17331,6 @@
         }
       }
     },
-    "Nemotron 3 finns på din Mac och håller isär rösterna i ett möte.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nemotron 3 is on your Mac and tells the voices in a meeting apart."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nemotron 3 finns på din Mac och håller isär rösterna i ett möte."
-          }
-        }
-      }
-    },
     "Nemotron 3 från NVIDIA": {
       "extractionState": "stale",
       "localizations": {
@@ -17408,6 +17376,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nemotron 3 kunde inte startas, så texten skrivs utan att visa vem som pratar."
+          }
+        }
+      }
+    },
+    "Ni stämde av lanseringen och vem som kör testerna.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You went over the launch and who runs the tests."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ni stämde av lanseringen och vem som kör testerna."
           }
         }
       }
@@ -17657,18 +17641,34 @@
         }
       }
     },
-    "När ett samtal i Teams, Zoom eller Meet börjar frågar Mindtalk i en liten ruta om du vill anteckna det. Inget spelas in förrän du trycker, och med hörlurar kommer de andra med också. Säg till alla att mötet spelas in.": {
+    "När ett samtal i Teams, Zoom eller Meet börjar frågar Mindtalk först. Inget spelas in förrän du trycker.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "When a call in Teams, Zoom or Meet starts, Mindtalk asks in a small box whether you want to take notes. Nothing is recorded until you press, and with headphones the others are included too. Let everyone know the meeting is being recorded."
+            "value": "When a call in Teams, Zoom or Meet starts, Mindtalk asks first. Nothing is recorded until you press."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "När ett samtal i Teams, Zoom eller Meet börjar frågar Mindtalk i en liten ruta om du vill anteckna det. Inget spelas in förrän du trycker, och med hörlurar kommer de andra med också. Säg till alla att mötet spelas in."
+            "value": "När ett samtal i Teams, Zoom eller Meet börjar frågar Mindtalk först. Inget spelas in förrän du trycker."
+          }
+        }
+      }
+    },
+    "När ett samtal i Teams, Zoom eller Meet börjar frågar Mindtalk först. Säg till alla att mötet spelas in.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When a call in Teams, Zoom or Meet starts, Mindtalk asks first. Tell everyone the meeting is being recorded."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "När ett samtal i Teams, Zoom eller Meet börjar frågar Mindtalk först. Säg till alla att mötet spelas in."
           }
         }
       }
@@ -19109,6 +19109,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Röstmodellen"
+          }
+        }
+      }
+    },
+    "Röstmodellen finns på din Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The voice model is on your Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Röstmodellen finns på din Mac."
           }
         }
       }
@@ -21883,7 +21899,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Let everyone know the meeting is being recorded."
+            "value": "Tell everyone the meeting is being recorded."
           }
         },
         "sv": {
@@ -21971,6 +21987,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sätter skiljetecken och rättar när du ändrar dig mitt i en mening. Använder Apple Intelligence."
+          }
+        }
+      }
+    },
+    "Så börjar ett möte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How a meeting starts"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Så börjar ett möte"
           }
         }
       }

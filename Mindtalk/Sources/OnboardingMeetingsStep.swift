@@ -13,6 +13,7 @@ import SwiftUI
 
 struct MeetingsStep: View {
     @Binding var done: Bool
+    @ObservedObject private var voices = VoiceModels.shared
 
     private static let tileWidth: CGFloat = 360
     private static let cardWidth: CGFloat = 264
@@ -35,8 +36,10 @@ struct MeetingsStep: View {
                     .frame(width: Self.cardWidth, height: Self.height)
                     .staggered(2)
             }
-            // Calls on the Mac too, and how one starts: the box asks, nothing records by itself.
-            Text("När ett samtal i Teams, Zoom eller Meet börjar frågar Mindtalk i en liten ruta om du vill anteckna det. Inget spelas in förrän du trycker, och med hörlurar kommer de andra med också. Säg till alla att mötet spelas in.")
+            // Once the voices are here the card says how both kinds start, so only the
+            // consent is left; before that, calls are said here in one sentence.
+            Text(VoiceModelCard.isReady ? String(localized: "Säg till alla att mötet spelas in.")
+                 : String(localized: "När ett samtal i Teams, Zoom eller Meet börjar frågar Mindtalk först. Säg till alla att mötet spelas in."))
                 .font(.system(size: 12)).foregroundStyle(DS.Colors.muted)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -92,10 +95,12 @@ private struct DemoMeeting: View {
         Turn(speaker: 2, text: String(localized: "Jag tar testerna och ger besked på torsdag.")),
         Turn(speaker: 0, text: String(localized: "Bra. Då säger vi fjärde november.")),
     ]
+    static let overview = String(localized: "Ni stämde av lanseringen och vem som kör testerna.")
     static let decision = String(localized: "Lanseringen blir den fjärde november.")
     static let task = String(localized: "Kör klart testerna och ge besked på torsdag.")
-    /// Who the task is for — the third voice.
+    /// Who the task is for — the third voice — and the turn it was said in.
     static let owner = 2
+    static let ownerTurn = 2
 
     /// Each voice's own figure, as the sphere draws it once it knows who's speaking.
     static let figures = [
@@ -133,7 +138,7 @@ private struct DemoMeeting: View {
     @State private var started: Date?
     @State private var length = 0
     @State private var summaryShown = false
-    @State private var summaryWords = [0, 0]
+    @State private var summaryWords = [0, 0, 0]
     @State private var run = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -141,37 +146,24 @@ private struct DemoMeeting: View {
     private var seconds: Int { started.map { Int(Date.now.timeIntervalSince($0)) } ?? 0 }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: 18) {
-                statusBar
-                transcript
-            }
-            .padding(18)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            // Under the summary the meeting steps back — less colour and a veil of
-            // night — but its text stays readable.
-            .saturation(summaryShown ? 0.35 : 1)
-            .overlay {
-                DS.Colors.night.opacity(summaryShown ? 0.3 : 0)
-                    .allowsHitTesting(false)
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text("Exempel på ett möte: vem som säger vad, och en sammanfattning efteråt."))
-
-            if summaryShown {
-                summary
-                    .padding(10)
-                    // The meeting runs on under it: lines fade out above the edge rather than being cut.
-                    .background(alignment: .top) {
-                        LinearGradient(colors: [DS.Colors.night.opacity(0), DS.Colors.night.opacity(0.95)],
-                                       startPoint: .top, endPoint: .bottom)
-                            .frame(height: 40)
-                            .offset(y: -30)
-                            .allowsHitTesting(false)
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+        VStack(alignment: .leading, spacing: 18) {
+            statusBar
+            // The whole meeting is seen to its end; then it goes up and away and the
+            // summary takes its place, never lying over what was said.
+            ZStack(alignment: .topLeading) {
+                if summaryShown {
+                    summary
+                        .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: 24)), removal: .opacity))
+                } else {
+                    transcript
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(Text("Exempel på ett möte: vem som säger vad, och en sammanfattning efteråt."))
+                        .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .offset(y: -24))))
+                }
             }
         }
+        .padding(18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(alignment: .topTrailing) { sphere }
         .background(RoundedRectangle(cornerRadius: DS.Radius.panel, style: .continuous).fill(DS.Colors.night))
         .clipShape(RoundedRectangle(cornerRadius: DS.Radius.panel, style: .continuous))
@@ -255,17 +247,6 @@ private struct DemoMeeting: View {
 
     private var transcript: some View {
         VStack(alignment: .leading, spacing: 13) {
-            // How a real one starts — kept clear of the sphere in the corner.
-            HStack(alignment: .firstTextBaseline, spacing: 7) {
-                Image(systemName: "person.wave.2")
-                    .font(.system(size: 10.5, weight: .semibold))
-                    .accessibilityHidden(true)
-                Text("Namnrunda först om ni är flera, eller namnge talarna under mötet.")
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .font(.system(size: 11.5, weight: .medium))
-            .foregroundStyle(.white.opacity(0.62))
-            .frame(maxWidth: 236, alignment: .leading)
             ForEach(0..<turnsShown, id: \.self) { i in
                 let turn = Self.turns[i]
                 DemoTurnRow(turn: turn,
@@ -280,10 +261,10 @@ private struct DemoMeeting: View {
 
     /// After the meeting: what was decided and who does what — written as you watch.
     private var summary: some View {
-        VStack(alignment: .leading, spacing: 11) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center) {
                 Text("Sammanfattning")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
                 Spacer(minLength: 8)
                 if phase == .done, !still {
@@ -301,13 +282,42 @@ private struct DemoMeeting: View {
                 }
             }
             .frame(height: 22)
-            item(icon: "checkmark.circle", label: "Beslut", text: Self.decision, shown: summaryWords[0], owner: nil)
-            item(icon: "circle", label: "Att göra", text: Self.task, shown: summaryWords[1], owner: Self.owner)
+            words(Self.overview, shown: summaryWords[0])
+                .font(.system(size: 14))
+                .foregroundStyle(.white.opacity(0.85))
+            item(icon: "checkmark.circle", label: "Beslut", text: Self.decision, shown: summaryWords[1], owner: nil)
+            item(icon: "circle", label: "Att göra", text: Self.task, shown: summaryWords[2], owner: Self.owner)
+            source.opacity(summaryWords[2] == Self.task.split(separator: " ").count ? 1 : 0)
         }
-        .padding(.horizontal, 16).padding(.vertical, 14)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(white: 0.11)))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(.white.opacity(0.1), lineWidth: 1))
-        .shadow(color: .black.opacity(0.5), radius: 18, y: -2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Where the task came from: what the third voice said, and when — as a real
+    /// meeting's points lead back to their moment.
+    private var source: some View {
+        let turn = Self.turns[Self.ownerTurn]
+        let at = Self.ownerTurn < starts.count ? starts[Self.ownerTurn] : 8
+        return HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Rectangle().fill(Self.tint(turn.speaker).opacity(0.7)).frame(width: 2, height: 14)
+                .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 3 }
+            Text(verbatim: "\u{201D}\(turn.text)\u{201D}  \(Self.clock(at))")
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.5))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.leading, 21)
+        .accessibilityHidden(true)
+    }
+
+    /// A sentence written word by word, its full length kept from the start so nothing moves.
+    private func words(_ text: String, shown: Int) -> some View {
+        let all = text.split(separator: " ").map(String.init)
+        return ZStack(alignment: .topLeading) {
+            Text(verbatim: text).opacity(0)
+            Text(verbatim: all.prefix(shown).joined(separator: " "))
+                .contentTransition(.interpolate)
+        }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private func item(icon: String, label: LocalizedStringKey, text: String, shown: Int, owner: Int?) -> some View {
@@ -356,6 +366,9 @@ private struct DemoMeeting: View {
         // `--onboarding-demo live`: the render stops mid-meeting, the third voice talking.
         if Self.rendering, let i = CommandLine.arguments.firstIndex(of: "--onboarding-demo"),
            CommandLine.arguments.dropFirst(i + 1).first == "live" { midway(); return }
+        // `--onboarding-demo end`: the whole meeting written, just before the summary.
+        if Self.rendering, let i = CommandLine.arguments.firstIndex(of: "--onboarding-demo"),
+           CommandLine.arguments.dropFirst(i + 1).first == "end" { finish(); summaryShown = false; phase = .summing; return }
         #endif
         if still { finish(); return }
         if run > 0 {
@@ -398,10 +411,10 @@ private struct DemoMeeting: View {
         length = seconds
         withAnimation(.smooth(duration: 0.4)) { phase = .summing; speaking = nil }
         level = 0.3
-        guard await wait(1.2) else { return }
-        withAnimation(.smooth(duration: 0.55)) { summaryShown = true }
+        guard await wait(1.6) else { return }
+        withAnimation(.smooth(duration: 0.6)) { summaryShown = true }
         guard await wait(0.45) else { return }
-        for (k, text) in [Self.decision, Self.task].enumerated() {
+        for (k, text) in [Self.overview, Self.decision, Self.task].enumerated() {
             let count = text.split(separator: " ").count
             for w in 0..<count {
                 withAnimation(.smooth(duration: 0.2)) { summaryWords[k] = w + 1 }
@@ -422,7 +435,7 @@ private struct DemoMeeting: View {
         starts = []
         started = nil
         summaryShown = false
-        summaryWords = [0, 0]
+        summaryWords = [0, 0, 0]
         level = 0.2
     }
 
@@ -436,7 +449,7 @@ private struct DemoMeeting: View {
         speaking = nil
         phase = .done
         summaryShown = true
-        summaryWords = [Self.decision, Self.task].map { $0.split(separator: " ").count }
+        summaryWords = [Self.overview, Self.decision, Self.task].map { $0.split(separator: " ").count }
     }
 
     #if DEBUG
@@ -620,9 +633,11 @@ private struct VoiceModelCard: View {
                 }
             }
             .frame(maxHeight: .infinity, alignment: .top)
-            // How to start one later, the same in every state.
-            MeetingShortcutLine()
-                .padding(.top, 14)
+            // How to start one later; once ready, the card says it itself.
+            if kind != .ready {
+                MeetingShortcutLine()
+                    .padding(.top, 14)
+            }
         }
         .padding(.horizontal, 20).padding(.vertical, 18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -763,27 +778,48 @@ private struct VoiceModelCard: View {
 
     // MARK: Here
 
+    /// Ready: the title's two halves, in the room and in a call — how each one starts —
+    /// and at the foot that what it needs is here.
     private var ready: some View {
-        VStack(spacing: 0) {
-            eyebrow.frame(maxWidth: .infinity, alignment: .leading)
-            Spacer(minLength: 0)
-            DoneCheck(animate: celebrate)
-            Text("Klart! Möten fungerar.")
-                .font(.system(size: 17, weight: .semibold))
-                .multilineTextAlignment(.center)
-                .padding(.top, 18)
-            Text("Nemotron 3 finns på din Mac och håller isär rösterna i ett möte.")
-                .font(.system(size: 12.5))
-                .foregroundStyle(DS.Colors.muted)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 6)
-            Spacer(minLength: 0)
-            // Balances the eyebrow, so the check sits in the middle.
-            eyebrow.hidden()
+        VStack(alignment: .leading, spacing: 0) {
+            CapsLabel(String(localized: "Så börjar ett möte"))
+            way(icon: "person.2.wave.2", title: "I rummet") { MeetingShortcutLine() }
+                .padding(.top, 16)
+            way(icon: "phone", title: "I samtal") {
+                Text("När ett samtal i Teams, Zoom eller Meet börjar frågar Mindtalk först. Inget spelas in förrän du trycker.")
+                    .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, 20)
+            Spacer(minLength: 12)
+            HStack(spacing: 9) {
+                DoneCheck(animate: celebrate, size: 22)
+                Text("Röstmodellen finns på din Mac.")
+                    .font(.system(size: 12.5, weight: .medium))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .transition(.opacity)
+    }
+
+    private func way<Detail: View>(icon: String, title: LocalizedStringKey, @ViewBuilder detail: () -> Detail) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: icon)
+                .font(.system(size: 15, weight: .semibold))
+            detail()
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Ready, as this card shows it (the render's `--voices-state` too).
+    static var isReady: Bool {
+        #if DEBUG
+        if let preview { if case .ready = preview { return true } else { return false } }
+        #endif
+        if case .ready = VoiceModels.shared.state { return true }
+        return false
     }
 
     #if DEBUG
@@ -807,6 +843,7 @@ private struct VoiceModelCard: View {
 /// and the tick draws itself. Already there when you arrive: simply there.
 private struct DoneCheck: View {
     let animate: Bool
+    var size: CGFloat = 52
     @State private var disc = false
     @State private var tick = false
 
@@ -816,13 +853,13 @@ private struct DoneCheck: View {
             Circle().fill(DS.Colors.ink)
             CheckShape()
                 .trim(from: 0, to: tick ? 1 : 0)
-                .stroke(DS.Colors.onInk, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                .frame(width: 20, height: 16)
+                .stroke(DS.Colors.onInk, style: StrokeStyle(lineWidth: 2.5 * max(0.6, size / 52), lineCap: .round, lineJoin: .round))
+                .frame(width: 20 * size / 52, height: 16 * size / 52)
         }
-        .frame(width: 52, height: 52)
+        .frame(width: size, height: size)
         .scaleEffect(disc ? 1 : 0.5)
         .opacity(disc ? 1 : 0)
-        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+        .shadow(color: .black.opacity(size > 30 ? 0.18 : 0), radius: 10, y: 4)
         .accessibilityHidden(true)
         .onAppear {
             guard animate else { disc = true; tick = true; return }
