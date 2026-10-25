@@ -1458,7 +1458,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             let cases: [(String, String)] = [
                 ("jag använder mind talk varje dag", "jag använder Mindtalk varje dag"),
                 ("mindtalken är bra", "Mindtalken är bra"),
-                ("skriv till mathias@mindact.ai i dag", "skriv till mathias@mindact.ai i dag"),
+                ("skriv till anna@example.com i dag", "skriv till anna@example.com i dag"),
                 ("gå till mindact.ai/pris", "gå till mindact.ai/pris"),
                 ("vi jobbar på mindact.", "vi jobbar på Mindact."),
                 ("vi jobbar på min dakt", "vi jobbar på Mindact"),

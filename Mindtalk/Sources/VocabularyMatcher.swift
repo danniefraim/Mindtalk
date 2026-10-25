@@ -69,7 +69,7 @@ struct VocabularyMatcher {
     }
 
     /// Not inside a word — nor inside an address: "@" or "/" or "." right before, or
-    /// "@", "/" or a dot and a letter right after ("mathias@mindact.ai" stays as written).
+    /// "@", "/" or a dot and a letter right after ("anna@example.com" stays as written).
     private static func regex(_ core: String, endings: String) -> NSRegularExpression? {
         try? NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}@/.])(?:\(core))\(endings)(?![\\p{L}\\p{N}@/]|\\.[\\p{L}\\p{N}])",
                                  options: [.caseInsensitive])
