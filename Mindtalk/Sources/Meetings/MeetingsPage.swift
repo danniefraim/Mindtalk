@@ -860,6 +860,7 @@ struct StartCard: View {
                            caption: "Namnge talarna under mötet om du vill.")
                 }
                 .disabled(dictation.phase != .idle || starting)
+                languageLine
                 callLine
                 if let line = waitingLine {
                     Text(verbatim: line)
@@ -884,6 +885,19 @@ struct StartCard: View {
             }
             .animation(.easeOut(duration: 0.2), value: waitingLine)
         }
+    }
+
+    /// The language the meeting will be heard in, with Byt to where it's chosen: seen
+    /// before a press, so a Swedish meeting isn't heard by the model for several languages.
+    private var languageLine: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Label(String(localized: "Lyssnar på \(dictation.engine.inlineTitle)"), systemImage: "globe")
+            Button("Byt") { SettingsPage.open(.language) }
+                .buttonStyle(.plain).fontWeight(.semibold).foregroundStyle(.primary)
+                .fixedSize()
+                .help("Öppnar Inställningar → Språk.")
+        }
+        .font(.system(size: 12.5)).foregroundStyle(DS.Colors.muted)
     }
 
     /// With headphones on (or "Alltid" chosen): that a call on the Mac comes along too,

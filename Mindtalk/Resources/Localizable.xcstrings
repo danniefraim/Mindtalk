@@ -13650,6 +13650,22 @@
         }
       }
     },
+    "Lyssnar på %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listens in %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lyssnar på %@"
+          }
+        }
+      }
+    },
     "Lyssnar tills du trycker på Spara tanken. Esc avbryter.": {
       "localizations": {
         "en": {
@@ -28739,6 +28755,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppnar Inställningar → Möten → Sammanfattningar."
+          }
+        }
+      }
+    },
+    "Öppnar Inställningar → Språk.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens Settings → Language."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppnar Inställningar → Språk."
           }
         }
       }
