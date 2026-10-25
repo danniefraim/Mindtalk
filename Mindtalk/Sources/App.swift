@@ -823,7 +823,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 StatusPanelView.previewJustReady = args.contains("--just-ready")
                 #endif
                 let view = StatusPanelView(dictation: .shared, stats: .shared, close: {}, flat: true)
-                    .padding(20).background(Color(white: dark ? 0.2 : 0.75))
+                    // `--clear`: no backdrop (the README composes it onto its own).
+                    .padding(20).background(args.contains("--clear") ? Color.clear : Color(white: dark ? 0.2 : 0.75))
                     .environment(\.colorScheme, dark ? .dark : .light)
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2

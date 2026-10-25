@@ -1,44 +1,42 @@
 #!/bin/zsh
-# Screenshots for the README, from the Debug build in demo mode (example data in
-# memory only — your own history, stats and settings are never read or written).
+# Screenshots for the README, drawn by the Debug build (`--render-window`,
+# `--render-panel`, `--render-onboarding`) with made-up data in memory only. Nothing is
+# shown on screen, your running Mindtalk is left alone, and no setting is saved.
 #
-#   make build && scripts/screenshots/shoot.sh en     # or: sv
+#   make build && scripts/screenshots/shoot.sh en [models]     # or: sv
 #
-# Writes docs/images/<lang>/<view>-<light|dark>.png, then the hero images.
-# Needs Screen Recording permission for the terminal, and the screen awake.
+# `models`: a folder with the speech and voice models (an APFS clone of
+# ~/Library/Application Support/Mindtalk/Models is free), so the pages are drawn as on
+# a Mac that has them. Writes docs/images/<lang>/<view>-<light|dark>.png, then the hero.
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 lang=${1:-en}
 BIN="$ROOT/build/Build/Products/Debug/Mindtalk.app/Contents/MacOS/Mindtalk"
 OUT="$ROOT/docs/images/$lang"
-WFIND="$ROOT/build/wfind"
+HOME_DIR=$(mktemp -d /tmp/mt-shots.XXXX)
 mkdir -p "$OUT"
-[ -x "$WFIND" ] || swiftc -O -o "$WFIND" "$ROOT/scripts/screenshots/wfind.swift"
-was_running=$(pgrep -x Mindtalk >/dev/null && echo 1 || echo 0)
+models=(); [ $# -ge 2 ] && models=(--models-dir "$2")
 
-shot() { # name mode minW minH layer args...
-  local name=$1 mode=$2 w=$3 h=$4 layer=$5; shift 5
-  local id=""
-  for try in 1 2 3; do
-    pkill -x Mindtalk; sleep 0.8
-    "$BIN" --demo -appearance $mode -AppleLanguages "($lang)" "$@" >/dev/null 2>&1 &
-    sleep 3.5
-    id=$("$WFIND" $w $h $layer)
-    [ -n "$id" ] && screencapture -x -l $id "$OUT/$name-$mode.png" 2>/dev/null && { echo "✓ $name-$mode"; return; }
-  done
-  echo "✗ $name-$mode"
+draw() { # name args...
+  local name=$1; shift
+  HOME=$HOME_DIR CFFIXED_USER_HOME=$HOME_DIR "$BIN" "$@" -AppleLanguages "($lang)" $models 2>&1 | grep -q Ritad \
+    && echo "✓ $name" || echo "✗ $name"
 }
 
 for mode in light dark; do
-  for page in dictation recent vocabulary settings; do shot $page $mode 800 500 0 -reopenPage $page; done
-  shot onboarding-welcome $mode 600 500 0 --onboarding-step welcome
-  shot onboarding-language $mode 600 500 0 --onboarding-step language --fresh
-  for step in permissions key tryIt; do shot onboarding-$step $mode 600 500 0 --onboarding-step $step; done
-  shot panel $mode 250 300 25 --show-panel
-  shot hud $mode 120 30 25 --demo-hud
+  d=(); [ $mode = dark ] && d=(--dark)
+  w=(--demo --ready --models-ready --size 1100x700 $d)
+  draw home-$mode --render-window "$OUT/home-$mode.png" --page home $w
+  draw meetings-$mode --render-window "$OUT/meetings-$mode.png" --page meetings $w
+  draw meeting-$mode --render-window "$OUT/meeting-$mode.png" --page meetings --open-meeting $w
+  draw thoughts-$mode --render-window "$OUT/thoughts-$mode.png" --page thoughts $w
+  draw dictation-$mode --render-window "$OUT/dictation-$mode.png" --page dictation $w
+  draw settings-$mode --render-window "$OUT/settings-$mode.png" --page settings --section meetings $w
+  draw panel-$mode --render-panel "$OUT/panel-$mode.png" --demo --ready --clear $d
+  draw onboarding-welcome-$mode --render-onboarding "$OUT/onboarding-welcome-$mode.png" --onboarding-step welcome $d
+  draw onboarding-permissions-$mode --render-onboarding "$OUT/onboarding-permissions-$mode.png" --onboarding-step permissions $d
+  draw onboarding-meetings-$mode --render-onboarding "$OUT/onboarding-meetings-$mode.png" --onboarding-step meetings --voices-state ready $d
 done
-pkill -x Mindtalk
-[ "$was_running" = 1 ] && open -a /Applications/Mindtalk.app
 
 swift "$ROOT/scripts/screenshots/hero.swift" "$OUT"
 

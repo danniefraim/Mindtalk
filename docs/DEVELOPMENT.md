@@ -82,10 +82,10 @@ The images in the README come from the Debug build in demo mode: example history
 
 ```bash
 make build
-scripts/screenshots/shoot.sh en    # and: sv
+scripts/screenshots/shoot.sh en <models>    # and: sv
 ```
 
-It captures every view in light and dark mode into `docs/images/<lang>/` and composes the hero images (`scripts/screenshots/hero.swift`). The terminal needs Screen Recording permission, and the screen must be awake.
+It draws every view in light and dark mode into `docs/images/<lang>/` with the app's own renderers (nothing on screen, your running Mindtalk untouched) and composes the hero images (`scripts/screenshots/hero.swift`). `<models>` is a folder with the speech and voice models, such as an APFS clone (`cp -c -R`) of `~/Library/Application Support/Mindtalk/Models`, so the pages look as on a Mac that has them.
 
 ## Releasing
 

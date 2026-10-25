@@ -3,8 +3,9 @@
 //
 //   swift scripts/screenshots/hero.swift docs/images/en
 //
-// Reads dictation-<mode>.png, panel-<mode>.png and hud-<mode>.png (window
-// captures with their shadows, 2x) and writes hero-<mode>.png.
+// Reads meeting-<mode>.png (the window's content, as `--render-window` draws it) and
+// panel-<mode>.png (`--render-panel --clear`), both 2x, and writes hero-<mode>.png. The
+// window gets its rounded corners and shadow here.
 
 import AppKit
 
@@ -16,7 +17,7 @@ func load(_ name: String) -> CGImage? {
 }
 
 for mode in ["light", "dark"] {
-    guard let window = load("dictation-\(mode).png"), let panel = load("panel-\(mode).png"), let hud = load("hud-\(mode).png") else {
+    guard let window = load("meeting-\(mode).png"), let panel = load("panel-\(mode).png") else {
         print("✗ hero-\(mode): missing captures"); continue
     }
     let dark = mode == "dark"
@@ -36,16 +37,24 @@ for mode in ["light", "dark"] {
     ctx.drawRadialGradient(glow, startCenter: CGPoint(x: width * 0.42, y: height * 0.55), startRadius: 0,
                            endCenter: CGPoint(x: width * 0.42, y: height * 0.55), endRadius: width * 0.55, options: [])
 
-    // Window left of centre, panel overlapping its top-right corner, pill below.
+    // Window left of centre with its corners and shadow, the panel overlapping its top-right corner.
     let windowOrigin = CGPoint(x: 120, y: 150)
-    ctx.draw(window, in: CGRect(origin: windowOrigin, size: CGSize(width: window.width, height: window.height)))
+    let frame = CGRect(origin: windowOrigin, size: CGSize(width: window.width, height: window.height))
+    let shape = CGPath(roundedRect: frame, cornerWidth: 52, cornerHeight: 52, transform: nil)
+    ctx.saveGState()
+    ctx.setShadow(offset: CGSize(width: 0, height: -24), blur: 90, color: CGColor(gray: 0, alpha: dark ? 0.7 : 0.28))
+    ctx.addPath(shape); ctx.setFillColor(CGColor(gray: dark ? 0.1 : 1, alpha: 1)); ctx.fillPath()
+    ctx.restoreGState()
+    ctx.saveGState()
+    ctx.addPath(shape); ctx.clip()
+    ctx.draw(window, in: frame)
+    ctx.restoreGState()
+    ctx.addPath(shape); ctx.setStrokeColor(CGColor(gray: dark ? 1 : 0, alpha: 0.12)); ctx.setLineWidth(2); ctx.strokePath()
     let panelOrigin = CGPoint(x: width - CGFloat(panel.width) - 70, y: height - CGFloat(panel.height) - 40)
+    ctx.saveGState()
+    ctx.setShadow(offset: CGSize(width: 0, height: -16), blur: 60, color: CGColor(gray: 0, alpha: dark ? 0.6 : 0.25))
     ctx.draw(panel, in: CGRect(origin: panelOrigin, size: CGSize(width: panel.width, height: panel.height)))
-    // The pill, a little larger so it reads at README size, straddling the window's bottom edge.
-    let hudSize = CGSize(width: CGFloat(hud.width) * 1.5, height: CGFloat(hud.height) * 1.5)
-    let hudOrigin = CGPoint(x: windowOrigin.x + (CGFloat(window.width) - hudSize.width) / 2, y: windowOrigin.y - hudSize.height * 0.45)
-    ctx.interpolationQuality = .high
-    ctx.draw(hud, in: CGRect(origin: hudOrigin, size: hudSize))
+    ctx.restoreGState()
 
     let rep = NSBitmapImageRep(cgImage: ctx.makeImage()!)
     let out = dir.appendingPathComponent("hero-\(mode).png")
