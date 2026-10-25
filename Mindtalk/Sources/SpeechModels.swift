@@ -441,7 +441,9 @@ actor SpeechEngine {
         // writes just as fast and the same words. So: the GPU first, the Neural Engine
         // prepared meanwhile and switched to between two dictations (it draws less power
         // over a long meeting). After that, the Neural Engine from the start.
-        let ready = Self.engineReady(model)
+        // With the disk nearly full, not even tried: had macOS thrown its prepared
+        // model away, preparing it again would take the last of the room.
+        let ready = Self.engineReady(model) && (Self.freeDisk ?? .max) >= Self.roomToPrepare
         let version = model.asrVersion
         let task = Task { () async throws -> Started in
             guard ready else { return Started(asr: try await Self.make(dir: dir, version: version, units: .cpuAndGPU), onEngine: false, pending: nil) }
@@ -542,9 +544,16 @@ actor SpeechEngine {
     private var upgrading: Task<Void, Never>?
 
     private func upgrade(_ model: SpeechModel, dir: URL) {
-        upgrading?.cancel()
+        // One preparation at a time: Core ML can't be stopped halfway, and each one
+        // holds 4 to 5 GB on the disk while it runs (measured: three at once after
+        // switching language back and forth filled a disk). The one before is let go
+        // of, and waited for; it is never started if the language changed meanwhile.
+        let before = upgrading
+        before?.cancel()
         let version = model.asrVersion
         upgrading = Task {
+            await before?.value
+            if Task.isCancelled { return }
             // macOS prepares one model at a time: let the voice models go first (a
             // meeting needs them the moment it starts), and never crowd a meeting
             // that's running. Waits up to twenty minutes, then goes ahead anyway.
@@ -554,6 +563,13 @@ actor SpeechEngine {
                 try? await Task.sleep(for: .seconds(2))
                 if Task.isCancelled { return }
             }
+            // Too little room for it: the GPU writes the same words, and the next start
+            // of Mindtalk tries again.
+            if let free = Self.freeDisk, free < Self.roomToPrepare {
+                Self.log.notice("neural engine not prepared: \(free / 1_000_000_000, privacy: .public) GB free — staying on the GPU")
+                return
+            }
+            if Task.isCancelled { return }
             let started = Date()
             let ready: AsrManager
             do {
@@ -564,6 +580,21 @@ actor SpeechEngine {
             }
             await self.swapIn(ready, for: model, after: Date().timeIntervalSince(started))
         }
+    }
+
+    /// What preparing for the Neural Engine needs free on the disk, with a margin.
+    private static let roomToPrepare: Int64 = 8_000_000_000
+
+    /// Free on the disk that holds the temporary files (what macOS would make room for).
+    nonisolated static var freeDisk: Int64? {
+        #if DEBUG
+        // `--free-disk GB`: as if the disk had only that much free.
+        if let i = CommandLine.arguments.firstIndex(of: "--free-disk"), i + 1 < CommandLine.arguments.count,
+           let gb = Double(CommandLine.arguments[i + 1]) { return Int64(gb * 1_000_000_000) }
+        #endif
+        let values = try? URL(fileURLWithPath: NSTemporaryDirectory())
+            .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        return values?.volumeAvailableCapacityForImportantUsage
     }
 
     private func swapIn(_ asr: AsrManager, for model: SpeechModel, after seconds: Double) async {
