@@ -2320,10 +2320,6 @@ private struct TranscriptView: View {
             }
             .contentMargins(.bottom, live ? 28 : 120, for: .scrollContent)
             .scrollContentBackground(.hidden)
-            // Live and following: the newest words stay at the bottom as the text grows,
-            // the view gliding along rather than jumping after every handful. Read back
-            // (or after the meeting), it stays where it is.
-            .defaultScrollAnchor(live && following ? .bottom : .top, for: .sizeChanges)
             .onScrollGeometryChange(for: Bool.self) { geo in
                 geo.contentOffset.y + geo.containerSize.height >= geo.contentSize.height - 80
             } action: { _, bottom in
@@ -2346,12 +2342,12 @@ private struct TranscriptView: View {
             }
             // Follow the conversation, unless you've scrolled up to read: the text growing
             // (words, a name row, a mark) is held at the bottom by the anchor above.
-            // The text growing, or the room for it shrinking: still at the newest words. At
-            // once, not animated (the anchor above and the text's own growth make it glide);
-            // an animation for every word would trail behind and jerk.
+            // The text growing (a new line, a new turn), or the room for it shrinking: the
+            // view glides down to the newest words. Words arrive one at a time, so lines
+            // grow seconds apart, and each glide ends before the next begins.
             .onScrollGeometryChange(for: [CGFloat].self) { [$0.contentSize.height, $0.containerSize.height] } action: { old, new in
                 guard live, following, !userScrolling, new != old else { return }
-                proxy.scrollTo("end", anchor: .bottom)
+                withAnimation(.smooth(duration: 0.4)) { proxy.scrollTo("end", anchor: .bottom) }
             }
             // Listening: the text follows the voice.
             .onChange(of: playingTurn) { _, id in

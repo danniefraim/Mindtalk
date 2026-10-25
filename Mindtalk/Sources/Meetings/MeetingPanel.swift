@@ -473,9 +473,6 @@ private struct LivePanel: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollContentBackground(.hidden)
-            // Following: the newest words stay at the bottom as the text grows, the view
-            // gliding along rather than jumping after every handful. Read back, it stays put.
-            .defaultScrollAnchor(following ? .bottom : .top, for: .sizeChanges)
             .onChange(of: turns, initial: true) { _, now in
                 let words = session.record?.words ?? []
                 LiveReveal.shared.update(now, meeting: session.record?.id,
@@ -504,11 +501,11 @@ private struct LivePanel: View {
                 default: break
                 }
             }
-            // The text growing, or the room for it shrinking: still at the latest words, at
-            // once (an animation for every word would trail behind and jerk).
+            // The text growing, or the room for it shrinking: the view glides down to the
+            // latest words (lines grow seconds apart, the words coming one at a time).
             .onScrollGeometryChange(for: [CGFloat].self) { [$0.contentSize.height, $0.containerSize.height] } action: { old, new in
                 guard following, !userScrolling, new != old else { return }
-                proxy.scrollTo("end", anchor: .bottom)
+                withAnimation(.smooth(duration: 0.4)) { proxy.scrollTo("end", anchor: .bottom) }
             }
             .overlay(alignment: .bottom) {
                 if !following, !turns.isEmpty {
