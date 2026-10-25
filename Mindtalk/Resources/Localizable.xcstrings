@@ -17429,6 +17429,22 @@
         }
       }
     },
+    "Nu spelar Mindtalk också in möten, i rummet och i samtal, och sparar dina tankar. Här är det nya på en minut.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mindtalk now records meetings too, in the room and on calls, and keeps your thoughts. Here's what's new, in a minute."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nu spelar Mindtalk också in möten, i rummet och i samtal, och sparar dina tankar. Här är det nya på en minut."
+          }
+        }
+      }
+    },
     "Nu spelar vi in": {
       "localizations": {
         "en": {
@@ -17587,6 +17603,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nytt"
+          }
+        }
+      }
+    },
+    "Nytt i 2.0": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New in 2.0"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nytt i 2.0"
+          }
+        }
+      }
+    },
+    "Nytt i 2.0: möten i rummet och i samtal, och Tankar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New in 2.0: meetings in the room and on calls, and Thoughts."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nytt i 2.0: möten i rummet och i samtal, och Tankar."
           }
         }
       }
@@ -25547,6 +25595,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Visa alla möten"
+          }
+        }
+      }
+    },
+    "Visa det nya": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show What's New"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa det nya"
           }
         }
       }

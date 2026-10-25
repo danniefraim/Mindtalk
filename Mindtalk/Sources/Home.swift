@@ -63,6 +63,7 @@ struct HomeHero: View {
         let top = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 32)) : AnyLayout(VStackLayout(alignment: .leading, spacing: 26))
         VStack(alignment: .leading, spacing: 22) {
             header
+            WhatsNewLine()
             VStack(alignment: .leading, spacing: 0) {
                 // Above the line: the figure, the week, and the sphere in a column of
                 // its own, so nothing is ever written over it.
@@ -805,6 +806,38 @@ struct HomeShelves: View {
             .accessibilityLabel(Text(verbatim: [m.title, when, speakers > 0 ? people : nil, folder].compactMap { $0 }.joined(separator: ", ")))
             .accessibilityValue(Text(verbatim: about))
             .accessibilityAddTraits(.isButton)
+        }
+    }
+}
+
+/// "Nytt i 2.0" put off: one quiet line on Hem until it's seen or put away. Only for
+/// someone who came from 1.x and left the short introduction before its end.
+private struct WhatsNewLine: View {
+    @AppStorage(Settings.whatsNewLaterKey) private var later = false
+    @AppStorage(Settings.whatsNewSeenKey) private var seen = false
+
+    var body: some View {
+        if later, !seen, Settings.cameFrom1 {
+            HStack(spacing: 12) {
+                Text("Nytt i 2.0: möten i rummet och i samtal, och Tankar.")
+                    .font(.system(size: 13.5))
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                Button("Visa") { AppDelegate.showWhatsNew() }
+                    .buttonStyle(SoftButtonStyle(small: true))
+                Button { Settings.whatsNewSeen = true } label: {
+                    Image(systemName: "xmark").font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(DS.Colors.muted)
+                        .frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Dölj")
+                .accessibilityLabel("Dölj")
+            }
+            .padding(.horizontal, 18).padding(.vertical, 12)
+            .tile()
+            .transition(.opacity)
         }
     }
 }

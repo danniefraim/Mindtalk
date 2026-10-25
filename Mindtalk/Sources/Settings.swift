@@ -108,6 +108,34 @@ enum Settings {
         get { defaults.bool(forKey: "didOnboard") }
         set { keep(newValue, forKey: "didOnboard") }
     }
+
+    /// Came from 1.x: set up before 2.0, so the 2.0 introduction (which is what writes
+    /// introFinishedAt) was never seen. "Nytt i 2.0" is for them.
+    static var cameFrom1: Bool {
+        #if DEBUG
+        // `--from-1x`: drawn as for someone who came from 1.x (renders).
+        if CommandLine.arguments.contains("--from-1x") { return true }
+        #endif
+        return didOnboard && defaults.object(forKey: "introFinishedAt") == nil
+    }
+
+    /// "Nytt i 2.0" gone through, or put away for good from Hem.
+    static var whatsNewSeen: Bool {
+        get { defaults.bool(forKey: whatsNewSeenKey) }
+        set { keep(newValue, forKey: whatsNewSeenKey) }
+    }
+
+    /// "Nytt i 2.0" left before its end: not shown by itself again, but offered on Hem.
+    static var whatsNewLater: Bool {
+        get { defaults.bool(forKey: whatsNewLaterKey) }
+        set { keep(newValue, forKey: whatsNewLaterKey) }
+    }
+
+    static let whatsNewSeenKey = "whatsNew2Seen"
+    static let whatsNewLaterKey = "whatsNew2Later"
+
+    /// At launch: "Nytt i 2.0" shows by itself once, for someone who came from 1.x.
+    static var showsWhatsNew: Bool { cameFrom1 && !whatsNewSeen && !whatsNewLater }
 }
 
 /// How the dictation key starts and stops a dictation.

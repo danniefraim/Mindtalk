@@ -1117,7 +1117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 if args.contains("--downloading") {
                     Dictation.shared.preview(mic: true, accessibility: true, asked: false, model: .downloading(0.42))
                 }
-                let view = OnboardingView(dictation: .shared) {}.frame(width: 760, height: 640)
+                let view = OnboardingView(dictation: .shared, whatsNew: args.contains("--whats-new")) {}.frame(width: 760, height: 640)
                     .environment(\.colorScheme, dark ? .dark : .light)
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2
@@ -2016,6 +2016,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
 
         if !Settings.didOnboard {
             showOnboarding()
+        } else if Settings.showsWhatsNew || CommandLine.arguments.contains("--whats-new") {
+            // Came from 1.x: what 2.0 added, once. (`--whats-new`: shown anyway, to look at it.)
+            showOnboarding(whatsNew: true)
         } else if let raw = UserDefaults.standard.string(forKey: "reopenPage"), let page = Page(rawValue: raw) {
             UserDefaults.standard.removeObject(forKey: "reopenPage")
             MainView.startPage = page
@@ -2399,8 +2402,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     /// "Öppna Mindtalk" closes the introduction — Hem is already open.
     private var finishingOnboarding = false
 
-    func showOnboarding() {
+    /// "Nytt i 2.0" is showing in the introduction's window (closing it puts it on Hem).
+    private var onboardingIsWhatsNew = false
+
+    func showOnboarding(whatsNew: Bool = false) {
         if onboardingWindow == nil {
+            onboardingIsWhatsNew = whatsNew
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 640),
                                   styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
                                   backing: .buffered, defer: false)
@@ -2409,7 +2416,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             window.isMovableByWindowBackground = true
             window.isReleasedWhenClosed = false
             window.delegate = self
-            window.contentViewController = NSHostingController(rootView: OnboardingView(dictation: dictation) { [weak self] in
+            window.contentViewController = NSHostingController(rootView: OnboardingView(dictation: dictation, whatsNew: whatsNew) { [weak self] in
                 Settings.didOnboard = true
                 // At login from now on, as the last step says ("startar när du loggar in").
                 AppDelegate.registerLoginItemOnce()
@@ -2529,6 +2536,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
     /// The introduction again. With the main window open it plays inside that
     /// window — no second window, so nothing for macOS to animate or rearrange;
     /// otherwise in its own window, as on first launch.
+    /// "Nytt i 2.0" again, from its line on Hem: in its own window, as at launch.
+    static func showWhatsNew() {
+        (NSApp.delegate as? AppDelegate)?.showOnboarding(whatsNew: true)
+    }
+
     static func showIntroduction() {
         guard let delegate = NSApp.delegate as? AppDelegate else { return }
         if let window = delegate.window, window.isVisible {
@@ -2657,6 +2669,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     Settings.didOnboard = true
                     Self.registerLoginItemOnce()
                 }
+                // "Nytt i 2.0" closed before its end: offered on Hem from now on.
+                if onboardingIsWhatsNew, !Settings.whatsNewSeen { Settings.whatsNewLater = true }
                 if !Self.isQuitting { Self.showWindow(page: .dictation) }
             }
         }

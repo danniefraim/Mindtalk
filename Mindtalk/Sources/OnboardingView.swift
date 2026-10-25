@@ -6,13 +6,36 @@ import SwiftUI
 // are needed, and the Mac's sound for calls, asked now rather than mid-call) → try it
 // for real, with your key (waiting for the speech model if it must) → a thought → meetings,
 // in the room and in calls → what you have now (OnboardingReadyStep.swift) — and then
-// Hem. The word list isn't a step: it's offered at the top of Ordlista. Each feature gets its own step that
+// Hem. "Nytt i 2.0" (whatsNew) is the same introduction, cut to what 2.0 added, for
+// someone who came from 1.x: a welcome, the Mac's sound for calls if not yet asked,
+// Tankar and Möten. The word list isn't a step: it's offered at the top of Ordlista. Each feature gets its own step that
 // says what to do and when. While anything downloads, the footer says how much and
 // how long, on every step. With Reduce Motion on, it's all calm and still.
 
 struct OnboardingView: View {
     @ObservedObject var dictation: Dictation
+    /// "Nytt i 2.0": only what 2.0 added, for someone who came from 1.x.
+    let whatsNew: Bool
     let finish: () -> Void
+
+    init(dictation: Dictation, whatsNew: Bool = false, finish: @escaping () -> Void) {
+        _dictation = ObservedObject(wrappedValue: dictation)
+        self.whatsNew = whatsNew
+        self.finish = finish
+        // Fixed for the whole visit: the permissions step stays even once it's answered.
+        _steps = State(initialValue: whatsNew ? Self.newSteps : Step.allCases)
+    }
+
+    /// What 2.0 added. Microphone and Hjälpmedel are given already; the Mac's sound is
+    /// asked about only if it never was.
+    private static var newSteps: [Step] {
+        [.welcome] + (UserDefaults.standard.bool(forKey: "callAudioAsked") ? [] : [.permissions]) + [.thoughts, .meetings]
+    }
+
+    /// The steps of this visit, in order.
+    @State private var steps: [Step]
+    private var index: Int { steps.firstIndex(of: step) ?? 0 }
+    private var isLast: Bool { index == steps.count - 1 }
 
     /// Past the permissions: the introduction counts as done even if its window is
     /// closed now (closing earlier brings it back at the next launch).
@@ -63,7 +86,7 @@ struct OnboardingView: View {
         ZStack {
             DS.Colors.paper
             VStack(spacing: 0) {
-                ProgressSegments(count: Step.allCases.count, current: step.rawValue)
+                ProgressSegments(count: steps.count, current: index)
                     .padding(.top, 20)
 
                 ZStack {
@@ -114,7 +137,7 @@ struct OnboardingView: View {
 
     @ViewBuilder private var stepView: some View {
         switch step {
-        case .welcome: WelcomeStep()
+        case .welcome: WelcomeStep(whatsNew: whatsNew)
         case .language: LanguageStep(chosen: $chosen, listener: $listener, voices: $voices, gemma: $gemma, gemmaPick: $gemmaPick,
                                      fetching: languageBytes > 0)
         case .permissions: PermissionsStep(dictation: dictation)
@@ -180,9 +203,9 @@ struct OnboardingView: View {
                 .help("Talmodellen kan laddas ned senare, på Hem")
                 .transition(.opacity)
             }
-            if step.rawValue >= Step.tryIt.rawValue, step != .ready {
-                Button { done() } label: {
-                    Text("Avsluta introduktionen")
+            if whatsNew ? true : step.rawValue >= Step.tryIt.rawValue && step != .ready {
+                Button { done(complete: false) } label: {
+                    Text(verbatim: whatsNew && step == .welcome ? String(localized: "Inte nu") : String(localized: "Avsluta introduktionen"))
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(DS.Colors.muted)
                         .padding(8)
@@ -224,14 +247,14 @@ struct OnboardingView: View {
 
     private var primaryTitle: String {
         switch step {
-        case .welcome: return String(localized: "Kom igång")
+        case .welcome: return whatsNew ? String(localized: "Visa det nya") : String(localized: "Kom igång")
         case .language:
             // Already on its way (the introduction shown again): nothing more to fetch.
             let bytes = languageBytes
             if bytes == 0 { return String(localized: "Fortsätt") }
             return String(localized: "Ladda ned \(DiskSize.text(bytes)) och fortsätt")
         case .ready: return String(localized: "Sätt igång")
-        default: return String(localized: "Fortsätt")
+        default: return whatsNew && isLast ? String(localized: "Klart") : String(localized: "Fortsätt")
         }
     }
 
@@ -291,8 +314,11 @@ struct OnboardingView: View {
         go(1)
     }
 
-    private func done() {
+    /// `complete`: gone through to the end. "Nytt i 2.0" left before that is offered on
+    /// Hem instead; gone through, it's never offered again (nor after the whole introduction).
+    private func done(complete: Bool = true) {
         dictation.stopPickingKey(reason: "introduction done")
+        if complete { Settings.whatsNewSeen = true } else if whatsNew { Settings.whatsNewLater = true }
         finish()
     }
 
@@ -336,7 +362,9 @@ struct OnboardingView: View {
     }
 
     private func go(_ delta: Int) {
-        guard let next = Step(rawValue: step.rawValue + delta) else { return }
+        // Past the last step: done.
+        guard steps.indices.contains(index + delta) else { if delta > 0 { done() }; return }
+        let next = steps[index + delta]
         // On from the permissions: closing the window now counts as done. The steps
         // after are the features, and each can be left with "Avsluta introduktionen".
         // Done, even if Mindtalk is quit before the last step — and the day the
@@ -358,6 +386,7 @@ struct OnboardingView: View {
 // MARK: - Step 1: Welcome
 
 private struct WelcomeStep: View {
+    var whatsNew = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -375,6 +404,7 @@ private struct WelcomeStep: View {
                 .shadow(color: .black.opacity(0.22), radius: 22, y: 10)
                 .staggered(0)
                 .accessibilityHidden(true)
+            if whatsNew { CapsLabel(String(localized: "Nytt i 2.0")).padding(.bottom, -12).staggered(1) }
             // Dictation, thoughts, meetings — one line each, back to where it began.
             Typewriter(text: String(localized: "Prata. Vi skriver."),
                        font: .system(size: 50, weight: .regular, design: .serif),
@@ -384,9 +414,11 @@ private struct WelcomeStep: View {
                               String(localized: "Prata. Vi skriver.")],
                        repeats: true,
                        cursorHeight: 44)
-            Text("Diktera i alla appar, spara tankar och spela in möten. Allt tolkas på din Mac.")
+            Text(verbatim: whatsNew ? String(localized: "Nu spelar Mindtalk också in möten, i rummet och i samtal, och sparar dina tankar. Här är det nya på en minut.")
+                                    : String(localized: "Diktera i alla appar, spara tankar och spela in möten. Allt tolkas på din Mac."))
                 .font(.system(size: 15.5)).foregroundStyle(DS.Colors.muted)
                 .multilineTextAlignment(.center)
+                .frame(maxWidth: 520)
                 .staggered(2)
         }
         .padding(.bottom, 20)
