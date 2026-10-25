@@ -3527,6 +3527,22 @@
         }
       }
     },
+    "Bakgrund": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Background"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bakgrund"
+          }
+        }
+      }
+    },
     "Bara håll in": {
       "localizations": {
         "en": {
@@ -5092,6 +5108,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Det är %@ igen"
+          }
+        }
+      }
+    },
+    "Det är en person": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It's a person"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det är en person"
           }
         }
       }
@@ -13190,6 +13222,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ljud eller video. Mötet hamnar i %@."
+          }
+        }
+      }
+    },
+    "Ljud i bakgrunden, som en tv": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Background sound, like a TV"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ljud i bakgrunden, som en tv"
           }
         }
       }
@@ -22787,6 +22835,22 @@
         }
       }
     },
+    "Talaren räknas med i mötet och sammanfattningen igen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The speaker counts in the meeting and the summary again."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talaren räknas med i mötet och sammanfattningen igen."
+          }
+        }
+      }
+    },
     "Taligenkänningen behöver talmodellen. Den laddas ned en gång.": {
       "localizations": {
         "en": {
@@ -23636,6 +23700,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Texten skrivs in som vanligt och ligger sedan kvar i urklipp. Lösenord hamnar aldrig där."
+          }
+        }
+      }
+    },
+    "Texten står kvar, dämpad, men räknas inte med i mötet eller sammanfattningen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text stays, dimmed, but doesn't count in the meeting or the summary."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Texten står kvar, dämpad, men räknas inte med i mötet eller sammanfattningen."
           }
         }
       }

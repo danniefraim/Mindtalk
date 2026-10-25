@@ -377,6 +377,8 @@ enum WindowDemo {
         budget.summary = MeetingSummary(overview: en
             ? "The autumn budget holds, apart from marketing, which is decided at the weekly meeting."
             : "Höstbudgeten håller, förutom marknadsföringen, som avgörs på veckomötet.")
+        // `--demo-background`: Sara's voice marked as a TV in the background.
+        if CommandLine.arguments.contains("--demo-background") { weekly.background = [2] }
         return [weekly, customer, budget] + older()
     }
 

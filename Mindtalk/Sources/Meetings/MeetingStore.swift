@@ -34,6 +34,9 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     var words: [MeetingWord] = []
     /// Names given to speakers ("Anna" for speaker 2).
     var names: [String: String] = [:]
+    /// Speakers you said aren't taking part: a TV, a radio, the next table. Their words
+    /// stay in the text, quietly, as Bakgrund; the notes and the answers leave them out.
+    var background: [Int] = []
     /// The final pass over the whole recording has run.
     var refined = false
     /// Notes written by Apple Intelligence (MeetingNotes.swift).
@@ -242,6 +245,7 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         language = try c.decodeIfPresent(SpeechModel.self, forKey: .language) ?? .swedish
         words = try c.decodeIfPresent([MeetingWord].self, forKey: .words) ?? []
         names = try c.decodeIfPresent([String: String].self, forKey: .names) ?? [:]
+        background = (try? c.decodeIfPresent([Int].self, forKey: .background)) ?? []
         refined = try c.decodeIfPresent(Bool.self, forKey: .refined) ?? false
         // What Mindtalk wrote (it can be written again) never hides the meeting if it
         // can't be read; what you wrote or said is read strictly, so it is never lost.
@@ -271,8 +275,8 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
         // A field since dropped ("hiddenFromAI") is passed over: the meeting opens as before.
     }
 
-    /// Speakers in the order they first spoke.
-    var speakers: [Int] { cast.order }
+    /// The people, in the order they first spoke (not a voice marked as background).
+    var speakers: [Int] { cast.people }
 
     /// Who does a task, as shown on screen: "Du" when it's you (the name you said was
     /// yours in this meeting, or the one in Settings → Möten). Copies and exports keep
@@ -289,7 +293,7 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
     }
 
     /// Who's who, worked out once — views ask it many times per redraw.
-    var cast: Cast { Cast(words: words, names: names) }
+    var cast: Cast { Cast(words: words, names: names, background: Set(background)) }
 
     /// "Anna", or "Talare 2" — numbered in the order people first spoke.
     func name(of speaker: Int) -> String { cast.name(of: speaker) }
@@ -321,18 +325,25 @@ struct MeetingRecord: Codable, Identifiable, Equatable {
 struct Cast: Equatable {
     let order: [Int]
     let names: [String: String]
+    /// Not taking part (a TV, a radio): numbered as before, so "Talare 3" stays Talare 3.
+    var background: Set<Int> = []
 
-    init(words: [MeetingWord], names: [String: String]) {
+    init(words: [MeetingWord], names: [String: String], background: Set<Int> = []) {
         var seen: [Int] = []
         var known = Set<Int>()
         for w in words { if let s = w.speaker, s >= 0, known.insert(s).inserted { seen.append(s) } }
         order = seen
         self.names = names
+        self.background = background
     }
+
+    /// The people taking part, in order: everyone but the background.
+    var people: [Int] { order.filter { !background.contains($0) } }
 
     func number(of speaker: Int) -> Int { (order.firstIndex(of: speaker) ?? order.count) + 1 }
 
     func name(of speaker: Int) -> String {
+        if background.contains(speaker) { return String(localized: "Bakgrund") }
         if let name = names[String(speaker)], !name.isEmpty { return name }
         return String(localized: "Talare \(number(of: speaker))")
     }
@@ -895,6 +906,16 @@ final class MeetingStore: ObservableObject {
               let i = record.summary?.tasks.firstIndex(where: { $0.id == item }) else { return }
         record.summary?.tasks[i].done = done
         save(record)
+    }
+
+    /// A voice that isn't taking part (a TV, a radio), or is after all. The notes were
+    /// written with it, or without it: written again, as they should be now.
+    func setBackground(_ speaker: Int, _ on: Bool, in id: UUID) {
+        guard var record = meetings.first(where: { $0.id == id }) else { return }
+        if on { if !record.background.contains(speaker) { record.background.append(speaker) } }
+        else { record.background.removeAll { $0 == speaker } }
+        save(record)
+        if record.summary != nil, !record.words.isEmpty { MeetingNotes.shared.summarize(id) }
     }
 
     /// Two voices that are one person: `speaker`'s words become `into`'s.

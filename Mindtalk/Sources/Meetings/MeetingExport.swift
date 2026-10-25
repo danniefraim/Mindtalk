@@ -157,7 +157,7 @@ enum MeetingExport {
         var out: [Block] = [.title(record.title)]
         let date = record.date.formatted(Date.FormatStyle(date: .long, time: .shortened).locale(AppLanguage.locale))
         var meta = [date, MeetingView.duration(record.duration)]
-        let people = cast.order.map { cast.name(of: $0) }
+        let people = cast.people.map { cast.name(of: $0) }
         if !people.isEmpty { meta.append(people.joined(separator: ", ")) }
         out.append(.meta(meta.joined(separator: " · ")))
         if content != .text {

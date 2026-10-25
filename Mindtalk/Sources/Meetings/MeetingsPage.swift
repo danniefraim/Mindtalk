@@ -116,6 +116,11 @@ enum MeetingEdits {
         }
     }
 
+    /// Live there's nothing to mark: a voice is marked as background on the meeting after.
+    @MainActor func background(_ speaker: Int, _ on: Bool) {
+        if case .saved(let store, let id) = self { store.setBackground(speaker, on, in: id) }
+    }
+
     @MainActor func merge(_ speaker: Int, into other: Int) {
         switch self {
         case .live(let s): s.merge(speaker, into: other)
@@ -1474,6 +1479,8 @@ struct SpeakerChip: View {
     var style: Style = .chip
     let rename: (String) -> Void
     let merge: (Int) -> Void
+    /// After the meeting: "Ljud i bakgrunden" (a TV, a radio), or back to a person.
+    var background: ((Bool) -> Void)? = nil
     @State private var editing = false
 
     /// `newVoice`: "Ny röst. Vem är det?", a voice heard first after the room was known.
@@ -1560,8 +1567,20 @@ struct SpeakerChip: View {
                     .frame(width: 220)
                     .focused($focused)
                     .onSubmit(save)
-                let others = cast.order.filter { $0 != speaker }
-                if !others.isEmpty {
+                // Not a person at all: a TV, a radio, the next table. Kept in the text,
+                // quietly, and left out of the notes; undone the same way.
+                if let background {
+                    let marked = cast.background.contains(speaker)
+                    Button { editing = false; background(!marked) } label: {
+                        Label(marked ? "Det är en person" : "Ljud i bakgrunden, som en tv",
+                              systemImage: marked ? "person" : "tv")
+                    }
+                    .buttonStyle(SoftButtonStyle(small: true))
+                    .help(marked ? "Talaren räknas med i mötet och sammanfattningen igen."
+                                 : "Texten står kvar, dämpad, men räknas inte med i mötet eller sammanfattningen.")
+                }
+                let others = cast.order.filter { $0 != speaker && !cast.background.contains($0) }
+                if !others.isEmpty, !cast.background.contains(speaker) {
                     Menu("Samma person som…") {
                         ForEach(others, id: \.self) { other in
                             Button(cast.name(of: other)) { editing = false; merge(other) }
@@ -1901,7 +1920,7 @@ struct MeetingView: View {
     /// "I dag 9:30 · 25 min · Anna, Erik och Sara · Kunder": one quiet line. A name is
     /// a button (name them, or say two are the same person); the folder is a menu.
     private func metaLine(_ cast: Cast, lead: String? = nil) -> some View {
-        let order = cast.order
+        let order = cast.people
         return FlowLayout(spacing: 0) {
             Text(verbatim: (lead ?? finishedMeta) + (order.isEmpty ? "" : " · "))
                 .foregroundStyle(DS.Colors.muted).monospacedDigit()
@@ -2300,6 +2319,9 @@ private struct TranscriptView: View {
                     rename: turn.speaker.flatMap { s in s >= 0 ? { edit.name(s, $0) } : nil },
                     merge: turn.speaker.flatMap { s in
                         s >= 0 ? { other in withAnimation(.snappy) { edit.merge(s, into: other) } } : nil
+                    },
+                    setBackground: live ? nil : turn.speaker.flatMap { s in
+                        s >= 0 ? { on in withAnimation(.snappy) { edit.background(s, on) } } : nil
                     })
                 .padding(.top, i == 0 ? 0 : newSpeaker ? 26 : 12)
                 .id(turn.id)
@@ -2551,11 +2573,15 @@ private struct TurnRow: View {
     var recognized = false
     var rename: ((String) -> Void)? = nil
     var merge: ((Int) -> Void)? = nil
+    /// After the meeting: mark this voice as background (a TV), or back.
+    var setBackground: ((Bool) -> Void)? = nil
 
     private var speaker: Int? { turn.speaker.flatMap { $0 >= 0 ? $0 : nil } }
+    /// A TV or a radio you marked: its words quieter, out of the way of the meeting's.
+    private var isBackground: Bool { speaker.map { cast.background.contains($0) } ?? false }
     private var showsChanges: Bool { !changed.isEmpty && (firstIndex..<(firstIndex + words.count)).contains { changed.contains($0) } }
 
-    private var tint: Color { SpeakerMark.color(of: speaker, in: cast) }
+    private var tint: Color { isBackground ? DS.Colors.faint : SpeakerMark.color(of: speaker, in: cast) }
     private var lit: Bool { playing || focused }
 
     /// A document, not a chat: who spoke in a thin line of their colour beside what
@@ -2611,7 +2637,8 @@ private struct TurnRow: View {
     private var nameRow: some View {
         HStack(spacing: 8) {
             if let speaker, let rename, let merge {
-                SpeakerChip(speaker: speaker, cast: cast, recognized: recognized, style: .name, rename: rename, merge: merge)
+                SpeakerChip(speaker: speaker, cast: cast, recognized: recognized, style: .name, rename: rename, merge: merge,
+                            background: setBackground)
             } else {
                 Text(speaker.map { cast.name(of: $0) }
                      ?? (live ? String(localized: "Känner igen rösten…") : String(localized: "Okänd talare")))
@@ -2660,7 +2687,8 @@ private struct TurnRow: View {
         // After the meeting (listening along): the words go to ink by degrees. Live, the
         // reveal draws that itself.
         .contentTransition(live ? .identity : .interpolate)
-        .font(.system(size: 16))
+        .font(.system(size: isBackground ? 14 : 16))
+        .foregroundStyle(isBackground ? AnyShapeStyle(DS.Colors.muted) : AnyShapeStyle(.primary))
         .lineSpacing(6)
         .textSelection(.enabled)
         // All its lines, whatever sits under it (two of your notes made it one line and an ellipsis).

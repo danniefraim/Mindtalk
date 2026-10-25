@@ -1673,6 +1673,76 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         // voices come only from --people, in memory, and --learn-people writes what the
         // meeting taught to that file only (scripts/round-replay.sh).
         #if DEBUG
+        // `Mindtalk --background-test`: a voice marked as background (a TV): numbered as
+        // before, out of the people and the notes' lines, kept when saved and read back,
+        // and a meeting saved before it existed still read.
+        if args.contains("--background-test") {
+            Task { @MainActor in
+                var failed = 0
+                func check(_ ok: Bool, _ what: String) { print((ok ? "OK   " : "FEL  ") + what); if !ok { failed += 1 } }
+                var r = MeetingRecord(title: "Test", date: Date(), language: .swedish)
+                let lines: [(Int, String)] = [(0, "Hej och välkomna till mötet om budgeten."), (1, "Tack, jag har siffrorna här."),
+                                              (2, "Och nu vädret för i morgon med regn i väst."), (0, "Bra, då kör vi.")]
+                var t = 0.0
+                for (s, line) in lines {
+                    for w in line.split(separator: " ") { r.words.append(MeetingWord(text: String(w), start: t, end: t + 0.3, speaker: s)); t += 0.4 }
+                    t += 2.5
+                }
+                r.names = ["0": "Anna"]
+                r.background = [2]
+                let cast = r.cast
+                check(cast.people == [0, 1], "folket är Anna och Talare 2, inte bakgrunden")
+                check(cast.name(of: 2) == "Bakgrund", "bakgrunden heter Bakgrund")
+                check(cast.name(of: 1) == "Talare 2", "de andra behåller sina nummer")
+                check(r.speakers == [0, 1], "mötet räknar två talare")
+                let text = Lines(r).lines.map(\.text).joined(separator: " ")
+                check(!text.contains("vädret"), "bakgrundens ord är inte med i sammanfattningens rader")
+                check(text.contains("siffrorna"), "de andras ord är med")
+                let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
+                let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+                let back = try? decoder.decode(MeetingRecord.self, from: encoder.encode(r))
+                check(back?.background == [2], "sparad och inläst finns bakgrunden kvar")
+                var old = try! JSONSerialization.jsonObject(with: encoder.encode(r)) as! [String: Any]
+                old["background"] = nil
+                let older = try? decoder.decode(MeetingRecord.self, from: JSONSerialization.data(withJSONObject: old))
+                check(older != nil && older!.background.isEmpty, "ett möte sparat före läses som förut")
+                print(failed == 0 ? "Background self-test passed." : "\(failed) fel")
+                exit(Int32(failed))
+            }
+            RunLoop.main.run()
+        }
+        // `Mindtalk --background-features dir[:truth.json] …`: each saved meeting's voices
+        // measured (BackgroundVoices), with how much of each was the fixture's background.
+        if let i = args.firstIndex(of: "--background-features") {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            struct Segment: Decodable { let who: Int; let start: Double; let end: Double }
+            struct Truth: Decodable { let segments: [Segment] }
+            for item in args[(i + 1)...] where !item.hasPrefix("--") {
+                let parts = item.split(separator: ":", maxSplits: 1).map(String.init)
+                let dir = URL(fileURLWithPath: parts[0])
+                guard let data = try? Data(contentsOf: dir.appendingPathComponent("meeting.json")),
+                      let m = try? decoder.decode(MeetingRecord.self, from: data),
+                      let samples = try? Recorder.load(dir.appendingPathComponent("audio.caf")) else { print("FEL \(item)"); continue }
+                let truth = parts.count > 1 ? (try? JSONDecoder().decode(Truth.self, from: Data(contentsOf: URL(fileURLWithPath: parts[1])))) : nil
+                let named = Set(m.names.filter { !$0.value.isEmpty }.compactMap { Int($0.key) } + m.recognized.keys.compactMap { Int($0) })
+                print("== \(dir.lastPathComponent) \(m.title)")
+                print("talare\tord\tandel\tnivå\trel\tljus\tsvans\tsvarar\tbesvaras\tnamn\tbakgrund")
+                for f in BackgroundVoices.features(words: m.words, samples: samples, named: named) {
+                    // How much of this voice's words fall in the fixture's background (who -1).
+                    var bg = "-"
+                    if let truth {
+                        let mine = m.words.filter { $0.speaker == f.speaker }
+                        // A word inside nobody's turn: the radio's (it talks through everything).
+                        let inBG = mine.filter { w in !truth.segments.contains { $0.who >= 0 && w.start < $0.end + 0.3 && w.end > $0.start - 0.3 } }.count
+                        bg = String(format: "%.2f", Double(inBG) / Double(max(1, mine.count)))
+                    }
+                    print(String(format: "%d\t%d\t%.2f\t%.1f\t%.1f\t%.2f\t%.1f\t%.2f\t%.2f\t%@\t%@", f.speaker, f.words, f.share, f.level,
+                                 f.relativeLevel, f.relativeBrightness, f.tail, f.answers, f.answered, f.named ? "ja" : "nej", bg))
+                }
+            }
+            exit(0)
+        }
         // `Mindtalk --import-test file… [--models-dir …]`: files imported the whole way, as
         // dropped on Möten (sound, text, voices, summary), in a fresh HOME; what came of
         // each is printed. Run it with HOME pointed at an empty folder.

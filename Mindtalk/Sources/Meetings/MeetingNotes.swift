@@ -1152,7 +1152,7 @@ final class MeetingNotes: ObservableObject {
         let cast = record.cast
         var out = "# \(record.title)\n\n"
         let date = record.date.formatted(Date.FormatStyle(date: .long, time: .shortened).locale(AppLanguage.locale))
-        let people = cast.order.map { cast.name(of: $0) }.joined(separator: ", ")
+        let people = cast.people.map { cast.name(of: $0) }.joined(separator: ", ")
         out += people.isEmpty ? "\(date)\n\n" : "\(date) · \(people)\n\n"
         if let informed = record.informed {
             let time = informed.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.locale))
@@ -1463,6 +1463,8 @@ struct Lines: Sendable {
         var lines: [Line] = []
         let turns = MeetingText.turns(record.words)
         for (t, turn) in turns.enumerated() {
+            // A TV or a radio you marked: not part of the meeting, not in its notes.
+            if let s = turn.speaker, record.background.contains(s) { continue }
             let who = turn.speaker.map { $0 >= 0 ? record.name(of: $0) : "?" } ?? "?"
             // Long turns in pieces of about 60 words, at sentence ends.
             let end = t + 1 < turns.count ? turns[t + 1].id : record.words.count

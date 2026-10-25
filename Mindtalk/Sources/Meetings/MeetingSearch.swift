@@ -366,7 +366,7 @@ struct LibraryContext: Sendable {
                 let when = b.record.date.formatted(Date.FormatStyle(date: .complete, time: .shortened).locale(Locale(identifier: "en_GB")))
                 // With who was there, so "Vilka var med?" can be answered.
                 let cast = b.record.cast
-                let people = cast.order.map { cast.name(of: $0) }.filter { !$0.isEmpty }
+                let people = cast.people.map { cast.name(of: $0) }.filter { !$0.isEmpty }
                 // In English, as the heading is: "with Anna and Erik".
                 let with = people.count <= 1 ? people.first.map { ", with " + $0 } ?? ""
                     : ", with " + people.dropLast().joined(separator: ", ") + " and " + people[people.count - 1]

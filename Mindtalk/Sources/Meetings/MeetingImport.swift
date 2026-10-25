@@ -401,7 +401,11 @@ final class MeetingImport: ObservableObject {
             Self.log.info("import: done, \(Int(duration)) s, \(words.count) words, \(Set(words.compactMap(\.speaker)).count) voices")
 
             // 4. The notes — written in the background, like a meeting's.
+            #if DEBUG
+            if !CommandLine.arguments.contains("--no-summary") { MeetingNotes.shared.summarize(record.id) }   // tests of the voices only
+            #else
             MeetingNotes.shared.summarize(record.id)
+            #endif
             AccessibilityNotification.Announcement(String(localized: "\(record.title): klart att läsa")).post()
             Self.notifyIfAway(record)
             scheduleTidy(id)
