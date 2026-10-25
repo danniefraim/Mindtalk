@@ -815,6 +815,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     Dictation.shared.preview(mic: true, accessibility: true, asked: false, model: .ready)
                     StatusPanelView.previewModels = true
                 }
+                // `--loading`: the speech model starting; `--just-ready`: the moment after.
+                if args.contains("--loading") {
+                    Dictation.shared.preview(mic: true, accessibility: true, asked: false, model: .loading)
+                    StatusPanelView.previewModels = true
+                }
+                StatusPanelView.previewJustReady = args.contains("--just-ready")
                 #endif
                 let view = StatusPanelView(dictation: .shared, stats: .shared, close: {}, flat: true)
                     .padding(20).background(Color(white: dark ? 0.2 : 0.75))

@@ -505,6 +505,8 @@ struct PillPicker<Value: Hashable>: View {
     let options: [(value: Value, title: String)]
     @Binding var selection: Value
     var compact = false
+    /// An option still getting ready (the speech model starting): a small spinner beside it.
+    var busy: Value? = nil
     @Namespace private var pill
 
     var body: some View {
@@ -514,7 +516,12 @@ struct PillPicker<Value: Hashable>: View {
                 Button {
                     withAnimation(.spring(duration: 0.35, bounce: 0.2)) { selection = option.value }
                 } label: {
-                    Text(LocalizedStringKey(option.title))
+                    HStack(spacing: 6) {
+                        Text(LocalizedStringKey(option.title))
+                        if busy == option.value {
+                            SpinnerRing().transition(.opacity)
+                        }
+                    }
                         .font(.system(size: compact ? 12 : 12.5, weight: selected ? .semibold : .medium))
                         .foregroundStyle(selected ? AnyShapeStyle(.primary) : AnyShapeStyle(DS.Colors.muted))
                         .padding(.horizontal, compact ? 10 : 13)
@@ -538,6 +545,24 @@ struct PillPicker<Value: Hashable>: View {
         .padding(3)
         .background(Capsule().fill(DS.Colors.chip))
         .fixedSize(horizontal: !compact, vertical: true)
+        .animation(.easeOut(duration: 0.2), value: busy)
+    }
+}
+
+/// Something getting ready: a small ink arc that turns (still with Reduce Motion).
+struct SpinnerRing: View {
+    var size: CGFloat = 10
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.animation(paused: reduceMotion)) { context in
+            Circle().trim(from: 0, to: 0.7)
+                .stroke(DS.Colors.ink, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+                .rotationEffect(.degrees(reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
+                    .truncatingRemainder(dividingBy: 1) * 360))
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel("Startar")
     }
 }
 

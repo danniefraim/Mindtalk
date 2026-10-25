@@ -139,6 +139,10 @@ struct StatusPanelView: View {
     private var speechReady: Bool { Self.previewModels || dictation.engine.isInstalled }
     /// A language that isn't downloaded yet, waiting for a yes before 600+ MB.
     @State private var confirming: SpeechModel?
+    /// The speech model has just finished starting: said for a moment, then the usual line.
+    @State private var justReady = StatusPanelView.previewJustReady
+    /// Screenshots: drawn as just after the speech model started.
+    nonisolated(unsafe) static var previewJustReady = false
 
     /// Closes the panel and opens the window on `page`.
     private func go(_ page: Page) {
@@ -308,6 +312,13 @@ struct StatusPanelView: View {
         .padding(.top, 8)
         .padding(.bottom, 6)
         .animation(.easeOut(duration: 0.2), value: dictation.phase)
+        .animation(.easeOut(duration: 0.2), value: justReady)
+        // Started while the menu is open: "Redo att diktera" with a tick, a few seconds.
+        .onChange(of: dictation.model) { before, now in
+            guard before == .loading, now == .ready else { return }
+            justReady = true
+            Task { try? await Task.sleep(for: .seconds(3)); justReady = false }
+        }
     }
 
     @ViewBuilder private var status: some View {
@@ -342,9 +353,12 @@ struct StatusPanelView: View {
                 case .downloading(let p):
                     Text("Laddar ned talmodellen · \(Int(min(1, p / 0.9) * 100)) %").monospacedDigit()
                 case .loading:
-                    Text("Startar…")
+                    Text("Talmodellen startar…")
                 default:
-                    if dictation.isReady, dictation.keyboardBlocked {
+                    if justReady, dictation.isReady, !dictation.keyboardBlocked {
+                        Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(DS.Colors.ink)
+                        Text("Redo att diktera")
+                    } else if dictation.isReady, dictation.keyboardBlocked {
                         // The key can't be heard: said, as a warning, instead of how to use it.
                         Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.Colors.warning)
                         Text("Ett annat program spärrar tangentbordet just nu, så tangenten för diktering fungerar inte.")
@@ -440,14 +454,20 @@ struct StatusPanelView: View {
                 Text("Jag pratar").font(.system(size: 14)).lineLimit(1).fixedSize()
                 Spacer(minLength: 8)
                 PillPicker(options: SpeechModel.allCases.map { (value: $0, title: $0.title) },
-                           selection: Binding(get: { dictation.engine }, set: { pick($0) }))
+                           selection: Binding(get: { dictation.engine }, set: { pick($0) }),
+                           busy: dictation.model == .loading ? dictation.engine : nil)
                     .disabled(meeting.isBusy)
                     .help("⌘1 och ⌘2 byter talmodell")
             }
             .padding(.horizontal, PanelMetrics.inset)
             .frame(minHeight: 40)
-            Text("Gäller diktering, tankar och möten.")
+            // While it starts, that it takes a while; once it has, that it's ready.
+            Text(verbatim: dictation.model == .loading ? String(localized: "Talmodellen startar. Det kan ta upp till en halv minut.")
+                 : justReady ? String(localized: "Talmodellen är klar.") : String(localized: "Gäller diktering, tankar och möten."))
                 .font(.system(size: 11.5)).foregroundStyle(DS.Colors.muted)
+                .contentTransition(.opacity)
+                .animation(.easeOut(duration: 0.2), value: dictation.model)
+                .animation(.easeOut(duration: 0.2), value: justReady)
                 .padding(.horizontal, PanelMetrics.inset)
                 .padding(.top, 4).padding(.bottom, 8)
             // A language that isn't on the Mac yet: say how big, and let a click fetch it.

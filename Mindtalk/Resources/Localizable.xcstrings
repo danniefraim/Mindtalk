@@ -18694,6 +18694,22 @@
         }
       }
     },
+    "Redo att diktera": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready to dictate"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redo att diktera"
+          }
+        }
+      }
+    },
     "Redo att diktera.": {
       "localizations": {
         "en": {
@@ -21219,6 +21235,22 @@
         }
       }
     },
+    "Startar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startar"
+          }
+        }
+      }
+    },
     "Startar %@…": {
       "extractionState": "stale",
       "localizations": {
@@ -23235,6 +23267,22 @@
         }
       }
     },
+    "Talmodellen startar. Det kan ta upp till en halv minut.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The speech model is starting. It can take up to half a minute."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellen startar. Det kan ta upp till en halv minut."
+          }
+        }
+      }
+    },
     "Talmodellen startar…": {
       "localizations": {
         "en": {
@@ -23343,6 +23391,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Talmodellen är inte redo. Öppnar Mindtalk."
+          }
+        }
+      }
+    },
+    "Talmodellen är klar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The speech model is ready."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talmodellen är klar."
           }
         }
       }
