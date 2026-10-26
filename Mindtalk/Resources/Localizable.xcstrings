@@ -9153,6 +9153,22 @@
         }
       }
     },
+    "Håll in en eller flera modifierartangenter tillsammans och släpp. Du kan också trycka på en kombination, som ⌃⌥T. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold one or more modifier keys together and let go. You can also press a combination, like ⌃⌥T. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Håll in en eller flera modifierartangenter tillsammans och släpp. Du kan också trycka på en kombination, som ⌃⌥T. Esc avbryter."
+          }
+        }
+      }
+    },
     "Håll in en eller flera tangenter, som ⌥ och ⌘, och släpp. Du kan också trycka på en vanlig tangent. Esc avbryter.": {
       "localizations": {
         "en": {
@@ -11375,6 +11391,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Klicka i rutan, håll in %@ och säg något."
+          }
+        }
+      }
+    },
+    "Klicka och håll in en eller flera modifierartangenter tillsammans och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click and hold one or more modifier keys together and let go. Or press a combination like ⌃⌥T. Esc cancels."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klicka och håll in en eller flera modifierartangenter tillsammans och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter."
           }
         }
       }

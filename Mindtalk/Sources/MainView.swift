@@ -565,7 +565,7 @@ struct SettingsPage: View {
 
     private var thoughtKeyDetail: String {
         if pickingThoughtKey {
-            return String(localized: "Håll in en tangent, som vänster ⌥, och släpp. Du kan också trycka på en kombination, som ⌃⌥T. Esc avbryter.")
+            return String(localized: "Håll in en eller flera modifierartangenter tillsammans och släpp. Du kan också trycka på en kombination, som ⌃⌥T. Esc avbryter.")
         }
         if let why = thoughtKeyRefusal { return why }
         return thoughtShortcut == nil ? String(localized: "Av. På Tankar kan du ändå säga en tanke.")
@@ -875,8 +875,8 @@ struct MeetingShortcutField: View {
     }
 }
 
-/// The thought shortcut: a key held on its own (left ⌥), like the dictation key — or a
-/// chord like ⌃⌥T. Click, then hold the key alone and let go, or press the combination.
+/// The thought shortcut: modifiers held together (left ⌥ by default), like the dictation
+/// key — or a chord like ⌃⌥T. Click, hold the modifiers and let go, or press the chord.
 /// Never the dictation key: that's refused, and said why. In Inställningar a white
 /// field (`.field`, with ✕ to turn it off); on Tankar flat tile buttons, Ändra and
 /// Stäng av (`.button`), in the key card.
@@ -887,6 +887,7 @@ struct ThoughtShortcutField: View {
     @Binding var picking: Bool
     @Binding var refusal: String?
     var meeting: KeyChord?
+    var dictation: Hotkey = Settings.hotkey
     var style: Style = .field
     /// Hjälpmedel is on: without it the key can't be felt, so `.button` can't pick one.
     var granted = true
@@ -895,7 +896,7 @@ struct ThoughtShortcutField: View {
         KeyListener.shared.thoughtShortcut = new
     }
     @State private var monitor: Any?
-    /// The modifiers held together so far, at their most — one alone is the choice.
+    /// The largest snapshot of modifiers held together so far, as for dictation.
     @State private var most: UInt64 = 0
     /// A key went down meanwhile: a chord, not a key held alone.
     @State private var typed = false
@@ -922,7 +923,7 @@ struct ThoughtShortcutField: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .help("Klicka och håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination. Esc avbryter.")
+                    .help("Klicka och håll in en eller flera modifierartangenter tillsammans och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.")
                     if shortcut != nil, !picking {
                         ShortcutOffButton {
                             ShortcutLog.log.notice("thought key: turned off")
@@ -937,7 +938,7 @@ struct ThoughtShortcutField: View {
                         .disabled(!granted)
                         .help(!granted ? Text("Slå på Hjälpmedel för Mindtalk först.")
                               : picking ? Text("Esc avbryter.")
-                              : Text("Klicka och håll in en tangent ensam, som vänster ⌥, och släpp. Eller tryck på en kombination. Esc avbryter."))
+                              : Text("Klicka och håll in en eller flera modifierartangenter tillsammans och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter."))
                         .accessibilityLabel(picking ? Text("Avbryt") : shortcut == nil ? Text("Välj en genväg") : Text("Ändra genvägen"))
                     // The key off, as ✕ does beside the field in Inställningar.
                     if shortcut != nil, !picking {
@@ -992,8 +993,8 @@ struct ThoughtShortcutField: View {
         }
     }
 
-    /// Like the dictation key: the choice is made when everything is let go — one
-    /// modifier, held with nothing else, is the key.
+    /// Like the dictation key: save the largest simultaneous combination once every
+    /// selected modifier is released. A typed chord is handled separately above.
     private func modifiersChanged(_ event: NSEvent) {
         let raw = UInt64(event.modifierFlags.rawValue)
         ShortcutLog.log.notice("thought key picker: flagsChanged \(event.keyCode, privacy: .public) flags \(String(raw, radix: 16), privacy: .public) heldOver \(String(heldOver, radix: 16), privacy: .public)")
@@ -1006,12 +1007,6 @@ struct ThoughtShortcutField: View {
         guard held == 0 else { return }
         defer { most = 0; typed = false }
         guard !typed, let key = Hotkey.modifierCombination(mask: most) else { return }
-        // Several held together: a key held alone is one key.
-        guard key.modifierKeys.count == 1 else {
-            ShortcutLog.log.notice("thought key: refused \(key.modifierKeys.count, privacy: .public) keys held together")
-            NSSound.beep()
-            return
-        }
         pick(.key(key))
     }
 
@@ -1019,7 +1014,7 @@ struct ThoughtShortcutField: View {
         stop(because: "picked")
         let what = new.key.map { "key \($0.keyCode)/\(String($0.modifierMask, radix: 16))" }
             ?? new.chord.map { "chord \($0.keyCode) with \(String($0.modifiers, radix: 16))" } ?? ""
-        if let why = new.refusal(besides: Settings.hotkey) {
+        if let why = new.refusal(besides: dictation) {
             ShortcutLog.log.notice("thought key: refused \(what, privacy: .public) (the dictation key has it)")
             NSSound.beep()
             refusal = why
