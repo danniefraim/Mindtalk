@@ -565,7 +565,7 @@ struct SettingsPage: View {
 
     private var thoughtKeyDetail: String {
         if pickingThoughtKey {
-            return String(localized: "Håll in en eller flera modifierartangenter tillsammans och släpp. Du kan också trycka på en kombination, som ⌃⌥T. Esc avbryter.")
+            return String(localized: "Håll in en eller flera tangenter, som ⌥ och ⌘, och släpp. Du kan också trycka på en kombination, som ⌃⌥T. Esc avbryter.")
         }
         if let why = thoughtKeyRefusal { return why }
         return thoughtShortcut == nil ? String(localized: "Av. På Tankar kan du ändå säga en tanke.")
@@ -923,7 +923,7 @@ struct ThoughtShortcutField: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .help("Klicka och håll in en eller flera modifierartangenter tillsammans och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.")
+                    .help("Klicka och håll in en eller flera tangenter, som ⌥ och ⌘, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter.")
                     if shortcut != nil, !picking {
                         ShortcutOffButton {
                             ShortcutLog.log.notice("thought key: turned off")
@@ -938,7 +938,7 @@ struct ThoughtShortcutField: View {
                         .disabled(!granted)
                         .help(!granted ? Text("Slå på Hjälpmedel för Mindtalk först.")
                               : picking ? Text("Esc avbryter.")
-                              : Text("Klicka och håll in en eller flera modifierartangenter tillsammans och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter."))
+                              : Text("Klicka och håll in en eller flera tangenter, som ⌥ och ⌘, och släpp. Eller tryck på en kombination som ⌃⌥T. Esc avbryter."))
                         .accessibilityLabel(picking ? Text("Avbryt") : shortcut == nil ? Text("Välj en genväg") : Text("Ändra genvägen"))
                     // The key off, as ✕ does beside the field in Inställningar.
                     if shortcut != nil, !picking {

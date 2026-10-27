@@ -81,7 +81,7 @@ Mindtalk 2.0 är mer än diktering. Spela in möten, spara dina tankar och fråg
 
 | | |
 |---|---|
-| **Din genväg, ditt sätt** | Håll in valfri tangent eller en kombination av modifierartangenter och prata (höger ⌥ Option som standard). Dubbeltryck, eller tryck på mellanslag medan du håller in, för att låsa handsfree. <kbd>Esc</kbd> avbryter. Vill du hellre trycka för att starta? Det är en inställning. |
+| **Din genväg, ditt sätt** | Håll in valfri tangent, eller flera tangenter som ⌥ och ⌘ samtidigt, och prata (höger ⌥ Option som standard). Dubbeltryck, eller tryck på mellanslag medan du håller in, för att låsa handsfree. <kbd>Esc</kbd> avbryter. Vill du hellre trycka för att starta? Det är en inställning. |
 | **Två talmodeller** | Svenska (Klang Pianissimo) eller flerspråkig (Parakeet Ultra). Ladda ned en eller båda i introduktionen och byt med <kbd>⌘1</kbd> / <kbd>⌘2</kbd> i menyraden. Valet gäller både diktering och möten. |
 | **Text som är klar att skicka** | Tvekljud (*eh, öh, um*) försvinner. Säg *”ny rad”* eller *”nytt stycke”* för radbrytningar. |
 | **Putsa med Apple Intelligence** *(valfritt)* | Rättar skiljetecken, upprepningar och självrättelser (*”tisdag, nej jag menar onsdag”* → *”onsdag”*) på datorn. Med skyddsspärrar: den kan bara ta bort ord, aldrig lägga till, svara eller formulera om. |
@@ -244,11 +244,11 @@ Sedan söker Mindtalk själv efter uppdateringar och erbjuder dem. Nyheterna fin
 
 ## Tangentbord
 
-Välj dina genvägar under **Inställningar → Allmänt → Genvägar**, eller byt dikteringstangent direkt på sidan Diktering. Klicka på ett genvägsfält, håll in önskade modifierartangenter tillsammans (till exempel **höger Option + höger Command**) och släpp för att spara. Vänster och höger modifierartangenter räknas som olika tangenter. Du kan också trycka på en vanlig tangent. <kbd>Esc</kbd> avbryter valet.
+Välj dina genvägar under **Inställningar → Allmänt → Genvägar**, eller byt dikteringstangent direkt på sidan Diktering. Klicka på ett genvägsfält, håll in de tangenter du vill använda samtidigt (till exempel **höger Option + höger Command**) och släpp för att spara. Vänster och höger räknas som olika tangenter. Du kan också trycka på en vanlig tangent. <kbd>Esc</kbd> avbryter valet.
 
-I läget ”Bara håll in” startar en kombination av modifierartangenter dikteringen när alla valda tangenter hålls in, och dikteringen avslutas när du släpper någon av dem.
+I läget ”Bara håll in” startar dikteringen när alla valda tangenter hålls in, och den avslutas när du släpper någon av dem.
 
-För **Säg en tanke** väljer du en eller flera modifierartangenter på samma sätt, i Inställningar eller på sidan Tankar. Håll in alla valda tangenter för att spela in och släpp någon av dem för att spara tanken; ett kort tryck låser och låter dig prata fritt. Option, Command, Control, Shift och Fn/Globe kan kombineras, även med vänster- och högervarianter. Genvägarna för tankar och diktering måste använda olika modifierartangenter. Att skriva eller klicka med de valda tangenterna fungerar som vanligt.
+För **Säg en tanke** väljer du en eller flera tangenter, som ⌥ och ⌘, på samma sätt, i Inställningar eller på sidan Tankar. Håll in alla valda tangenter medan du pratar och släpp någon av dem för att spara tanken. Ett kort tryck låser i stället, så att du kan prata fritt. Option, Command, Control, Shift och Fn/Globe går att kombinera, och vänster och höger räknas för sig. Tankar och diktering kan inte dela någon tangent. Att skriva eller klicka med de valda tangenterna fungerar som vanligt.
 
 | | |
 |---|---|

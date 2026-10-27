@@ -140,7 +140,7 @@ struct ThoughtsPage: View {
         let spoken: String
         if pickingKey {
             title = String(localized: "Tryck på en tangent…")
-            detail = String(localized: "Håll in en eller flera modifierartangenter tillsammans och släpp. Du kan också trycka på en kombination, som ⌃⌥T. Esc avbryter.")
+            detail = String(localized: "Håll in en eller flera tangenter, som ⌥ och ⌘, och släpp. Du kan också trycka på en kombination, som ⌃⌥T. Esc avbryter.")
             spoken = title
         } else if let thoughtKey {
             title = String(localized: "Håll in \(thoughtKey.titleName) och tänk högt")
