@@ -314,7 +314,7 @@ struct KeyChord: Codable, Equatable {
 
 // MARK: - The thought shortcut
 
-/// Say a thought (Tankar): a modifier held on its own, like the dictation key — left ⌥
+/// Say a thought (Tankar): modifiers held together, like the dictation key — left ⌥
 /// by default — or a chord like ⌃⌥T, the default long ago. On its own means on its own:
 /// ⌥2 for @, ⌥-click or ⌥-scroll with left ⌥ stay what they always were, and so do
 /// ⌘C and ⌘Tab for someone who chose right ⌘ (the default before left ⌥).
@@ -338,7 +338,7 @@ enum ThoughtShortcut: Equatable {
     /// Shares a key with the dictation key — never allowed: one press can't be both.
     func collides(with dictation: Hotkey) -> Bool {
         guard let key, dictation.isModifier else { return false }
-        return dictation.containsModifier(key.keyCode)
+        return key.modifierMask & dictation.modifierMask != 0
     }
 
     /// For a chip: "⌥ Opt ←", "⌃⌥T".
@@ -363,7 +363,7 @@ enum ThoughtShortcut: Equatable {
     /// One big key each, with what's printed on it: ⌥ over "vänster option", or ⌃ ⌥ T.
     var keycaps: [(symbol: String, caption: String)] {
         switch self {
-        case .key(let key): return [key.keycap]
+        case .key(let key): return key.modifierKeys.map(\.keycap)
         case .chord(let chord):
             let f = CGEventFlags(rawValue: chord.modifiers)
             var keys: [(symbol: String, caption: String)] = []
@@ -462,17 +462,18 @@ final class KeyListener {
     var onMeetingChord: (() -> Void)?
     /// Say a thought: pressed and let go (held while you talk). nil: off.
     var thoughtShortcut: ThoughtShortcut? = Settings.thoughtShortcut {
-        didSet { thoughtHeld = false; thoughtKeyDown = false; thoughtKeySpoiled = false }
+        didSet { thoughtHeld = false; thoughtKeyDown = false; thoughtKeySpoiled = false; thoughtModifiersDown = 0 }
     }
     var onThoughtPress: (() -> Void)?
     var onThoughtRelease: (() -> Void)?
     /// Another key (or a click) joined the thought key: a shortcut like ⌘C, not a thought.
     var onThoughtChord: (() -> Void)?
     private var thoughtHeld = false
-    /// The thought key (a modifier) is down, and it was alone when it went down.
+    /// All selected thought modifiers are down, with no other keys used.
     private var thoughtKeyDown = false
-    /// Something joined in while it's down: not a thought until it's let go.
+    /// Something joined a complete or partial combination: blocked until all members are up.
     private var thoughtKeySpoiled = false
+    private var thoughtModifiersDown: UInt64 = 0
     private var mouseMonitors: [Any] = []
     /// A new meeting shortcut is being picked: the keys go to the picker.
     var pickingChord = false
@@ -572,9 +573,8 @@ final class KeyListener {
     func clicked(scroll: Bool = false, momentum: Bool = false) {
         if !scroll, isDown, hotkey.isModifier { later { $0.onChord?() } }
         // A scroll still gliding from before isn't something done with ⌘.
-        guard thoughtKeyDown, !thoughtKeySpoiled, !momentum else { return }
-        thoughtKeySpoiled = true
-        later { $0.onThoughtChord?() }
+        guard thoughtModifiersDown != 0, !momentum else { return }
+        spoilThoughtKey()
     }
 
     /// When the dictation key, and the thought key held alone, last went down.
@@ -601,34 +601,38 @@ final class KeyListener {
         return Self.keyWentDown(since: thoughtPressedAt)
     }
 
-    /// The thought key held on its own. Never swallows anything (⌥ stays ⌥, ⌘ stays ⌘,
-    /// for every app); it only notes what happens: down alone, something joining in, let go.
+    private func spoilThoughtKey() {
+        guard !thoughtKeySpoiled else { return }
+        thoughtKeySpoiled = true
+        if thoughtKeyDown { later { $0.onThoughtChord?() } }
+    }
+
+    /// All selected modifiers must be held together. Partial combinations stay idle;
+    /// typing or clicking with them blocks activation until every member is released.
+    /// Modifiers always pass through so other apps' shortcuts keep working.
     private func thoughtKeyEvent(_ key: Hotkey, _ type: CGEventType, _ keyCode: UInt16, _ flags: CGEventFlags) {
+        var held = flags.rawValue & Hotkey.allModifierMasks
+        // Navigation keys can carry fn's flag without the physical fn key held.
+        if !fnDown { held &= ~CGEventFlags.maskSecondaryFn.rawValue }
+        thoughtModifiersDown = held & key.modifierMask
         if type == .flagsChanged, key.containsModifier(keyCode) {
-            if key.modifiersAreDown(in: flags) {
+            if thoughtModifiersDown != 0, held & ~key.modifierMask != 0 { spoilThoughtKey() }
+            if thoughtModifiersDown == key.modifierMask {
                 guard !thoughtKeyDown, !thoughtKeySpoiled else { return }
-                // Another modifier already held (⇧, then left ⌥): a shortcut on its way.
-                let others = flags.rawValue & Hotkey.allModifierMasks & ~key.modifierMask
-                    & ~CGEventFlags.maskSecondaryFn.rawValue
-                if others != 0 || (fnDown && Int(keyCode) != kVK_Function) {
-                    thoughtKeySpoiled = true
-                    return
-                }
                 thoughtKeyDown = true
                 thoughtPressedAt = Date()
                 later { $0.onThoughtPress?() }
             } else {
                 let wasDown = thoughtKeyDown
                 thoughtKeyDown = false
-                thoughtKeySpoiled = false
+                if thoughtModifiersDown == 0 { thoughtKeySpoiled = false }
                 if wasDown { later { $0.onThoughtRelease?() } }
             }
             return
         }
-        // Anything else while it's down — a key (⌘C, ⌘Tab) or another modifier (⇧⌘).
-        guard thoughtKeyDown, !thoughtKeySpoiled, type == .keyDown || type == .flagsChanged else { return }
-        thoughtKeySpoiled = true
-        later { $0.onThoughtChord?() }
+        let modifierPressed = type == .flagsChanged
+            && Hotkey.modifierMasks[keyCode].map { held & $0 != 0 } == true
+        if thoughtModifiersDown != 0, type == .keyDown || modifierPressed { spoilThoughtKey() }
     }
 
     private func handle(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
@@ -675,7 +679,7 @@ final class KeyListener {
         // (holding right ⌥ to pick it mustn't begin a dictation). One already going ends.
         if pickingChord, !isDown { return pass }
 
-        // A thought on a key held alone (left ⌥): noted, never swallowed.
+        // A thought on held modifiers (left ⌥ by default): noted, never swallowed.
         if let key = thoughtShortcut?.key { thoughtKeyEvent(key, type, keyCode, event.flags) }
 
         // A thought on a chord: held while you talk. The key's own presses (and repeats)
@@ -826,13 +830,17 @@ final class KeyListener {
             thoughtKeySpoiled = true
             later { $0.onThoughtChord?() }
         }
-        if thoughtKeyDown || thoughtKeySpoiled, let key = thoughtShortcut?.key,
-           !key.modifiersPhysicallyDown(in: hid),
-           !key.modifiersPhysicallyDown(in: CGEventSource.flagsState(.combinedSessionState)) {
-            let wasDown = thoughtKeyDown
-            thoughtKeyDown = false
-            thoughtKeySpoiled = false
-            if wasDown { later { $0.onThoughtRelease?() } }
+        if let key = thoughtShortcut?.key {
+            let session = CGEventSource.flagsState(.combinedSessionState)
+            thoughtModifiersDown = key.modifierKeys.reduce(UInt64(0)) { mask, member in
+                member.modifiersPhysicallyDown(in: hid) || member.modifiersPhysicallyDown(in: session)
+                    ? mask | member.modifierMask : mask
+            }
+            if thoughtKeyDown, !key.modifiersPhysicallyDown(in: hid), !key.modifiersPhysicallyDown(in: session) {
+                thoughtKeyDown = false
+                later { $0.onThoughtRelease?() }
+            }
+            if thoughtModifiersDown == 0 { thoughtKeySpoiled = false }
         }
     }
 
@@ -844,6 +852,7 @@ final class KeyListener {
         thoughtHeld = false
         thoughtKeyDown = false
         thoughtKeySpoiled = false
+        thoughtModifiersDown = 0
         modifierShortcutUsed = false
         fnDown = false
         capturedModifierMask = 0

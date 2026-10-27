@@ -27,9 +27,10 @@ enum HotkeySelfTest {
             try await thoughtChord()
             try await thoughtKeyAlone()
             try await thoughtLeftOption()
+            try await thoughtModifierCombinations()
             try thoughtKeyConflicts()
             try await thoughtSettings()
-            print("Hotkey self-test passed (model, modifier combinations, shortcuts, capture, reset, fn, meeting and thought shortcuts, thought key held alone, left ⌥ for thoughts).")
+            print("Hotkey self-test passed (model, modifier combinations, shortcuts, capture, reset, fn, meeting and thought shortcuts, thought key held alone, left ⌥ for thoughts, thought modifier combinations).")
             return 0
         } catch {
             print("Hotkey self-test failed: \(error.localizedDescription)")
@@ -648,6 +649,137 @@ enum HotkeySelfTest {
         print("Passed left ⌥ for thoughts: alone, ⌥2, ⌥7, ⌥-click, ⇧⌥, beside right ⌥ dictation")
     }
 
+    private static func thoughtModifierCombinations() async throws {
+        let key = try combination(0x30) // left ⌥ + right ⌘; disjoint from right ⌥ dictation
+        let leftOption = UInt16(kVK_Option)
+        let leftFlags = flags(0x20, [.maskAlternate])
+        let together = flags(0x30, [.maskAlternate, .maskCommand])
+        func thoughtProbe(_ hotkey: Hotkey? = nil) -> Probe {
+            let probe = Probe(hotkey: Hotkey(keyCode: UInt16(kVK_F5), modifierMask: 0))
+            probe.listener.thoughtShortcut = .key(hotkey ?? key)
+            probe.listener.meetingChord = nil
+            probe.listener.onThoughtPress = { [weak probe] in probe?.calls.append("thought") }
+            probe.listener.onThoughtRelease = { [weak probe] in probe?.calls.append("kept") }
+            probe.listener.onThoughtChord = { [weak probe] in probe?.calls.append("shortcut") }
+            return probe
+        }
+        func modifierFlags(_ mask: UInt64) -> CGEventFlags {
+            var raw = mask
+            if mask & 0x60 != 0 { raw |= CGEventFlags.maskAlternate.rawValue }
+            if mask & 0x18 != 0 { raw |= CGEventFlags.maskCommand.rawValue }
+            if mask & 0x2001 != 0 { raw |= CGEventFlags.maskControl.rawValue }
+            if mask & 0x06 != 0 { raw |= CGEventFlags.maskShift.rawValue }
+            return CGEventFlags(rawValue: raw)
+        }
+        // Every member can be first or last; ending on the first release must only fire once.
+        for mask in [UInt64(0x30), 0x2014, 0x60, CGEventFlags.maskSecondaryFn.rawValue | 0x20] {
+            let combo = try combination(mask)
+            let keys = combo.modifierKeys
+            for pressOrder in [keys, Array(keys.reversed())] {
+                for releaseOrder in [keys, Array(keys.reversed())] {
+                    let probe = thoughtProbe(combo)
+                    var held: UInt64 = 0
+                    for (index, member) in pressOrder.enumerated() {
+                        held |= member.modifierMask
+                        try require(try probe.send(.flagsChanged, member.keyCode, modifierFlags(held)), "A thought modifier was swallowed")
+                        await drainCallbacks()
+                        try require(probe.calls == (index == keys.count - 1 ? ["thought"] : []),
+                                    "Thought started before all selected keys, or failed to start: \(probe.calls)")
+                    }
+                    _ = try probe.send(.flagsChanged, pressOrder.last!.keyCode, modifierFlags(held))
+                    for member in releaseOrder {
+                        held &= ~member.modifierMask
+                        try require(try probe.send(.flagsChanged, member.keyCode, modifierFlags(held)), "A thought modifier release was swallowed")
+                        await drainCallbacks()
+                        try require(probe.calls == ["thought", "kept"], "Thought release was missed or repeated: \(probe.calls)")
+                    }
+                }
+            }
+        }
+        // Typing, another modifier, a click or a scroll during a partial combination
+        // must not become a thought as the remaining member arrives.
+        for action in 0..<4 {
+            let probe = thoughtProbe()
+            _ = try probe.send(.flagsChanged, leftOption, leftFlags)
+            switch action {
+            case 0:
+                try require(try probe.send(.keyDown, UInt16(kVK_ANSI_C), leftFlags), "Typing with a partial thought shortcut was swallowed")
+                _ = try probe.send(.keyUp, UInt16(kVK_ANSI_C), leftFlags)
+            case 1:
+                _ = try probe.send(.flagsChanged, UInt16(kVK_Shift), flags(0x22, [.maskAlternate, .maskShift]))
+                _ = try probe.send(.flagsChanged, UInt16(kVK_Shift), leftFlags)
+            default: probe.listener.clicked(scroll: action == 3)
+            }
+            _ = try probe.send(.flagsChanged, command, together)
+            _ = try probe.send(.flagsChanged, leftOption, commandFlags)
+            // Releasing just one member (and even resuming the full combination) isn't a reset.
+            _ = try probe.send(.flagsChanged, leftOption, together)
+            _ = try probe.send(.flagsChanged, command, leftFlags)
+            _ = try probe.send(.flagsChanged, leftOption, [])
+            await drainCallbacks()
+            try require(probe.calls.isEmpty, "A partial shortcut became a thought: \(probe.calls)")
+            _ = try probe.send(.flagsChanged, command, commandFlags)
+            _ = try probe.send(.flagsChanged, leftOption, together)
+            _ = try probe.send(.flagsChanged, command, leftFlags)
+            _ = try probe.send(.flagsChanged, leftOption, [])
+            await drainCallbacks()
+            try require(probe.calls == ["thought", "kept"], "The combination stayed blocked after all keys were released")
+        }
+        let extraFirst = thoughtProbe()
+        _ = try extraFirst.send(.flagsChanged, UInt16(kVK_Shift), flags(0x02, [.maskShift]))
+        _ = try extraFirst.send(.flagsChanged, leftOption, flags(0x22, [.maskAlternate, .maskShift]))
+        _ = try extraFirst.send(.flagsChanged, UInt16(kVK_Shift), leftFlags)
+        _ = try extraFirst.send(.flagsChanged, command, together)
+        await drainCallbacks()
+        try require(extraFirst.calls.isEmpty, "An unrelated modifier held first became a thought")
+
+        for action in 0..<3 {
+            let active = thoughtProbe()
+            _ = try active.send(.flagsChanged, leftOption, leftFlags)
+            _ = try active.send(.flagsChanged, command, together)
+            switch action {
+            case 0: _ = try active.send(.keyDown, UInt16(kVK_ANSI_C), together)
+            case 1: _ = try active.send(.flagsChanged, UInt16(kVK_Shift), flags(0x32, [.maskAlternate, .maskCommand, .maskShift]))
+            default: active.listener.clicked()
+            }
+            _ = try active.send(.flagsChanged, command, leftFlags)
+            _ = try active.send(.flagsChanged, leftOption, [])
+            await drainCallbacks()
+            try require(active.calls == ["thought", "shortcut", "kept"], "Using a complete thought combination as a shortcut did not cancel it: \(active.calls)")
+        }
+        let wrongSide = thoughtProbe()
+        _ = try wrongSide.send(.flagsChanged, leftOption, leftFlags)
+        _ = try wrongSide.send(.flagsChanged, UInt16(kVK_Command), flags(0x28, [.maskAlternate, .maskCommand]))
+        await drainCallbacks()
+        try require(wrongSide.calls.isEmpty, "Left ⌘ satisfied a right ⌘ thought combination")
+
+        let fnKey = try combination(CGEventFlags.maskSecondaryFn.rawValue | 0x20)
+        let navigation = thoughtProbe(fnKey)
+        _ = try navigation.send(.keyDown, UInt16(kVK_LeftArrow), [.maskSecondaryFn])
+        _ = try navigation.send(.keyUp, UInt16(kVK_LeftArrow), [.maskSecondaryFn])
+        _ = try navigation.send(.flagsChanged, leftOption, flags(0x20, [.maskAlternate, .maskSecondaryFn]))
+        await drainCallbacks()
+        try require(navigation.calls.isEmpty, "An arrow key's implied fn started a thought")
+        _ = try navigation.send(.flagsChanged, UInt16(kVK_Function), flags(0x20, [.maskAlternate, .maskSecondaryFn]))
+        _ = try navigation.send(.flagsChanged, UInt16(kVK_Function), leftFlags)
+        _ = try navigation.send(.flagsChanged, leftOption, [])
+        await drainCallbacks()
+        try require(navigation.calls == ["thought", "kept"], "An arrow key blocked the next physical fn combination")
+
+        let reset = thoughtProbe()
+        _ = try reset.send(.flagsChanged, leftOption, leftFlags)
+        reset.listener.clicked()
+        reset.listener.reset()
+        _ = try reset.send(.flagsChanged, leftOption, leftFlags)
+        _ = try reset.send(.flagsChanged, command, together)
+        await drainCallbacks()
+        try require(reset.calls == ["thought"], "Reset left the thought combination blocked")
+        reset.listener.resync() // synthetic press, with no physical keys held
+        await drainCallbacks()
+        try require(reset.calls == ["thought", "kept"], "Resync left the thought combination held")
+        print("Passed thought modifier combinations: press/release orders, sides, fn, rollover, clicks, shortcuts, reset and resync")
+    }
+
     /// The thought key and the dictation key never share a key — whichever is picked second is refused.
     private static func thoughtKeyConflicts() throws {
         let rightCommand = Hotkey(keyCode: command, modifierMask: 0x10)
@@ -663,6 +795,12 @@ enum HotkeySelfTest {
         try require(leftCommand.refusal(besides: rightCommand) == nil, "Left ⌘ refused next to right ⌘")
         try require(ThoughtShortcut.chord(.thoughtDefault).refusal(besides: rightCommand) == nil, "⌃⌥T refused next to right ⌘")
         try require(ThoughtShortcut.refusal(dictation: rightCommand, besides: nil) == nil, "Refused with thoughts off")
+        let combo = ThoughtShortcut.key(try combination(0x30))
+        try require(combo.refusal(besides: rightCommand) != nil, "A thought combination sharing its second member with dictation was accepted")
+        try require(ThoughtShortcut.refusal(dictation: rightCommand, besides: combo) != nil, "Dictation overlapping a thought combination's second member was accepted")
+        try require(combo.refusal(besides: .default) == nil, "Disjoint thought and dictation modifiers were refused")
+        try require(combo.keycaps.map(\.symbol) == ["⌥", "⌘"], "Thought combination keycaps lost a modifier")
+        try require(combo.chip.contains(" + ") && combo.inlineName.contains(" + ") && combo.spokenName.contains(" + "), "Thought combination labels lost a modifier")
         // The default: left ⌥; dictation on left ⌥, right ⌘; on both, ⌃⌥T.
         let leftOption = Hotkey(keyCode: UInt16(kVK_Option), modifierMask: 0x20)
         try require(ThoughtShortcut.standard(besides: .default) == .leftOption, "Default is not left ⌥")
@@ -719,6 +857,9 @@ enum HotkeySelfTest {
 
         Settings.setThoughtShortcut(.rightCommand, in: defaults)
         try require(Settings.thoughtShortcut(in: defaults, besides: .default) == .rightCommand, "A saved right ⌘ did not stay")
+        let combo = ThoughtShortcut.key(try combination(0x30))
+        Settings.setThoughtShortcut(combo, in: defaults)
+        try require(Settings.thoughtShortcut(in: defaults, besides: .default) == combo, "A saved thought modifier combination was lost")
         // Turned off (✕), then a key picked: on again, with that key.
         Settings.setThoughtShortcut(nil, in: defaults)
         Settings.setThoughtShortcut(.leftOption, in: defaults)
@@ -813,7 +954,7 @@ enum ShortcutFieldSelfTest {
         var body: some View {
             VStack(alignment: .leading, spacing: 0) {
                 ThoughtShortcutField(shortcut: $model.shortcut, picking: $model.picking, refusal: $model.refusal,
-                                     meeting: model.meeting, apply: { model.applied.append($0) })
+                                     meeting: model.meeting, dictation: .default, apply: { model.applied.append($0) })
                     .frame(height: 38)
                 MeetingShortcutField(chord: $model.meeting, picking: $model.pickingMeeting, taken: [model.shortcut?.chord],
                                      apply: { model.appliedMeeting.append($0) })
@@ -878,7 +1019,7 @@ enum ShortcutFieldSelfTest {
             try require(model.shortcut == .chord(.thoughtDefault), "Letting go of ⌃⌥ changed the chord")
             // The dictation key is refused, said why, and nothing is saved.
             let count = model.applied.count
-            let dictation = Settings.hotkey
+            let dictation = Hotkey.default
             if dictation.isModifier, dictation.modifierKeys.count == 1 {
                 try await click(thoughtField)
                 try await flags(dictation.keyCode, 0x80100 | dictation.modifierMask)
@@ -891,6 +1032,42 @@ enum ShortcutFieldSelfTest {
             try await key(UInt16(kVK_Escape), 0x100)
             try require(!model.picking && model.shortcut == .chord(.thoughtDefault) && !KeyListener.shared.pickingChord,
                         "Esc did not end picking")
+            // A modifier group is saved only on final release, in either press order.
+            let combo = ThoughtShortcut.key(Hotkey.modifierCombination(mask: 0x30)!)
+            for reversed in [false, true] {
+                let first = UInt16(reversed ? kVK_RightCommand : kVK_Option)
+                let second = UInt16(reversed ? kVK_Option : kVK_RightCommand)
+                let firstFlags: UInt64 = reversed ? 0x100110 : 0x80120
+                let before = model.applied.count
+                try await click(thoughtField)
+                try await flags(first, firstFlags)
+                try await flags(second, 0x180130)
+                try require(model.picking && model.applied.count == before, "A modifier combination was saved before release")
+                try await flags(second, firstFlags)
+                try require(model.picking && model.applied.count == before, "The first release saved an incomplete combination")
+                try await flags(first, 0x100)
+                try require(model.shortcut == combo && model.applied.count == before + 1 && !model.picking,
+                            "The complete modifier combination was not picked")
+            }
+            // A modifier held while clicking is not part of the captured group.
+            KeyListener.shared.modifiersHeldNow = { 0x02 }
+            try await click(thoughtField)
+            try await flags(UInt16(kVK_Option), 0xA0122)
+            try await flags(UInt16(kVK_RightCommand), 0x1A0132)
+            try await flags(UInt16(kVK_Option), 0x120112)
+            try await flags(UInt16(kVK_RightCommand), 0x20102)
+            try require(model.shortcut == combo && !model.picking, "A held-over modifier was included in the thought combination")
+            KeyListener.shared.modifiersHeldNow = { 0 }
+            try await flags(UInt16(kVK_Shift), 0x100)
+            // Sharing only the second member with dictation is still refused.
+            let beforeConflict = model.applied.count
+            try await click(thoughtField)
+            try await flags(UInt16(kVK_Option), 0x80120)
+            try await flags(UInt16(kVK_RightOption), 0x80160)
+            try await flags(UInt16(kVK_RightOption), 0x80120)
+            try await flags(UInt16(kVK_Option), 0x100)
+            try require(model.applied.count == beforeConflict && model.refusal != nil && model.shortcut == combo,
+                        "A thought combination overlapping the dictation key was saved")
             // The meeting field: click, ⌃⌥⌘K.
             try await click(meetingField)
             try require(model.pickingMeeting && KeyListener.shared.pickingChord, "Clicking the meeting field did not start picking")
@@ -907,7 +1084,7 @@ enum ShortcutFieldSelfTest {
             ShortcutPicking.stopAll(reason: "test")
             try await settle()
             try require(!model.pickingMeeting && !KeyListener.shared.pickingChord, "stopAll did not end picking")
-            print("Shortcut field self-test passed (empty field, key held alone, ⌥2, chord, refusal, Esc, meeting, one at a time, stop).")
+            print("Shortcut field self-test passed (empty field, held modifiers, combinations, held-over modifiers, ⌥2, chord, refusal, Esc, meeting, one at a time, stop).")
             return 0
         } catch {
             print("Shortcut field self-test failed: \(error.localizedDescription)")

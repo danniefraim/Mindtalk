@@ -249,6 +249,8 @@ Choose your shortcuts in **Settings → General → Shortcuts**, or change the d
 
 In hold mode, a modifier combination starts dictation once every selected modifier is held and finishes when you release any of them.
 
+For **Say a thought**, choose one or more modifiers in the same way, in Settings or on the Thoughts page. Hold all selected keys to record and release any one to save the thought; a quick tap keeps listening hands-free. Option, Command, Control, Shift and Fn/Globe can be combined, including left/right variants. The thought and dictation shortcuts must use separate modifier keys. Typing or clicking with the selected modifiers still works as usual.
+
 | | |
 |---|---|
 | Hold your shortcut | Talk; let go to type |

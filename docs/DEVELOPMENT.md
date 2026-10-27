@@ -40,6 +40,9 @@ open -n -W --stdout /dev/stdout build/Build/Products/Debug/Mindtalk.app --args -
 # Modifier combinations, shortcut capture and event routing (Debug only)
 $BIN --hotkey-test
 
+# Thought/meeting shortcut fields with events posted to an off-screen window (Debug only)
+$BIN --shortcut-field-test
+
 # Pause/fade whatever is playing for three seconds (Debug only)
 $BIN --media-test
 
@@ -62,6 +65,17 @@ must finish it. Also check Space and double-tap locking in hold-or-double-tap mo
 Esc cancellation, and that Esc while choosing a shortcut preserves the previous
 choice. Restart the app to check that the combination is restored; an existing
 single-key preference should also remain unchanged after upgrading.
+
+For thoughts, choose **left Option + right Command** while dictation uses right
+Option. Check both press/release orders, Settings and the Thoughts page: neither
+key alone starts recording, both together do, and the first release ends it. A
+quick tap still locks hands-free. Check that both keycaps appear in the introduction
+and the combination survives restarting. Typing, clicking, scrolling or pressing
+an unrelated modifier during a partial combination must block recording until all
+selected keys are released. A combination sharing any modifier with dictation must
+be refused, whichever shortcut is changed second. `--hotkey-test` covers routing,
+saved settings and labels; `--shortcut-field-test` checks the real SwiftUI picker,
+including final-release capture, held-over modifiers and conflict refusal.
 
 The recorder test requests microphone permission and checks the built-in microphone
 (when available) and the system default. It reuses recorders between selections,

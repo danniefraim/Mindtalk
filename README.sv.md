@@ -248,6 +248,8 @@ Välj dina genvägar under **Inställningar → Allmänt → Genvägar**, eller 
 
 I läget ”Bara håll in” startar en kombination av modifierartangenter dikteringen när alla valda tangenter hålls in, och dikteringen avslutas när du släpper någon av dem.
 
+För **Säg en tanke** väljer du en eller flera modifierartangenter på samma sätt, i Inställningar eller på sidan Tankar. Håll in alla valda tangenter för att spela in och släpp någon av dem för att spara tanken; ett kort tryck låser och låter dig prata fritt. Option, Command, Control, Shift och Fn/Globe kan kombineras, även med vänster- och högervarianter. Genvägarna för tankar och diktering måste använda olika modifierartangenter. Att skriva eller klicka med de valda tangenterna fungerar som vanligt.
+
 | | |
 |---|---|
 | Håll in genvägen | Prata; släpp för att skriva in |

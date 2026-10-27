@@ -58,12 +58,12 @@ enum Settings {
         set { if !previewing { setThoughtShortcut(newValue, in: defaults) } }
     }
 
-    /// A key held alone is under "thoughtKey", a chord under "thoughtShortcut" (where
+    /// Held modifiers are under "thoughtKey", a chord under "thoughtShortcut" (where
     /// it always was). Neither saved: the default, left ⌥ (right ⌘ or ⌃⌥T if dictation has it).
     static func thoughtShortcut(in defaults: UserDefaults, besides dictation: Hotkey) -> ThoughtShortcut? {
         if defaults.bool(forKey: "thoughtShortcutOff") { return nil }
         if let data = defaults.data(forKey: "thoughtKey"),
-           let key = try? JSONDecoder().decode(Hotkey.self, from: data), key.modifierKeys.count == 1 {
+           let key = try? JSONDecoder().decode(Hotkey.self, from: data), !key.modifierKeys.isEmpty {
             return .key(key)
         }
         if let data = defaults.data(forKey: "thoughtShortcut"),
