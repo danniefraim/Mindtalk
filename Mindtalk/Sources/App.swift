@@ -49,6 +49,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             NSApplication.shared.run()
             return
         }
+        if args.contains("--speaker-name-test") {
+            NSApplication.shared.setActivationPolicy(.accessory)
+            Task { @MainActor in exit(await SpeakerNamePickerTest.run()) }
+            NSApplication.shared.run()
+            return
+        }
         // `Mindtalk --render-perf <meeting id>`: a long meeting opened, scrolled and its tabs
         // switched, timed (WindowRender.swift, WindowPerf).
         if let i = args.firstIndex(of: "--render-perf"), i + 1 < args.count {

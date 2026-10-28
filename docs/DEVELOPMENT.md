@@ -43,6 +43,9 @@ $BIN --hotkey-test
 # Thought/meeting shortcut fields with events posted to an off-screen window (Debug only)
 $BIN --shortcut-field-test
 
+# Speaker picker: native completion, selection, editing and keyboard actions (Debug only)
+$BIN --speaker-name-test
+
 # Pause/fade whatever is playing for three seconds (Debug only)
 $BIN --media-test
 

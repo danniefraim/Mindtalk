@@ -1503,7 +1503,6 @@ struct SpeakerChip: View {
     @State private var draft = ""
     /// Under the pointer: the name underlined and a pencil, so it reads as something to click.
     @State private var hovering = false
-    @FocusState private var focused: Bool
 
     var body: some View {
         Button {
@@ -1576,11 +1575,9 @@ struct SpeakerChip: View {
                         .help("Namnet tas bort i det här mötet. Mindtalk känner fortfarande igen rösten.")
                     }
                 }
-                TextField(cast.name(of: speaker), text: $draft)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 220)
-                    .focused($focused)
-                    .onSubmit(save)
+                SpeakerNamePicker(name: $draft, cast: cast, placeholder: cast.name(of: speaker),
+                                  submit: { name in rename(name); editing = false },
+                                  cancel: { editing = false })
                 // Not a person at all: a TV, a radio, the next table. Kept in the text,
                 // quietly, and left out of the notes; undone the same way.
                 if let background {
@@ -1606,12 +1603,11 @@ struct SpeakerChip: View {
                 }
                 HStack {
                     Spacer()
-                    Button("Avbryt") { editing = false }.buttonStyle(.soft)
+                    Button("Avbryt") { editing = false }.buttonStyle(.soft).keyboardShortcut(.cancelAction)
                     Button("Spara", action: save).buttonStyle(.ink).keyboardShortcut(.defaultAction)
                 }
             }
             .padding(16)
-            .onAppear { focused = true }
         }
     }
 

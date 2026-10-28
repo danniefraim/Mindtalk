@@ -26164,6 +26164,22 @@
         }
       }
     },
+    "Välj en känd talare eller skriv ett nytt namn.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a known speaker or type a new name."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj en känd talare eller skriv ett nytt namn."
+          }
+        }
+      }
+    },
     "Välj en ljud- eller videofil (⌘O)": {
       "localizations": {
         "en": {
